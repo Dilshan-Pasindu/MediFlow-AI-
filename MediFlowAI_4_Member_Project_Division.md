@@ -54,7 +54,7 @@ A full-stack production-style application built around a channeling center workf
 │  Member 1 → Patient & Appointment Intelligence                      │
 │  Member 2 → Doctor & Medication Intelligence                        │
 │  Member 3 → Receptionist & Pharmacy Operations Intelligence        │
-│  Member 4 → Supplier & Agentic Workflow Orchestration              │
+│  Member 4 → Supplier & Specialist Recommendation Intelligence      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -66,6 +66,14 @@ The system works around a **channeling center**. Patients do **not** upload pres
 
 ```text
 Patient
+   ↓
+Enter Symptoms
+   ↓
+Specialist Recommendation Agent
+   ↓
+Recommended Specialty + Available Doctors
+   ↓
+Patient Selects Doctor
    ↓
 Books Doctor Appointment
    ↓
@@ -126,7 +134,7 @@ Each role has its own appropriate portal and permissions.
 | Pharmacist | Member 3 | React | Process prescriptions, manage orders, calculate prices |
 | Pharmacy Owner | Member 3 | React | Manage inventory, monitor stock levels |
 | Supplier | Member 4 | React | View restock requests, approve/reject supply orders |
-| Admin | Member 4 | React | System monitoring, audit logs, AI workflow monitoring |
+| Admin | Member 4 | React | System monitoring, audit logs, AI agent monitoring |
 
 ---
 
@@ -134,7 +142,7 @@ Each role has its own appropriate portal and permissions.
 
 ### Business Focus
 
-Everything related to the **patient journey** — from registration through appointment booking, payment, viewing prescriptions, tracking medicine orders, and providing pharmacy feedback. Also owns the **Appointment Intelligence Agent**.
+Everything related to the **patient journey** — from registration and symptom entry through appointment booking, payment, viewing prescriptions, tracking medicine orders, and providing pharmacy feedback. Includes building the Flutter symptom entry and recommendation viewing screens (powered by Member 4's Specialist Recommendation Agent). Also owns the **Appointment Intelligence Agent**.
 
 ### Database Entities Owned
 
@@ -203,8 +211,15 @@ Splash Screen
 Login / Register
     ↓
 Patient Home Dashboard
-    ├── Search Doctors
-    │       ├── Doctor List (search, filter)
+    ├── Symptom Entry & Specialist Recommendation
+    │       ├── Enter Symptoms (description, duration, severity)
+    │       ├── Specialist Recommendation Result
+    │       │       ├── Recommended Specialty (with confidence %)
+    │       │       ├── Explanation ("Why this specialty?")
+    │       │       └── ⚠️ Urgency Alert (if emergency symptoms detected)
+    │       └── Recommended Doctors in Specialty
+    ├── Search Doctors (also accessible directly)
+    │       ├── Doctor List (search, filter by specialty)
     │       ├── Doctor Profile
     │       └── Available Sessions
     ├── Book Appointment
@@ -303,6 +318,7 @@ feature/patient-orders-view
 feature/patient-feedback
 feature/agent-appointment-intelligence
 feature/flutter-patient-screens
+feature/flutter-symptom-recommendation
 feature/flutter-auth
 ```
 
@@ -993,11 +1009,11 @@ feature/react-pharmacist-screens
 
 ---
 
-## 8. Member 4 — Supplier & Agentic Workflow Orchestration
+## 8. Member 4 — Supplier & Specialist Recommendation Intelligence
 
 ### Business Focus
 
-Everything related to **supplier management, restocking workflow, AI agent orchestration, workflow monitoring, audit logs, AI evaluation, and system-wide workflow coordination**. Also owns the **Workflow Orchestrator Agent**.
+Everything related to **supplier management, restocking workflow, specialist recommendation intelligence, AI agent monitoring, audit logs, AI evaluation, and system-wide reporting**. Also owns the **Specialist Recommendation Agent** — an intelligent symptom-to-specialty recommendation system that serves as the natural starting point of the channeling workflow.
 
 ### Database Entities Owned
 
@@ -1008,8 +1024,10 @@ Everything related to **supplier management, restocking workflow, AI agent orche
 | `SupplierMedicines` | Which suppliers provide which medicines |
 | `SupplyOrders` | Supply delivery records |
 | `SupplyHistory` | Historical supply transactions |
-| `AIWorkflows` | Agentic workflow state and plan persistence |
-| `AIAgentExecutions` | Per-agent execution records within a workflow |
+| `SymptomEntries` | Patient symptom submissions (free text, duration, severity) |
+| `SpecialtyRecommendations` | AI-generated specialty recommendations with confidence scores |
+| `RecommendationFeedback` | Tracking whether patients followed the recommended specialty |
+| `AIAgentExecutions` | Per-agent execution records (all agents) |
 | `AIToolCalls` | Individual tool call logs |
 | `AuditLogs` | System-wide audit trail |
 
@@ -1038,14 +1056,18 @@ PUT    /api/supply-orders/{id}/status         # Update supply status
 POST   /api/supply-orders/{id}/receive        # Confirm pharmacy received medicines
 GET    /api/supply-orders                     # List supply orders
 
-# AI Workflow Management
-POST   /api/ai/workflows                      # Create new AI workflow
-PUT    /api/ai/workflows/{id}/state           # Update workflow state
-GET    /api/ai/workflows/{id}/state           # Get current workflow state
-GET    /api/ai/workflows                      # List all workflows (filter, sort, paginate)
-GET    /api/ai/workflows/{id}                 # Full workflow details + timeline
-GET    /api/ai/workflows/{id}/executions      # Agent executions for a workflow
-GET    /api/ai/workflows/{id}/tool-calls      # Tool calls for a workflow
+# Specialist Recommendation
+POST   /api/recommendations/analyze           # Submit symptoms for AI analysis
+GET    /api/recommendations/{id}              # Get recommendation result
+GET    /api/recommendations/history/{patientId}  # Patient's recommendation history
+GET    /api/recommendations/{id}/explanation  # Get detailed explanation for recommendation
+POST   /api/recommendations/{id}/feedback     # Submit whether patient followed recommendation
+
+# AI Agent Monitoring
+GET    /api/ai/executions                     # List all agent executions (all agents)
+GET    /api/ai/executions/{id}                # Agent execution details
+GET    /api/ai/executions/{id}/tool-calls     # Tool calls for an execution
+GET    /api/ai/tool-calls                     # List all tool calls (filter by agent type)
 
 # Audit Logs
 GET    /api/audit-logs                        # List audit logs (filter by user, action, date)
@@ -1054,7 +1076,7 @@ POST   /api/audit-logs                        # Create audit log entry
 
 # AI Evaluation Reports
 GET    /api/reports/ai-evaluation             # AI evaluation metrics
-GET    /api/reports/workflow-summary           # Workflow summary stats
+GET    /api/reports/recommendation-accuracy   # Recommendation accuracy report
 GET    /api/reports/agent-performance          # Agent performance report
 ```
 
@@ -1104,31 +1126,38 @@ Status:             PENDING
 
 ```text
 AI Monitoring Dashboard
-    ├── Workflow List (search, filter by status, sort by date)
-    ├── Workflow Detail View
-    │       ├── Workflow Timeline / Progress
-    │       │       └── Stage 1: Appointment Intelligence ✓
-    │       │       └── Stage 2: Receptionist Verification ✓
-    │       │       └── Stage 3: Doctor Consultation ✓
-    │       │       └── Stage 4: Medication Intelligence ✓
-    │       │       └── Stage 5: Pharmacist Workflow ✓
-    │       │       └── Stage 6: Inventory Intelligence ✓
-    │       │       └── Stage 7: Supplier Workflow ✓
-    │       ├── Agent Execution Details (input, output, duration)
+    ├── Agent Execution List (search, filter by agent type, status)
+    ├── Execution Detail View
+    │       ├── Agent Type
+    │       │       ├── Specialist Recommendation Agent
+    │       │       ├── Appointment Intelligence Agent
+    │       │       ├── Medication Intelligence Agent
+    │       │       └── Pharmacy & Inventory Intelligence Agent
+    │       ├── Input Data
+    │       ├── Output / Result
+    │       ├── Execution Duration
     │       ├── Tool Call Logs (tool name, input, output, timestamp)
-    │       └── Human Approval Records
+    │       └── Status (Success / Failed / Timeout)
     ├── Execution History (filterable)
     └── Audit Logs (system-wide, filterable)
 
+Specialist Recommendation Dashboard
+    ├── Recent Recommendations
+    │       ├── Patient Symptoms → Recommended Specialty
+    │       ├── Confidence Scores
+    │       ├── Urgency Alerts Triggered
+    │       └── Follow Rate (did patient book recommended specialty?)
+    └── Recommendation Accuracy Over Time
+
 AI Evaluation Dashboard
+    ├── Specialist Recommendation Metrics
     ├── Appointment Intelligence Metrics
     ├── Medication Intelligence Metrics
     ├── Pharmacy & Inventory Intelligence Metrics
-    ├── Workflow Orchestration Metrics
     └── Overall System Performance
 
 Reports
-    ├── Workflow Summary (success rate, avg time, failure reasons)
+    ├── Recommendation Accuracy Report
     ├── Agent Performance Report
     └── Analytics Dashboard
 ```
@@ -1157,122 +1186,218 @@ Pharmacy Receives Medicine
 Inventory Updated
 ```
 
-### AI Agent — Workflow Orchestrator Agent
+### AI Agent — Specialist Recommendation Agent
 
-**Purpose:** Central agent responsible for coordinating the other AI capabilities and maintaining end-to-end workflow state across the entire channeling-to-pharmacy pipeline.
+**Purpose:** Analyze patient-provided symptoms using NLP/LLM processing, extract and classify symptoms, recommend the most appropriate medical specialty with confidence scores, identify available doctors within that specialty, detect potentially urgent symptoms requiring emergency attention, and provide explainable reasoning for recommendations. This agent does **not** diagnose the patient — it recommends a **specialty** for consultation.
 
-**Orchestration Flow:**
+**Recommendation Flow:**
 
 ```text
-Patient Books Appointment
-          ↓
-Appointment Intelligence Agent
-          ↓
-Receptionist Verification (Human)
-          ↓
-Verified Appointment
-          ↓
-Doctor Consultation (Human)
-          ↓
-Medication Intelligence Agent
-          ↓
-Inventory Check
-          ↓
-Doctor Final Decision (Human)
-          ↓
-E-Prescription Generated
-          ↓
-Pharmacist Processes Order (Human)
-          ↓
-Pharmacy & Inventory Intelligence Agent
-          ↓
-Order Processing
-          ↓
-Supplier Workflow (if required)
+Patient Enters Symptoms
+      ↓
+NLP / LLM Processing
+      ↓
+Symptom Extraction
+      ↓
+Symptom Classification
+      ↓
+Specialty Ranking
+      ↓
+Confidence Score
+      ↓
+Urgency Detection
+      ↓
+Doctor Availability Check
+      ↓
+Final Recommendation
 ```
 
-**Workflow State (persisted in PostgreSQL):**
+**Input:** Patient symptoms (free text), optional: symptom duration, severity, age group, medical history
+
+**Output:**
 
 ```json
 {
-  "workflowId": "WF-1024",
-  "appointmentNumber": "APP-2026-1024",
-  "status": "DOCTOR_CONSULTATION",
-  "createdAt": "2026-08-21T10:30:00Z",
-  "updatedAt": "2026-08-21T10:45:00Z",
-  "currentStage": "medication_intelligence",
-  "completedSteps": [
-    "appointment_booking",
-    "appointment_intelligence",
-    "receptionist_verification",
-    "doctor_consultation_started"
+  "patientId": "PAT-1024",
+  "submittedSymptoms": "I've been having stomach pain after eating, bloating and frequent acidity for several weeks.",
+  "extractedSymptoms": [
+    "Stomach pain (post-meal)",
+    "Bloating",
+    "Acid reflux",
+    "Persistent symptoms (several weeks)"
   ],
-  "agentResults": {
-    "appointmentIntelligence": {
-      "status": "SUCCESS",
-      "recommendedSlot": "5:30 PM"
+  "recommendations": [
+    {
+      "rank": 1,
+      "specialty": "Gastroenterology",
+      "confidence": 0.91,
+      "emoji": "🥇"
     },
-    "medicationIntelligence": {
-      "status": "IN_PROGRESS",
-      "medicinesChecked": 2,
-      "allAvailable": true
-    },
-    "inventoryIntelligence": {
-      "status": "PENDING"
+    {
+      "rank": 2,
+      "specialty": "General Medicine",
+      "confidence": 0.67,
+      "emoji": "🥈"
     }
+  ],
+  "explanation": "Your symptoms include persistent stomach discomfort after eating, bloating, and acid reflux. These symptoms are commonly evaluated by specialists in gastrointestinal conditions.",
+  "urgency": {
+    "isUrgent": false,
+    "level": "NORMAL",
+    "message": null
   },
-  "toolResults": {},
-  "validationResults": {},
-  "humanApprovals": {
-    "receptionistVerification": { "status": "APPROVED", "by": "receptionist-001" },
-    "doctorPrescription": { "status": "PENDING" },
-    "pharmacistFulfillment": { "status": "PENDING" },
-    "supplierApproval": { "status": "NOT_REQUIRED" }
-  },
-  "finalOutcome": null,
-  "failureReason": null
+  "availableDoctors": [
+    { "doctorId": 5, "name": "Dr. Perera", "specialty": "Gastroenterology", "nextAvailable": "2026-08-22" },
+    { "doctorId": 8, "name": "Dr. Fernando", "specialty": "Gastroenterology", "nextAvailable": "2026-08-23" }
+  ]
 }
 ```
+
+**When Urgency Detected:**
+
+```json
+{
+  "submittedSymptoms": "I have severe chest pain and difficulty breathing.",
+  "extractedSymptoms": [
+    "Severe chest pain",
+    "Difficulty breathing"
+  ],
+  "recommendations": [
+    {
+      "rank": 1,
+      "specialty": "Cardiology",
+      "confidence": 0.95,
+      "emoji": "🥇"
+    },
+    {
+      "rank": 2,
+      "specialty": "Emergency Medicine",
+      "confidence": 0.88,
+      "emoji": "🥈"
+    }
+  ],
+  "explanation": "Your reported symptoms are closely related to conditions commonly evaluated by a cardiologist.",
+  "urgency": {
+    "isUrgent": true,
+    "level": "EMERGENCY",
+    "message": "⚠️ URGENT MEDICAL ATTENTION RECOMMENDED. Your symptoms may require immediate medical care. Please consider visiting an emergency department."
+  },
+  "availableDoctors": []
+}
+```
+
+**Example Specialty Recommendations:**
+
+| Patient Symptoms | Recommended Specialty | Confidence |
+|---|---|---|
+| Persistent skin rash, itching | Dermatology | 89% |
+| Frequent headaches, dizziness | Neurology | 85% |
+| Joint pain, swelling, stiffness | Orthopedics / Rheumatology | 82% |
+| Vision problems, eye pain | Ophthalmology | 93% |
+| Stomach pain, bloating, acidity | Gastroenterology | 91% |
+| Chest pain, shortness of breath | Cardiology | 95% |
+| Ear pain, hearing issues | ENT (Otolaryngology) | 90% |
+
+### AI Explainability — Specialist Recommendation
+
+```text
+Specialist Recommendation Result
+
+Submitted Symptoms:
+  "I have chest pain, shortness of breath,
+   and occasional dizziness."
+
+Extracted Symptoms:
+  • Chest pain
+  • Shortness of breath
+  • Dizziness
+
+Recommended Specialty:
+  🥇 Cardiology — 95% confidence
+  🥈 Pulmonology — 72% confidence
+
+Why this specialty?
+  Your reported symptoms — chest pain, shortness of breath,
+  and dizziness — are commonly evaluated by a cardiologist.
+  These symptoms are frequently associated with cardiovascular
+  conditions that require specialist evaluation.
+
+Available Doctors:
+  1. Dr. Silva — Cardiologist
+  2. Dr. Perera — Cardiologist
+
+⚠️ Note: This is a specialty recommendation, not a diagnosis.
+```
+
+### Safety / Urgency Detection
+
+The agent identifies potentially urgent symptoms and avoids simply recommending a normal channeling appointment.
+
+```text
+⚠️ URGENT MEDICAL ATTENTION RECOMMENDED
+
+Your symptoms (severe chest pain, difficulty breathing)
+may indicate a condition requiring immediate medical care.
+
+Please seek emergency medical attention rather than
+waiting for a regular channeling appointment.
+
+This is not a diagnosis. This is a safety recommendation.
+```
+
+**Urgency Trigger Examples:**
+
+| Symptom Pattern | Urgency Level |
+|---|---|
+| Severe chest pain + difficulty breathing | 🔴 EMERGENCY |
+| Sudden severe headache + vision loss | 🔴 EMERGENCY |
+| High fever + confusion | 🟠 HIGH |
+| Persistent bleeding | 🟠 HIGH |
+| Mild joint pain for weeks | 🟢 NORMAL |
+| Skin rash, no other symptoms | 🟢 NORMAL |
 
 **Tools Used:**
 
 | Tool | Purpose |
 |---|---|
-| `create_workflow()` | Initialize a new workflow instance |
-| `update_workflow_state()` | Update workflow stage and status |
-| `delegate_to_agent()` | Delegate task to a specific agent |
-| `record_agent_result()` | Record an agent's execution result |
-| `record_human_approval()` | Record a human approval/rejection decision |
-| `check_workflow_status()` | Check current workflow progress |
-| `handle_workflow_failure()` | Handle and record workflow failures |
+| `extract_symptoms()` | NLP-based extraction of symptoms from free text |
+| `classify_symptoms()` | Classify extracted symptoms into medical categories |
+| `rank_specialties()` | Rank medical specialties by relevance with confidence scores |
+| `detect_urgency()` | Detect potentially emergency/urgent symptoms |
+| `check_doctors_by_specialty()` | Find available doctors in recommended specialty |
+| `generate_explanation()` | Generate human-readable explanation for recommendation |
 
 **Safety Rules:**
 
-- Must NOT skip human approval checkpoints
-- Must record all state transitions
-- If any agent fails → record failure, set appropriate status, do NOT proceed past failure point
-- Must respect human-in-the-loop protocol at every decision point
-- All decisions by AI are advisory; humans have final authority
+- Must NOT diagnose the patient — only recommend a **specialty**
+- Must NOT replace professional medical judgment
+- Must always display: *"This is a specialty recommendation, not a diagnosis"*
+- Must detect and flag potentially urgent symptoms with safety warnings
+- Must NOT encourage patients with emergency symptoms to wait for a normal appointment
+- If symptom analysis is uncertain → recommend General Medicine with explanation
+- Must base doctor availability on actual schedule data only
+- If NLP/LLM unavailable → safe failure with message: *"Unable to analyze symptoms. Please search for a doctor manually."*
 
-### AI Evaluation Metrics — Workflow Orchestrator
+### AI Evaluation Metrics — Specialist Recommendation
 
 | Metric | Description |
 |---|---|
-| Workflow Completion Rate | % of workflows that complete successfully end-to-end |
-| Agent Success Rate | % of individual agent executions that succeed |
-| Tool-Call Success Rate | % of tool calls that return expected results |
-| Human Intervention Rate | % of workflows requiring human override of AI recommendation |
-| Workflow Failure Rate | % of workflows that fail at any stage |
-| Average Processing Time | Mean time from appointment booking to order completion |
+| Specialty Recommendation Accuracy | % of recommendations matching the specialty the patient was eventually seen by |
+| Symptom Extraction Accuracy | % of relevant symptoms correctly extracted from free text |
+| Urgency Detection Accuracy | % of urgent symptoms correctly identified (sensitivity) |
+| Urgency False Positive Rate | % of non-urgent cases incorrectly flagged as urgent |
+| Recommendation Follow Rate | % of patients who booked with the recommended specialty |
+| Confidence Calibration | Alignment between confidence scores and actual accuracy |
 
 ### Testing Responsibilities
 
-- Unit tests for supplier/workflow services
-- API tests for supplier, restock, and workflow endpoints
+- Unit tests for supplier/recommendation services
+- API tests for supplier, restock, and recommendation endpoints
 - React component tests for supplier portal and AI monitoring dashboard
 - Supplier approval/rejection workflow tests
-- Workflow orchestrator tests (happy path, agent failure, human override)
-- End-to-end workflow coordination tests
+- Specialist Recommendation Agent tests (symptom extraction, specialty ranking, urgency detection, edge cases)
+- Recommendation explainability tests
+- Urgency detection tests (true positives, false positives, edge cases)
 - AI evaluation metric calculation tests
 - Audit log tests
 
@@ -1283,8 +1408,9 @@ feature/supplier-portal
 feature/supplier-management
 feature/restock-approval
 feature/supply-workflow
-feature/agent-orchestrator
-feature/workflow-state-management
+feature/agent-specialist-recommendation
+feature/symptom-analysis
+feature/urgency-detection
 feature/ai-monitoring-dashboard
 feature/ai-evaluation
 feature/audit-logs
@@ -1296,34 +1422,39 @@ feature/react-monitoring-screens
 ### Deliverables Summary
 
 - [ ] Supplier, SupplyOrder, SupplyHistory database tables + migrations
-- [ ] AIWorkflow, AIAgentExecution, AIToolCall, AuditLog tables + migrations
+- [ ] SymptomEntry, SpecialtyRecommendation, RecommendationFeedback tables + migrations
+- [ ] AIAgentExecution, AIToolCall, AuditLog tables + migrations
 - [ ] Supplier portal REST APIs
 - [ ] Restock request approval REST APIs
 - [ ] Supply workflow REST APIs
-- [ ] AI Workflow management REST APIs
+- [ ] Specialist Recommendation REST APIs
+- [ ] AI agent monitoring REST APIs
 - [ ] Audit log REST APIs
 - [ ] AI evaluation report REST APIs
 - [ ] React supplier portal (all screens listed above)
 - [ ] React AI monitoring dashboard
 - [ ] React AI evaluation dashboard
-- [ ] Workflow Orchestrator Agent
-- [ ] Agent coordination framework
-- [ ] Workflow state persistence
-- [ ] Seed data (sample suppliers, supply history)
-- [ ] Unit + integration + component + E2E tests
+- [ ] React specialist recommendation dashboard
+- [ ] Specialist Recommendation Agent
+- [ ] NLP/LLM symptom extraction and classification
+- [ ] Specialty ranking with confidence scores
+- [ ] Urgency detection system
+- [ ] Recommendation explainability
+- [ ] Seed data (sample suppliers, supply history, symptom-specialty mappings)
+- [ ] Unit + integration + component tests
 - [ ] API documentation (Swagger)
 - [ ] Component documentation
 
 ---
 
-## 9. Agent & Orchestrator Responsibility Summary
+## 9. Agent & Specialist Recommendation Summary
 
 | Member | AI Responsibility | Type | Input | Output |
 |---|---|---|---|---|
 | Member 1 | Appointment Intelligence Agent | Agent | Patient preferences, doctor schedules | Recommended appointment slots |
 | Member 2 | Medication Intelligence Agent | Agent | Medicine search, quantity requests | Availability results, alternatives |
 | Member 3 | Pharmacy & Inventory Intelligence Agent | Agent | Inventory data, demand patterns | Low-stock alerts, restock recommendations |
-| Member 4 | Workflow Orchestrator Agent | Orchestrator | Entire workflow state | End-to-end workflow coordination |
+| Member 4 | Specialist Recommendation Agent | Agent | Patient symptoms, doctor schedules | Specialty recommendations, urgency detection |
 
 ### Four Agents Aligned with Channeling Workflow
 
@@ -1343,10 +1474,11 @@ Agent 3 (Member 3) — Pharmacy & Inventory Intelligence
     → Detects low stock
     → Recommends restocking quantities
 
-Agent 4 (Member 4) — Workflow Orchestrator
-    → Coordinates all agents
-    → Maintains workflow state
-    → Ensures human-in-the-loop at every decision
+Agent 4 (Member 4) — Specialist Recommendation
+    → Analyzes patient symptoms using NLP/LLM
+    → Recommends appropriate medical specialty
+    → Detects urgent/emergency symptoms
+    → Provides explainable recommendations
 ```
 
 ---
@@ -1358,6 +1490,7 @@ AI should **assist** rather than independently make medical decisions. The follo
 | Decision Point | Human Authority | AI Role |
 |---|---|---|
 | Appointment Verification | Receptionist verifies appointment + payment | AI recommends slots, detects conflicts |
+| Specialist Selection | Patient selects doctor and makes booking decision | AI recommends specialty based on symptoms, not a diagnosis |
 | Prescription | Doctor decides what medicine to prescribe | AI checks availability, provides info |
 | Alternative Medicine | Doctor decides if alternative is clinically appropriate | AI lists available alternatives |
 | Pharmacy Fulfillment | Pharmacist verifies and processes medicine order | AI calculates prices, checks inventory |
@@ -1379,7 +1512,13 @@ app
 Login / Register
     │
     ▼
-Search Doctor
+Enter Symptoms ────► Specialist
+    │                Recommendation
+    ▼                Agent (M4)
+View Recommendation
+    │
+    ▼
+Select Doctor
     │
     ▼
 Book Appointment ──► Appointment
@@ -1465,10 +1604,7 @@ Make Payment
                                                                               Inventory
     │
     ▼
-Patient Feedback ──────────────────────────────────────────────────────► Orchestrator
-                                                                        Agent (M4)
-                                                                        monitors
-                                                                        entire flow
+Patient Feedback
 ```
 
 ---
@@ -1631,12 +1767,13 @@ All agents access the system through **allow-listed tools only**. No agent has d
 | `calculate_restock_quantity()` | Member 3 | Pharmacy & Inventory Intelligence Agent | Restock recommendations |
 | `identify_frequent_medicines()` | Member 3 | Pharmacy & Inventory Intelligence Agent | Frequently dispensed medicines |
 | `check_pharmacy_availability()` | Member 3 | Pharmacy & Inventory Intelligence Agent | Overall availability check |
-| `create_workflow()` | Member 4 | Workflow Orchestrator Agent | Initialize workflow |
-| `update_workflow_state()` | Member 4 | Workflow Orchestrator Agent | Update workflow stage |
-| `delegate_to_agent()` | Member 4 | Workflow Orchestrator Agent | Delegate to specific agent |
-| `record_agent_result()` | Member 4 | Workflow Orchestrator Agent | Record execution result |
-| `record_human_approval()` | Member 4 | Workflow Orchestrator Agent | Record human decision |
-| `notify_patient()` | Member 1 | Workflow Orchestrator Agent | Send patient notification |
+| `extract_symptoms()` | Member 4 | Specialist Recommendation Agent | NLP-based symptom extraction from free text |
+| `classify_symptoms()` | Member 4 | Specialist Recommendation Agent | Classify symptoms into medical categories |
+| `rank_specialties()` | Member 4 | Specialist Recommendation Agent | Rank specialties by relevance with confidence |
+| `detect_urgency()` | Member 4 | Specialist Recommendation Agent | Detect emergency/urgent symptoms |
+| `check_doctors_by_specialty()` | Member 4 | Specialist Recommendation Agent | Find available doctors in specialty |
+| `generate_explanation()` | Member 4 | Specialist Recommendation Agent | Generate recommendation explanation |
+| `notify_patient()` | Member 1 | System | Send patient notification |
 
 **Every tool must:**
 - Validate inputs
@@ -1700,17 +1837,18 @@ ADMIN           → Full system access, audit logs, AI monitoring
 | Appointment Intelligence | Recommendation accuracy, scheduling conflict reduction, appointment utilization |
 | Medication Intelligence | Medicine identification accuracy, availability-check accuracy, alternative retrieval accuracy |
 | Pharmacy & Inventory Intelligence | Low-stock detection accuracy, demand prediction accuracy, restocking recommendation accuracy |
+| Specialist Recommendation | Specialty recommendation accuracy, symptom extraction accuracy, urgency detection accuracy, recommendation follow rate |
 
 ### System-Level Metrics
 
 | Metric | Description |
 |---|---|
-| Workflow Completion Rate | % of workflows completed successfully end-to-end |
 | Agent Success Rate | % of individual agent executions that succeed |
 | Tool-Call Success Rate | % of tool calls that return expected results |
-| Human Intervention Rate | % of workflows requiring human override of AI recommendation |
-| Workflow Failure Rate | % of workflows that fail at any stage |
-| Average Processing Time | Mean time from appointment booking to order completion |
+| Recommendation Accuracy | % of specialty recommendations matching final specialist seen |
+| Urgency Detection Rate | % of urgent symptoms correctly identified |
+| Average Processing Time | Mean time from symptom entry to appointment booking |
+| Patient Satisfaction | Average feedback rating across the system |
 
 ---
 
@@ -1749,7 +1887,7 @@ Every member documents **their own endpoints** with:
 
 | Component | Owner |
 |---|---|
-| ASP.NET Core API deployment | Member 4 (as orchestrator owner) or shared |
+| ASP.NET Core API deployment | Member 4 (leads) or shared |
 | PostgreSQL deployment | Shared |
 | React deployment | Shared |
 | Flutter APK generation | Member 1 |
@@ -1803,7 +1941,7 @@ Every member documents **their own endpoints** with:
 | Appointment Intelligence Agent | ⭐ | | | |
 | Medication Intelligence Agent | | ⭐ | | |
 | Pharmacy & Inventory Intelligence Agent | | | ⭐ | |
-| Workflow Orchestrator Agent | | | | ⭐ |
+| Specialist Recommendation Agent | | | | ⭐ |
 | **Cross-Cutting** | | | | |
 | Testing | ⭐ | ⭐ | ⭐ | ⭐ |
 | Documentation | ⭐ | ⭐ | ⭐ | ⭐ |
@@ -1827,8 +1965,9 @@ Each member must handle failures gracefully within their component:
 | Inventory data unavailable | Member 3 | `INVENTORY_CHECK_FAILED` — safe failure with message |
 | Low-stock detection error | Member 3 | Log error, do NOT auto-generate restock requests |
 | Supplier API failure | Member 4 | `SUPPLIER_REQUEST_FAILED` — record reason |
-| Agent throws exception | Member 4 | Orchestrator catches, sets `FAILED`, records reason |
-| Workflow timeout | Member 4 | Set `FAILED` with timeout reason |
+| Symptom analysis fails | Member 4 | *"Unable to analyze symptoms. Please search for a doctor manually."* |
+| NLP/LLM unavailable | Member 4 | Fallback to manual doctor search — safe degradation |
+| Urgency detection uncertain | Member 4 | Default to showing safety warning — err on side of caution |
 
 ---
 
@@ -1902,12 +2041,12 @@ MediFlow-AI/
 │       │   ├── appointment_intelligence_agent.py  # Member 1
 │       │   ├── medication_intelligence_agent.py   # Member 2
 │       │   ├── inventory_intelligence_agent.py    # Member 3
-│       │   └── workflow_orchestrator_agent.py     # Member 4
+│       │   └── specialist_recommendation_agent.py # Member 4
 │       ├── tools/
 │       │   ├── appointment_tools.py               # Member 1
 │       │   ├── medication_tools.py                # Member 2
 │       │   ├── inventory_tools.py                 # Member 3
-│       │   └── workflow_tools.py                  # Member 4
+│       │   └── recommendation_tools.py            # Member 4
 │       └── config/
 │
 ├── tests/
@@ -1951,7 +2090,7 @@ feature/<member>-<feature-name>   # Feature branches
 | Member 1 | `feature/authentication`, `feature/patient-management`, `feature/appointment-booking`, `feature/appointment-payment`, `feature/patient-prescriptions-view`, `feature/patient-orders-view`, `feature/patient-feedback`, `feature/agent-appointment-intelligence`, `feature/flutter-patient-screens` |
 | Member 2 | `feature/doctor-portal`, `feature/doctor-sessions`, `feature/medicine-management`, `feature/medicine-availability`, `feature/e-prescription-generation`, `feature/e-prescription-distribution`, `feature/agent-medication-intelligence`, `feature/react-doctor-screens` |
 | Member 3 | `feature/receptionist-portal`, `feature/appointment-verification`, `feature/appointment-number-generation`, `feature/pharmacist-portal`, `feature/prescription-processing`, `feature/order-management`, `feature/price-calculation`, `feature/pharmacy-inventory`, `feature/agent-pharmacy-inventory-intelligence`, `feature/react-receptionist-screens`, `feature/react-pharmacist-screens` |
-| Member 4 | `feature/supplier-portal`, `feature/supplier-management`, `feature/restock-approval`, `feature/supply-workflow`, `feature/agent-orchestrator`, `feature/ai-monitoring-dashboard`, `feature/ai-evaluation`, `feature/audit-logs`, `feature/reports` |
+| Member 4 | `feature/supplier-portal`, `feature/supplier-management`, `feature/restock-approval`, `feature/supply-workflow`, `feature/agent-specialist-recommendation`, `feature/symptom-analysis`, `feature/urgency-detection`, `feature/ai-monitoring-dashboard`, `feature/ai-evaluation`, `feature/audit-logs`, `feature/reports` |
 
 ### Workflow
 
@@ -1971,34 +2110,37 @@ The final demo follows a specific sequence. Each member leads their portion:
 | Demo Step | Lead | What to Show |
 |---|---|---|
 | 1. Patient login | Member 1 | Flutter login screen |
-| 2. Search doctor | Member 1 | Flutter doctor search + AI slot recommendations |
-| 3. Book appointment | Member 1 | Flutter appointment booking + payment |
-| 4. Appointment Intelligence Agent | Member 1 | AI recommending appointment slots |
-| 5. Receptionist verification | Member 3 | React — verify payment, confirm appointment |
-| 6. Appointment number generated | Member 3 | React — show generated APP-2026-1024 |
-| 7. Verified appointment in doctor portal | Member 2 | React — doctor sees confirmed appointment |
-| 8. Patient consultation | Member 2 | React — diagnosis / clinical notes |
-| 9. Medicine search & availability | Member 2 | React — AI checking pharmacy stock |
-| 10. Medication Intelligence Agent | Member 2 | AI checking availability, showing alternatives |
-| 11. E-prescription creation | Member 2 | React — doctor creates and sends prescription |
-| 12. Prescription in patient portal | Member 1 | Flutter — patient sees e-prescription |
-| 13. Prescription in pharmacist portal | Member 3 | React — pharmacist sees prescription |
-| 14. Price calculation | Member 3 | React — automatic price calculation display |
-| 15. Order processing | Member 3 | React — process, prepare, complete order flow |
-| 16. Low-stock detection | Member 3 | React — Inventory Intelligence Agent alerts |
-| 17. Restock request | Member 3 | React — create restock request |
-| 18. Supplier approval | Member 4 | React — supplier approves restock |
-| 19. Inventory updated | Member 3 | React — show inventory updated after supply |
-| 20. Patient order tracking | Member 1 | Flutter — order status and history |
-| 21. Patient feedback | Member 1 | Flutter — pharmacy rating and review |
-| 22. AI monitoring | Member 4 | React — workflow execution history |
-| 23. AI evaluation | Member 4 | React — agent performance metrics |
-| 24. Audit logs | Member 4 | React — system-wide audit trail |
-| 25. PostgreSQL state | All | Show database state at key points |
-| 26. Swagger docs | All | Each member shows their endpoints |
-| 27. Tests | All | Each member runs their tests |
-| 28. GitHub Actions CI | All | Show passing CI pipeline |
-| 29. Git history | All | Show branches, PRs, contributions |
+| 2. Enter symptoms | Member 1 | Flutter symptom entry screen (description, duration, severity) |
+| 3. Specialist Recommendation Agent | Member 4 | AI specialty recommendation with confidence scores + explanation |
+| 4. Urgency detection demo | Member 4 | AI detecting emergency symptoms + safety warning |
+| 5. Select doctor from recommendation | Member 1 | Flutter recommendation result + doctor selection |
+| 6. Book appointment | Member 1 | Flutter appointment booking + payment |
+| 7. Appointment Intelligence Agent | Member 1 | AI recommending appointment slots |
+| 8. Receptionist verification | Member 3 | React — verify payment, confirm appointment |
+| 9. Appointment number generated | Member 3 | React — show generated APP-2026-1024 |
+| 10. Verified appointment in doctor portal | Member 2 | React — doctor sees confirmed appointment |
+| 11. Patient consultation | Member 2 | React — diagnosis / clinical notes |
+| 12. Medicine search & availability | Member 2 | React — AI checking pharmacy stock |
+| 13. Medication Intelligence Agent | Member 2 | AI checking availability, showing alternatives |
+| 14. E-prescription creation | Member 2 | React — doctor creates and sends prescription |
+| 15. Prescription in patient portal | Member 1 | Flutter — patient sees e-prescription |
+| 16. Prescription in pharmacist portal | Member 3 | React — pharmacist sees prescription |
+| 17. Price calculation | Member 3 | React — automatic price calculation display |
+| 18. Order processing | Member 3 | React — process, prepare, complete order flow |
+| 19. Low-stock detection | Member 3 | React — Inventory Intelligence Agent alerts |
+| 20. Restock request | Member 3 | React — create restock request |
+| 21. Supplier approval | Member 4 | React — supplier approves restock |
+| 22. Inventory updated | Member 3 | React — show inventory updated after supply |
+| 23. Patient order tracking | Member 1 | Flutter — order status and history |
+| 24. Patient feedback | Member 1 | Flutter — pharmacy rating and review |
+| 25. AI monitoring | Member 4 | React — agent execution history |
+| 26. AI evaluation | Member 4 | React — recommendation accuracy + agent performance metrics |
+| 27. Audit logs | Member 4 | React — system-wide audit trail |
+| 28. PostgreSQL state | All | Show database state at key points |
+| 29. Swagger docs | All | Each member shows their endpoints |
+| 30. Tests | All | Each member runs their tests |
+| 31. GitHub Actions CI | All | Show passing CI pipeline |
+| 32. Git history | All | Show branches, PRs, contributions |
 
 ---
 
@@ -2006,9 +2148,10 @@ The final demo follows a specific sequence. Each member leads their portion:
 
 ### Member 1 — "The Patient's Journey"
 
-> *Patients find doctors, book appointments, and track their care.*
+> *Patients describe symptoms, get specialist recommendations, book appointments, and track their care.*
 
 - Patient registration & profiles
+- Symptom entry & recommendation viewing screens (calls Member 4's API)
 - Appointment booking & payment
 - Flutter mobile app (primary owner)
 - Patient prescription viewing (read-only)
@@ -2043,30 +2186,33 @@ The final demo follows a specific sequence. Each member leads their portion:
 - Restock request creation
 - Pharmacy & Inventory Intelligence Agent
 
-### Member 4 — "The System Backbone"
+### Member 4 — "The Intelligent Gateway"
 
-> *Suppliers restock, the orchestrator coordinates, and everything is monitored.*
+> *Patients get smart specialty recommendations, suppliers restock, and everything is monitored.*
 
+- Specialist Recommendation Agent (symptom analysis → specialty recommendation)
+- NLP/LLM-based symptom extraction & classification
+- Specialty ranking with confidence scores
+- Urgency/emergency detection
+- Recommendation explainability
 - Supplier portal & management
 - Restock approval/rejection workflow
 - Supply delivery workflow
-- AI Workflow Orchestrator Agent
 - AI monitoring & execution history
 - AI evaluation & metrics
 - Audit logs & reports
-- System-wide workflow coordination
 
 ### Together — One Workflow
 
 ```text
-Patient (M1) → Appointment (M1) → AI Slots (M1)
+Patient (M1) → Symptom Entry (M1) → Specialist Recommendation (M4)
+    → Doctor Selection (M1) → Appointment (M1) → AI Slots (M1)
     → Receptionist Verification (M3) → Appointment Number (M3)
     → Doctor Consultation (M2) → Medicine Availability (M2) → E-Prescription (M2)
     → Pharmacist Processing (M3) → Price Calculation (M3) → Order (M3)
     → Inventory Monitoring (M3) → Restock Request (M3)
     → Supplier Approval (M4) → Supply (M4)
     → Patient Feedback (M1)
-    → Orchestrator Coordination (M4) throughout
 ```
 
 This forms **one complete MediFlow AI channeling-to-pharmacy workflow**, not four disconnected projects.
