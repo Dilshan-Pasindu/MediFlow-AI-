@@ -78,57 +78,48 @@ The system must be developed using a shared **ASP.NET Core backend and PostgreSQ
 
 The system provides an end-to-end healthcare workflow where patients can find specialists, book appointments, receive clinical decision support, manage prescriptions, order medicines, and track their care.
 
-```text
-Patient
-   ↓
-Enter Symptoms
-   ↓
-AI Specialist & Doctor Recommendation
-   ↓
-Recommended Specialty + Ranked Doctors
-   ↓
-Patient Selects Doctor
-   ↓
-Book Appointment
-   ↓
-Appointment Scheduling (conflict check)
-   ↓
-Appointment Confirmed
-   ↓
-Doctor Consultation
-   ↓
-AI Clinical Decision Support
-   ↓
-Doctor Makes Final Decision
-   ↓
-Patient Uploads Prescription
-   ↓
-AI Medication Intelligence
-   ↓
-Extract Medicine Information
-   ↓
-Search Pharmacies
-   ↓
-AI Pharmacy Intelligence
-   ↓
-Patient Selects Pharmacy
-   ↓
-Place Medicine Order
-   ↓
-Pharmacist Verifies & Processes Order
-   ↓
-Patient Pays for Medicine
-   ↓
-Order Completed
-   ↓
-Inventory Monitoring
-   ↓
-Low Stock / Demand Prediction
-   ↓
-Restocking Recommendation
-   ↓
-Supplier Portal
-```
+                    ┌───────────────────┐
+                    │      PATIENT      │
+                    └─────────┬─────────┘
+                              │
+                              ▼
+             🩺 SPECIALIST & DOCTOR AGENT
+                              │
+                              ▼
+                       APPOINTMENT
+                              │
+                              ▼
+                      RECEPTIONIST
+                              │
+                    Verify Payment
+                              │
+                              ▼
+                         DOCTOR
+                              │
+                              ▼
+              🧠 CLINICAL DECISION AGENT
+                              │
+                       Doctor Decision
+                              │
+                              ▼
+              💊 MEDICATION INTELLIGENCE
+                              │
+                     E-PRESCRIPTION
+                              │
+                              ▼
+                       PHARMACIST
+                              │
+                       Medicine Order
+                              │
+                              ▼
+             📦 PHARMACY & INVENTORY AGENT
+                              │
+                     Demand / Stock
+                              │
+                     Restock Recommendation
+                              │
+                              ▼
+                         SUPPLIER
 
 ---
 
