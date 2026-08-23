@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**MediFlow AI — Intelligent Healthcare, Pharmacy & Medical Management System**
+**MediFlow AI — ntelligent Channeling, E-Prescription & Pharmacy Management System**
 
-A web and mobile-based Intelligent Healthcare, Pharmacy & Medical Management System that combines Software Engineering principles with a multi-agent Artificial Intelligence architecture. The system provides patients with intelligent assistance for finding suitable medical specialists and doctors, understanding symptoms, managing prescriptions and medications, locating pharmacies, ordering medicines, and monitoring medicine availability. Doctors, pharmacists, pharmacy owners, suppliers, and administrators have dedicated interfaces for managing their respective activities.
+Intelligent Channeling, E-Prescription & Pharmacy Management System - A full-stack channeling center platform where patients book appointments, doctors issue AI-assisted e-prescriptions, pharmacists fulfill and cost them, and AI-monitored inventory triggers automatic supplier restocking with human professionals approving every critical decision.
 
 The system must be developed using a shared **ASP.NET Core backend and PostgreSQL database**, with a **React web application** for staff/admin/pharmacy workflows and a **Flutter mobile application** for patient-facing workflows. The AI functionality is implemented through four specialized intelligent agents that communicate with the main system through controlled APIs/tools.
 
