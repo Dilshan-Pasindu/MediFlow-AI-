@@ -1,0 +1,41 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+appsettings.Development.json
+
+# Flutter
+.dart_tool/
+build/
+*.g.dart
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# React / Node
+node_modules/
+dist/
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.env
+
+# IDE
+.vscode/settings.json
+.idea/
+*.DS_Store
+Thumbs.db
+
+# Secrets — NEVER commit these
+*.pfx
+*.p12
+secrets.json
