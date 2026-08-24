@@ -1,14 +1,18 @@
 # MediFlow AI — 4-Member Project Division
+## Intelligent Channeling, E-Prescription & Pharmacy Management System
+### SE3090 Group Project — Complete Technical Reference
+
+---
 
 ## Project Overview
 
-**MediFlow AI — ntelligent Channeling, E-Prescription & Pharmacy Management System**
+**MediFlow AI — Intelligent Channeling, E-Prescription & Pharmacy Management System**
 
-Intelligent Channeling, E-Prescription & Pharmacy Management System - A full-stack channeling center platform where patients book appointments, doctors issue AI-assisted e-prescriptions, pharmacists fulfill and cost them, and AI-monitored inventory triggers automatic supplier restocking with human professionals approving every critical decision.
+An integrated AI-powered healthcare channeling and pharmacy management system built as a four-member  group project. The system provides a complete end-to-end healthcare ecosystem where a patient enters symptoms → AI recommends a suitable medical specialty and ranks doctors → patient books an appointment and pays → receptionist verifies payment and confirms the appointment → doctor conducts the consultation with AI clinical decision support → doctor selects medicines and AI checks pharmacy availability → the doctor generates an official e-prescription → patient and pharmacist receive the e-prescription → pharmacist processes the medicine order with automatic price calculation → pharmacy inventory is monitored → AI predicts demand and recommends restocking → supplier receives and approves the restock request.
 
-The system must be developed using a shared **ASP.NET Core backend and PostgreSQL database**, with a **React web application** for staff/admin/pharmacy workflows and a **Flutter mobile application** for patient-facing workflows. The AI functionality is implemented through four specialized intelligent agents that communicate with the main system through controlled APIs/tools.
+Human professionals approve every critical decision. AI assists users and professionals — it does **not** autonomously make high-impact medical decisions.
 
-> **Key Design Principle:** AI agents assist healthcare professionals and patients — they do **not** independently make final medical decisions. Human professionals maintain control over all critical medical and operational decisions.
+> **Key Design Principle:** AI agents assist healthcare professionals and patients — they do **not** independently make final medical decisions. Human professionals maintain control over all critical medical and operational decisions (Human-in-the-Loop AI).
 
 ### Technology Stack
 
@@ -17,2118 +21,2060 @@ The system must be developed using a shared **ASP.NET Core backend and PostgreSQ
 | Mobile | Flutter / Dart |
 | Web | React / React Router |
 | Backend API | ASP.NET Core Web API / C# |
-| Database | PostgreSQL / EF Core |
-| Auth | JWT / Role-based |
-| Agentic AI | Agent orchestration framework (LangGraph / MS Agent Framework / Google ADK) |
+| Database | PostgreSQL / Entity Framework Core |
+| Auth | JWT Authentication & Role-Based Authorization |
+| Agentic AI | Python AI Subsystem (LangGraph / FastAPI / Google ADK) |
 | Docs | Swagger / OpenAPI |
 | CI/CD | GitHub Actions |
+| Third-Party | Maps / Location API (Google Maps or equivalent) |
 
-### Core Principle
+> **Architecture Rule:** React and Flutter must communicate **only** through the ASP.NET Core Web API and must use the same PostgreSQL database, identity, permissions, and business rules. If a Python service is used for AI, it must be an **internal service called by ASP.NET Core**, not directly by React or Flutter.
 
-> Every member owns a **complete vertical business component** — database tables, API endpoints, UI screens (both React and Flutter), an AI agent, tests, and documentation. Every member must make meaningful contributions to **all layers**: ASP.NET Core, PostgreSQL, React, Flutter, and AI. No member is "just backend" or "just frontend."
-
-### Minimum Requirements Per Member
+### Project Requirements Overview
 
 | Requirement | Minimum |
 |---|---|
-| Meaningful API endpoints | At least **4** |
-| Non-CRUD business operation | At least **1** |
-| Database tables | Relevant to their module |
-| React screens | Relevant to their module |
-| Flutter screens | Relevant to their module |
-| AI agent | **1** specialized agent |
-| Tests | Unit + Integration + API |
+| Primary business components | **4** (one per member) |
+| Meaningful API endpoints per member | At least **4** |
+| Non-CRUD business operations per member | At least **1** |
+| All-layer contribution | Every member: ASP.NET Core, PostgreSQL, React, Flutter, Testing, Git, Docs, AI |
+| Complete cross-platform workflow | At least **1** (React/Flutter → ASP.NET Core → PostgreSQL → AI → Human Approval → Result) |
+| Human approval pause points | At least **1** (multiple recommended) |
+| Third-party API integration | At least **1** meaningful service |
+| Genuine mobile device feature | At least **1** per member (GPS, notifications, date/time, etc.) |
+
+### Core Principle
+
+> The project should not be presented as: *"Member 1 does React, Member 2 does backend, Member 3 does AI…"*
+>
+> Instead: **Each member owns one major business component** and is responsible for its ASP.NET Core API, PostgreSQL model, React workflow, Flutter workflow, testing, documentation, Git evidence, and one distinct Agentic AI contribution. That structure directly follows the SE3090 requirement.
 
 ---
 
-## 1. System Architecture
+## 1. User Roles
 
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│                          MEDIFLOW AI                             │
-├──────────────┬──────────────────────────┬────────────────────────┤
-│   Flutter    │         React            │     Agentic AI         │
-│  (Patient)   │ (Doctor/Pharmacist/      │     Subsystem          │
-│              │  Pharmacy Owner/         │                        │
-│              │  Supplier/Admin)         │                        │
-├──────────────┴──────────────────────────┴────────────────────────┤
-│                    ASP.NET Core Web API                          │
-│                (JWT Auth · Role-Based Access)                    │
-├─────────────────────────────────────────────────────────────────┤
-│                        PostgreSQL                                │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Four Business Components
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                           MEDIFLOW AI                               │
-├─────────────────────────────────────────────────────────────────────┤
-│  Member 1 → Doctor & Specialist Management                          │
-│  Member 2 → Patient & Medical History & Appointment Management      │
-│  Member 3 → Prescription & Medicine & Order Management              │
-│  Member 4 → Pharmacy & Inventory & Supplier Management              │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 2. Main System Concept — Healthcare Workflow
-
-The system provides an end-to-end healthcare workflow where patients can find specialists, book appointments, receive clinical decision support, manage prescriptions, order medicines, and track their care.
-
-                    ┌───────────────────┐
-                    │      PATIENT      │
-                    └─────────┬─────────┘
-                              │
-                              ▼
-             🩺 SPECIALIST & DOCTOR AGENT
-                              │
-                              ▼
-                       APPOINTMENT
-                              │
-                              ▼
-                      RECEPTIONIST
-                              │
-                    Verify Payment
-                              │
-                              ▼
-                         DOCTOR
-                              │
-                              ▼
-              🧠 CLINICAL DECISION AGENT
-                              │
-                       Doctor Decision
-                              │
-                              ▼
-              💊 MEDICATION INTELLIGENCE
-                              │
-                     E-PRESCRIPTION
-                              │
-                              ▼
-                       PHARMACIST
-                              │
-                       Medicine Order
-                              │
-                              ▼
-             📦 PHARMACY & INVENTORY AGENT
-                              │
-                     Demand / Stock
-                              │
-                     Restock Recommendation
-                              │
-                              ▼
-                         SUPPLIER
-
----
-
-## 3. User Roles
-
-| Role | Portal | Description |
+| Role | Portal / Platform | Key Responsibilities |
 |---|---|---|
-| `PATIENT` | Flutter Mobile / React | Searches doctors, books appointments, uploads prescriptions, orders medicines, tracks orders |
-| `DOCTOR` | React | Manages profile, views appointments, conducts consultations |
-| `PHARMACIST` | React | Verifies prescriptions, processes orders, manages inventory |
-| `PHARMACY_OWNER` | React | Manages pharmacy, full inventory control, views analytics |
-| `SUPPLIER` | React | Views restock requests, approves/rejects supply orders |
-| `ADMIN` | React | System administration, user management, audit logs, AI monitoring |
+| `PATIENT` | Flutter Mobile + React | Symptom entry, view AI doctor recommendations, book appointments, make payments, view e-prescriptions, track medicine orders, rate pharmacies and doctors |
+| `DOCTOR` | React Web | View verified appointments only, conduct consultations, receive AI clinical decision support, finalize diagnoses, check medicine availability, generate e-prescriptions |
+| `RECEPTIONIST` | React Web | View pending appointments, verify patient payments, confirm bookings, generate unique appointment numbers, reschedule/cancel where permitted |
+| `PHARMACIST` | React Web | Receive doctor e-prescriptions, view auto-calculated prices, process medicine orders, update dispensing status, initiate restock requests |
+| `PHARMACY_OWNER` | React Web | Overview pharmacy performance, monitor inventory, review AI demand forecasts, approve restock orders, view sales and revenue |
+| `SUPPLIER` | React Web | Receive restock requests from pharmacies, approve/reject orders, update delivery/supply status |
+| `ADMINISTRATOR` | React Web | System-wide user role management, system health monitoring, audit logging, agent monitoring |
 
-Each role has its own appropriate portal and permissions.
-
----
-
-## 4. User Role → Member Mapping
-
-| User Role | Primary Owner | UI Platform | Key Permissions |
-|---|---|---|---|
-| Patient | Member 2 (profile/appointments) + Member 3 (prescriptions/orders) | Flutter + React | Book appointments, upload prescriptions, order medicines, provide feedback |
-| Doctor | Member 1 | React | Manage profile, view appointments, manage availability |
-| Pharmacist | Member 3 | React | Verify prescriptions, process orders, manage medicines |
-| Pharmacy Owner | Member 4 | React | Manage pharmacy, full inventory control, view analytics |
-| Supplier | Member 4 | React | View/approve/reject restock requests |
-| Admin | Shared (all members contribute) | React | System monitoring, audit logs, AI monitoring |
+Each role must have appropriate authentication, authorization, protected APIs, dashboards, and permissions.
 
 ---
 
-## 5. Member 1 — Doctor & Specialist Management
+## 2. Four Primary Business Components
+
+| Member | Primary Business Component | Agentic AI |
+|---|---|---|
+| **Member 1** | Patient & Appointment Management | 🩺 **Specialist & Doctor Recommendation Agent** |
+| **Member 2** | Doctor Consultation & Clinical Management | 🧠 **Clinical Decision Support & Diagnosis Suggestion Agent** |
+| **Member 3** | E-Prescription & Medicine Ordering | 💊 **Medication Intelligence Agent** |
+| **Member 4** | Pharmacy Inventory & Supplier Management | 📦 **Pharmacy & Inventory Intelligence Agent** |
+
+> **Important:** This table represents **primary ownership**, not isolated development. Every member must demonstrate technical contribution across the full stack.
+
+---
+
+## 3. Complete End-to-End Workflow
+
+```text
+                         PATIENT
+                            │
+                            ▼
+                    Enter Symptoms
+                            │
+                            ▼
+          🩺 SPECIALIST & DOCTOR AGENT (Member 1)
+                            │
+                   Specialty + Doctor Ranking
+                            │
+                            ▼
+                     Select Doctor
+                            │
+                            ▼
+                   Book Appointment
+                            │
+                            ▼
+                       PAYMENT
+                            │
+                            ▼
+                RECEPTIONIST (Verification)
+                            │
+                   Verify Payment
+                            │
+                            ▼
+              Generate Appointment Number
+              (e.g. APP-2026-1024)
+                            │
+                            ▼
+                    DOCTOR PORTAL
+                (Only verified appointments)
+                            │
+                            ▼
+          🧠 CLINICAL DECISION SUPPORT (Member 2)
+                            │
+                   AI Diagnosis Suggestions
+                            │
+                            ▼
+                  Doctor: ACCEPT / MODIFY / REJECT
+                            │
+                            ▼
+              Doctor Selects Required Medicine
+                            │
+                            ▼
+            💊 MEDICATION AGENT (Member 3)
+                            │
+               Check Pharmacy Stock Availability
+                            │
+                            ▼
+                 Doctor Confirms Medicine
+                            │
+                            ▼
+                    E-PRESCRIPTION
+                   /               \
+                  /                 \
+                 ▼                   ▼
+            PATIENT             PHARMACIST
+                               PORTAL (Member 3)
+                                     │
+                              Auto-Calculate Price
+                                     │
+                                  PAYMENT
+                                     │
+                             Process Medicine Order
+                                     │
+                                     ▼
+           📦 INVENTORY INTELLIGENCE (Member 4)
+                                     │
+                          Demand Prediction
+                                     │
+                            Stock-Out Prediction
+                                     │
+                         Restock Recommendation
+                                     │
+                                     ▼
+                        ── HUMAN APPROVAL ──
+                       Pharmacist / Owner Review
+                                     │
+                                     ▼
+                              SUPPLIER PORTAL
+                            (Approve / Reject)
+                                     │
+                                     ▼
+                           Inventory Updated
+```
+
+---
+
+## 4. Member 1 — Patient & Appointment Management
 
 ### Business Focus
 
-Everything related to **doctor and specialist management** — doctor registration, profile management, specialist categorization, doctor search, availability management, ratings, and the doctor ranking algorithm. Also owns the **Specialist & Doctor Recommendation Agent**.
+Everything related to **patient management, symptom submission, doctor discovery, appointment booking, payment, and doctor ratings**. Member 1 also owns the **Specialist & Doctor Recommendation Agent** that analyzes patient symptoms and recommends a suitable specialty and ranked doctors.
 
-### Database Entities Owned
+### A. Software Engineering (SE) Responsibility
+
+#### ASP.NET Core — API Endpoints (Minimum 4)
+
+```text
+# Patient Profile
+GET    /api/patients/{id}                  # Get patient profile
+PUT    /api/patients/{id}                  # Update patient profile
+
+# Symptoms
+POST   /api/patients/symptoms              # Submit symptoms
+
+# Doctor Discovery
+GET    /api/doctors                        # List/search doctors
+GET    /api/doctors/{id}                   # Get doctor profile
+GET    /api/doctors/{id}/availability      # Get doctor availability slots
+
+# Appointments
+POST   /api/appointments                   # Book appointment
+GET    /api/appointments/my                # Get patient's appointments
+GET    /api/appointments/{id}              # Get appointment details
+PATCH  /api/appointments/{id}/status       # Update appointment status
+
+# Ratings
+POST   /api/doctors/{id}/ratings           # Submit doctor rating (Patient)
+GET    /api/doctors/{id}/ratings           # Get doctor ratings
+```
+
+Include: request validation, role-based authorization, DTOs, proper HTTP status codes, and asynchronous operations throughout.
+
+#### PostgreSQL — Database Entities
 
 | Entity | Purpose |
 |---|---|
-| `Users` (Doctor subset) | Doctor user accounts |
-| `Doctors` | Doctor profiles (qualifications, bio, consultation fee) |
-| `Specialties` | Medical specialty records |
-| `DoctorSpecialties` | Doctor-specialty associations |
+| `Patient` | Patient profiles (demographics, contact, medical info) |
+| `Doctor` | Doctor profiles (qualifications, bio, consultation fee) |
+| `Specialty` | Medical specialty records |
+| `DoctorSpecialty` | Doctor-specialty associations (many-to-many) |
 | `DoctorAvailability` | Doctor schedule and availability slots |
-| `DoctorRatings` | Patient ratings for doctors |
-| `DoctorExperience` | Doctor experience records (years, institutions) |
+| `DoctorRating` | Patient ratings and reviews for doctors |
+| `Appointment` | Appointment booking records |
+| `AppointmentPayment` | Payment records for appointments |
 
-### API Endpoints
+Requirements: primary keys, foreign keys, constraints, indexes, EF Core migrations, seed data, `CreatedAt`/`UpdatedAt` timestamps.
 
-```text
-# Specialist Management
-GET    /api/specialists                    # List all specialties
-GET    /api/specialists/{id}               # Get specialty details
-POST   /api/specialists                    # Create specialty (Admin)
-PUT    /api/specialists/{id}               # Update specialty (Admin)
-
-# Doctor Management
-GET    /api/doctors                        # Search/list doctors
-GET    /api/doctors/{id}                   # Get doctor profile details
-POST   /api/doctors                        # Register doctor
-PUT    /api/doctors/{id}                   # Update doctor profile
-GET    /api/doctors/search                 # Search doctors (name, specialty, location)
-
-# Doctor Availability
-GET    /api/doctors/{id}/availability      # Get doctor availability slots
-POST   /api/doctors/{id}/availability      # Set availability (Doctor)
-PUT    /api/availability/{id}              # Update availability slot
-DELETE /api/availability/{id}              # Remove availability slot
-
-# Doctor Ratings
-POST   /api/doctors/{id}/ratings           # Submit doctor rating (Patient)
-GET    /api/doctors/{id}/ratings           # Get doctor ratings
-GET    /api/doctors/{id}/rating-summary    # Get average rating and distribution
-
-# Doctor Ranking
-GET    /api/doctors/ranked                 # Get ranked doctor list for a specialty
-```
-
-### Non-CRUD Business Operation — Doctor Ranking Algorithm
-
-The system should calculate a **Doctor Recommendation Score** using a weighted algorithm:
+#### React Screens — Patient & Admin Workflows
 
 ```text
-Doctor Score = (Rating × W1) + (Review Reliability × W2) + (Experience × W3)
-             + (Availability × W4) + (Specialty Match × W5) + (Consultation Fee × W6)
-```
-
-Example weights:
-
-| Factor | Weight |
-|---|---|
-| Specialty Match | 30% |
-| Patient Rating | 25% |
-| Experience | 15% |
-| Number of Reviews | 10% |
-| Availability | 10% |
-| Consultation Fee | 5% |
-| Location | 5% |
-
-The exact weights can be determined and evaluated by the project team. The ranking should **not** simply sort by a single rating value.
-
-**Example Output:**
-
-```text
-Recommended Specialty: Cardiology
-
-Recommended Doctors:
-
-🥇 Dr. A — 4.9 ⭐ — 15 years experience — Available
-🥈 Dr. B — 4.7 ⭐ — 12 years experience — Available
-🥉 Dr. C — 4.6 ⭐ — 10 years experience — Limited availability
-```
-
-### React Screens (Primary Owner) — Doctor Management Portal
-
-```text
-Doctor Management Portal
-    ├── Dashboard Home
-    │       ├── Total Doctors
-    │       ├── Specialties Overview
-    │       └── Quick Stats
-    ├── Doctor Management
-    │       ├── Doctor List (search, filter by specialty)
+Patient Portal (React)
+    ├── Patient Dashboard
+    │       ├── Upcoming Appointments
+    │       ├── Recent Prescriptions
+    │       └── Quick Actions
+    ├── Symptom Input
+    │       ├── Symptom Entry Form
+    │       ├── Severity & Duration
+    │       └── Submit to AI Agent
+    ├── Doctor Discovery
+    │       ├── Doctor Listing (search + filter)
     │       ├── Doctor Profile View
-    │       ├── Doctor Registration
-    │       └── Edit Doctor Profile
-    ├── Specialist Management
-    │       ├── Specialty List
-    │       ├── Add Specialty
-    │       └── Edit Specialty
-    ├── Doctor Rating Overview
-    │       ├── Rating Summary
-    │       ├── Rating Distribution
-    │       └── Recent Reviews
-    ├── Doctor Availability Management
-    │       ├── Availability Calendar
-    │       ├── Set Availability Slots
-    │       └── Availability History
-    └── Doctor Ranking Dashboard
-            ├── Ranking Algorithm Configuration
+    │       ├── Doctor Rating Display
+    │       └── Doctor Availability Viewer
+    ├── Appointment Management
+    │       ├── Appointment Booking
+    │       ├── Appointment History
+    │       ├── Payment Status
+    │       └── Appointment Status
+    └── AI Recommendation Results
+            ├── Recommended Specialty
             ├── Ranked Doctor List
-            └── Ranking Analytics
+            └── Recommendation Explanation
 ```
 
-### Flutter Screens (Primary Owner)
+#### Flutter Screens — Patient Mobile App
 
 ```text
-Patient App — Doctor Discovery
-    ├── Specialist Browsing
-    │       ├── Specialty List (cards with icons)
-    │       └── Specialty Details
-    ├── Doctor Search
-    │       ├── Search by Name
-    │       ├── Filter by Specialty
-    │       ├── Filter by Availability
-    │       └── Filter by Location
-    ├── Doctor Profile
-    │       ├── Doctor Information
-    │       ├── Qualifications
-    │       ├── Experience
-    │       ├── Consultation Fee
-    │       ├── Availability Slots
-    │       └── Patient Reviews
-    ├── Doctor Rating Display
-    │       ├── Average Rating
-    │       ├── Rating Distribution
-    │       └── Recent Feedback
-    └── Recommended Doctor List
-            ├── AI-Recommended Specialty
-            ├── Ranked Doctors
-            ├── Recommendation Explanation
-            └── Select Doctor → Appointment
+Patient Mobile App
+    ├── Patient Login / Register
+    ├── Symptom Entry Screen
+    │       ├── Free-text symptom input
+    │       ├── Severity slider
+    │       └── Submit
+    ├── AI Doctor Recommendations
+    │       ├── Recommended Specialty Card
+    │       ├── Ranked Doctor List
+    │       └── Recommendation Explanation
+    ├── Doctor Details Screen
+    │       ├── Profile, qualifications, experience
+    │       ├── Ratings display
+    │       └── Available Slots
+    ├── Appointment Booking
+    │       ├── Date/time selector (device feature)
+    │       ├── Booking Confirmation
+    │       └── Payment
+    ├── Appointment Status & History
+    └── GPS / Map — Nearby Doctors (device feature)
 ```
 
-### AI Agent — Specialist & Doctor Recommendation Agent
+> **Device Feature Requirement:** Member 1 must include at least one meaningful mobile device feature such as GPS/map for doctor location, date/time pickers for appointment selection, or push notifications for appointment confirmation.
 
-**Purpose:** Analyze patient-provided information to determine the most appropriate medical specialty and rank suitable doctors within that specialty. This agent does **not** diagnose the patient — it recommends a **specialty** for consultation.
+#### Testing
 
-**Input:** Patient symptoms (free text), age, medical history, existing conditions, current medications
+- Backend unit tests for patient/appointment services
+- API tests for all Member 1 endpoints
+- Validation tests (invalid input, unauthorized access)
+- React component/form tests
+- Flutter widget tests
+- Agent evaluation tests for specialty recommendation
+- Integration tests (symptom submission → AI recommendation → appointment booking)
 
-**Recommendation Flow:**
+#### Non-CRUD Business Operation — Doctor Filtering & Ranking
+
+Beyond basic CRUD, Member 1 must implement a **Doctor Recommendation Scoring** system:
 
 ```text
-Patient Provides Information
+Doctor Score = (Specialty Match × 30%) + (Patient Rating × 25%)
+             + (Experience × 15%) + (Review Count × 10%)
+             + (Availability × 10%) + (Location/Fee × 10%)
+```
+
+Endpoint: `GET /api/doctors/ranked?specialty={id}` — returns doctors ranked by the weighted algorithm.
+
+### B. AI Agent — 🩺 Specialist & Doctor Recommendation Agent
+
+**Purpose:** Receive the patient's symptoms and recommend the most appropriate medical specialty and a ranked list of suitable doctors. This agent does **not** diagnose — it recommends a specialty for consultation.
+
+**Workflow:**
+
+```text
+Patient Symptoms (Natural Language)
        ↓
 Symptom Analysis
        ↓
-Identify Relevant Specialty
+Specialty Recommendation
        ↓
-Find Doctors in Specialty
+Retrieve Matching Doctors in Specialty
        ↓
-Calculate Doctor Recommendation Score
+Calculate Weighted Recommendation Score
        ↓
 Rank Doctors
        ↓
 Generate Explanation
        ↓
-Show Recommendations
+Patient Selects Doctor
 ```
 
-**Output:**
+**Example Output:**
 
-```json
-{
-  "patientId": "PAT-1024",
-  "submittedSymptoms": "I have been having chest pain and shortness of breath",
-  "recommendations": [
-    {
-      "rank": 1,
-      "specialty": "Cardiology",
-      "confidence": 0.92
-    },
-    {
-      "rank": 2,
-      "specialty": "Pulmonology",
-      "confidence": 0.71
-    }
-  ],
-  "explanation": "Your symptoms — chest pain and shortness of breath — are commonly evaluated by specialists in cardiovascular conditions.",
-  "rankedDoctors": [
-    { "doctorId": 5, "name": "Dr. A", "rating": 4.9, "experience": 15, "available": true, "score": 92.5 },
-    { "doctorId": 8, "name": "Dr. B", "rating": 4.7, "experience": 12, "available": true, "score": 87.3 },
-    { "doctorId": 12, "name": "Dr. C", "rating": 4.6, "experience": 10, "available": false, "score": 78.1 }
-  ]
-}
+```text
+Symptoms:
+  "Stomach pain, bloating, acid reflux"
+
+Recommended Specialty:
+  🥇 Gastroenterology — 91% confidence
+  🥈 General Medicine — 64% confidence
+
+Recommended Doctors:
+
+1. Dr. Perera — 4.9 ⭐ — 12 years experience — Available
+2. Dr. Silva — 4.7 ⭐ — 9 years experience — Available
+3. Dr. Fernando — 4.6 ⭐ — 15 years experience — Limited
+
+Why Gastroenterology?
+  Your symptoms (stomach pain, bloating, acid reflux) are
+  commonly evaluated by gastroenterologists.
+
+⚠️ This is a specialty and doctor recommendation, not a diagnosis.
 ```
 
-**Example Specialty Recommendations:**
+**Ranking Factors:**
 
-| Patient Symptoms | Recommended Specialty | Confidence |
-|---|---|---|
-| Persistent skin rash, itching | Dermatology | 89% |
-| Frequent headaches, dizziness | Neurology | 85% |
-| Joint pain, swelling, stiffness | Orthopedics / Rheumatology | 82% |
-| Vision problems, eye pain | Ophthalmology | 93% |
-| Stomach pain, bloating, acidity | Gastroenterology | 91% |
-| Chest pain, shortness of breath | Cardiology | 95% |
-| Ear pain, hearing issues | ENT (Otolaryngology) | 90% |
-
-**Doctor Ranking Factors:**
-
-| Factor | Description |
+| Factor | Weight |
 |---|---|
-| Specialty Match | How well the doctor's specialty matches the recommendation |
-| Patient Rating | Average rating from patient reviews |
-| Experience | Years of medical practice |
-| Reviews | Number and reliability of reviews |
-| Availability | Current appointment availability |
-| Location | Proximity to patient |
-| Consultation Fee | Cost factor for ranking |
+| Specialty Match | 30% |
+| Patient Rating | 25% |
+| Experience (Years) | 15% |
+| Review Count | 10% |
+| Current Availability | 10% |
+| Location / Fee | 10% |
 
-**Tools Used:**
+**Agent Tools (Allow-Listed):**
 
 | Tool | Purpose |
 |---|---|
-| `analyze_symptoms()` | Analyze patient symptoms to identify relevant specialties |
-| `rank_specialties()` | Rank medical specialties by relevance with confidence scores |
-| `get_doctors_by_specialty()` | Retrieve doctors in the recommended specialty |
-| `calculate_doctor_score()` | Calculate weighted recommendation score for each doctor |
-| `generate_explanation()` | Generate human-readable explanation for recommendation |
+| `searchSpecialties()` | Search medical specialties by symptom keywords |
+| `searchDoctors()` | Find doctors by specialty |
+| `getDoctorRating()` | Retrieve doctor ratings and review data |
+| `getDoctorAvailability()` | Check doctor availability |
+| `calculateDoctorScore()` | Calculate weighted recommendation score |
 
 **Safety Rules:**
 
-- Must NOT diagnose the patient — only recommend a **specialty**
+- Must state this is a specialty/doctor recommendation, not a diagnosis
 - Must NOT replace professional medical judgment
-- Must always display: *"This is a specialty recommendation, not a diagnosis."*
-- AI should assist with recommendations but should NOT independently make final medical decisions
-- If symptom analysis is uncertain → recommend General Medicine with explanation
-- If analysis fails → safe failure: *"Unable to analyze symptoms. Please search for a doctor manually."*
+- If analysis uncertain → recommend General Medicine
+- If analysis fails → *"Unable to analyze symptoms. Please search for a doctor manually."*
 
-### AI Explainability — Specialist Recommendation
+**Evaluation Metrics:**
 
-```text
-Specialist Recommendation Result
-
-Submitted Symptoms:
-  "I have chest pain, shortness of breath,
-   and occasional dizziness."
-
-Recommended Specialty:
-  🥇 Cardiology — 95% confidence
-  🥈 Pulmonology — 72% confidence
-
-Why this specialty?
-  Your reported symptoms — chest pain, shortness of breath,
-  and dizziness — are commonly evaluated by a cardiologist.
-  These symptoms are frequently associated with cardiovascular
-  conditions that require specialist evaluation.
-
-Recommended Doctors:
-  1. Dr. A — 4.9 ⭐ — 15 years — Available
-  2. Dr. B — 4.7 ⭐ — 12 years — Available
-
-⚠️ Note: This is a specialty recommendation, not a diagnosis.
-```
-
-### AI Evaluation Metrics — Specialist & Doctor Recommendation
-
-| Metric | Description |
+| Metric | Method |
 |---|---|
-| Specialty Recommendation Accuracy | % of recommendations matching the specialty the patient was eventually seen by |
-| Doctor Ranking Consistency | Consistency of ranking across similar patient profiles |
-| Recommendation Relevance | Quality of specialty match for given symptoms |
-| Doctor Ranking Quality | Precision@K / NDCG where appropriate |
-| User Satisfaction | Patient satisfaction with recommendations |
-
-### Testing Responsibilities
-
-- Unit tests for doctor/specialist services
-- Unit tests for doctor ranking algorithm
-- API integration tests for doctor, specialist, and rating endpoints
-- React component tests for doctor management screens
-- Flutter widget tests for doctor discovery screens
-- Ranking algorithm edge case tests
-- Authorization tests (only authorized users can manage doctors)
-- Invalid doctor/specialist search tests
+| Specialty Recommendation Accuracy | Rule-based golden test cases |
+| Ranking Quality | Precision@K (not LLM-as-judge) |
+| Confidence Calibration | Expected vs. actual specialty match |
+| Safe Failure Rate | Schema validation + deterministic tests |
 
 ### Feature Branches
 
 ```text
-feature/doctor-management
-feature/specialist-management
-feature/doctor-availability
-feature/doctor-ratings
-feature/doctor-ranking-algorithm
-feature/doctor-search
-feature/agent-specialist-recommendation
-feature/react-doctor-screens
-feature/flutter-doctor-discovery
+feature/m1-patient-management
+feature/m1-doctor-search
+feature/m1-doctor-availability
+feature/m1-doctor-ratings
+feature/m1-doctor-ranking
+feature/m1-appointment-booking
+feature/m1-appointment-payment
+feature/m1-agent-specialist-recommendation
+feature/m1-react-patient-portal
+feature/m1-flutter-patient-app
 ```
 
-### Deliverables Summary
+### Deliverables
 
-- [ ] Doctor, Specialty, DoctorSpecialty, DoctorAvailability, DoctorRating, DoctorExperience database tables + EF Core migrations
-- [ ] Doctor & Specialist REST APIs (minimum 4 meaningful endpoints)
+- [ ] Patient, Doctor, Specialty, DoctorSpecialty, DoctorAvailability, DoctorRating, Appointment, AppointmentPayment tables + EF Core migrations
+- [ ] Patient & Appointment REST APIs (minimum 4 meaningful endpoints)
 - [ ] Doctor Ranking Algorithm (non-CRUD business operation)
-- [ ] React doctor management portal (all screens listed above)
-- [ ] Flutter doctor discovery screens (all screens listed above)
-- [ ] Specialist & Doctor Recommendation Agent
-- [ ] Seed data (sample doctors, specialties, ratings)
-- [ ] Unit + integration + component tests
-- [ ] API documentation (Swagger)
-- [ ] Component documentation
+- [ ] React patient portal (all screens listed above)
+- [ ] Flutter patient mobile app (all screens listed above, with device feature)
+- [ ] Specialist & Doctor Recommendation Agent with agent tools
+- [ ] Seed data (sample patients, doctors, specialties, ratings, appointments)
+- [ ] Unit + API + integration + component tests + agent evaluation tests
+- [ ] Swagger API documentation
+- [ ] Individual AI usage log
 
 ---
 
-## 6. Member 2 — Patient & Medical History & Appointment Management
+## 5. Receptionist Workflow
+
+The receptionist is a critical part of the appointment management workflow. Receptionist functionality is integrated into the overall appointment system — it is not a standalone component isolated to one member.
+
+### Receptionist Responsibilities
+
+- View all pending appointment requests
+- View patient payment status
+- Verify successful payments
+- Confirm appointments
+- Generate a unique appointment number (format: `APP-{YEAR}-{SEQ}`, e.g. `APP-2026-1024`)
+- Reschedule appointments where permitted by business rules
+- Cancel appointments where permitted
+- View appointment history and statistics
+
+### Receptionist Workflow
+
+```text
+Patient
+   ↓
+Book Appointment + Payment Submitted
+   ↓
+RECEPTIONIST PORTAL
+   ↓
+View Appointment Request
+   ↓
+Check Payment Status
+   ↓
+Verify Payment
+   ↓
+Confirm Appointment
+   ↓
+Generate Appointment Number (APP-2026-1024)
+   ↓
+DOCTOR PORTAL
+(Only confirmed + numbered appointments appear)
+```
+
+> **Critical Rule:** Only appointments that have been verified by the receptionist and assigned an appointment number should appear in the doctor's portal.
+
+### Receptionist API Endpoints
+
+```text
+GET    /api/receptionist/appointments              # View pending appointments
+GET    /api/receptionist/appointments/{id}         # Appointment detail with payment status
+POST   /api/receptionist/appointments/{id}/verify  # Verify payment + confirm
+POST   /api/receptionist/appointments/{id}/generate-number  # Generate appointment number
+PUT    /api/receptionist/appointments/{id}/reschedule       # Reschedule
+PUT    /api/receptionist/appointments/{id}/cancel           # Cancel
+GET    /api/receptionist/appointments/history      # Appointment history
+```
+
+### Receptionist React Screens
+
+```text
+Receptionist Portal
+    ├── Dashboard
+    │       ├── Pending Verification Count
+    │       ├── Today's Confirmed Appointments
+    │       └── Quick Actions
+    ├── Appointment Queue
+    │       ├── Pending List (payment status visible)
+    │       ├── Appointment Detail View
+    │       ├── [ VERIFY PAYMENT ]
+    │       ├── [ CONFIRM APPOINTMENT ]
+    │       └── [ GENERATE APPOINTMENT NUMBER ]
+    ├── Appointment History
+    │       ├── All verified appointments
+    │       ├── Filter by date, doctor, status
+    │       └── Appointment number search
+    └── Reschedule / Cancel
+            ├── Reschedule form
+            └── Cancellation reason
+```
+
+---
+
+## 6. Member 2 — Doctor Consultation & Clinical Management
 
 ### Business Focus
 
-Everything related to **patient management and appointment workflow** — patient profiles, medical history, symptom recording, appointment booking, appointment scheduling with conflict detection, and appointment status management. Also owns the **Clinical Decision Support & Diagnosis Suggestion Agent**.
+Everything related to **doctor consultation, clinical information management, and prescription initiation** — doctor profile management, doctor schedules, verified appointment handling, patient consultation workspace, clinical examination data, lab results, diagnosis decision recording, and e-prescription initiation. Member 2 also owns the **Clinical Decision Support & Diagnosis Suggestion Agent**.
 
-### Database Entities Owned
+### A. Software Engineering (SE) Responsibility
+
+#### ASP.NET Core — API Endpoints (Minimum 4)
+
+```text
+# Doctor Appointments (verified only)
+GET    /api/doctors/appointments               # Doctor's verified appointment queue
+GET    /api/appointments/{id}/clinical-record  # Get patient clinical record
+
+# Consultation Management
+POST   /api/consultations                      # Start/create consultation
+PUT    /api/consultations/{id}                 # Update consultation notes
+GET    /api/consultations/{id}                 # Get consultation details
+GET    /api/consultations/history              # Consultation history
+
+# Clinical Analysis
+POST   /api/clinical-analysis                  # Submit for AI clinical decision support
+
+# Doctor Decisions
+POST   /api/diagnosis/{id}/decision            # Record doctor's diagnosis decision (ACCEPT/MODIFY/REJECT)
+GET    /api/appointments/{id}/patient-history  # Full patient history for consultation
+```
+
+Include: authorization ensuring doctors only see their own verified appointments, validation, DTOs, async operations.
+
+#### PostgreSQL — Database Entities
 
 | Entity | Purpose |
 |---|---|
-| `Users` (Patient subset) | Patient user accounts |
-| `Patients` | Patient profiles (contact, demographics, medical info) |
-| `MedicalHistory` | Patient medical history records |
-| `Symptoms` | Patient symptom submissions |
-| `Appointments` | Appointment booking records |
-| `AppointmentStatus` | Appointment status tracking |
-| `DoctorSchedules` | Doctor scheduling slots for appointments |
+| `ClinicalRecord` | Patient clinical record per appointment |
+| `Consultation` | Doctor consultation records |
+| `PatientHistory` | Patient past conditions and history |
+| `Allergy` | Patient allergy records |
+| `Examination` | Clinical examination findings |
+| `LabResult` | Laboratory test results |
+| `DiagnosisSuggestion` | AI-generated diagnosis suggestions (stored per consultation) |
+| `DoctorDecision` | Doctor's ACCEPT/MODIFY/REJECT decision on AI suggestions |
 
-### API Endpoints
+Requirements: PKs, FKs, constraints, indexes, EF Core migrations, seed data, timestamps.
 
-```text
-# Patient Management
-POST   /api/auth/register                 # Patient registration
-POST   /api/auth/login                    # Login (shared, but Member 2 implements)
-GET    /api/patients/{id}                 # Get patient profile
-PUT    /api/patients/{id}                 # Update patient profile
-
-# Medical History
-GET    /api/patients/{id}/medical-history # Get patient medical history
-POST   /api/patients/{id}/medical-history # Add medical history entry
-PUT    /api/medical-history/{id}          # Update medical history entry
-
-# Symptoms
-POST   /api/symptoms                      # Submit symptoms
-GET    /api/symptoms/{id}                 # Get symptom details
-GET    /api/patients/{id}/symptoms        # Get patient's symptom history
-
-# Appointments
-POST   /api/appointments                  # Book appointment
-GET    /api/appointments/{id}             # Get appointment details
-GET    /api/appointments/my               # Get patient's appointments
-PATCH  /api/appointments/{id}/status      # Update appointment status
-GET    /api/appointments/history          # Get appointment history
-DELETE /api/appointments/{id}             # Cancel appointment (if permitted)
-
-# Doctor Schedules
-GET    /api/doctors/{id}/schedules        # Get doctor's available schedule slots
-```
-
-### Non-CRUD Business Operation — Appointment Scheduling
-
-The system must perform intelligent appointment scheduling that goes beyond simple CRUD:
+#### React Screens — Doctor Portal
 
 ```text
-Patient Requests Appointment
-        ↓
-Check Doctor Availability
-        ↓
-Check Existing Appointments
-        ↓
-Detect Time Conflicts
-        ↓
-Validate Appointment Rules
-        ↓
-Confirm or Reject
-```
-
-The scheduling logic should check:
-
-- Doctor availability for the requested time slot
-- Existing appointments to prevent double-booking
-- Time conflict detection between overlapping slots
-- Appointment status (cannot book with a suspended doctor)
-- Patient eligibility (cannot book if account is restricted)
-
-**Example — Conflict Detection:**
-
-```text
-Requested: Dr. A, 21 Aug 2026, 5:00 PM
-
-Existing Appointments:
-  4:30 PM - 5:00 PM → Patient X (CONFIRMED)
-  5:00 PM - 5:30 PM → Patient Y (CONFIRMED)
-
-Result: ❌ CONFLICT — Slot already booked.
-Next available: 5:30 PM
-```
-
-### React Screens (Primary Owner) — Doctor Dashboard
-
-```text
-Doctor Dashboard (Doctor's View)
-    ├── Dashboard Home
-    │       ├── Today's Appointments
+Doctor Portal
+    ├── Doctor Dashboard
+    │       ├── Today's Verified Appointments
     │       ├── Upcoming Appointments
     │       └── Quick Stats
-    ├── Appointment Management
-    │       ├── Appointment List (filter by status, date)
-    │       ├── Appointment Details
-    │       │       ├── Patient Information
-    │       │       ├── Scheduled Time
-    │       │       ├── Status
-    │       │       └── Actions (Confirm / Cancel)
-    │       └── Appointment Calendar View
-    ├── Patient Information View
-    │       ├── Patient Profile
+    ├── Verified Appointment Queue
+    │       ├── Patient list for today
+    │       ├── Appointment Number display (APP-2026-1024)
+    │       └── Filter by date/status
+    ├── Patient Consultation Screen
+    │       ├── Patient Information
     │       ├── Medical History
-    │       ├── Previous Appointments
-    │       └── Symptom History
-    └── Schedule Management
-            ├── Set Available Slots
-            ├── Block Dates
-            └── Schedule Overview
+    │       ├── Allergy Records
+    │       ├── Symptom Details (from patient submission)
+    │       ├── Clinical Examination Input Form
+    │       ├── Lab Result Input
+    │       └── Consultation Notes
+    ├── AI Decision Support Panel
+    │       ├── AI Suggestion Display (conditions + confidence)
+    │       ├── Supporting Evidence List
+    │       ├── Suggested Tests
+    │       ├── [ ACCEPT ] / [ MODIFY ] / [ REJECT ] controls
+    │       └── Doctor's Decision Record
+    └── Consultation History
+            ├── Past consultations
+            └── Patient outcomes
 ```
 
-### Flutter Screens (Primary Owner)
+#### Flutter Screens — Doctor/Operational Workflows
 
 ```text
-Patient App — Medical & Appointments
-    ├── Login / Register
-    │       ├── Patient Registration
-    │       └── Login Screen
-    ├── Patient Dashboard
-    │       ├── Quick Actions
-    │       ├── Upcoming Appointments
-    │       └── Recent Activity
-    ├── Symptom Submission
-    │       ├── Enter Symptoms (description, duration, severity)
-    │       ├── Medical History Input
-    │       └── Submit to AI Agent
-    ├── Appointment Booking
-    │       ├── Select Doctor (from recommendation or search)
-    │       ├── Select Date/Time
-    │       ├── Confirm Booking
-    │       └── Booking Confirmation
-    ├── Appointment History
-    │       ├── Appointment List
-    │       ├── Appointment Details
-    │       └── Appointment Status Tracking
-    └── Profile Management
-            ├── Edit Profile
-            ├── Medical History
-            └── Settings
+Doctor Mobile App
+    ├── Doctor Login
+    ├── Appointment Status View
+    ├── Patient Consultation Summary
+    │       ├── Patient info overview
+    │       └── Consultation status
+    ├── AI Result Review
+    │       ├── Diagnosis suggestions summary
+    │       └── Decision recorded status
+    └── Consultation Status Updates
 ```
 
-### AI Agent — Clinical Decision Support & Diagnosis Suggestion Agent
+> **Device Feature Requirement:** Include at least one meaningful mobile device feature such as push notifications for new verified appointments.
 
-**Purpose:** Analyze patient-provided clinical information to identify possible medical conditions and provide decision-support suggestions. This agent does **not** diagnose the patient — it provides **decision support** for qualified healthcare professionals.
+#### Testing
 
-**Input:** Symptoms, patient-provided history, existing conditions, current medication information
+- Clinical API tests (consultation, clinical analysis endpoints)
+- Authorization tests (doctor only sees their own verified appointments)
+- React component tests (consultation form, AI display, decision controls)
+- Flutter tests (appointment status, consultation summary)
+- AI golden-case tests (known symptom sets → expected suggestions)
+- Validation tests (invalid clinical data)
+- Integration tests (verified appointment → consultation → AI suggestion → decision)
+
+#### Non-CRUD Business Operation — Clinical Analysis Routing
+
+Beyond CRUD, Member 2 must implement a **Clinical Analysis Service** that:
+
+1. Accepts structured clinical input (symptoms, history, allergies, examination, lab results)
+2. Sends to the Clinical Decision Support Agent
+3. Validates the agent output (schema validation, safety checks)
+4. Persists suggestions to `DiagnosisSuggestion` table
+5. Records doctor's decision to `DoctorDecision` table
+6. Returns structured decision-support results to the React UI
+
+### B. AI Agent — 🧠 Clinical Decision Support & Diagnosis Suggestion Agent
+
+**Purpose:** Assist the doctor by analyzing the patient's complete clinical information and generating ranked possible diagnoses with confidence scores, supporting evidence, and suggested diagnostic tests. The doctor retains full clinical authority.
+
+**Input:** Symptoms, medical history, allergies, clinical examination findings, lab results
 
 **Workflow:**
 
 ```text
-Patient Information
-       +
-Symptoms
-       +
-Medical History
-       +
-Existing Conditions
+Clinical Information (Symptoms + History + Allergies + Examination + Labs)
        ↓
 Clinical Decision Support Agent
        ↓
-Symptom Pattern Analysis
+Analyze Symptoms & Clinical Patterns
        ↓
-Possible Condition Identification
+Retrieve Relevant Clinical Knowledge / Similar Cases
        ↓
-Confidence/Likelihood Scoring
+Generate Possible Diagnoses
        ↓
-Supporting Evidence
+Rank by Confidence
        ↓
-Recommended Specialty
+Generate Supporting Evidence
        ↓
-Suggested Next Steps
+Suggest Relevant Diagnostic Tests
+       ↓
+Doctor Review: ACCEPT / MODIFY / REJECT
 ```
 
-**Output:**
-
-```json
-{
-  "patientId": "PAT-1024",
-  "symptoms": ["fever", "cough", "sore throat"],
-  "possibleConditions": [
-    {
-      "condition": "Viral Infection",
-      "confidence": 0.85,
-      "supportingSymptoms": ["fever", "cough", "sore throat"],
-      "suggestedSpecialty": "General Medicine"
-    },
-    {
-      "condition": "Influenza",
-      "confidence": 0.72,
-      "supportingSymptoms": ["fever", "cough"],
-      "suggestedSpecialty": "General Medicine"
-    },
-    {
-      "condition": "Respiratory Infection",
-      "confidence": 0.58,
-      "supportingSymptoms": ["cough", "sore throat"],
-      "suggestedSpecialty": "Pulmonology"
-    }
-  ],
-  "recommendedAction": "Consult an appropriate medical professional.",
-  "disclaimer": "This is not a final medical diagnosis. A qualified healthcare professional must make the final decision."
-}
-```
-
-**Example Display:**
+**Example Output:**
 
 ```text
-Clinical Decision Support Result
+Clinical Decision Support
 
-Symptoms: Fever, cough, sore throat
+Patient: PAT-1024 | Consultation: CONS-0451
 
-Possible Conditions:
+Possible Diagnoses:
 
-1. Viral Infection — 85% likelihood
-   Supporting: fever, cough, sore throat
+1. Acute Gastritis — 92% Confidence
+   Supporting factors:
+   • Epigastric pain (reported)
+   • Nausea (examination finding)
+   • Postprandial discomfort (history)
 
-2. Influenza — 72% likelihood
-   Supporting: fever, cough
+2. Peptic Ulcer Disease — 68% Confidence
+   Supporting factors:
+   • Burning stomach pain
+   • Acid reflux (history)
 
-3. Respiratory Infection — 58% likelihood
-   Supporting: cough, sore throat
+3. GERD — 45% Confidence
 
-Recommended Action:
-  Consult an appropriate medical professional.
+Suggested Diagnostic Tests:
+  • Upper Endoscopy
+  • H. Pylori Stool Antigen Test
+  • Complete Blood Count
 
-⚠️ This is NOT a final medical diagnosis.
-   A qualified healthcare professional must make
-   the final decision.
+Doctor Decision:
+  [ ACCEPT ]  [ MODIFY ]  [ REJECT ]
+
+⚠️ This is clinical decision support.
+   The consulting doctor makes the final diagnosis.
 ```
 
-**Tools Used:**
+**Agent Tools (Allow-Listed):**
 
 | Tool | Purpose |
 |---|---|
-| `analyze_symptoms()` | Analyze submitted symptoms for pattern matching |
-| `identify_conditions()` | Identify possible conditions based on symptom patterns |
-| `calculate_confidence()` | Calculate likelihood/confidence scores |
-| `get_supporting_evidence()` | Retrieve supporting symptoms for each condition |
-| `suggest_next_steps()` | Generate recommended next steps |
+| `getPatientClinicalData()` | Retrieve structured patient clinical data |
+| `searchClinicalKnowledge()` | Search clinical knowledge base |
+| `retrieveSimilarCases()` | Retrieve similar historical cases |
+| `validateDiagnosisOutput()` | Validate AI output schema and safety rules |
 
 **Safety Rules:**
 
-- Must NOT present output as a confirmed diagnosis
-- Must always clearly state: *"This is not a final medical diagnosis"*
-- Must NOT prescribe treatment or medication
-- Must recommend consulting a qualified healthcare professional
-- If analysis is uncertain → recommend General Medicine consultation
-- If analysis fails → safe failure: *"Unable to analyze symptoms. Please consult a healthcare professional directly."*
+- AI output must always be labeled as decision support, not a final diagnosis
+- Must NOT autonomously finalize any diagnosis
+- Doctor's ACCEPT/MODIFY/REJECT decision must be explicitly recorded
+- If analysis fails → *"Unable to generate suggestions. Please proceed with standard clinical assessment."*
 
-### AI Explainability — Clinical Decision Support
+**Evaluation Metrics:**
 
-```text
-Clinical Decision Support Result
-
-Submitted Information:
-  Symptoms: persistent headache, blurred vision, dizziness
-  Duration: 2 weeks
-  Existing conditions: hypertension
-
-Possible Conditions:
-
-1. Hypertension-related symptoms — 88%
-   Supporting: headache, dizziness, existing hypertension
-
-2. Migraine — 65%
-   Supporting: persistent headache, blurred vision
-
-Why these suggestions?
-  The combination of persistent headache, blurred vision,
-  and dizziness, together with existing hypertension,
-  is commonly associated with blood pressure-related conditions.
-
-Recommended Action:
-  Consult a physician or cardiologist.
-
-⚠️ This is decision support, not a final diagnosis.
-```
-
-### AI Evaluation Metrics — Clinical Decision Support
-
-| Metric | Description |
+| Metric | Method |
 |---|---|
-| Condition Suggestion Accuracy | % of suggested conditions that were clinically relevant |
-| Top-K Accuracy | Whether the correct condition appears in the top K suggestions |
-| Confidence Calibration | Alignment between confidence scores and actual accuracy |
-| Supporting Evidence Quality | Relevance of supporting symptoms cited |
-| Safe Fallback Rate | % of uncertain cases correctly defaulting to safe recommendation |
+| Top-K Diagnostic Accuracy | Golden cases with known expected diagnoses |
+| Confidence Calibration | Expected confidence vs. clinically validated outcomes |
+| Doctor Acceptance Rate | % of suggestions accepted without modification |
+| Supporting Evidence Relevance | Rule-based relevance checks |
+| Safe Failure Rate | Deterministic validation tests |
 
-### Testing Responsibilities
-
-- Unit tests for patient/appointment services
-- Unit tests for appointment scheduling conflict detection
-- API integration tests for patient, appointment, and symptom endpoints
-- React component tests for doctor dashboard screens
-- Flutter widget tests for patient app screens
-- Appointment conflict detection tests
-- Authorization tests (patients see only their data)
-- Clinical Decision Support Agent tests (valid symptoms, edge cases, safe failures)
+> **Note:** LLM-as-a-judge cannot be the only evaluation method. Use rule-based assertions, golden cases, schema validation, and deterministic validators.
 
 ### Feature Branches
 
 ```text
-feature/authentication
-feature/patient-management
-feature/medical-history
-feature/symptom-submission
-feature/appointment-booking
-feature/appointment-scheduling
-feature/appointment-status
-feature/agent-clinical-decision-support
-feature/react-doctor-dashboard
-feature/flutter-patient-app
+feature/m2-doctor-profile
+feature/m2-doctor-schedule
+feature/m2-consultation-management
+feature/m2-clinical-records
+feature/m2-examination-input
+feature/m2-lab-results
+feature/m2-diagnosis-decision
+feature/m2-agent-clinical-decision-support
+feature/m2-react-doctor-portal
+feature/m2-flutter-doctor-app
 ```
 
-### Deliverables Summary
+### Deliverables
 
-- [ ] Patient, MedicalHistory, Symptom, Appointment, AppointmentStatus, DoctorSchedule database tables + EF Core migrations
-- [ ] Authentication system (JWT, password hashing, login/register endpoints)
-- [ ] Patient & Appointment REST APIs (minimum 4 meaningful endpoints)
-- [ ] Appointment Scheduling Logic (non-CRUD business operation)
-- [ ] React doctor dashboard (all screens listed above)
-- [ ] Flutter patient app (all screens listed above)
-- [ ] Clinical Decision Support & Diagnosis Suggestion Agent
-- [ ] Seed data (sample patients, appointments, symptoms)
-- [ ] Unit + integration + component tests
-- [ ] API documentation (Swagger)
-- [ ] Component documentation
+- [ ] ClinicalRecord, Consultation, PatientHistory, Allergy, Examination, LabResult, DiagnosisSuggestion, DoctorDecision tables + EF Core migrations
+- [ ] Doctor Consultation REST APIs (minimum 4 meaningful endpoints)
+- [ ] Clinical Analysis Routing Service (non-CRUD business operation)
+- [ ] React doctor portal with full consultation workspace
+- [ ] Flutter doctor/operational mobile screens
+- [ ] Clinical Decision Support Agent with agent tools
+- [ ] Seed data (sample consultations, clinical records, suggestions)
+- [ ] Clinical API + authorization + golden-case + integration tests
+- [ ] Swagger API documentation
+- [ ] Individual AI usage log
 
 ---
 
-## 7. Member 3 — Prescription & Medicine & Order Management
+## 7. Member 3 — E-Prescription & Medicine Ordering
 
 ### Business Focus
 
-Everything related to **prescription handling, medicine management, and order processing** — prescription upload and retrieval, medicine search and information, order creation, order cancellation, order status tracking, prescription-to-medicine processing, and pharmacist verification. Also owns the **Medication Intelligence Agent**.
+Everything related to **medicine management, e-prescription generation and distribution, medicine order processing, price calculation, and order status management**. Member 3 also owns the **Medication Intelligence Agent** that assists the doctor in checking medicine availability before prescribing.
 
-### Database Entities Owned
+### A. Software Engineering (SE) Responsibility
+
+#### ASP.NET Core — API Endpoints (Minimum 4)
+
+```text
+# Medicine Management
+GET    /api/medicines                             # List/search medicines
+GET    /api/medicines/{id}                        # Get medicine details
+
+# Medicine Availability
+GET    /api/pharmacies/{id}/medicine-availability # Check medicine availability at pharmacy
+
+# E-Prescriptions
+POST   /api/prescriptions                         # Generate e-prescription (Doctor)
+GET    /api/prescriptions/{id}                    # Get prescription details
+GET    /api/prescriptions/my                      # Patient's prescriptions
+
+# Orders
+POST   /api/orders                                # Create medicine order
+GET    /api/orders/{id}                           # Get order details
+POST   /api/orders/{id}/payment                   # Process order payment
+PUT    /api/orders/{id}/status                    # Update order status (Pharmacist)
+GET    /api/orders/my                             # Patient's order history
+```
+
+#### PostgreSQL — Database Entities
 
 | Entity | Purpose |
 |---|---|
-| `Prescriptions` | Prescription records (uploaded by patients) |
-| `PrescriptionItems` | Individual medicine items within a prescription |
-| `Medicines` | Master medicine records (name, strength, form, category) |
-| `MedicineCategories` | Categories/classifications for medicines |
-| `MedicationInstructions` | Dosage and frequency instructions |
-| `Orders` | Medicine orders placed by patients |
-| `OrderItems` | Individual medicines in an order |
-| `OrderStatus` | Order status tracking |
+| `Medicine` | Master medicine records (name, generic, strength, form, unit price) |
+| `MedicineCategory` | Medicine category classifications |
+| `PharmacyMedicine` | Medicine stock at each pharmacy (availability link) |
+| `Prescription` | E-prescription records generated by doctors |
+| `PrescriptionItem` | Individual medicines in a prescription |
+| `MedicineOrder` | Medicine orders placed by patients |
+| `OrderItem` | Individual medicine items in an order |
+| `OrderPayment` | Payment records for medicine orders |
 
-### API Endpoints
-
-```text
-# Prescription Management
-POST   /api/prescriptions                  # Upload prescription (Patient)
-GET    /api/prescriptions/{id}             # Get prescription details
-GET    /api/prescriptions/my               # Get patient's prescriptions
-PUT    /api/prescriptions/{id}             # Update prescription status
-GET    /api/prescriptions/{id}/items       # Get prescription items
-
-# Medicine Management
-GET    /api/medicines                      # Search/list medicines
-GET    /api/medicines/{id}                 # Get medicine details
-POST   /api/medicines                      # Add medicine (Admin/Pharmacist)
-PUT    /api/medicines/{id}                 # Update medicine
-GET    /api/medicines/search               # Search medicines (name, category)
-GET    /api/medicine-categories            # List categories
-
-# Orders
-POST   /api/orders                         # Place medicine order (Patient)
-GET    /api/orders/{id}                    # Get order details
-GET    /api/orders/my                      # Get patient's orders
-PATCH  /api/orders/{id}/cancel             # Cancel order
-PATCH  /api/orders/{id}/status             # Update order status (Pharmacist)
-GET    /api/orders/history                 # Get order history
-
-# Pharmacist Actions
-GET    /api/pharmacist/prescriptions       # View received prescriptions
-POST   /api/pharmacist/prescriptions/{id}/verify  # Verify prescription
-POST   /api/pharmacist/orders/{id}/confirm        # Confirm order
-POST   /api/pharmacist/orders/{id}/reject         # Reject order
-POST   /api/pharmacist/orders/{id}/ready          # Mark order as ready
-POST   /api/pharmacist/orders/{id}/complete       # Mark order as completed
-```
-
-### Non-CRUD Business Operation — Prescription-to-Medicine Processing
-
-The system processes an uploaded prescription and identifies relevant medicine information before checking pharmacy availability:
-
-```text
-Patient Uploads Prescription
-        ↓
-System Receives Prescription
-        ↓
-AI Extracts Medicine Information
-        ↓
-Identify Medicine Names
-        ↓
-Match with Medicine Database
-        ↓
-Identify Dosage & Frequency
-        ↓
-Check Pharmacy Availability
-        ↓
-Generate Order-Ready Information
-```
-
-**Example — Prescription Processing:**
-
-```text
-Uploaded Prescription: prescription_img_1024.jpg
-
-AI Extraction Result:
-  1. Amoxicillin 500mg — 3 times daily — 7 days
-  2. Paracetamol 500mg — as needed — 5 days
-  3. Omeprazole 20mg — once daily — 14 days
-
-Medicine Database Match:
-  ✓ Amoxicillin 500mg — Found
-  ✓ Paracetamol 500mg — Found
-  ✓ Omeprazole 20mg — Found
-
-Status: Ready for pharmacy selection
-```
-
-### Medicine Price Calculation
-
-The system should automatically calculate the medicine order price:
-
-```text
-Amoxicillin 500mg
-Rs. 25 × 21 (3/day × 7 days) = Rs. 525
-
-Paracetamol 500mg
-Rs. 10 × 10 = Rs. 100
-
-Omeprazole 20mg
-Rs. 15 × 14 = Rs. 210
-
-─────────────────────────────
-TOTAL = Rs. 835
-```
-
-### React Screens (Primary Owner) — Pharmacist Portal
+#### React Screens — Pharmacist Portal
 
 ```text
 Pharmacist Portal
-    ├── Dashboard Home
+    ├── Dashboard
     │       ├── Pending Prescriptions Count
     │       ├── Orders In Progress
     │       └── Completed Orders Today
     ├── Received Prescriptions
-    │       ├── Prescription List
+    │       ├── Prescription List (searchable by APP-2026-1024 or patient)
     │       └── Prescription Detail View
-    │               ├── Prescription Image
-    │               ├── AI-Extracted Medicines
-    │               ├── Patient Information
-    │               ├── Doctor Information
-    │               ├── [ VERIFY PRESCRIPTION ]
-    │               └── [ REJECT PRESCRIPTION ]
-    ├── Medicine Management
-    │       ├── Medicine List
-    │       ├── Add Medicine
-    │       ├── Edit Medicine
-    │       ├── Medicine Categories
-    │       └── Medicine Search
-    ├── Order Management
+    │               ├── Appointment Number
+    │               ├── Patient Name
+    │               ├── Doctor Name
+    │               ├── Medicine List + Quantities
+    │               └── AI Availability Check Results
+    ├── Medicine Order Processing
     │       ├── Order List (filter by status)
-    │       ├── Order Details
-    │       │       ├── Medicine List with Quantities
-    │       │       ├── Price Calculation
+    │       ├── Order Detail
+    │       │       ├── Auto-Calculated Price Breakdown
     │       │       ├── Patient Information
-    │       │       └── Status Updates
-    │       ├── Confirm Order
-    │       ├── Prepare Order
-    │       ├── Order Ready
-    │       └── Order Completed
-    └── Order Verification
-            ├── Verify Prescription Accuracy
-            ├── Contact Patient (if needed)
-            └── Approval / Rejection
+    │       │       └── Status Controls
+    │       ├── [ CONFIRM ORDER ]
+    │       ├── [ MARK AS PREPARING ]
+    │       ├── [ MARK AS READY ]
+    │       └── [ MARK AS DISPENSED ]
+    └── Medicine Management
+            ├── Medicine Catalog
+            ├── Add Medicine
+            ├── Edit Medicine
+            ├── Medicine Categories
+            └── Price Management
 ```
 
-### Flutter Screens (Primary Owner)
+#### Flutter Screens — Patient Order Tracking
 
 ```text
 Patient App — Prescriptions & Orders
-    ├── Prescription Upload
-    │       ├── Camera Capture
-    │       ├── Gallery Upload
-    │       ├── Prescription Preview
-    │       └── Submit Prescription
-    ├── Medicine Information
-    │       ├── Medicine Details
-    │       ├── Dosage Instructions
-    │       └── Medication Warnings
-    ├── Medicine Search
-    │       ├── Search by Name
-    │       ├── Filter by Category
-    │       └── Medicine Details
-    ├── Order Placement
-    │       ├── Review Extracted Medicines
-    │       ├── Select Pharmacy
-    │       ├── Review Order
-    │       ├── Confirm Order
-    │       └── Order Confirmation
+    ├── E-Prescription Viewer
+    │       ├── Prescription List
+    │       ├── Prescription Details
+    │       │       ├── Appointment Number
+    │       │       ├── Doctor Name
+    │       │       ├── Medicine List + Dosage
+    │       │       └── Status
+    │       └── Download / Share
+    ├── Medicine Order Viewer
+    │       ├── Order List
+    │       ├── Order Details
+    │       │       ├── Medicine + Quantity
+    │       │       ├── Price Breakdown
+    │       │       └── Payment Status
+    │       └── Order History
     ├── Order Tracking
-    │       ├── Order Status
-    │       ├── Status Timeline
-    │       └── Estimated Time
-    ├── Order Cancellation
-    │       ├── Cancel Before Confirmation
-    │       ├── Cancel After Confirmation (with warning)
-    │       └── Cancellation Confirmation
-    └── Order History
-            ├── Past Orders
-            ├── Order Details
-            └── Reorder
+    │       ├── Status Timeline (PENDING → CONFIRMED → PREPARING → READY → DISPENSED)
+    │       └── Order Progress
+    └── Notifications (Push)
+            ├── Order Confirmed
+            ├── Order Ready for Collection
+            └── Payment Confirmation
 ```
 
-### AI Agent — Medication Intelligence Agent
+> **Device Feature Requirement:** Push notifications for order status updates (Order Ready, Payment Confirmed).
 
-**Purpose:** Analyze prescription and medication information to assist patients and pharmacists with prescription interpretation, medicine identification, dosage understanding, and potential conflict detection. This agent does **not** prescribe medicines or independently change a doctor's prescription.
+#### Testing
 
-**Input:** Prescription image/text, medicine names, dosage information
+- Prescription API tests
+- Order API tests
+- Price calculation unit tests (edge cases: zero quantity, decimal prices)
+- React component tests (pharmacist portal, price display)
+- Flutter tests (prescription viewer, order tracking)
+- Agent tests (availability check accuracy)
+- Integration tests (doctor generates prescription → patient views → pharmacist processes → order completed)
 
-**Output:**
+#### Non-CRUD Business Operation — Prescription-to-Order Processing & Price Calculation
 
-```json
-{
-  "prescriptionId": "RX-1024",
-  "extractedMedicines": [
-    {
-      "name": "Amoxicillin 500mg",
-      "dosage": "3 times daily",
-      "duration": "7 days",
-      "totalQuantity": 21,
-      "instructions": "Take after meals",
-      "warnings": ["May cause diarrhea", "Complete full course"]
-    },
-    {
-      "name": "Paracetamol 500mg",
-      "dosage": "As needed",
-      "duration": "5 days",
-      "totalQuantity": 10,
-      "instructions": "Take for pain/fever",
-      "warnings": ["Do not exceed 4g per day"]
-    }
-  ],
-  "duplicateCheck": [],
-  "conflictCheck": [],
-  "overallWarnings": ["No significant interactions detected"]
-}
+Beyond CRUD, Member 3 must implement:
+
+**Automatic Price Calculation:**
+
+```text
+POST /api/orders/{id}/calculate-price
+
+Input: Prescription items + pharmacy ID
+
+Process:
+  For each PrescriptionItem:
+    1. Look up unit price from Medicine table
+    2. Multiply by quantity
+    3. Apply any applicable discounts
+    4. Calculate subtotal
+
+Output:
+  Amoxicillin 500mg × 20 → Rs. 25 × 20  = Rs.  500
+  Paracetamol 500mg × 10 → Rs. 10 × 10  = Rs.  100
+  Omeprazole 20mg  × 14 → Rs. 15 × 14  = Rs.  210
+  ──────────────────────────────────────────────────
+  TOTAL                                  = Rs.  810
 ```
 
-**Functions:**
+**Order Status State Machine:**
 
-| Function | Description |
-|---|---|
-| Extract medicine names | Identify medicine names from prescription text/image |
-| Identify dosage/frequency | Parse dosage and frequency information |
-| Explain instructions | Provide clear medication instructions |
-| Detect duplicates | Identify if same medicine appears multiple times |
-| Check conflicts | Identify potential medication interactions |
-| Generate warnings | Provide medication-related safety warnings |
-| Assist interpretation | Help pharmacists and patients understand prescriptions |
+```text
+PENDING → CONFIRMED → PREPARING → READY → DISPENSED
+    └─────────────────────────────────────────► CANCELLED
+```
 
-**Tools Used:**
+### B. AI Agent — 💊 Medication Intelligence Agent
+
+**Purpose:** When the doctor is writing a prescription, check whether each prescribed medicine is available at the pharmacy in the required quantity. If not available, identify potential therapeutic alternatives. The doctor makes the final prescribing decision.
+
+**Workflow:**
+
+```text
+Doctor Selects Medicine + Quantity
+       ↓
+💊 Medication Intelligence Agent
+       ↓
+Query Pharmacy Inventory
+       ↓
+Check Required Quantity
+       ↓
+       ┌────────────────┴────────────────┐
+       ▼                                 ▼
+  [ AVAILABLE ]                   [ NOT AVAILABLE ]
+       │                                 │
+  ✓ Sufficient stock             Find Potential Alternatives:
+  ✓ Quantity confirmed           • Alternative A — In Stock (qty: 30)
+       │                         • Alternative B — In Stock (qty: 15)
+       ▼                                 ↓
+  Doctor Confirms              Doctor Selects Alternative OR
+  Original Medicine            Provides Alternative Prescription
+       │
+       ▼
+  Proceed to E-Prescription
+```
+
+**Example Display in Doctor UI:**
+
+```text
+Medication Availability Check
+
+Amoxicillin 500mg × 20
+
+✓ Available at ABC Pharmacy
+✓ Current Stock: 45 units
+✓ Sufficient for prescription (need: 20)
+
+[ CONFIRM MEDICINE ]
+
+──────────────────────────────
+
+Cefadroxil 500mg × 20 (for a different patient)
+
+❌ Not Available at ABC Pharmacy
+   Current Stock: 0 units
+
+Potential Alternatives:
+  • Augmentin 625mg — Stock: 30 (clinically consider with doctor)
+  • Cefuroxime 250mg — Stock: 15 (clinically consider with doctor)
+
+⚠️ Final medicine selection is the doctor's clinical decision.
+```
+
+**Agent Tools (Allow-Listed):**
 
 | Tool | Purpose |
 |---|---|
-| `extract_medicines()` | Extract medicine names from prescription text/image |
-| `parse_dosage()` | Parse dosage and frequency information |
-| `check_duplicates()` | Check for duplicate medicine entries |
-| `check_interactions()` | Check for potential drug interactions |
-| `generate_instructions()` | Generate clear medication instructions |
-| `generate_warnings()` | Generate medication safety warnings |
+| `searchMedicine()` | Search medicine by name/category |
+| `checkInventory()` | Check pharmacy stock for a medicine |
+| `checkMedicineQuantity()` | Verify if quantity is sufficient |
+| `findPotentialAlternatives()` | Find available alternative medicines |
+| `validatePrescription()` | Validate prescription structure |
 
 **Safety Rules:**
 
-- Must NOT prescribe medicines or independently change a doctor's prescription
-- Must NOT independently substitute medicines
-- Extracted information must be verified by a pharmacist
-- If extraction fails → safe failure: *"Unable to read prescription. Please consult the pharmacist directly."*
-- Must clearly label output as AI-assisted extraction, not a verified result
+- Must NOT automatically substitute a prescribed medicine
+- Must NOT change dosage or quantity without doctor approval
+- Alternatives are presented for doctor consideration only
+- If inventory check fails → *"Inventory check unavailable. Please verify stock manually."*
 
-### AI Explainability — Medication Intelligence
+**Evaluation Metrics:**
 
-```text
-Medication Intelligence Result
-
-Prescription: RX-1024
-
-Extracted Medicines:
-  1. Amoxicillin 500mg — 3× daily — 7 days
-     → Antibiotic for bacterial infections
-     → Complete full course even if feeling better
-
-  2. Paracetamol 500mg — As needed — 5 days
-     → Pain/fever relief
-     → Do not exceed 4g per day
-
-Duplicate Check: ✓ No duplicates found
-Interaction Check: ✓ No significant interactions
-
-⚠️ This is AI-assisted extraction.
-   Pharmacist verification is required.
-```
-
-### AI Evaluation Metrics — Medication Intelligence
-
-| Metric | Description |
+| Metric | Method |
 |---|---|
-| Medicine Extraction Accuracy | % of medicine names correctly extracted from prescriptions |
-| Dosage Parsing Accuracy | % of dosage/frequency information correctly parsed |
-| Duplicate Detection Accuracy | % of duplicate medicines correctly identified |
-| Interaction Detection Accuracy | % of potential interactions correctly flagged |
-| Safe Fallback Rate | % of unreadable prescriptions correctly flagged for manual review |
-
-### Testing Responsibilities
-
-- Unit tests for prescription/medicine/order services
-- Unit tests for prescription-to-medicine processing
-- API integration tests for prescription, medicine, and order endpoints
-- React component tests for pharmacist portal screens
-- Flutter widget tests for prescription and order screens
-- Prescription processing edge case tests
-- Order cancellation rule tests
-- Medicine search and validation tests
-- Medication Intelligence Agent tests (extraction, conflicts, edge cases)
+| Stock Lookup Accuracy | Rule-based tests against seed data |
+| Alternative Medicine Relevance | Golden test cases |
+| False Negative Rate | Tests where medicine IS available but wrongly flagged |
+| Safe Failure Rate | Deterministic failure handling tests |
 
 ### Feature Branches
 
 ```text
-feature/prescription-upload
-feature/prescription-processing
-feature/medicine-management
-feature/medicine-categories
-feature/order-management
-feature/order-cancellation
-feature/order-status
-feature/price-calculation
-feature/agent-medication-intelligence
-feature/react-pharmacist-portal
-feature/flutter-prescription-screens
-feature/flutter-order-screens
+feature/m3-medicine-management
+feature/m3-medicine-categories
+feature/m3-pharmacy-medicine-stock
+feature/m3-prescription-generation
+feature/m3-prescription-distribution
+feature/m3-order-management
+feature/m3-order-payment
+feature/m3-price-calculation
+feature/m3-order-status-workflow
+feature/m3-agent-medication-intelligence
+feature/m3-react-pharmacist-portal
+feature/m3-flutter-order-tracking
 ```
 
-### Deliverables Summary
+### Deliverables
 
-- [ ] Prescription, PrescriptionItem, Medicine, MedicineCategory, MedicationInstruction, Order, OrderItem, OrderStatus database tables + EF Core migrations
-- [ ] Prescription & Medicine REST APIs (minimum 4 meaningful endpoints)
-- [ ] Order Management REST APIs
-- [ ] Prescription-to-Medicine Processing (non-CRUD business operation)
-- [ ] Medicine price calculation
+- [ ] Medicine, MedicineCategory, PharmacyMedicine, Prescription, PrescriptionItem, MedicineOrder, OrderItem, OrderPayment tables + EF Core migrations
+- [ ] E-Prescription & Medicine Order REST APIs (minimum 4 meaningful endpoints)
+- [ ] Price Calculation Service + Order Status State Machine (non-CRUD business operations)
 - [ ] React pharmacist portal (all screens listed above)
-- [ ] Flutter prescription & order screens (all screens listed above)
-- [ ] Medication Intelligence Agent
-- [ ] Seed data (sample medicines, categories, prescriptions)
-- [ ] Unit + integration + component tests
-- [ ] API documentation (Swagger)
-- [ ] Component documentation
+- [ ] Flutter patient prescription and order tracking screens (with push notifications)
+- [ ] Medication Intelligence Agent with agent tools
+- [ ] Seed data (sample medicines, categories, prescriptions, orders)
+- [ ] Prescription + order + price calculation + integration tests
+- [ ] Swagger API documentation
+- [ ] Individual AI usage log
 
 ---
 
-## 8. Member 4 — Pharmacy & Inventory & Supplier Management
+## 8. E-Prescription Generation & Distribution Workflow
+
+### Doctor Creates E-Prescription
+
+```text
+Doctor
+   ↓
+Opens Verified Appointment (APP-2026-1024)
+   ↓
+Consultation Complete
+   ↓
+Select Required Medicine
+   ↓
+💊 Medication Intelligence Agent checks availability
+   ↓
+Doctor Confirms Medicine (+ quantity, dosage, duration)
+   ↓
+Doctor clicks [ GENERATE E-PRESCRIPTION ]
+   ↓
+System Creates E-Prescription Record
+```
+
+### E-Prescription Distribution
+
+```text
+E-Prescription Generated
+      ├──────────────────────────────────────┐
+      ▼                                       ▼
+PATIENT PORTAL (Flutter + React)      PHARMACIST PORTAL (React)
+  • View prescription                   • View prescription
+  • See medicines + dosage              • See appointment number
+  • Download/share                      • See medicine list + quantity
+                                        • Auto-calculate price
+                                        • Process order
+```
+
+### E-Prescription Fields
+
+| Field | Description |
+|---|---|
+| Prescription ID | Unique prescription identifier |
+| Appointment Number | e.g. `APP-2026-1024` |
+| Patient ID | Patient reference |
+| Doctor ID | Issuing doctor reference |
+| Date Issued | Timestamp of generation |
+| Medicines | List of medicine items |
+| Quantity | Per medicine quantity |
+| Dosage & Frequency | Dosage instructions |
+| Status | ACTIVE / FULFILLED / EXPIRED |
+
+---
+
+## 9. Pharmacist Order Processing Workflow
+
+```text
+Pharmacist
+   ↓
+Search Prescription (by APP-2026-1024 or Prescription ID)
+   ↓
+View E-Prescription Details
+   ↓
+System Auto-Calculates Total Price:
+
+  Amoxicillin 500mg × 20    Rs. 25 × 20 = Rs.  500
+  Paracetamol 500mg × 10    Rs. 10 × 10 = Rs.  100
+  TOTAL                                 = Rs.  600
+
+   ↓
+Pharmacist Confirms Order
+   ↓
+Patient Notified + Payment Requested
+   ↓
+Patient Pays
+   ↓
+Pharmacist Prepares Order
+   ↓
+Order Status: READY
+   ↓
+Patient Collects
+   ↓
+Order Status: DISPENSED
+   ↓
+Pharmacy Inventory Automatically Decremented
+```
+
+---
+
+## 10. Member 4 — Pharmacy Inventory & Supplier Management
 
 ### Business Focus
 
-Everything related to **pharmacy operations, inventory management, and supplier restocking** — pharmacy registration and search, inventory management, stock monitoring, supplier management, restocking requests, pharmacy selection based on availability and distance, and demand-based restocking intelligence. Also owns the **Pharmacy & Inventory Intelligence Agent**.
+Everything related to **pharmacy management, inventory monitoring, supplier management, and restocking workflows** — pharmacy profiles, real-time stock levels, low-stock alerts, demand forecasting, restock request management, supplier portal, and pharmacy feedback. Member 4 also owns the **Pharmacy & Inventory Intelligence Agent**.
 
-### Database Entities Owned
+### A. Software Engineering (SE) Responsibility
 
-| Entity | Purpose |
-|---|---|
-| `Pharmacies` | Pharmacy records (name, address, details, status) |
-| `PharmacyLocations` | Pharmacy location/coordinates for distance-based search |
-| `Inventory` | Stock levels per medicine (quantity, expiry, min stock) |
-| `InventoryTransactions` | Historical stock changes (additions, removals, adjustments) |
-| `Suppliers` | Supplier company records |
-| `RestockRequests` | Restock requests from pharmacy to supplier |
-| `PharmacyOrders` | Pharmacy-level order records |
-
-### API Endpoints
+#### ASP.NET Core — API Endpoints (Minimum 4)
 
 ```text
 # Pharmacy Management
-GET    /api/pharmacies                     # List/search pharmacies
-GET    /api/pharmacies/{id}                # Get pharmacy details
-POST   /api/pharmacies                     # Register pharmacy
-PUT    /api/pharmacies/{id}                # Update pharmacy
-GET    /api/pharmacies/nearby              # Search nearby pharmacies (location-based)
-GET    /api/pharmacies/{id}/medicines      # Get medicines available at pharmacy
+GET    /api/pharmacies/{id}                  # Get pharmacy details
+GET    /api/pharmacies/nearby                # Nearby pharmacy search (location-based)
 
 # Inventory Management
-GET    /api/pharmacies/{id}/inventory      # Get pharmacy inventory
-POST   /api/inventory                      # Add inventory entry
-PATCH  /api/inventory/{id}                 # Update stock level
-GET    /api/inventory/low-stock            # Get low-stock items
-GET    /api/inventory/expiring             # Get expiring/expired items
-GET    /api/inventory/history              # Get inventory transaction history
-
-# Supplier Management
-GET    /api/suppliers                      # List suppliers
-GET    /api/suppliers/{id}                 # Supplier details
-POST   /api/suppliers                      # Register supplier
-PUT    /api/suppliers/{id}                 # Update supplier
-GET    /api/suppliers/{id}/medicines       # Medicines supplied by this supplier
+GET    /api/pharmacies/{id}/inventory        # Get pharmacy inventory
+POST   /api/pharmacies/{id}/inventory        # Add stock
+PUT    /api/inventory/{id}                   # Update stock level
+GET    /api/inventory/low-stock              # Get low-stock items
 
 # Restock Requests
-POST   /api/restock-requests               # Create restock request
-GET    /api/restock-requests               # List restock requests
-GET    /api/restock-requests/{id}          # Get request details
-POST   /api/restock-requests/{id}/approve  # Approve request (Supplier)
-POST   /api/restock-requests/{id}/reject   # Reject request (Supplier)
-PUT    /api/restock-requests/{id}/delivery # Update delivery status
-GET    /api/suppliers/{id}/supply-history  # View supply history
+POST   /api/restock-requests                 # Create restock request
+GET    /api/restock-requests                 # List restock requests
+PUT    /api/restock-requests/{id}            # Update request status
+
+# Supplier Actions
+POST   /api/suppliers/{id}/approve           # Supplier approves request
+GET    /api/suppliers/{id}/supply-history    # View supply history
+
+# Pharmacy Analytics
+GET    /api/pharmacies/{id}/analytics        # Sales + order analytics
+GET    /api/pharmacies/{id}/ratings          # Pharmacy ratings
 ```
 
-### Non-CRUD Business Operation — Pharmacy Selection & Restocking Decision
+#### PostgreSQL — Database Entities
 
-**Pharmacy Selection:**
-
-The system should determine suitable pharmacies for a patient's order based on multiple factors:
-
-```text
-Patient Order Request
-        ↓
-Check Medicine Availability
-        ↓
-Calculate Distance
-        ↓
-Check Stock Quantity
-        ↓
-Check Pharmacy Status
-        ↓
-Check Operating Hours
-        ↓
-Rank Pharmacies
-        ↓
-Recommend Best Options
-```
-
-| Factor | Description |
+| Entity | Purpose |
 |---|---|
-| Medicine Availability | Does the pharmacy have the required medicines? |
-| Distance | How far is the pharmacy from the patient? |
-| Stock Quantity | Does the pharmacy have sufficient stock? |
-| Pharmacy Status | Is the pharmacy currently active/open? |
-| Operating Hours | Is the pharmacy open during the desired time? |
+| `Pharmacy` | Pharmacy records (name, address, contact, location, status) |
+| `PharmacyInventory` | Stock levels per medicine per pharmacy |
+| `InventoryHistory` | Historical stock change records |
+| `Supplier` | Supplier company profiles |
+| `SupplierMedicine` | Medicines a supplier can provide |
+| `RestockRequest` | Restock requests from pharmacy to supplier |
+| `RestockRequestItem` | Individual medicine items in a restock request |
 
-**Restocking Decision:**
+Requirements: PKs, FKs, constraints, indexes, EF Core migrations, seed data, timestamps.
 
-The inventory system should identify medicines that require restocking:
-
-```text
-When: Current Stock < Minimum Stock
-
-⚠️ Amoxicillin 500mg is low in stock.
-
-Current Stock:  8
-Minimum Stock:  20
-
-Suggested Restock Quantity: 50
-```
-
-### React Screens (Primary Owner) — Pharmacy & Supplier Portals
-
-#### Pharmacy Owner Dashboard
+#### React Screens — Pharmacy Owner & Supplier Portals
 
 ```text
 Pharmacy Owner Dashboard
     ├── Dashboard Home
-    │       ├── Inventory Overview
-    │       ├── Low-Stock Alerts
-    │       ├── Active Orders Count
+    │       ├── Real-time Stock Level Overview
+    │       ├── Low-Stock Alert Count
+    │       ├── Active Orders
     │       └── Revenue Summary
     ├── Inventory Dashboard
-    │       ├── Stock Overview
-    │       ├── Inventory List (all medicines)
-    │       ├── Low Stock Alerts (⚠ with current vs. minimum)
-    │       ├── Expiring / Expired Medicines
+    │       ├── Full Stock List
+    │       ├── Low-Stock Items (⚠ Current < Minimum)
+    │       ├── Expiring / Expired Items
     │       └── Inventory History
     ├── Stock Management
-    │       ├── Add Medicine to Inventory
-    │       ├── Update Stock Level
-    │       ├── Set Minimum Stock
-    │       └── Stock Adjustment
-    ├── AI Demand Insights
-    │       ├── Demand Predictions
-    │       ├── Frequently Ordered Medicines
+    │       ├── Add/Update Stock
+    │       ├── Set Minimum Thresholds
+    │       └── Stock Adjustment Records
+    ├── AI Demand Intelligence
+    │       ├── Demand Forecast View
     │       ├── Stock-Out Predictions
-    │       └── Restocking Recommendations
-    ├── Pharmacy Profile Management
+    │       ├── Restock Recommendations (AI)
+    │       └── [ APPROVE RESTOCK ] / [ DISMISS ]
+    ├── Pharmacy Profile
     │       ├── Pharmacy Information
-    │       ├── Location
-    │       ├── Operating Hours
-    │       └── Contact Details
-    └── Pharmacy Analytics
-            ├── Order Statistics
-            ├── Medicine Demand Trends
-            └── Customer Ratings & Feedback
-```
+    │       ├── Location & Map
+    │       └── Operating Hours
+    └── Pharmacy Feedback & Ratings
+            ├── Average Rating
+            ├── Rating Distribution
+            └── Recent Patient Feedback
 
-#### Supplier Portal
-
-```text
 Supplier Portal
-    ├── Dashboard Home
+    ├── Supplier Dashboard
     │       ├── Pending Requests Count
-    │       ├── Approved Requests
     │       └── Quick Stats
     ├── Supplier Profile
-    ├── Medicines Supplied
+    ├── Medicines Supplied List
     ├── Restock Requests
-    │       ├── Request List (Pending / Approved / Rejected)
-    │       ├── Request Details
-    │       │       ├── Medicine Name
-    │       │       ├── Current Stock (at pharmacy)
-    │       │       ├── Requested Quantity
-    │       │       ├── AI Recommendation
-    │       │       ├── Status
-    │       │       ├── [ APPROVE ]
-    │       │       └── [ REJECT ]
-    │       └── Request History
+    │       ├── Request List (PENDING / APPROVED / REJECTED)
+    │       └── Request Detail
+    │               ├── Medicine Name
+    │               ├── Requested Quantity
+    │               ├── AI Recommendation Note
+    │               ├── Current Pharmacy Stock
+    │               ├── [ APPROVE ]
+    │               └── [ REJECT ]
     ├── Delivery Management
     │       ├── Pending Deliveries
-    │       ├── Delivery Status Updates
-    │       └── Completed Deliveries
+    │       └── Delivery Status Updates
     └── Supply History
 ```
 
-**Example — Restock Request:**
+#### Flutter Screens — Pharmacist/Operational Mobile
 
 ```text
-RESTOCK REQUEST
-
-Medicine:           Amoxicillin 500mg
-Current Stock:      8
-Requested Quantity: 50
-AI Recommendation:  Restock ~100 units (high demand predicted)
-Status:             PENDING
-
-[ APPROVE ]  [ REJECT ]
+Pharmacist/Operational App
+    ├── Pharmacist Login
+    ├── Stock Overview
+    │       ├── Current Stock Levels
+    │       └── Low-Stock Alerts (push notification)
+    ├── Stock Update Screen
+    │       ├── Update Quantity
+    │       └── Record Reason
+    ├── Restock Request Status
+    │       ├── Pending Requests
+    │       ├── Approved Requests
+    │       └── Delivery Status
+    └── Supplier Request Status
+            └── Track Pending Supply Orders
 ```
 
-### Flutter Screens (Primary Owner)
+> **Device Feature Requirement:** Push notifications for low-stock alerts and restock approval status updates.
+
+#### Testing
+
+- Inventory API tests (add stock, update, low-stock detection)
+- Restocking business-rule tests (threshold detection, request creation)
+- React component tests (inventory dashboard, supplier portal)
+- Flutter tests (stock overview, notifications)
+- AI forecasting/demand tests (golden cases with known order history)
+- Integration tests (order dispensed → inventory decremented → low-stock detected → restock requested → supplier approves → stock updated)
+- Performance tests (API response time, concurrent inventory reads)
+
+#### Non-CRUD Business Operation — Restocking Decision & Demand Forecasting
+
+Beyond CRUD, Member 4 must implement an **Inventory Intelligence Service** that:
+
+1. Monitors all inventory levels against minimum thresholds
+2. Analyzes recent order history to calculate demand rate
+3. Predicts estimated stock-out date
+4. Calculates recommended restock quantity
+5. Exposes these as structured recommendations for pharmacist/owner review
 
 ```text
-Patient App — Pharmacy & Availability
-    ├── Nearby Pharmacy Search
-    │       ├── Map View (nearby pharmacies)
-    │       ├── List View (distance-based)
-    │       ├── Filter by Medicine Availability
-    │       └── Filter by Operating Hours
-    ├── Pharmacy Details
-    │       ├── Pharmacy Information
-    │       ├── Location & Map
-    │       ├── Operating Hours
-    │       ├── Available Medicines
-    │       └── Ratings & Reviews
-    ├── Medicine Availability
-    │       ├── Check Medicine at Pharmacy
-    │       ├── Stock Status
-    │       └── Alternative Pharmacies
-    ├── Pharmacy Selection
-    │       ├── Compare Pharmacies
-    │       ├── Availability Status
-    │       ├── Distance
-    │       └── Select Pharmacy for Order
-    └── Order Tracking (pharmacy side)
-            ├── Order Status from Pharmacy
-            └── Delivery/Pickup Status
+POST /api/pharmacies/{id}/generate-restock-recommendations
+
+Process:
+  For each medicine in inventory:
+    1. Check: currentStock < minimumThreshold?
+    2. Analyze: recent orders (last 30 days) → demand rate/day
+    3. Predict: estimated stock-out = currentStock / demand_per_day
+    4. Recommend: restockQty = (target_days × demand_per_day) - currentStock
+
+Output:
+  {
+    medicine: "Amoxicillin 500mg",
+    currentStock: 8,
+    minimumThreshold: 20,
+    demandPerDay: 6,
+    predictedStockOutIn: "1.3 days",
+    recommendedRestockQty: 50,
+    status: "CRITICAL"
+  }
 ```
 
-### Supplier Restocking Workflow
+### B. AI Agent — 📦 Pharmacy & Inventory Intelligence Agent
+
+**Purpose:** Monitor pharmacy inventory levels, analyze historical demand patterns, forecast future demand, predict stock-outs, and recommend optimal restocking quantities. The pharmacist or pharmacy owner must approve any recommendation before a supplier request is created.
+
+**Workflow:**
 
 ```text
-Pharmacy Inventory
-   ↓
-AI Detects Low Stock
-   ↓
-Demand Prediction
-   ↓
-Recommended Restock Quantity
-   ↓
+Pharmacy Inventory Levels + Historical Order Data
+       ↓
+📦 Pharmacy & Inventory Intelligence Agent
+       ↓
+Low-Stock Detection (currentStock < minimumThreshold)
+       ↓
+Demand Analysis (recent orders + trends)
+       ↓
+Demand Forecasting (predicted usage)
+       ↓
+Stock-Out Date Prediction
+       ↓
+Optimal Restock Quantity Recommendation
+       ↓
 Pharmacist / Owner Reviews
-   ↓
-Create Restock Request
-   ↓
-Supplier Portal
-   ↓
-Supplier Reviews Request
-   ↓
-Supplier Approves / Rejects
-   ↓
-Supply Process
-   ↓
-Pharmacy Receives Stock
-   ↓
-Inventory Updated
+       ↓
+[ APPROVE → Supplier Request Created ]
+[ DISMISS → No action taken ]
 ```
 
-### AI Agent — Pharmacy & Inventory Intelligence Agent
+**Example Agent Recommendation:**
 
-**Purpose:** Analyze pharmacy inventory and operational data to predict demand, detect low stock, recommend restocking quantities, and assist with pharmacy selection for patient orders. The final restocking decision should remain under authorized pharmacist/pharmacy-owner control.
+```text
+📦 Inventory Intelligence Report — ABC Pharmacy
 
-**Input:** Inventory data, order history, demand patterns, pharmacy location data
+Medicine: Amoxicillin 500mg
+─────────────────────────────────────
+Current Stock:       8 units
+Minimum Threshold:   20 units
+Status:              ⚠️ CRITICAL — LOW STOCK
 
-**Output:**
+Recent Demand:
+  Last 7 days: 42 units
+  Daily average: 6 units/day
 
-```json
-{
-  "medicine": "Paracetamol 500mg",
-  "currentStock": 20,
-  "minimumStock": 50,
-  "averageWeeklyDemand": 80,
-  "status": "LOW_STOCK",
-  "prediction": "Stock-out likely within approximately 2 days.",
-  "recommendation": "Restock approximately 100 units.",
-  "reason": "Current stock is well below minimum threshold and weekly demand is high.",
-  "frequentlyOrdered": true
-}
+Stock-Out Prediction:
+  Estimated stock-out in approximately 1.3 days
+
+AI Recommendation:
+  Restock 50 units from Supplier Alpha
+
+Reason:
+  Current stock is 60% below minimum threshold.
+  High recent demand indicates continued usage.
+  50 units covers approximately 8 days of supply.
+
+[ APPROVE RESTOCK ]  [ DISMISS ]
+
+⚠️ This is an AI recommendation.
+   Pharmacist / Owner must approve before
+   supplier request is created.
 ```
 
-**Functions:**
-
-| Function | Description |
-|---|---|
-| Predict future demand | Analyze historical orders to forecast medicine demand |
-| Detect low stock | Identify medicines below minimum stock levels |
-| Predict stock-outs | Predict when a medicine may become unavailable |
-| Recommend restocking | Suggest optimal restocking quantities |
-| Identify frequently ordered | Track most frequently ordered medicines |
-| Recommend pharmacies | Suggest suitable pharmacies based on availability |
-| Assist suppliers | Help suppliers prioritize restocking |
-
-**Tools Used:**
+**Agent Tools (Allow-Listed):**
 
 | Tool | Purpose |
 |---|---|
-| `monitor_inventory_levels()` | Real-time inventory monitoring |
-| `detect_low_stock()` | Detect medicines below minimum stock level |
-| `analyze_demand()` | Analyze historical demand patterns |
-| `predict_stockout()` | Predict when stock may run out |
-| `calculate_restock_quantity()` | Recommend optimal restock quantities |
-| `recommend_pharmacies()` | Rank pharmacies by availability and distance |
+| `getInventory()` | Retrieve current inventory levels for a pharmacy |
+| `getHistoricalOrders()` | Get historical order data for demand analysis |
+| `calculateDemand()` | Calculate average demand rate |
+| `forecastDemand()` | Forecast future demand |
+| `predictStockout()` | Predict when stock will run out |
+| `generateRestockRecommendation()` | Generate recommended restock quantity and supplier |
 
 **Safety Rules:**
 
-- Must base recommendations on actual inventory data only
-- Must NOT auto-restock without pharmacist/owner approval
-- Restock recommendations are suggestions — human decides
-- If data insufficient → report *"Insufficient historical data for demand prediction"*
-- If inventory data unavailable → safe failure with message
+- Must NOT create supplier requests automatically without approval
+- Restock recommendations are suggestions only — human decides
+- If insufficient historical data → *"Insufficient historical data for demand prediction. Manual assessment recommended."*
+- If inventory data unavailable → *"Inventory check failed. Please verify stock manually."*
 
-### AI Explainability — Pharmacy & Inventory Intelligence
+**Evaluation Metrics:**
+
+| Metric | Method |
+|---|---|
+| Low-Stock Detection Precision | Rule-based tests against seeded inventory |
+| Demand Prediction MAE | Mean Absolute Error vs. actual consumption |
+| Stock-Out Prevention Rate | % of predicted stock-outs avoided with restock |
+| Restocking Quantity Accuracy | Within acceptable range tests |
+| False Positive Rate | Tests where stock is fine but flagged as low |
+
+### Supplier Portal Workflow
 
 ```text
-AI Inventory Intelligence Result
+Pharmacy Owner / Pharmacist
+   ↓
+Reviews AI Restock Recommendation
+   ↓
+Approves → Restock Request Created
+   ↓
+SUPPLIER PORTAL
 
-Medicine:       Paracetamol 500mg
-Current Stock:  20 units
-Minimum Stock:  50 units
-Weekly Demand:  80 units (average)
+  RESTOCK REQUEST
 
-Prediction:
-  Stock may become insufficient within approximately 2 days
-  based on recent demand patterns.
+  Medicine:      Amoxicillin 500mg
+  Quantity:      50 units
+  Requested By:  ABC Pharmacy
+  AI Note:       High demand predicted
+  Status:        PENDING
 
-Recommendation:
-  Restock approximately 100 units.
+  [ APPROVE ]   [ REJECT ]
 
-Reason:
-  Current stock (20) is significantly below the minimum
-  threshold (50) and recent demand has been increasing.
-  Historical data shows average weekly usage of 80 units.
-
-⚠️ This is an AI recommendation.
-   The pharmacist/pharmacy owner must approve any restocking decision.
+   ↓ (Supplier Action)
+Supplier Approves
+   ↓
+Delivery Status Updated
+   ↓
+Pharmacy Marks as Received
+   ↓
+Inventory Automatically Updated
 ```
 
-### AI Evaluation Metrics — Pharmacy & Inventory Intelligence
+### Pharmacy Feedback & Rating
 
-| Metric | Description |
-|---|---|
-| Low-Stock Detection Accuracy | % of low-stock situations correctly identified |
-| Demand Prediction Accuracy | Accuracy of usage/demand forecasting |
-| Stock-Out Prediction Accuracy | % of stock-outs correctly predicted before occurrence |
-| Restocking Recommendation Accuracy | Appropriateness of suggested restock quantities |
-| Pharmacy Selection Accuracy | % of pharmacy recommendations matching patient needs |
+After a completed medicine order, patients can rate the pharmacy:
 
-### Testing Responsibilities
+```text
+Rate Pharmacy
 
-- Unit tests for pharmacy/inventory/supplier services
-- Unit tests for pharmacy selection logic
-- API integration tests for pharmacy, inventory, and supplier endpoints
-- React component tests for pharmacy and supplier portal screens
-- Flutter widget tests for pharmacy search and selection screens
-- Stock update and inventory calculation tests
-- Restocking request workflow tests
-- Distance-based pharmacy selection tests
-- Pharmacy & Inventory Intelligence Agent tests (low stock, demand, restocking)
+ABC Pharmacy
+
+★★★★★ (5 stars)
+
+Review: "Fast service and helpful staff."
+
+[ SUBMIT ]
+```
+
+The system displays:
+- Average rating (e.g. 4.8 ⭐)
+- Number of ratings
+- Rating distribution (5⭐: 80%, 4⭐: 15%, 3⭐: 5%)
+- Recent feedback list
+
+> **Rule:** Only patients who have completed a medicine order at that pharmacy can submit a rating.
+
+### Patient Order History
+
+The patient dashboard must display:
+
+```text
+MY ORDER HISTORY
+
+Order #ORD-1024
+─────────────────────────
+Appointment: APP-2026-1024
+Pharmacy:    ABC Pharmacy
+Medicines:   Amoxicillin 500mg × 20
+             Paracetamol 500mg × 10
+Total:       Rs. 600
+Status:      COMPLETED
+Feedback:    ★★★★★ (submitted)
+
+Order #ORD-1018
+─────────────────────────
+Appointment: APP-2026-1001
+Pharmacy:    City Pharmacy
+Medicines:   Omeprazole 20mg × 14
+Total:       Rs. 210
+Status:      DISPENSED
+```
 
 ### Feature Branches
 
 ```text
-feature/pharmacy-management
-feature/pharmacy-search
-feature/pharmacy-location
-feature/inventory-management
-feature/stock-monitoring
-feature/low-stock-detection
-feature/supplier-management
-feature/restock-requests
-feature/restock-approval
-feature/supply-workflow
-feature/agent-pharmacy-inventory-intelligence
-feature/react-pharmacy-owner-dashboard
-feature/react-supplier-portal
-feature/flutter-pharmacy-screens
+feature/m4-pharmacy-management
+feature/m4-pharmacy-location
+feature/m4-inventory-management
+feature/m4-stock-monitoring
+feature/m4-low-stock-alerts
+feature/m4-inventory-history
+feature/m4-supplier-management
+feature/m4-restock-requests
+feature/m4-restock-approval
+feature/m4-supply-workflow
+feature/m4-pharmacy-feedback
+feature/m4-agent-inventory-intelligence
+feature/m4-react-pharmacy-owner
+feature/m4-react-supplier-portal
+feature/m4-flutter-pharmacist-app
 ```
 
-### Deliverables Summary
+### Deliverables
 
-- [ ] Pharmacy, PharmacyLocation, Inventory, InventoryTransaction, Supplier, RestockRequest, PharmacyOrder database tables + EF Core migrations
+- [ ] Pharmacy, PharmacyInventory, InventoryHistory, Supplier, SupplierMedicine, RestockRequest, RestockRequestItem tables + EF Core migrations
 - [ ] Pharmacy & Inventory REST APIs (minimum 4 meaningful endpoints)
-- [ ] Supplier & Restock REST APIs
-- [ ] Pharmacy Selection Logic (non-CRUD business operation)
-- [ ] Restocking Decision Logic (non-CRUD business operation)
-- [ ] React pharmacy owner dashboard (all screens listed above)
-- [ ] React supplier portal (all screens listed above)
-- [ ] Flutter pharmacy search & selection screens (all screens listed above)
-- [ ] Pharmacy & Inventory Intelligence Agent
-- [ ] Seed data (sample pharmacies, inventory, suppliers)
-- [ ] Unit + integration + component tests
-- [ ] API documentation (Swagger)
-- [ ] Component documentation
+- [ ] Inventory Intelligence Service + Demand Forecasting (non-CRUD business operations)
+- [ ] React pharmacy owner dashboard + supplier portal (all screens listed above)
+- [ ] Flutter pharmacist/operational mobile app (with push notifications)
+- [ ] Pharmacy & Inventory Intelligence Agent with agent tools
+- [ ] Seed data (sample pharmacies, inventory, suppliers, restock requests)
+- [ ] Inventory + restocking + supplier + integration + performance tests
+- [ ] Swagger API documentation
+- [ ] Individual AI usage log
 
 ---
 
-## 9. Agent & SE Responsibility Summary
+## 11. Agentic AI Architecture
 
-| Member | SE Component | AI Agent |
-|---|---|---|
-| Member 1 | Doctor & Specialist Management | 🩺 Specialist & Doctor Recommendation Agent |
-| Member 2 | Patient & Medical History & Appointment Management | 🧠 Clinical Decision Support & Diagnosis Suggestion Agent |
-| Member 3 | Prescription & Medicine & Order Management | 💊 Medication Intelligence Agent |
-| Member 4 | Pharmacy & Inventory & Supplier Management | 📦 Pharmacy & Inventory Intelligence Agent |
+### Overview
 
-### Four Agents — What They Answer
+The four agents must not be implemented as four disconnected prompt-based chatbots. The SE3090 assignment requires distinct agents with identifiable responsibilities, input/output contracts, controlled tools, and visible participation in a structured workflow managed by an **Agentic Orchestrator**.
+
+### Agentic Orchestrator
+
+The orchestrator is a **cross-cutting component** that coordinates the four agents across the end-to-end workflow:
 
 ```text
-Agent 1 (Member 1) — Specialist & Doctor Recommendation
-    → "Who should I see?"
-    → Symptoms → Specialty → Ranked Doctors
-
-Agent 2 (Member 2) — Clinical Decision Support
-    → "What could this condition indicate?"
-    → Symptoms + History → Possible Conditions → Decision Support
-
-Agent 3 (Member 3) — Medication Intelligence
-    → "What does this prescription mean?"
-    → Prescription → Medicine Extraction → Instructions → Warnings
-
-Agent 4 (Member 4) — Pharmacy & Inventory Intelligence
-    → "Where can I get medicine and should the pharmacy restock?"
-    → Inventory → Demand → Prediction → Restocking
+Orchestrator Responsibilities:
+  1. Receive a domain objective
+  2. Create a structured plan
+  3. Select / delegate tasks to appropriate agents
+  4. Allow agents to call only allow-listed tools
+  5. Validate inputs and outputs at each step
+  6. Persist workflow state to database
+  7. Apply business-rule validation
+  8. Pause high-impact actions for authorized human approval
+  9. Continue or revise the workflow based on human decisions
+  10. Produce an auditable result or safe failure record
 ```
 
----
-
-## 10. Human-in-the-Loop AI Architecture
-
-AI should **assist** rather than independently make medical decisions. The following decisions **must** remain with humans:
-
-| Decision Point | Human Authority | AI Role |
-|---|---|---|
-| Specialist Selection | Patient selects doctor and makes booking decision | AI recommends specialty based on symptoms (not a diagnosis) |
-| Clinical Assessment | Doctor/healthcare professional makes the final clinical decision | AI suggests possible conditions with confidence scores |
-| Prescription | Doctor prescribes medicines; pharmacist verifies | AI extracts and interprets prescription information |
-| Medicine Substitution | Doctor decides if alternative is clinically appropriate | AI identifies potential conflicts and warnings |
-| Pharmacy Selection | Patient selects pharmacy | AI recommends pharmacies by availability and distance |
-| Restocking | Pharmacist/pharmacy owner approves restock | AI recommends restocking quantities based on demand |
-| Supplier Fulfillment | Supplier approves/rejects restock request | AI assists with restocking priorities |
-
-This creates a strong **Human-in-the-Loop Agentic AI Architecture**.
-
----
-
-## 11. Complete End-to-End Workflow with Member Ownership
+### Complete Orchestrated Workflow
 
 ```text
-MEMBER 2              MEMBER 1              MEMBER 2              MEMBER 3              MEMBER 4
-────────              ────────              ────────              ────────              ────────
-Patient opens
-app
-    │
-    ▼
-Login / Register
-    │
-    ▼
-Enter Symptoms ────────────────► Specialist
-                                 Recommendation
-                                 Agent (M1)
-                                      │
-                                      ▼
-                                 Recommended
-                                 Specialty +
-                                 Ranked Doctors
-    ◄─────────────────────────────────┘
-    │
-    ▼
-View Recommendation
-    │
-    ▼
-Select Doctor
-    │
-    ▼
-Book Appointment ──► Appointment
-    │                Scheduling
-    ▼                Logic (M2)
-Appointment Confirmed
-    │
-    ▼
+Patient submits symptoms
+        ↓
+Agentic Orchestrator
+        ↓
+Create structured plan
+        ↓
+Delegate → 🩺 Specialist & Doctor Recommendation Agent
+        ↓
+Specialty + Doctor Ranking → Patient selects doctor
+        ↓
+Appointment + Payment
+        ↓
+Receptionist Verification (Human Approval Point #1)
+        ↓
 Doctor Consultation
-    │
-    ▼
-Clinical Decision ──► Clinical Decision
-Support                Support Agent (M2)
-    │
-    ▼
-Doctor Reviews
-AI Suggestions
-    │
-    ▼
-Patient Gets ───────────────────► Patient Uploads
-Prescription                      Prescription
-                                      │
-                                      ▼
-                                 Medication
-                                 Intelligence
-                                 Agent (M3)
-                                      │
-                                      ▼
-                                 Extract Medicines
-                                      │
-                                      ▼
-                                 Search Pharmacies ──────► Pharmacy
-                                      │                    Intelligence
-                                      │                    Agent (M4)
-                                      │                         │
-                                      ◄──────────────────────────┘
-                                      │
-                                      ▼
-                                 Patient Selects
-                                 Pharmacy
-                                      │
-                                      ▼
-                                 Place Order
-                                      │
-                                      ▼
-                                 Pharmacist
-                                 Verifies (M3)
-                                      │
-                                      ▼
-                                 Process Order
-                                      │
-                                      ▼
-                                 Order Completed
-                                      │
-                                 Inventory Update ───────► Inventory
-                                                           Intelligence
-                                                           Agent (M4)
-                                                                │
-                                                           Low Stock?
-                                                                │
-                                                           Restock
-                                                           Recommendation
-                                                                │
-                                                                ▼
-                                                           Supplier
-                                                           Portal (M4)
-                                                                │
-                                                           Approve/Reject
-                                                                │
-                                                           Supply & Update
-                                                           Inventory
-    │
-    ▼
-Patient Feedback
-& Rating
+        ↓
+Delegate → 🧠 Clinical Decision Support Agent
+        ↓
+Diagnosis Suggestions → Doctor Reviews (Human Approval Point #2: ACCEPT/MODIFY/REJECT)
+        ↓
+Doctor Selects Medicine
+        ↓
+Delegate → 💊 Medication Intelligence Agent
+        ↓
+Medicine Availability Check → Doctor Confirms Medicine
+        ↓
+E-Prescription Generated
+        ↓
+Pharmacist Processes Order
+        ↓
+Inventory Decremented
+        ↓
+Delegate → 📦 Pharmacy & Inventory Intelligence Agent
+        ↓
+Demand Analysis + Stock-Out Prediction
+        ↓
+Restock Recommendation → Pharmacist/Owner Reviews (Human Approval Point #3)
+        ↓
+Supplier Request Created → Supplier Approves (Human Approval Point #4)
+        ↓
+Inventory Updated
 ```
 
----
+### Human Approval Points
 
-## 12. Pharmacy Ordering Workflow
+At least two human approval points are required by the assignment. This system implements four:
 
-The complete medicine-order workflow:
-
-### Patient Side
-
-```text
-1. Patient uploads prescription
-2. Medication Intelligence Agent extracts medicine information
-3. System validates the prescription information
-4. System searches pharmacies
-5. Pharmacy & Inventory Agent helps identify suitable pharmacies
-6. Patient selects a pharmacy
-7. Patient places the order
-```
-
-### Pharmacist Side
-
-```text
-8. Pharmacist receives the order
-9. Pharmacist verifies the prescription
-10. Pharmacist contacts the patient if required
-11. Pharmacist confirms or rejects the order
-```
-
-### Patient Follow-up
-
-```text
-12. Patient receives order status
-13. Patient can cancel before confirmation
-14. After confirmation, cancellation follows system rules
-```
-
----
-
-## 13. Cancellation & Account Suspension
-
-The system should implement a business rule for repeated confirmed-order cancellations:
-
-```text
-Cancel before pharmacist confirmation → Normal cancellation
-Cancel after confirmation → Warning issued
-Repeated confirmed-order cancellations → Account restriction
-Exceed cancellation threshold → Account suspended
-Pharmacy can review/reactivate → Per system policy
-```
-
-**Business Rules:**
-
-| Scenario | Action |
-|---|---|
-| Patient cancels before pharmacist confirms | Normal cancellation, no penalty |
-| Patient cancels after pharmacist confirms (1st time) | Warning message displayed |
-| Patient cancels after confirmation (repeated) | Account restriction at pharmacy |
-| Cancellation threshold exceeded | Account suspended at that pharmacy |
-| Pharmacy reviews suspension | Can reactivate account per policy |
-
-This must be implemented as a **business workflow**, not simply as CRUD operations.
-
----
-
-## 14. Rating & Feedback System
-
-Patients can rate:
-
-- Doctors (contributes to Member 1's ranking algorithm)
-- Pharmacies (contributes to Member 4's pharmacy selection)
-
-The system should store:
-
-| Field | Description |
-|---|---|
-| Rating | Numeric rating (e.g., 1-5 stars) |
-| Review | Text feedback |
-| User | Patient who submitted |
-| Target | Doctor or pharmacy being rated |
-| Timestamp | When the review was submitted |
-
-**Rating Usage:**
-
-- Doctor rankings should use ratings together with other meaningful factors (see Member 1 — Doctor Ranking Algorithm)
-- Pharmacy recommendations should consider ratings alongside availability and distance
-- Only patients with completed interactions should be able to submit reviews
-
----
-
-## 15. Patient Order History
-
-The patient dashboard should show all previous medicine orders:
-
-```text
-MY MEDICINE ORDERS
-
-Order #ORD-1024
-Pharmacy:     ABC Pharmacy
-Medicines:    Amoxicillin 500mg × 21
-              Paracetamol 500mg × 10
-Total:        Rs. 625
-Status:       COMPLETED
-
-Order #ORD-1018
-Pharmacy:     City Pharmacy
-Medicines:    Omeprazole 20mg × 14
-Total:        Rs. 210
-Status:       DELIVERED
-```
-
-Patients can view previous:
-
-- Appointments
-- Prescriptions
-- Medicine orders
-- Order status
-- Ratings given
-
----
-
-## 16. Database Requirements
-
-The PostgreSQL database should follow proper relational database principles.
-
-### User Management
-
-| Entity | Owner | Purpose |
-|---|---|---|
-| `Users` | Shared | User accounts (all roles) |
-| `Roles` | Shared | Role definitions |
-| `UserRoles` | Shared | User-role associations |
-
-### Medical
-
-| Entity | Owner | Purpose |
-|---|---|---|
-| `Doctors` | Member 1 | Doctor profiles |
-| `Specialties` | Member 1 | Medical specialties |
-| `DoctorSpecialties` | Member 1 | Doctor-specialty mapping |
-| `DoctorAvailability` | Member 1 | Doctor schedule slots |
-| `DoctorRatings` | Member 1 | Doctor ratings/reviews |
-| `DoctorExperience` | Member 1 | Doctor experience records |
-| `Patients` | Member 2 | Patient profiles |
-| `MedicalHistory` | Member 2 | Patient medical history |
-| `Symptoms` | Member 2 | Patient symptom records |
-| `Appointments` | Member 2 | Appointment bookings |
-| `AppointmentStatus` | Member 2 | Appointment tracking |
-| `DoctorSchedules` | Member 2 | Doctor schedule slots |
-
-### Prescription & Medicine
-
-| Entity | Owner | Purpose |
-|---|---|---|
-| `Prescriptions` | Member 3 | Prescription records |
-| `PrescriptionItems` | Member 3 | Medicine items in prescriptions |
-| `Medicines` | Member 3 | Master medicine records |
-| `MedicineCategories` | Member 3 | Medicine classifications |
-| `MedicationInstructions` | Member 3 | Dosage/frequency information |
-| `Orders` | Member 3 | Medicine orders |
-| `OrderItems` | Member 3 | Individual order items |
-| `OrderStatus` | Member 3 | Order status tracking |
-
-### Pharmacy & Supplier
-
-| Entity | Owner | Purpose |
-|---|---|---|
-| `Pharmacies` | Member 4 | Pharmacy records |
-| `PharmacyLocations` | Member 4 | Pharmacy coordinates |
-| `Inventory` | Member 4 | Stock levels |
-| `InventoryTransactions` | Member 4 | Stock change history |
-| `Suppliers` | Member 4 | Supplier records |
-| `RestockRequests` | Member 4 | Restock requests |
-| `PharmacyOrders` | Member 4 | Pharmacy-level orders |
-
-### Feedback & AI
-
-| Entity | Owner | Purpose |
-|---|---|---|
-| `PharmacyRatings` | Member 4 | Pharmacy ratings |
-| `Reviews` | Shared | Review text |
-| `AgentRequests` | Shared | AI agent request records |
-| `AgentRecommendations` | Shared | AI recommendation records |
-| `AgentExecutionLogs` | Shared | Agent execution audit trail |
-| `AgentApprovals` | Shared | Human approval/rejection records |
-| `AuditLogs` | Shared | System-wide audit trail |
-
----
-
-## 17. Controlled Tool Registry
-
-All agents access the system through **allow-listed tools only**. No agent has direct database or system access.
-
-| Tool | Owner | Used By | Purpose |
+| # | Trigger | Approver | Action |
 |---|---|---|---|
-| `analyze_symptoms()` | Member 1 | Specialist Recommendation Agent | Analyze symptoms for specialty match |
-| `rank_specialties()` | Member 1 | Specialist Recommendation Agent | Rank specialties with confidence |
-| `get_doctors_by_specialty()` | Member 1 | Specialist Recommendation Agent | Find doctors in specialty |
-| `calculate_doctor_score()` | Member 1 | Specialist Recommendation Agent | Calculate weighted doctor score |
-| `generate_explanation()` | Member 1 | Specialist Recommendation Agent | Generate recommendation explanation |
-| `analyze_symptoms()` | Member 2 | Clinical Decision Support Agent | Analyze symptoms for conditions |
-| `identify_conditions()` | Member 2 | Clinical Decision Support Agent | Identify possible conditions |
-| `calculate_confidence()` | Member 2 | Clinical Decision Support Agent | Calculate confidence scores |
-| `get_supporting_evidence()` | Member 2 | Clinical Decision Support Agent | Get supporting evidence |
-| `suggest_next_steps()` | Member 2 | Clinical Decision Support Agent | Generate next step suggestions |
-| `extract_medicines()` | Member 3 | Medication Intelligence Agent | Extract medicines from prescription |
-| `parse_dosage()` | Member 3 | Medication Intelligence Agent | Parse dosage information |
-| `check_duplicates()` | Member 3 | Medication Intelligence Agent | Check for duplicate medicines |
-| `check_interactions()` | Member 3 | Medication Intelligence Agent | Check drug interactions |
-| `generate_warnings()` | Member 3 | Medication Intelligence Agent | Generate medication warnings |
-| `monitor_inventory_levels()` | Member 4 | Pharmacy & Inventory Intelligence Agent | Real-time inventory monitoring |
-| `detect_low_stock()` | Member 4 | Pharmacy & Inventory Intelligence Agent | Low-stock detection |
-| `analyze_demand()` | Member 4 | Pharmacy & Inventory Intelligence Agent | Demand analysis |
-| `predict_stockout()` | Member 4 | Pharmacy & Inventory Intelligence Agent | Stock-out prediction |
-| `calculate_restock_quantity()` | Member 4 | Pharmacy & Inventory Intelligence Agent | Restock recommendations |
-| `recommend_pharmacies()` | Member 4 | Pharmacy & Inventory Intelligence Agent | Pharmacy recommendations |
+| 1 | Payment submitted | Receptionist | Verify payment, confirm appointment, generate number |
+| 2 | AI diagnosis suggestion | Doctor | ACCEPT / MODIFY / REJECT |
+| 3 | AI restock recommendation | Pharmacist / Owner | APPROVE / DISMISS |
+| 4 | Restock request received | Supplier | APPROVE / REJECT |
 
-**Every tool must:**
+### Agent Tool Registry (Allow-Listed)
 
-- Validate inputs
-- Validate outputs
-- Enforce authorization
-- Return structured results
-- Log execution to `AgentExecutionLogs`
-- Handle errors safely (no unhandled exceptions)
+All agents access the system through **controlled, allow-listed tools only**. No agent has direct database or unrestricted system access.
 
----
+#### 🩺 Specialist & Doctor Recommendation Agent Tools
 
-## 18. AI Agent Architecture
+| Tool | Purpose |
+|---|---|
+| `searchSpecialties()` | Search specialties by symptom keywords |
+| `searchDoctors()` | Find doctors by specialty |
+| `getDoctorRating()` | Retrieve rating data |
+| `getDoctorAvailability()` | Check appointment availability |
+| `calculateDoctorScore()` | Calculate weighted recommendation score |
 
-The four agents should not operate as uncontrolled chatbots. Each agent follows a structured workflow:
+#### 🧠 Clinical Decision Support Agent Tools
 
-```text
-Step 1 — Receive Request
-    User submits information through Flutter or React.
+| Tool | Purpose |
+|---|---|
+| `getPatientClinicalData()` | Retrieve structured clinical data |
+| `searchClinicalKnowledge()` | Search clinical knowledge base |
+| `retrieveSimilarCases()` | Retrieve similar historical cases |
+| `validateDiagnosisOutput()` | Validate output schema and safety |
 
-Step 2 — Validate Input
-    Backend validates: user identity, required fields, data format, permissions.
+#### 💊 Medication Intelligence Agent Tools
 
-Step 3 — Agent Planning
-    The relevant agent determines what information/tools it needs.
+| Tool | Purpose |
+|---|---|
+| `searchMedicine()` | Search medicine catalog |
+| `checkInventory()` | Check pharmacy stock |
+| `checkMedicineQuantity()` | Verify sufficiency of quantity |
+| `findPotentialAlternatives()` | Find available alternatives |
+| `validatePrescription()` | Validate prescription structure |
 
-Step 4 — Controlled Tool/API Access
-    Agent accesses ONLY allow-listed tools/APIs.
+#### 📦 Pharmacy & Inventory Intelligence Agent Tools
 
-Step 5 — Generate Recommendation
-    Agent processes retrieved information.
+| Tool | Purpose |
+|---|---|
+| `getInventory()` | Get current stock levels |
+| `getHistoricalOrders()` | Get historical order/demand data |
+| `calculateDemand()` | Calculate demand rate |
+| `forecastDemand()` | Forecast future demand |
+| `predictStockout()` | Predict stock-out date |
+| `generateRestockRecommendation()` | Generate restock quantity recommendation |
 
-Step 6 — Deterministic Validation
-    Backend validates agent output against system rules.
+> **Tool Requirements:** Every tool must validate inputs, validate outputs, enforce authorization, return structured results, log execution, and handle errors safely.
 
-Step 7 — Human Approval (Where Required)
-    For medical, prescription, inventory, or pharmacy-sensitive operations,
-    authorized professionals have the final approval.
+### Shared Workflow State (Persisted)
 
-Step 8 — Persist Result
-    Recommendation/decision is stored.
-
-Step 9 — Audit
-    System records: agent used, input, tools accessed, recommendation,
-    timestamp, user, approval/rejection, final action.
+```json
+{
+  "workflowId": "WF-2026-0451",
+  "objective": "Complete healthcare consultation and dispensing",
+  "plan": ["symptom-analysis", "doctor-recommendation", "appointment", "consultation", "prescription", "dispensing", "inventory"],
+  "currentStep": "dispensing",
+  "completedSteps": ["symptom-analysis", "doctor-recommendation", "appointment", "consultation", "prescription"],
+  "agentResults": {
+    "specialistAgent": { "specialty": "Gastroenterology", "confidence": 0.91 },
+    "clinicalAgent": { "topDiagnosis": "Acute Gastritis", "confidence": 0.92, "doctorDecision": "ACCEPTED" },
+    "medicationAgent": { "medicine": "Amoxicillin 500mg", "available": true, "confirmed": true }
+  },
+  "toolResults": { ... },
+  "validationResults": { ... },
+  "approvalStatus": {
+    "receptionistVerification": "APPROVED",
+    "doctorDiagnosis": "ACCEPTED",
+    "restockRecommendation": "PENDING"
+  },
+  "errors": [],
+  "retries": 0,
+  "finalOutcome": null,
+  "createdAt": "2026-08-24T09:00:00Z",
+  "updatedAt": "2026-08-24T10:30:00Z"
+}
 ```
 
-**Example — Agent Tool Access:**
+> **Rule:** Do not store hidden chain-of-thought/reasoning, passwords, tokens, or unnecessary sensitive information. Only persist workflow state and execution summaries needed for audit and continuation.
+
+---
+
+## 12. Validation & Safety
+
+### Input/Output Validation
+
+- Schema validation on all API inputs (DTOs with data annotations)
+- Business-rule validation (appointment conflicts, stock thresholds, order eligibility)
+- Output validation on all agent results (schema validation before persisting)
+- Role-based authorization on all endpoints
+
+### Agent Safety
 
 ```text
-Specialist Agent
-    → Symptoms API
-    → Specialist API
-    → Doctor API
-    → Rating API
-    → Availability API
+Example: AI suggests alternative medicine
+        ↓
+Business-Rule Validator
+        ↓
+Is medicine valid? (exists in database)
+Is it available? (stock > 0)
+Is doctor approval required? (yes, always)
+        ↓
+Reject / Request Revision / Continue to Doctor Review
+```
 
-Clinical Decision Support Agent
-    → Symptoms API
-    → Medical History API
-    → Conditions Database
+### Safety Controls
 
-Medication Intelligence Agent
-    → Prescription API
-    → Medicine Database API
-    → Interaction Database
+| Control | Implementation |
+|---|---|
+| Tool allow-lists | Agents can only call registered tools |
+| Input validation | All tools validate input types and ranges |
+| Output validation | All agent outputs validated before use |
+| Timeouts | Agent calls have configured timeouts |
+| Retry limits | Maximum retry count per workflow step |
+| Prompt-injection resistance | Input sanitization before LLM calls |
+| Safe failure | Every agent has defined fallback behavior |
+| Error logging | All errors logged with context |
+| Audit logging | All agent actions, tool calls, decisions logged |
 
-Pharmacy & Inventory Agent
-    → Inventory API
-    → Order History API
-    → Pharmacy Location API
-    → Supplier API
+---
+
+## 13. React Web Application
+
+### Purpose
+
+The React application primarily supports **administrative, staff, and professional workflows**.
+
+### Portals by Member
+
+| Portal | Primary Owner | Secondary Contribution |
+|---|---|---|
+| Patient Portal / Admin | Member 1 | — |
+| Doctor Portal | Member 2 | — |
+| Receptionist Portal | Shared (M1 owns appointment data, M2 owns workflow) | — |
+| Pharmacist Portal | Member 3 | — |
+| Pharmacy Owner Dashboard | Member 4 | — |
+| Supplier Portal | Member 4 | — |
+| Agent Monitoring / Execution History | Shared (all contribute) | — |
+| Admin Panel | Shared | — |
+
+### Technical Requirements
+
+- Functional components + React Hooks
+- React Router with protected routes
+- Role-based navigation (different portals per role)
+- Reusable component library
+- State management (Context API or equivalent, justified)
+- Search, filtering, sorting, pagination on list views
+- Form validation
+- Loading states and error states
+- Agent monitoring dashboard (view workflow state, agent results, approval history)
+
+---
+
+## 14. Flutter Mobile Application
+
+### Purpose
+
+Flutter primarily supports **patient-facing and operational mobile workflows**.
+
+### Patient Mobile Workflows
+
+```text
+Registration / Login
+    ↓
+Symptom Submission
+    ↓
+AI Doctor Recommendations
+    ↓
+Doctor Search & Profiles
+    ↓
+Appointment Booking
+    ↓
+Appointment Tracking
+    ↓
+E-Prescription Viewing
+    ↓
+Medicine Order Tracking
+    ↓
+Order History
+    ↓
+Pharmacy Rating
+    ↓
+Push Notifications
+```
+
+### Device Feature Requirement
+
+Each member must include at least one meaningful device feature:
+
+| Member | Recommended Device Feature |
+|---|---|
+| Member 1 | GPS / Map for nearby doctors |
+| Member 2 | Push notifications for verified appointment |
+| Member 3 | Push notifications for order status |
+| Member 4 | Push notifications for low-stock / restock status |
+
+### Technical Requirements
+
+- Shared API service layer (HTTP client with JWT headers)
+- Provider or Riverpod state management
+- Navigation with named routes
+- Form validation
+- Error handling and empty states
+- Platform-specific features (camera, GPS, notifications as appropriate)
+
+---
+
+## 15. Backend Architecture
+
+```text
+ASP.NET Core Web API
+        ↓
+Controllers (per member: organized by module)
+        ↓
+DTOs (Request/Response objects with validation)
+        ↓
+Application / Service Layer (business logic)
+        ↓
+Data Access Layer
+        ↓
+Entity Framework Core
+        ↓
+PostgreSQL
+```
+
+The backend is the **authoritative application layer** for:
+- Public REST APIs consumed by React and Flutter
+- JWT authentication and token validation
+- Role-based authorization
+- Input validation and business rules
+- Data persistence
+- Agent workflow initiation and orchestration calls
+- Human approval recording
+- Audit logging
+
+> **Python AI Service Rule:** If a Python service is used for the AI subsystem, it must be called by ASP.NET Core as an internal service. React and Flutter must **never** call the Python service directly.
+
+---
+
+## 16. Authentication & Security
+
+### Implementation
+
+| Feature | Implementation |
+|---|---|
+| Authentication | JWT Bearer tokens |
+| Password storage | BCrypt hashing |
+| Role authorization | `[Authorize(Roles = "...")]` on controllers |
+| Protected routes | React: route guards; Flutter: auth middleware |
+| Secure config | User Secrets / environment variables (never commit secrets) |
+| CORS | Configured for React and Flutter origins |
+| Global error handling | Middleware returning structured error responses |
+| Logging | Structured logging (Serilog or equivalent) |
+| API docs | Swagger/OpenAPI with auth requirements |
+
+### Role-to-API Mapping
+
+```text
+PATIENT          → Patient APIs, Appointment APIs, Prescription read, Order APIs
+DOCTOR           → Doctor APIs, Consultation APIs, Clinical APIs, Prescription generate
+RECEPTIONIST     → Receptionist verification APIs
+PHARMACIST       → Pharmacist APIs, Order status APIs, Inventory APIs (read)
+PHARMACY_OWNER   → Pharmacy APIs, Full Inventory APIs, Restock APIs, Analytics
+SUPPLIER         → Supplier APIs, Restock approval APIs
+ADMINISTRATOR    → All APIs, Audit logs, System management
 ```
 
 ---
 
-## 19. Security and Authorization
+## 17. Database Design
 
-### Authentication & Authorization
+### PostgreSQL Requirements
 
-| Responsibility | Owner |
+| Requirement | Detail |
 |---|---|
-| JWT generation, validation, middleware | Member 2 (implements) |
-| Password hashing (bcrypt) | Member 2 (implements) |
-| Role-based `[Authorize]` attributes on endpoints | Each member on their own endpoints |
-| Protected React routes | All members (on their own pages) |
-| Flutter secure token storage | Member 2 |
+| Primary Keys | All entities |
+| Foreign Keys | All relationships enforced at DB level |
+| Constraints | NOT NULL, CHECK, UNIQUE where appropriate |
+| Indexes | On frequently queried columns (role, status, FK columns) |
+| EF Core Migrations | All schema changes through migrations |
+| Seed Data | Realistic demo data for all entities |
+| Transactions | Used for multi-step operations (order processing, inventory updates) |
+| Timestamps | `CreatedAt`, `UpdatedAt` on all entities |
 
-### Roles and Permissions
+### Entity Ownership Summary
+
+| Member | Owned Entities |
+|---|---|
+| Member 1 | Patient, Doctor, Specialty, DoctorSpecialty, DoctorAvailability, DoctorRating, Appointment, AppointmentPayment |
+| Member 2 | ClinicalRecord, Consultation, PatientHistory, Allergy, Examination, LabResult, DiagnosisSuggestion, DoctorDecision |
+| Member 3 | Medicine, MedicineCategory, PharmacyMedicine, Prescription, PrescriptionItem, MedicineOrder, OrderItem, OrderPayment |
+| Member 4 | Pharmacy, PharmacyInventory, InventoryHistory, Supplier, SupplierMedicine, RestockRequest, RestockRequestItem |
+| Shared | Users, Roles, UserRoles, WorkflowState, AgentExecutionLog, AuditLog |
+
+> An **ER diagram** covering all entities and relationships is required in the documentation.
+
+---
+
+## 18. Third-Party API Integration
+
+The project must integrate **at least one meaningful third-party API or service**.
+
+### Recommended: Maps / Location API
+
+Use a Maps API (Google Maps, OpenStreetMap, or equivalent) to:
+
+- Display doctor and pharmacy locations on a map
+- Find nearby pharmacies (location-based search)
+- Show distance from patient to doctor/pharmacy
+- Support location-based recommendations
+
+**Integration points:**
+- Flutter: Google Maps Flutter plugin for patient-facing location features
+- React: Maps embed for doctor/pharmacy location display
+- Backend: Geocoding API for coordinates from addresses
+
+### Other Acceptable Options
+
+| Integration | Use Case |
+|---|---|
+| Payment sandbox (Stripe, PayHere) | Appointment and medicine order payments |
+| Email / SMS (SendGrid, Twilio) | Appointment confirmations, prescription notifications |
+| Push notifications (Firebase FCM) | Order status, low-stock alerts |
+| Calendar API | Appointment scheduling synchronization |
+
+> **Rule:** External services should be accessed through ASP.NET Core where appropriate. Credentials must be stored in environment variables / configuration secrets and never committed to Git. Failures must be handled gracefully.
+
+---
+
+## 19. Testing Strategy
+
+### Backend Testing
+
+- Unit tests for service layer (business logic, ranking, scheduling, price calculation, demand forecasting)
+- Validation tests (invalid inputs rejected correctly)
+- Authentication/authorization tests (roles enforced correctly)
+- Controller / API integration tests (full request → response cycle)
+- PostgreSQL integration tests (constraints, migrations, transactions)
+
+### React Testing
+
+- Component render tests
+- Form validation tests
+- Protected route tests (unauthorized redirect)
+- API integration tests (mock API responses)
+- Error state rendering
+
+### Flutter Testing
+
+- Unit tests for service/model logic
+- Widget tests for key screens
+- Validation tests (form inputs)
+- Navigation tests
+- API integration tests (mock HTTP)
+
+### Agentic AI Testing
+
+> **Critical:** LLM-as-a-judge **cannot** be the only evaluation method.
+
+Use:
+
+| Method | Purpose |
+|---|---|
+| Golden test cases | Known symptom sets → expected specialty/diagnosis |
+| Schema validation | Assert output structure is correct |
+| Rule-based assertions | Deterministic checks on output fields |
+| Deterministic validators | Business rules evaluated programmatically |
+| Human review | Sample review of agent outputs |
+
+Test:
+
+- Planning (orchestrator creates valid plan)
+- Delegation (correct agent selected for task)
+- Tool selection (correct tool called with valid inputs)
+- Structured outputs (output schema matches expected)
+- Business-rule validation (invalid outputs rejected)
+- Human approval flow (workflow pauses correctly)
+- Prompt-injection resistance (malicious input handled safely)
+- Failure recovery (agent failure leads to safe fallback)
+- Safe failure (meaningful error message, no crash)
+
+### Performance Testing
+
+| Metric | Target |
+|---|---|
+| API response time | Measure P50, P95, P99 |
+| Concurrent requests | Test under simulated load |
+| Success/failure rate | Under load |
+| Database response time | Query execution time |
+| Agent latency | Time from request to recommendation |
+| Workflow completion time | End-to-end workflow duration |
+
+---
+
+## 20. Git & GitHub
+
+### From Day One
+
+- GitHub repository (one shared repository)
+- Feature branches per member per feature
+- Meaningful commit messages (conventional commits recommended)
+- GitHub Issues for task tracking
+- Pull Requests with code review (minimum 1 reviewer per PR)
+- Project board (Kanban / milestone tracking)
+- Conflict resolution process
+
+### Commit Convention
 
 ```text
-PATIENT         → Search doctors, book appointments, upload prescriptions, order medicines,
-                  track orders, provide feedback
-DOCTOR          → Manage profile, view appointments, manage availability
-PHARMACIST      → Verify prescriptions, process orders, manage medicines
-PHARMACY_OWNER  → Manage pharmacy, full inventory control, analytics
-SUPPLIER        → View/approve/reject restock requests
-ADMIN           → Full system access, audit logs, AI monitoring
+feat(m1): add doctor ranking algorithm
+fix(m2): resolve appointment authorization issue
+test(m3): add price calculation unit tests
+docs(m4): update inventory API swagger docs
+style(m1): format patient service code
+refactor(m2): extract consultation logic to service
 ```
 
-### Security Rules
+> **Rule:** Every member must have visible, regular technical Git contributions. Do NOT create artificial commits or bulk-upload work at the end of the project.
 
-| Rule | Details |
-|---|---|
-| No secrets in Git | Connection strings, API keys stored in environment variables |
-| Input validation on all endpoints | All members validate their endpoints |
-| Role-based authorization | All members enforce on their endpoints |
-| Patient-specific access | Patients see only their own data |
-| Doctor-specific access | Doctors see only their own appointments/patients |
-| Pharmacy-specific access | Pharmacists see only their pharmacy data |
-| Supplier-specific access | Suppliers see only their restock requests |
-| Patients cannot modify inventory | Enforced by authorization |
-| Suppliers cannot access patient history | Enforced by authorization |
-| Safe AI failure | All agents handle errors gracefully |
-| Audit logging for critical actions | All members log critical actions |
+### Branch Naming
+
+```text
+main              ← production-ready code
+develop           ← integration branch
+feature/m1-doctor-ranking
+feature/m2-clinical-records
+feature/m3-price-calculation
+feature/m4-inventory-intelligence
+```
 
 ---
 
-## 20. AI Evaluation Framework
+## 21. GitHub Actions CI
 
-### Agent-Level Metrics
+### Minimum CI Pipeline
 
-| Agent | Metrics |
-|---|---|
-| Specialist & Doctor Recommendation | Specialty accuracy, ranking consistency, recommendation relevance, user satisfaction |
-| Clinical Decision Support | Condition suggestion accuracy, top-K accuracy, confidence calibration, safe fallback rate |
-| Medication Intelligence | Extraction accuracy, dosage parsing, duplicate/conflict detection, safe fallback rate |
-| Pharmacy & Inventory Intelligence | Low-stock detection, demand prediction, stock-out prediction, restocking accuracy, pharmacy selection |
+```yaml
+# On every push and pull request:
+Restore NuGet packages
+    ↓
+Build ASP.NET Core API
+    ↓
+Run Backend Unit Tests
+    ↓
+Pass / Fail
+```
 
-### System-Level Metrics
+### Extended CI (Recommended)
 
-| Metric | Description |
-|---|---|
-| Agent Success Rate | % of individual agent executions that succeed |
-| Tool-Call Success Rate | % of tool calls that return expected results |
-| Recommendation Accuracy | Aggregate accuracy across all agents |
-| Average Processing Time | Mean time from request to recommendation |
-| Patient Satisfaction | Average feedback rating across the system |
-| Safe Failure Rate | % of errors handled gracefully |
-
----
-
-## 21. Shared Responsibilities
-
-These responsibilities are shared across **all four members**:
-
-### Database & EF Core (Collaborative)
-
-| Responsibility | Details |
-|---|---|
-| Shared `AppDbContext` | All members register their entities |
-| Migrations | Each member creates migrations for their tables |
-| Seed data | Each member seeds demo data for their entities |
-| Connection strings | Stored in environment variables / User Secrets, never in Git |
-
-### Swagger / OpenAPI (Each Member)
-
-Every member documents **their own endpoints** with:
-
-- Request/response schemas
-- Status codes and error responses
-- Authentication requirements
-- Example values
-
-### CI / GitHub Actions (Collaborative)
-
-| Step | Responsibility |
-|---|---|
-| Workflow file creation (`.github/workflows/ci.yml`) | Shared (one member leads) |
-| Backend build + test | Verifies all members' code |
-| React build + test | Verifies all members' React code |
-| Flutter test | Verifies Flutter code |
-| Secret management | GitHub Secrets, not committed |
+```text
+Backend Build + Test
+React Build + Lint + Test
+Flutter Analyze + Test
+Deploy to staging (on merge to main)
+```
 
 ---
 
-## 22. Responsibility Matrix
+## 22. Complete Responsibility Matrix
 
-| Area | M1 | M2 | M3 | M4 |
+| Area | Member 1 | Member 2 | Member 3 | Member 4 |
 |---|:---:|:---:|:---:|:---:|
-| **Backend (DB + API)** | | | | |
-| Doctor/Specialist tables & APIs | ⭐ | | | |
-| Doctor Availability APIs | ⭐ | | | |
-| Doctor Rating APIs | ⭐ | | | |
-| Doctor Ranking Algorithm | ⭐ | | | |
-| Patient tables & APIs | | ⭐ | | |
-| Authentication (JWT) | | ⭐ | | |
-| Appointment tables & APIs | | ⭐ | | |
-| Medical History APIs | | ⭐ | | |
-| Symptom APIs | | ⭐ | | |
-| Prescription tables & APIs | | | ⭐ | |
-| Medicine tables & APIs | | | ⭐ | |
-| Order tables & APIs | | | ⭐ | |
-| Price Calculation | | | ⭐ | |
-| Pharmacy tables & APIs | | | | ⭐ |
-| Inventory tables & APIs | | | | ⭐ |
-| Supplier tables & APIs | | | | ⭐ |
-| Restock Request APIs | | | | ⭐ |
-| **Flutter** | | | | |
-| Doctor discovery screens | ⭐ | | | |
-| Auth + patient screens | | ⭐ | | |
-| Appointment screens | | ⭐ | | |
-| Prescription upload screens | | | ⭐ | |
-| Order screens | | | ⭐ | |
-| Pharmacy search screens | | | | ⭐ |
-| **React** | | | | |
-| Doctor management portal | ⭐ | | | |
-| Doctor dashboard (appointment view) | | ⭐ | | |
-| Pharmacist portal | | | ⭐ | |
-| Medicine management | | | ⭐ | |
-| Pharmacy owner dashboard | | | | ⭐ |
-| Supplier portal | | | | ⭐ |
-| **Agentic AI** | | | | |
-| Specialist & Doctor Recommendation Agent | ⭐ | | | |
-| Clinical Decision Support Agent | | ⭐ | | |
-| Medication Intelligence Agent | | | ⭐ | |
-| Pharmacy & Inventory Intelligence Agent | | | | ⭐ |
-| **Cross-Cutting** | | | | |
-| Testing | ⭐ | ⭐ | ⭐ | ⭐ |
-| Documentation | ⭐ | ⭐ | ⭐ | ⭐ |
-| GitHub / CI | ⭐ | ⭐ | ⭐ | ⭐ |
-| Swagger (own endpoints) | ⭐ | ⭐ | ⭐ | ⭐ |
+| **Primary Component** | Patient & Appointment | Doctor & Clinical | E-Prescription & Orders | Inventory & Supplier |
+| **ASP.NET Core** | Patient/Appointment APIs | Clinical/Consultation APIs | Prescription/Order APIs | Inventory/Supplier APIs |
+| **PostgreSQL** | Patient/Appointment data | Clinical/Consultation data | Prescription/Order data | Inventory/Supplier data |
+| **React** | Patient portal + Admin workflows | Doctor consultation portal | Pharmacist portal | Pharmacy owner + Supplier portals |
+| **Flutter** | Patient mobile (symptoms, doctors, appointments) | Doctor/operational mobile | Patient order/prescription mobile | Pharmacist/stock mobile |
+| **Agentic AI** | 🩺 Specialist & Doctor Recommendation | 🧠 Clinical Decision Support | 💊 Medication Intelligence | 📦 Inventory Intelligence |
+| **Testing** | Own component + agent tests | Own component + agent tests | Own component + agent tests | Own component + agent tests |
+| **Git** | Regular contributions | Regular contributions | Regular contributions | Regular contributions |
+| **Documentation** | Individual evidence | Individual evidence | Individual evidence | Individual evidence |
+
+> **Important:** This matrix represents primary ownership — NOT isolated development. Every member must demonstrate contribution across the full stack.
 
 ---
 
-## 23. Safe Failure Scenarios
+## 23. Documentation Requirements
 
-Each member must handle failures gracefully within their component:
+### Group Documentation
+
+| Document | Description |
+|---|---|
+| Consolidated Report | Group report + individual sections combined |
+| Architecture Diagram | System components and their interactions |
+| ER Diagram | Complete entity-relationship diagram |
+| API Documentation | Swagger/OpenAPI for all endpoints |
+| Agent Architecture | How the four agents + orchestrator interact |
+| Agent Workflow Diagram | Step-by-step agentic workflow visualization |
+| Testing Report | Test results, coverage, methodology |
+| Performance Report | Performance test results |
+| Deployment Report | How the system is deployed |
+| ADR | Architecture Decision Records (key decisions made) |
+
+### Individual Documentation (Per Member)
+
+| Document | Description |
+|---|---|
+| Individual Report | Personal technical contribution summary |
+| Individual AI Usage Log | Date, Tool, Task, AI Output, What Changed, How Verified |
+| Individual Reflection | Learning outcomes and personal contributions |
+
+---
+
+## 24. AI Usage Documentation
+
+Because this is a Level 4 AI-use assignment, **each student must maintain an individual AI usage log**.
+
+### Per-Member AI Usage Log Format
+
+| Date | Tool / Model | Task | What AI Produced | What Was Changed / Rejected | How Result Was Verified |
+|---|---|---|---|---|---|
+| 2026-08-24 | Claude Sonnet | Generate DoctorRankingService | Initial code structure | Adjusted weights, removed hardcoded values | Unit tests, manual review |
+| 2026-08-24 | GitHub Copilot | Autocomplete DTO validation | Field annotations | Removed incorrect regex | Manual testing |
+
+### Group AI Declaration
+
+A consolidated group AI declaration must be included in the consolidated report covering:
+- Which AI tools were used
+- How they were used
+- How outputs were verified
+- What was rejected or significantly modified
+
+> **Rules:**
+> - Do NOT submit code or features that a member cannot explain, test, modify, or debug
+> - External AI tools are **not allowed** during the final demonstration/viva
+> - Members must be able to explain every part of their code
+
+---
+
+## 25. Safe Failure Scenarios
 
 | Scenario | Owner | Safe Response |
 |---|---|---|
 | Symptom analysis fails | Member 1 | *"Unable to analyze symptoms. Please search for a doctor manually."* |
-| Doctor ranking data insufficient | Member 1 | Show doctors sorted by rating only with explanation |
-| No doctors available in specialty | Member 1 | *"No doctors currently available in this specialty."* |
-| Appointment conflict detected | Member 2 | *"This time slot is not available. Next available: {time}"* |
-| Clinical analysis uncertain | Member 2 | Recommend General Medicine consultation |
-| Clinical analysis fails | Member 2 | *"Unable to analyze symptoms. Please consult a healthcare professional directly."* |
-| Prescription extraction fails | Member 3 | *"Unable to read prescription. Please consult the pharmacist directly."* |
-| Medicine not found in database | Member 3 | *"Medicine not found"* with search suggestions |
-| Order cancellation after confirmation | Member 3 | Apply cancellation rules with appropriate warning |
-| Inventory data unavailable | Member 4 | `INVENTORY_CHECK_FAILED` — safe failure with message |
-| Low-stock detection error | Member 4 | Log error, do NOT auto-generate restock requests |
-| Demand prediction insufficient data | Member 4 | *"Insufficient historical data for demand prediction"* |
-| Pharmacy search returns no results | Member 4 | *"No pharmacies found with required medicines nearby"* |
+| Doctor ranking data insufficient | Member 1 | Show doctors sorted by rating with explanation |
+| Appointment conflict detected | Member 1 | *"This time slot is not available. Next available: {time}"* |
+| Clinical analysis fails | Member 2 | *"Unable to generate suggestions. Please proceed with standard clinical assessment."* |
+| Clinical output invalid (schema fail) | Member 2 | Reject output, log error, return safe fallback to doctor |
+| Medicine availability check fails | Member 3 | *"Inventory check unavailable. Please verify stock manually."* |
+| Price calculation error | Member 3 | Return itemized error, do not present incorrect total |
+| Inventory data unavailable | Member 4 | *"Inventory check failed. Please verify stock manually."* |
+| Demand prediction insufficient data | Member 4 | *"Insufficient historical data. Manual assessment recommended."* |
+| Supplier request fails to send | Member 4 | Log error, notify pharmacy owner, do not silently fail |
+| Orchestrator step fails | Shared | Persist error state, allow retry or human intervention |
+| JWT token invalid | Shared | Return 401 with clear message |
 
 ---
 
-## 24. Repository Structure
-
-One GitHub repository, one VS Code workspace:
+## 26. Repository Structure
 
 ```text
 MediFlow-AI/
@@ -2136,91 +2082,96 @@ MediFlow-AI/
 ├── backend/
 │   └── MediFlow.Api/
 │       ├── Controllers/
-│       │   ├── AuthController.cs                # Member 2
-│       │   ├── DoctorController.cs              # Member 1
-│       │   ├── SpecialistController.cs          # Member 1
-│       │   ├── DoctorAvailabilityController.cs  # Member 1
-│       │   ├── DoctorRatingController.cs        # Member 1
-│       │   ├── PatientController.cs             # Member 2
-│       │   ├── AppointmentController.cs         # Member 2
-│       │   ├── SymptomController.cs             # Member 2
-│       │   ├── MedicalHistoryController.cs      # Member 2
-│       │   ├── PrescriptionController.cs        # Member 3
-│       │   ├── MedicineController.cs            # Member 3
-│       │   ├── OrderController.cs               # Member 3
-│       │   ├── PharmacyController.cs            # Member 4
-│       │   ├── InventoryController.cs           # Member 4
-│       │   ├── SupplierController.cs            # Member 4
-│       │   └── RestockController.cs             # Member 4
+│       │   ├── AuthController.cs                 # Shared
+│       │   ├── PatientController.cs              # Member 1
+│       │   ├── DoctorController.cs               # Member 1
+│       │   ├── AppointmentController.cs          # Member 1
+│       │   ├── ReceptionistController.cs         # Shared (M1 data, M2 workflow)
+│       │   ├── ConsultationController.cs         # Member 2
+│       │   ├── ClinicalController.cs             # Member 2
+│       │   ├── DiagnosisController.cs            # Member 2
+│       │   ├── MedicineController.cs             # Member 3
+│       │   ├── PrescriptionController.cs         # Member 3
+│       │   ├── OrderController.cs                # Member 3
+│       │   ├── PharmacyController.cs             # Member 4
+│       │   ├── InventoryController.cs            # Member 4
+│       │   ├── SupplierController.cs             # Member 4
+│       │   └── RestockController.cs              # Member 4
 │       ├── Models/               # Entity models (all members)
 │       ├── DTOs/                 # Request/Response DTOs
 │       ├── Services/             # Business logic services
 │       ├── Data/
 │       │   ├── AppDbContext.cs
 │       │   └── Migrations/
-│       ├── Auth/                 # JWT, password hashing (Member 2)
+│       ├── Auth/                 # JWT + password hashing
 │       ├── Middleware/           # Error handling, auth middleware
 │       └── Program.cs
 │
 ├── web/
-│   └── mediflow-web/             # React app
+│   └── mediflow-web/             # React application
 │       ├── src/
 │       │   ├── components/       # Shared components
 │       │   ├── pages/
-│       │   │   ├── doctor-management/  # Member 1
-│       │   │   ├── doctor-dashboard/   # Member 2
-│       │   │   ├── pharmacist/         # Member 3
-│       │   │   ├── pharmacy-owner/     # Member 4
-│       │   │   ├── supplier/           # Member 4
-│       │   │   └── admin/              # Shared
+│       │   │   ├── patient/          # Member 1
+│       │   │   ├── doctor/           # Member 2
+│       │   │   ├── receptionist/     # Shared
+│       │   │   ├── pharmacist/       # Member 3
+│       │   │   ├── pharmacy-owner/   # Member 4
+│       │   │   ├── supplier/         # Member 4
+│       │   │   └── admin/            # Shared
 │       │   ├── services/         # API service layer
-│       │   ├── context/          # Auth & state context
+│       │   ├── context/          # Auth context
 │       │   └── routes/           # Protected routing
 │       └── package.json
 │
 ├── mobile/
-│   └── mediflow_mobile/          # Flutter app
+│   └── mediflow_mobile/          # Flutter application
 │       ├── lib/
 │       │   ├── screens/
-│       │   │   ├── doctor_discovery/    # Member 1
-│       │   │   ├── auth/               # Member 2
-│       │   │   ├── patient/            # Member 2
-│       │   │   ├── appointments/       # Member 2
-│       │   │   ├── prescriptions/      # Member 3
-│       │   │   ├── orders/             # Member 3
-│       │   │   └── pharmacy/           # Member 4
-│       │   ├── services/         # API services
+│       │   │   ├── auth/             # Shared (M2 implements)
+│       │   │   ├── patient/          # Member 1 + Member 3
+│       │   │   ├── appointments/     # Member 1
+│       │   │   ├── doctor/           # Member 2
+│       │   │   ├── prescriptions/    # Member 3
+│       │   │   ├── orders/           # Member 3
+│       │   │   └── pharmacy/         # Member 4
+│       │   ├── services/         # API HTTP services
 │       │   ├── models/           # Data models
 │       │   ├── providers/        # State management
 │       │   └── widgets/          # Reusable widgets
 │       └── pubspec.yaml
 │
 ├── ai/
-│   └── mediflow_agents/          # Agentic AI subsystem
+│   └── mediflow_agents/          # Python Agentic AI subsystem
+│       ├── orchestrator/
+│       │   └── workflow_orchestrator.py          # Main orchestrator
 │       ├── agents/
-│       │   ├── specialist_recommendation_agent.py  # Member 1
-│       │   ├── clinical_decision_support_agent.py  # Member 2
-│       │   ├── medication_intelligence_agent.py    # Member 3
-│       │   └── inventory_intelligence_agent.py     # Member 4
+│       │   ├── specialist_recommendation_agent.py   # Member 1
+│       │   ├── clinical_decision_support_agent.py   # Member 2
+│       │   ├── medication_intelligence_agent.py     # Member 3
+│       │   └── inventory_intelligence_agent.py      # Member 4
 │       ├── tools/
-│       │   ├── specialist_tools.py                 # Member 1
-│       │   ├── clinical_tools.py                   # Member 2
-│       │   ├── medication_tools.py                 # Member 3
-│       │   └── inventory_tools.py                  # Member 4
-│       └── config/
+│       │   ├── specialist_tools.py               # Member 1
+│       │   ├── clinical_tools.py                 # Member 2
+│       │   ├── medication_tools.py               # Member 3
+│       │   └── inventory_tools.py                # Member 4
+│       ├── validators/           # Input/output validators
+│       ├── state/                # Workflow state management
+│       └── requirements.txt
 │
 ├── tests/
-│   ├── backend/
-│   ├── web/
-│   ├── mobile/
-│   └── ai/
+│   ├── backend/                  # .NET test projects
+│   ├── web/                      # React tests
+│   ├── mobile/                   # Flutter tests
+│   └── ai/                       # Agent evaluation tests
 │
 ├── docs/
 │   ├── architecture.md
 │   ├── er-diagram.md
 │   ├── agent-workflow.md
-│   ├── adr/                       # Architecture Decision Records
-│   └── api-documentation.md
+│   ├── api-documentation.md
+│   ├── adr/                      # Architecture Decision Records
+│   └── ai-usage-logs/            # Per-member AI usage logs
 │
 ├── .github/
 │   └── workflows/
@@ -2233,281 +2184,86 @@ MediFlow-AI/
 
 ---
 
-## 25. Git Branching Strategy
+## 27. Demo Walkthrough — Member Responsibilities
 
-### Branch Naming Convention
+The final demonstration follows this sequence. Each member leads their own portion.
+
+| # | Demo Step | Lead | What to Show |
+|---|---|---|---|
+| 1 | Patient registers | M1 | Flutter registration flow |
+| 2 | Patient enters symptoms | M1 | Flutter symptom entry screen |
+| 3 | AI Specialist Recommendation | M1 | Specialty + ranked doctors with explanation |
+| 4 | Patient selects doctor and books | M1 | Flutter booking + date/time picker + payment |
+| 5 | Receptionist verifies payment | Shared | React receptionist portal → confirm → APP-2026-1024 |
+| 6 | Doctor opens verified appointment | M2 | React doctor portal (only verified appointments visible) |
+| 7 | Doctor enters clinical data | M2 | Consultation form + examination + lab results |
+| 8 | Clinical Decision Support Agent | M2 | AI suggestions with confidence + ACCEPT/MODIFY/REJECT |
+| 9 | Doctor selects medicine | M3 | React prescription creation screen |
+| 10 | Medication Intelligence Agent | M3 | Availability check → confirm medicine |
+| 11 | E-Prescription generated | M3 | Distributed to patient + pharmacist simultaneously |
+| 12 | Patient views prescription | M3 | Flutter prescription viewer |
+| 13 | Pharmacist views prescription | M3 | React pharmacist portal + auto price calculation |
+| 14 | Patient pays + Pharmacist processes | M3 | Order status workflow (PREPARING → READY → DISPENSED) |
+| 15 | Patient tracks order | M3 | Flutter order tracking |
+| 16 | Inventory decremented | M4 | Show inventory updated after dispensing |
+| 17 | Inventory Intelligence Agent | M4 | Low-stock detection + demand forecast + restock recommendation |
+| 18 | Owner reviews AI recommendation | M4 | React pharmacy owner dashboard → APPROVE RESTOCK |
+| 19 | Supplier portal | M4 | React supplier portal → APPROVE request |
+| 20 | Inventory updated | M4 | Show stock replenished after supplier approval |
+| 21 | Patient rates pharmacy | M4 | Flutter pharmacy rating screen |
+| 22 | Patient views order history | M1+M3 | Flutter order history |
+| 23 | GitHub Actions CI | All | Show passing CI pipeline |
+| 24 | Swagger docs | All | Each member shows their endpoints |
+| 25 | Tests | All | Each member runs their tests live |
+| 26 | Database state | All | Show PostgreSQL tables at key points |
+| 27 | AI usage logs | All | Show individual AI usage log entries |
+
+---
+
+## 28. Overall Goal
+
+The final system should demonstrate that the group can integrate **Software Engineering and Artificial Intelligence into one practical multi-agent healthcare platform** that directly follows SE3090 requirements.
+
+### Required Cross-Platform Workflow
+
+The assignment requires at least one complete cross-platform workflow:
 
 ```text
-main                              # Production-ready code
-develop                           # Integration branch
-feature/<member>-<feature-name>   # Feature branches
+Flutter / React
+    ↓
+ASP.NET Core Web API
+    ↓
+PostgreSQL
+    ↓
+Agentic AI (via orchestrator)
+    ↓
+Human Approval
+    ↓
+Updated Result persisted to database
+    ↓
+Response returned to Flutter / React
 ```
 
-### Per-Member Branches
-
-| Member | Feature Branches |
-|---|---|
-| Member 1 | `feature/doctor-management`, `feature/specialist-management`, `feature/doctor-availability`, `feature/doctor-ratings`, `feature/doctor-ranking-algorithm`, `feature/agent-specialist-recommendation`, `feature/react-doctor-screens`, `feature/flutter-doctor-discovery` |
-| Member 2 | `feature/authentication`, `feature/patient-management`, `feature/medical-history`, `feature/appointment-booking`, `feature/appointment-scheduling`, `feature/agent-clinical-decision-support`, `feature/react-doctor-dashboard`, `feature/flutter-patient-app` |
-| Member 3 | `feature/prescription-upload`, `feature/prescription-processing`, `feature/medicine-management`, `feature/order-management`, `feature/order-cancellation`, `feature/price-calculation`, `feature/agent-medication-intelligence`, `feature/react-pharmacist-portal`, `feature/flutter-order-screens` |
-| Member 4 | `feature/pharmacy-management`, `feature/pharmacy-search`, `feature/inventory-management`, `feature/supplier-management`, `feature/restock-requests`, `feature/supply-workflow`, `feature/agent-pharmacy-inventory-intelligence`, `feature/react-pharmacy-owner-dashboard`, `feature/react-supplier-portal`, `feature/flutter-pharmacy-screens` |
-
-### Workflow
-
-1. Create feature branch from `develop`
-2. Implement feature with meaningful commits
-3. Open Pull Request to `develop`
-4. Code review by at least one other member
-5. Merge after approval
-6. Merge `develop` → `main` for releases
-
----
-
-## 26. Testing Strategy
-
-### Unit Testing
-
-Test:
-
-- Business logic (ranking algorithms, scheduling, prescription processing, inventory calculations)
-- Validation rules
-- Cancellation rules
-- Non-CRUD operations
-
-### Integration Testing
-
-Test:
-
-- React/Flutter → ASP.NET Core
-- ASP.NET Core → PostgreSQL
-- Backend → AI agents
-- Agent → controlled tools/APIs
-
-### API Testing
-
-Use tools such as Swagger/Postman to test:
-
-- Authentication
-- Authorization
-- CRUD operations
-- Business operations
-- Invalid requests
-- Unauthorized requests
-
-### AI Testing
-
-Evaluate:
-
-- Recommendation accuracy (specialty classification, doctor ranking)
-- Condition suggestion accuracy (clinical decision support)
-- Medicine extraction accuracy (prescription processing)
-- Inventory prediction performance (demand forecasting)
-- Unsafe/invalid output handling
-- Safe failure behavior
-
----
-
-## 27. Documentation Requirements
-
-### Software Engineering Documentation
-
-- Problem statement
-- Functional requirements
-- Non-functional requirements
-- Use-case diagram
-- System architecture
-- Component diagram
-- Class diagram
-- ER diagram
-- Sequence diagrams
-- API documentation
-- Database design
-- Security design
-- Testing strategy
-
-### AI Agent Documentation
-
-For each agent document:
-
-- Agent objective
-- Input
-- Output
-- Tools/APIs
-- Workflow
-- Decision process
-- Data used
-- Validation
-- Human approval
-- Error handling
-- Evaluation metrics
-- Limitations
-
----
-
-## 28. Demo Walkthrough — Member Responsibilities
-
-The final demo follows a specific sequence. Each member leads their portion:
-
-| Demo Step | Lead | What to Show |
-|---|---|---|
-| 1. Patient login/register | Member 2 | Flutter login + registration |
-| 2. Enter symptoms | Member 2 | Flutter symptom entry screen |
-| 3. Specialist Recommendation Agent | Member 1 | AI specialty recommendation with ranked doctors |
-| 4. Doctor profile & ratings | Member 1 | Flutter doctor profile + React doctor management |
-| 5. Book appointment | Member 2 | Flutter appointment booking |
-| 6. Appointment scheduling logic | Member 2 | Show conflict detection + scheduling |
-| 7. Clinical Decision Support Agent | Member 2 | AI condition suggestions with confidence |
-| 8. Upload prescription | Member 3 | Flutter prescription upload |
-| 9. Medication Intelligence Agent | Member 3 | AI medicine extraction + warnings |
-| 10. Pharmacist verification | Member 3 | React pharmacist portal |
-| 11. Search nearby pharmacies | Member 4 | Flutter pharmacy search |
-| 12. Pharmacy Intelligence Agent | Member 4 | AI pharmacy recommendation |
-| 13. Place order | Member 3 | Flutter order placement |
-| 14. Order processing | Member 3 | React order management + price calculation |
-| 15. Order tracking | Member 3 | Flutter order tracking |
-| 16. Order cancellation demo | Member 3 | Cancellation rules in action |
-| 17. Low-stock detection | Member 4 | React inventory dashboard + AI alerts |
-| 18. Restock recommendation | Member 4 | AI restocking recommendations |
-| 19. Supplier approval | Member 4 | React supplier portal |
-| 20. Inventory updated | Member 4 | Show inventory updated after supply |
-| 21. Patient feedback | Member 1 | Doctor rating + pharmacy rating |
-| 22. PostgreSQL state | All | Show database state at key points |
-| 23. Swagger docs | All | Each member shows their endpoints |
-| 24. Tests | All | Each member runs their tests |
-| 25. GitHub Actions CI | All | Show passing CI pipeline |
-| 26. Git history | All | Show branches, PRs, contributions |
-
----
-
-## 29. Quick Reference — Who Owns What
-
-### Member 1 — "Doctor & Specialist Intelligence"
-
-> *Patients discover the right specialist and doctor through AI-powered recommendations.*
-
-- Doctor registration & profiles
-- Specialist management
-- Doctor search & availability
-- Doctor rating system
-- Doctor ranking algorithm (weighted scoring)
-- React doctor management portal
-- Flutter doctor discovery screens
-- **Specialist & Doctor Recommendation Agent**
-
-### Member 2 — "Patient & Clinical Intelligence"
-
-> *Patients manage their health journey with AI-assisted clinical decision support.*
-
-- Patient registration & authentication
-- Patient profiles & medical history
-- Symptom submission
-- Appointment booking & scheduling
-- Appointment conflict detection
-- React doctor dashboard (appointment view)
-- Flutter patient app (auth, symptoms, appointments)
-- **Clinical Decision Support & Diagnosis Suggestion Agent**
-
-### Member 3 — "Prescription & Medication Intelligence"
-
-> *Prescriptions are intelligently processed and medicines are ordered seamlessly.*
-
-- Prescription upload & management
-- Medicine database & search
-- Order management (create, cancel, track)
-- Prescription-to-medicine processing
-- Medicine price calculation
-- React pharmacist portal
-- Flutter prescription & order screens
-- **Medication Intelligence Agent**
-
-### Member 4 — "Pharmacy & Inventory Intelligence"
-
-> *Pharmacies are intelligently managed with demand prediction and automated restocking.*
-
-- Pharmacy registration & search
-- Nearby pharmacy discovery
-- Inventory management & monitoring
-- Supplier management
-- Restocking workflow
-- React pharmacy owner dashboard + supplier portal
-- Flutter pharmacy search & selection screens
-- **Pharmacy & Inventory Intelligence Agent**
-
-### Together — One Workflow
+### What the Four Agents Answer
 
 ```text
-Patient (M2) → Symptoms (M2) → Specialist Recommendation (M1)
-    → Doctor Selection (M1) → Appointment (M2) → Scheduling Logic (M2)
-    → Clinical Decision Support (M2)
-    → Prescription Upload (M3) → Medicine Extraction (M3)
-    → Pharmacy Search (M4) → Pharmacy Selection (M4)
-    → Order Placement (M3) → Pharmacist Verification (M3)
-    → Order Processing (M3) → Price Calculation (M3)
-    → Inventory Monitoring (M4) → Restock Recommendation (M4)
-    → Supplier Approval (M4) → Inventory Updated (M4)
-    → Patient Feedback (M1 + M4)
+🩺 Agent 1 (Member 1) — "Who should I see?"
+    → Symptoms → Specialty → Ranked Doctors
+
+🧠 Agent 2 (Member 2) — "What could this condition be?"
+    → Clinical Information → Possible Diagnoses → Doctor Decision Support
+
+💊 Agent 3 (Member 3) — "Is this medicine available?"
+    → Medicine Request → Stock Check → Availability Confirmation or Alternatives
+
+📦 Agent 4 (Member 4) — "Should the pharmacy restock this?"
+    → Inventory + Demand → Forecast → Restocking Recommendation
 ```
 
-This forms **one complete MediFlow AI healthcare workflow**, not four disconnected projects.
+### Final Rule
 
----
+The project must not be four mini-projects running in isolation. It must be one integrated system where:
 
-## 30. Critical Group Working Rules
+**Flutter/React → ASP.NET Core → PostgreSQL → Agentic AI Orchestrator → Agent → Allow-Listed Tools → Business-Rule Validation → Human Approval → Persisted Workflow State → Audit Log → Response to User**
 
-### ✅ DO
-
-- Each member owns a **full vertical slice** (DB → API → React → Flutter → AI → Tests → Docs)
-- All members work in the **same GitHub repository**
-- Every member contributes to **all layers** (ASP.NET, PostgreSQL, React, Flutter)
-- Use **feature branches** and **pull requests** with code review
-- Every member must have **visible, meaningful Git contributions**
-- Share the `AppDbContext` — register your entities in one shared context
-- Implement at least **4 meaningful APIs** per member
-- Implement at least **1 non-CRUD business operation** per member
-- Communicate when your component's API contract changes
-- Write tests for your own components
-- Document your own Swagger endpoints
-- Ensure human-in-the-loop at every critical decision point
-
-### ❌ DON'T
-
-- Don't divide as: *Member 1 = Backend, Member 2 = React, Member 3 = Flutter, Member 4 = AI*
-- Don't commit secrets, API keys, connection strings, or JWT secrets
-- Don't create fake/back-filled Git contribution history
-- Don't add unnecessary features before the core workflow is stable
-- Don't let agents make unsupported medical decisions
-- Don't let AI independently prescribe or substitute medicines
-- Don't expose stack traces or internal errors to users
-- Don't present AI suggestions as confirmed medical diagnoses
-
----
-
-## 31. Overall Goal
-
-The final system should demonstrate that the group can integrate **Software Engineering and Artificial Intelligence into one practical multi-agent healthcare platform**.
-
-The project should not be simply:
-
-> "A website with four chatbots."
-
-Instead, it should be a complete software system where:
-
-**Flutter/React → ASP.NET Core APIs → PostgreSQL → Controlled AI Agents → Business Rules → Human Approval → Persisted Results → Audit Logs**
-
-The AI agents should interact with real system data and controlled APIs, while the Software Engineering layer ensures security, reliability, maintainability, testing, and proper user workflows.
-
-The final system should demonstrate four meaningful AI capabilities:
-
-1. **"Who should I see?"**
-   → Specialist & Doctor Recommendation Agent
-
-2. **"What could this condition indicate?"**
-   → Clinical Decision Support Agent
-
-3. **"What does this prescription/medicine information mean?"**
-   → Medication Intelligence Agent
-
-4. **"Where can I get the medicine and should the pharmacy restock it?"**
-   → Pharmacy & Inventory Intelligence Agent
-
-This architecture ensures that all four members have substantial contributions to both **SE implementation and AI-agent development**, while maintaining clear ownership of separate modules.
+All four components are interconnected through the shared database, shared authentication, shared business rules, and the agentic orchestration layer — forming **one complete MediFlow AI healthcare system**.
