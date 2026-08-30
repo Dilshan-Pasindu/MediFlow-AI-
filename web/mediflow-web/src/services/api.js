@@ -66,10 +66,10 @@ export async function apiLogin(email, password) {
   return data;
 }
 
-export async function apiRegister(fullName, email, password, phoneNumber) {
+export async function apiRegister(fullName, email, password, phoneNumber, role = 'Patient') {
   const data = await apiFetch('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ fullName, email, password, phoneNumber }),
+    body: JSON.stringify({ fullName, email, password, phoneNumber, role }),
   });
   setToken(data.token);
   setUser({ userId: data.userId, fullName: data.fullName, email: data.email, role: data.role });
