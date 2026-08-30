@@ -25,32 +25,37 @@ public class AuthService
 
     // ── Register ──────────────────────────────────────────────────────────────
 
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request, UserRole role = UserRole.Patient)
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
         // Check for duplicate email
-        if (await _db.Users.AnyAsync(u => u.Email == request.Email))
+        if (await _db.Users.AnyAsync(u => u.Email == request.Email.ToLower().Trim()))
             throw new InvalidOperationException("A user with this email already exists.");
+
+        // Parse role or default to Patient
+        var parsedRole = UserRole.Patient;
+        if (!string.IsNullOrWhiteSpace(request.Role) && Enum.TryParse<UserRole>(request.Role, true, out var roleEnum))
+        {
+            parsedRole = roleEnum;
+        }
 
         // Create User
         var user = new User
         {
-            FullName = request.FullName,
+            FullName = request.FullName.Trim(),
             Email = request.Email.ToLower().Trim(),
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            PhoneNumber = request.PhoneNumber,
-            Role = role,
+            PhoneNumber = request.PhoneNumber.Trim(),
+            Role = parsedRole,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
         _db.Users.Add(user);
+        await _db.SaveChangesAsync();
 
         // If role is Patient, also create a Patient profile row
-        if (role == UserRole.Patient)
+        if (parsedRole == UserRole.Patient)
         {
-            // SaveChanges first to get the User Id
-            await _db.SaveChangesAsync();
-
             var patient = new Patient
             {
                 UserId = user.Id,
@@ -61,9 +66,24 @@ public class AuthService
                 UpdatedAt = DateTime.UtcNow
             };
             _db.Patients.Add(patient);
+            await _db.SaveChangesAsync();
         }
-
-        await _db.SaveChangesAsync();
+        else if (parsedRole == UserRole.Doctor)
+        {
+            var doctor = new Doctor
+            {
+                UserId = user.Id,
+                FullName = user.FullName,
+                Bio = "Medical specialist registered on MediFlow AI",
+                Qualifications = "MBBS",
+                ExperienceYears = 1,
+                ConsultationFee = 2500,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.Doctors.Add(doctor);
+            await _db.SaveChangesAsync();
+        }
 
         var token = GenerateJwtToken(user);
         return new AuthResponse(

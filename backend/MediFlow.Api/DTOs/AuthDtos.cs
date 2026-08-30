@@ -6,7 +6,8 @@ public record RegisterRequest(
     string FullName,
     string Email,
     string Password,
-    string PhoneNumber
+    string PhoneNumber,
+    string? Role = "Patient"
 );
 
 public record LoginRequest(
@@ -21,4 +22,14 @@ public record AuthResponse(
     string Role,
     string Token,
     DateTime ExpiresAt
+);
+
+public record ForgotPasswordRequest(
+    string Email
+);
+
+public record ResetPasswordRequest(
+    string Email,
+    string OtpCode,
+    string NewPassword
 );
