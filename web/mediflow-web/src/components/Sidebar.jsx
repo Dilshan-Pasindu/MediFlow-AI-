@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Search, Calendar, FileText,
   User, LogOut, HeartPulse
 } from 'lucide-react';
-import { currentPatient } from '../data/mockData';
+import { getUser, apiLogout } from '../services/api';
 
 const navItems = [
   { to: '/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
@@ -15,6 +15,7 @@ const navItems = [
 
 export default function Sidebar() {
   const navigate = useNavigate();
+  const user = getUser();
 
   return (
     <aside className="sidebar">
@@ -48,16 +49,18 @@ export default function Sidebar() {
 
       <div className="sidebar-footer">
         <div className="user-card">
-          <div className="user-avatar">{currentPatient.avatar}</div>
+          <div className="user-avatar">
+            {user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="user-name" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {currentPatient.name}
+              {user?.fullName || 'Guest'}
             </div>
-            <div className="user-role">Patient</div>
+            <div className="user-role">{user?.role || 'Patient'}</div>
           </div>
           <button
             className="close-btn"
-            onClick={() => navigate('/login')}
+            onClick={apiLogout}
             title="Sign out"
           >
             <LogOut size={15} />

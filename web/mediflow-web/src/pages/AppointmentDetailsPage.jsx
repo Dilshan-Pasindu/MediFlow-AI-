@@ -1,20 +1,45 @@
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, CheckCircle, ShieldCheck, Download } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { appointments, statusConfig } from '../data/mockData';
+import { apiGetAppointment } from '../services/api';
+
+const statusStyles = {
+  Pending: { color: '#B45309', bg: '#FFFBEB', border: '#FDE68A', label: 'Pending' },
+  PaymentSubmitted: { color: '#0369A1', bg: '#EFF6FF', border: '#BFDBFE', label: 'Payment Sent' },
+  Confirmed: { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', label: 'Confirmed' },
+  Completed: { color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', label: 'Completed' },
+  Cancelled: { color: '#DC2626', bg: '#FEF2F2', border: '#FECACA', label: 'Cancelled' },
+};
 
 export default function AppointmentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const appt = appointments.find(a => a.id === parseInt(id));
+  const [appt, setAppt] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!appt) return <div>Appointment not found</div>;
+  useEffect(() => {
+    loadAppointment();
+  }, [id]);
 
-  const statusCfg = statusConfig[appt.status] || statusConfig.Pending;
-  const d = new Date(appt.date);
+  async function loadAppointment() {
+    try {
+      const data = await apiGetAppointment(id);
+      setAppt(data);
+    } catch (err) {
+      console.error('Failed to load appointment:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  // Simple step logic based on status
+  if (loading) return <div className="app-shell"><Sidebar /><div className="main-content"><TopBar title="Loading..." /><div className="page-body" style={{ textAlign: 'center', padding: 60, color: '#94A3B8' }}>Loading appointment...</div></div></div>;
+  if (!appt) return <div className="app-shell"><Sidebar /><div className="main-content"><TopBar title="Not Found" /><div className="page-body"><div className="empty-state"><div className="empty-icon">📋</div><div className="empty-title">Appointment not found</div></div></div></div></div>;
+
+  const d = new Date(appt.appointmentDateTime);
+  const st = statusStyles[appt.status] || statusStyles.Pending;
+
   let step = 1;
   if (appt.status === 'PaymentSubmitted') step = 2;
   if (appt.status === 'Confirmed') step = 3;
@@ -37,27 +62,17 @@ export default function AppointmentDetailsPage() {
           <div style={{ maxWidth: 800, margin: '0 auto' }}>
             
             {/* Status Steps */}
-            {appt.status !== 'Cancelled' && appt.status !== 'NoShow' && (
+            {appt.status !== 'Cancelled' && (
               <div className="step-bar">
-                <div className="step-item">
-                  <div className={`step-circle ${step >= 1 ? 'done' : ''}`}>{step >= 1 ? '✓' : '1'}</div>
-                  <div className={`step-label ${step >= 1 ? 'done' : ''}`}>Booked</div>
-                  <div className={`step-line ${step >= 2 ? 'done' : ''}`}></div>
-                </div>
-                <div className="step-item">
-                  <div className={`step-circle ${step >= 2 ? 'done' : ''}`}>{step >= 2 ? '✓' : '2'}</div>
-                  <div className={`step-label ${step >= 2 ? 'done' : ''}`}>Payment Sent</div>
-                  <div className={`step-line ${step >= 3 ? 'done' : ''}`}></div>
-                </div>
-                <div className="step-item">
-                  <div className={`step-circle ${step >= 3 ? 'done' : ''}`}>{step >= 3 ? '✓' : '3'}</div>
-                  <div className={`step-label ${step >= 3 ? 'done' : ''}`}>Confirmed</div>
-                  <div className={`step-line ${step >= 4 ? 'done' : ''}`}></div>
-                </div>
-                <div className="step-item" style={{ flex: 'none' }}>
-                  <div className={`step-circle ${step >= 4 ? 'done' : ''}`}>{step >= 4 ? '✓' : '4'}</div>
-                  <div className={`step-label ${step >= 4 ? 'done' : ''}`}>Completed</div>
-                </div>
+                {['Booked', 'Payment Sent', 'Confirmed', 'Completed'].map((label, i) => (
+                  <div key={i} className="step-item" style={i === 3 ? { flex: 'none' } : {}}>
+                    <div className={`step-circle ${step > i ? 'done' : step === i + 1 ? 'active' : ''}`}>
+                      {step > i ? '✓' : i + 1}
+                    </div>
+                    <div className={`step-label ${step > i ? 'done' : step === i + 1 ? 'active' : ''}`}>{label}</div>
+                    {i < 3 && <div className={`step-line ${step > i + 1 ? 'done' : ''}`}></div>}
+                  </div>
+                ))}
               </div>
             )}
 
@@ -67,10 +82,9 @@ export default function AppointmentDetailsPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                   <div>
                     <div className="section-title">Consultation with {appt.doctorName}</div>
-                    <div className="section-sub">{appt.specialty}</div>
                   </div>
-                  <span className="badge" style={{ color: statusCfg.color, background: statusCfg.bg, borderColor: statusCfg.border, fontSize: 13, padding: '4px 12px' }}>
-                    {statusCfg.label}
+                  <span className="badge" style={{ color: st.color, background: st.bg, borderColor: st.border, fontSize: 13, padding: '4px 12px' }}>
+                    {st.label}
                   </span>
                 </div>
 
@@ -81,87 +95,37 @@ export default function AppointmentDetailsPage() {
                   </div>
                   <div className="detail-item">
                     <div className="detail-label">Time</div>
-                    <div className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Clock size={16}/> {appt.time}</div>
-                  </div>
-                  <div className="detail-item">
-                    <div className="detail-label">Location</div>
-                    <div className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><MapPin size={16}/> {appt.hospital}</div>
+                    <div className="detail-value" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Clock size={16}/> {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </div>
                   <div className="detail-item">
                     <div className="detail-label">Appointment Number</div>
-                    <div className="detail-value" style={{ fontFamily: 'monospace' }}>{appt.appointmentNumber || 'Pending Confirmation'}</div>
+                    <div className="detail-value" style={{ fontFamily: 'monospace' }}>{appt.appointmentNumber || 'Pending'}</div>
+                  </div>
+                  <div className="detail-item">
+                    <div className="detail-label">Fee</div>
+                    <div className="detail-value" style={{ color: '#0369A1' }}>Rs. {appt.fee?.toLocaleString()}</div>
                   </div>
                 </div>
 
+                {appt.payment && (
+                  <div style={{ padding: 16, background: '#ECFDF5', borderRadius: 12, border: '1px solid #A7F3D0' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#059669', marginBottom: 4 }}>Payment Info</div>
+                    <div style={{ fontSize: 13, color: '#475569' }}>
+                      Amount: Rs. {appt.payment.amount?.toLocaleString()} · Status: {appt.payment.status} · Method: {appt.payment.paymentMethod || 'N/A'}
+                    </div>
+                  </div>
+                )}
+
                 {appt.notes && (
-                  <div style={{ padding: 16, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E8EDF2', fontSize: 13, color: '#475569' }}>
+                  <div style={{ marginTop: 16, padding: 16, background: '#F8FAFC', borderRadius: 12, border: '1px solid #E8EDF2', fontSize: 13, color: '#475569' }}>
                     <strong style={{ color: '#0F172A', display: 'block', marginBottom: 4 }}>Notes:</strong>
                     {appt.notes}
                   </div>
                 )}
               </div>
             </div>
-
-            {/* Prescription (if completed & available) */}
-            {appt.prescription && (
-              <div className="rx-card fade-in">
-                <div className="rx-header">
-                  <div className="rx-title">
-                    💊 E-Prescription
-                  </div>
-                  <div className="rx-id">{appt.prescription.id}</div>
-                </div>
-                
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#0D9488', textTransform: 'uppercase', marginBottom: 4 }}>Diagnosis</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#0F172A' }}>{appt.prescription.diagnosis}</div>
-                </div>
-
-                <table className="rx-med-table">
-                  <thead>
-                    <tr>
-                      <th>Medicine</th>
-                      <th>Dosage</th>
-                      <th>Duration</th>
-                      <th>Qty</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {appt.prescription.medicines.map((med, i) => (
-                      <tr key={i}>
-                        <td className="med-name">{med.name}</td>
-                        <td>{med.dosage}</td>
-                        <td>{med.duration}</td>
-                        <td>{med.quantity}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {appt.prescription.notes && (
-                  <div className="rx-notes">
-                    <div className="rx-notes-label">Doctor's Instructions</div>
-                    <div className="rx-notes-text">{appt.prescription.notes}</div>
-                  </div>
-                )}
-
-                <div style={{ marginTop: 24, display: 'flex', gap: 12 }}>
-                  <button className="btn btn-teal">
-                    Order Medicines <ArrowLeft size={16} style={{ transform: 'rotate(180deg)' }} />
-                  </button>
-                  <button className="btn btn-ghost">
-                    <Download size={16} /> Download PDF
-                  </button>
-                </div>
-              </div>
-            )}
-            
-            {appt.status === 'Completed' && !appt.prescription && (
-              <div className="info-banner blue">
-                <div>No e-prescription was issued during this consultation.</div>
-              </div>
-            )}
-
           </div>
         </div>
       </div>

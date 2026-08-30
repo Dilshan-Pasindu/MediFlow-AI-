@@ -1,7 +1,9 @@
-import { Bell, ChevronRight } from 'lucide-react';
-import { currentPatient } from '../data/mockData';
+import { Bell } from 'lucide-react';
+import { getUser } from '../services/api';
 
 export default function TopBar({ title, subtitle, actions }) {
+  const user = getUser();
+  
   return (
     <div className="topbar">
       <div style={{ flex: 1 }}>
@@ -14,7 +16,7 @@ export default function TopBar({ title, subtitle, actions }) {
           <Bell size={17} />
         </button>
         <div className="user-avatar" style={{ width: 34, height: 34, borderRadius: 10, fontSize: 12, fontWeight: 700, background: 'linear-gradient(135deg, #0369A1, #0D9488)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
-          {currentPatient.avatar}
+          {user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
         </div>
       </div>
     </div>
