@@ -1,0 +1,79 @@
+name: MediFlow AI CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Backend Build & Verification (.NET 8)
+  # ─────────────────────────────────────────────────────────────────────────────
+  backend-ci:
+    name: Backend Build & Test (.NET 8)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore Dependencies
+        run: dotnet restore backend/MediFlow.Api/MediFlow.Api.csproj
+
+      - name: Build Backend (Release)
+        run: dotnet build backend/MediFlow.Api/MediFlow.Api.csproj --no-restore --configuration Release
+
+      - name: Run Backend Tests (if available)
+        run: |
+          if [ -d "tests" ] && [ "$(ls -A tests 2>/dev/null)" ]; then
+            dotnet test --configuration Release --no-build --verbosity normal
+          else
+            echo "No test projects found in tests/ directory yet. Skipping test step."
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Frontend Build & Verification (React / Vite)
+  # ─────────────────────────────────────────────────────────────────────────────
+  frontend-ci:
+    name: Frontend Build (React + Vite)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web/mediflow-web
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: web/mediflow-web/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Web Application
+        run: npm run build
