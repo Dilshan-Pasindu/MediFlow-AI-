@@ -81,6 +81,13 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// ─── Seed Database ────────────────────────────────────────────────────────────
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await DatabaseSeeder.SeedAsync(db);
+}
+
 // ─── Middleware Pipeline ───────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())
 {

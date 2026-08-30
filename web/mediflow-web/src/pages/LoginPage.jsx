@@ -1,16 +1,42 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { HeartPulse, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { HeartPulse, Eye, EyeOff, ArrowRight, Loader } from 'lucide-react';
+import { apiLogin, apiRegister } from '../services/api';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('login');
   const [showPass, setShowPass] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [form, setForm] = useState({ email: '', password: '', name: '', phone: '' });
 
-  const handleSubmit = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    setError('');
+    setLoading(true);
+    try {
+      await apiLogin(form.email, form.password);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      await apiRegister(form.name, form.email, form.password, form.phone);
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,23 +75,29 @@ export default function LoginPage() {
           </div>
 
           <div className="tabs">
-            <button className={`tab-btn ${tab === 'login' ? 'active' : ''}`} onClick={() => setTab('login')}>Sign In</button>
-            <button className={`tab-btn ${tab === 'register' ? 'active' : ''}`} onClick={() => setTab('register')}>Create Account</button>
+            <button className={`tab-btn ${tab === 'login' ? 'active' : ''}`} onClick={() => { setTab('login'); setError(''); }}>Sign In</button>
+            <button className={`tab-btn ${tab === 'register' ? 'active' : ''}`} onClick={() => { setTab('register'); setError(''); }}>Create Account</button>
           </div>
+
+          {error && (
+            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 16 }}>
+              {error}
+            </div>
+          )}
 
           {tab === 'login' ? (
             <>
               <div className="login-title">Welcome back</div>
               <div className="login-sub">Sign in to your patient account</div>
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleLogin}>
                 <div className="form-group">
                   <label className="form-label">Email Address</label>
-                  <input className="form-input" type="email" placeholder="dilshan@gmail.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                  <input className="form-input" type="email" placeholder="dilshan@gmail.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
                 </div>
                 <div className="form-group" style={{ position: 'relative' }}>
                   <label className="form-label">Password</label>
-                  <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={{ paddingRight: 42 }} />
+                  <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={{ paddingRight: 42 }} required />
                   <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: 'absolute', right: 12, top: 32, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}>
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -73,13 +105,13 @@ export default function LoginPage() {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 20 }}>
                   <a href="#" style={{ fontSize: 12.5, color: '#0369A1', fontWeight: 500 }}>Forgot password?</a>
                 </div>
-                <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }}>
-                  Sign In <ArrowRight size={16} />
+                <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }} disabled={loading}>
+                  {loading ? <><Loader size={16} className="spin" /> Signing in...</> : <>Sign In <ArrowRight size={16} /></>}
                 </button>
               </form>
 
               <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: '#64748B' }}>
-                Demo: click Sign In — no credentials needed
+                Use: <strong>dilshan@gmail.com</strong> / <strong>Test@123</strong>
               </div>
             </>
           ) : (
@@ -87,28 +119,28 @@ export default function LoginPage() {
               <div className="login-title">Create your account</div>
               <div className="login-sub">Join MediFlow AI as a patient</div>
 
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleRegister}>
                 <div className="form-group">
                   <label className="form-label">Full Name</label>
-                  <input className="form-input" type="text" placeholder="Dilshan Pasindu" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+                  <input className="form-input" type="text" placeholder="Dilshan Pasindu" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email Address</label>
-                  <input className="form-input" type="email" placeholder="dilshan@gmail.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+                  <input className="form-input" type="email" placeholder="dilshan@gmail.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Phone Number</label>
-                  <input className="form-input" type="tel" placeholder="+94 77 123 4567" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+                  <input className="form-input" type="tel" placeholder="+94 77 123 4567" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required />
                 </div>
                 <div className="form-group" style={{ position: 'relative' }}>
                   <label className="form-label">Password</label>
-                  <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={{ paddingRight: 42 }} />
+                  <input className="form-input" type={showPass ? 'text' : 'password'} placeholder="••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={{ paddingRight: 42 }} required />
                   <button type="button" onClick={() => setShowPass(!showPass)} style={{ position: 'absolute', right: 12, top: 32, color: '#94A3B8', background: 'none', border: 'none', cursor: 'pointer' }}>
                     {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 4 }}>
-                  Create Account <ArrowRight size={16} />
+                <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', marginTop: 4 }} disabled={loading}>
+                  {loading ? <><Loader size={16} className="spin" /> Creating...</> : <>Create Account <ArrowRight size={16} /></>}
                 </button>
               </form>
             </>
