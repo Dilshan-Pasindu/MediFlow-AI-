@@ -54,8 +54,8 @@ jobs:
       - name: Restrict CODEOWNERS Modifications
         if: github.event_name == 'pull_request'
         run: |
-          git fetch origin ${{ github.base_ref }} --depth=1
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          git fetch origin ${{ github.base_ref }}
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}..HEAD || true)
 
           if echo "$CHANGED_FILES" | grep -E '^.github/CODEOWNERS$'; then
             echo "Detected modifications to .github/CODEOWNERS in Pull Request #${{ github.event.pull_request.number }}."

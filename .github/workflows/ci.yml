@@ -46,9 +46,11 @@ jobs:
         run: dotnet restore MediFlow.sln
 
       - name: Build Backend (Release)
-        run: dotnet build MediFlow.sln --no-restore --configuration Release
+        run: dotnet build MediFlow.sln --configuration Release
 
       - name: Run Backend Tests
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
         run: |
           dotnet test MediFlow.sln \
             --configuration Release \
