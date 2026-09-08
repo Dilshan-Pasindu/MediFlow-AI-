@@ -12,11 +12,11 @@ const STATUS_STYLES = {
 
 export default function ReceptionistDashboard() {
   const user = getUser();
-  const [appointments, setAppointments] = useState([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState({});
+  const [actionLoading, setActionLoading] = useState<Record<string | number, any>>({});
   const [activeTab, setActiveTab] = useState('PaymentSubmitted');
-  const [messages, setMessages] = useState({});
+  const [messages, setMessages] = useState<Record<string | number, any>>({});
 
   const load = () => {
     setLoading(true);
@@ -25,25 +25,25 @@ export default function ReceptionistDashboard() {
 
   useEffect(() => { load(); }, []);
 
-  async function handleVerify(id) {
+  async function handleVerify(id: number | string) {
     setActionLoading(a => ({ ...a, [id]: 'verify' }));
     try {
       await apiVerifyPayment(id);
       await apiGenerateAppointmentNumber(id);
       setMessages(m => ({ ...m, [id]: { type: 'success', text: 'Payment verified & appointment number generated!' } }));
       load();
-    } catch (err) {
-      setMessages(m => ({ ...m, [id]: { type: 'error', text: err.message } }));
+    } catch (err: any) {
+      setMessages(m => ({ ...m, [id]: { type: 'error', text: err?.message || 'Verification failed' } }));
     } finally { setActionLoading(a => ({ ...a, [id]: null })); }
   }
 
-  async function handleCancel(id) {
+  async function handleCancel(id: number | string) {
     setActionLoading(a => ({ ...a, [id]: 'cancel' }));
     try {
       await apiCancelAppointment(id, 'Cancelled by receptionist');
       load();
-    } catch (err) {
-      setMessages(m => ({ ...m, [id]: { type: 'error', text: err.message } }));
+    } catch (err: any) {
+      setMessages(m => ({ ...m, [id]: { type: 'error', text: err?.message || 'Cancellation failed' } }));
     } finally { setActionLoading(a => ({ ...a, [id]: null })); }
   }
 
@@ -120,7 +120,7 @@ export default function ReceptionistDashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {display.map(appt => {
                 const d = new Date(appt.appointmentDateTime);
-                const st = STATUS_STYLES[appt.status];
+                const st = (STATUS_STYLES as any)[appt.status] || STATUS_STYLES.Pending;
                 const isLoading = actionLoading[appt.id];
                 const msg = messages[appt.id];
                 return (

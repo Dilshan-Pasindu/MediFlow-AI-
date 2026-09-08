@@ -6,7 +6,7 @@ import TopBar from '../components/TopBar';
 import { apiGetRankedDoctors, apiGetSpecialties } from '../services/api';
 
 // Mock AI recommendation (will be replaced by real AI API call)
-async function mockAIRecommendation(symptoms) {
+async function mockAIRecommendation(symptoms: string) {
   await new Promise(r => setTimeout(r, 2200));
   const lower = symptoms.toLowerCase();
   if (lower.includes('stomach') || lower.includes('gastric') || lower.includes('acid') || lower.includes('bloat')) {
@@ -30,15 +30,15 @@ export default function SymptomAIPage() {
   const [severity, setSeverity] = useState(5);
   const [duration, setDuration] = useState('');
   const [step, setStep] = useState('input'); // input | analyzing | result
-  const [recommendation, setRecommendation] = useState(null);
-  const [doctors, setDoctors] = useState([]);
-  const [specialties, setSpecialties] = useState([]);
+  const [recommendation, setRecommendation] = useState<any>(null);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [specialties, setSpecialties] = useState<any[]>([]);
 
   useEffect(() => {
     apiGetSpecialties().then(s => setSpecialties(s || [])).catch(() => {});
   }, []);
 
-  async function handleAnalyze(e) {
+  async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
     if (!symptoms.trim()) return;
     setStep('analyzing');
@@ -47,7 +47,7 @@ export default function SymptomAIPage() {
       setRecommendation(rec);
 
       // Try to get ranked doctors for the specialty
-      const matchedSpec = specialties.find(s => s.name.toLowerCase().includes(rec.specialty.toLowerCase()));
+      const matchedSpec = specialties.find((s: any) => s.name.toLowerCase().includes(rec.specialty.toLowerCase()));
       if (matchedSpec) {
         const ranked = await apiGetRankedDoctors(matchedSpec.id).catch(() => []);
         setDoctors(ranked || []);
@@ -67,7 +67,7 @@ export default function SymptomAIPage() {
     setDoctors([]);
   }
 
-  const severityLabel = (v) => {
+  const severityLabel = (v: number) => {
     if (v <= 3) return { label: 'Mild', color: '#059669' };
     if (v <= 6) return { label: 'Moderate', color: '#B45309' };
     return { label: 'Severe', color: '#DC2626' };
@@ -329,11 +329,11 @@ export default function SymptomAIPage() {
                       </div>
                       <div className="doctor-header">
                         <div className="doc-avatar">
-                          {doc.fullName.replace('Dr.', '').trim().split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          {doc.fullName ? doc.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
                         </div>
                         <div>
                           <div className="doc-name">{doc.fullName}</div>
-                          <div className="doc-spec">{doc.specialties?.map(s => s.name).join(', ')}</div>
+                          <div className="doc-spec">{doc.specialties?.map((s: any) => s.name).join(', ')}</div>
                           <div className="doc-quals">{doc.qualifications}</div>
                         </div>
                       </div>

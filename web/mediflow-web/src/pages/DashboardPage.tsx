@@ -11,8 +11,8 @@ import { getUser, apiGetMyAppointments, apiGetMyPrescriptions } from '../service
 export default function DashboardPage() {
   const navigate = useNavigate();
   const user = getUser();
-  const [appointments, setAppointments] = useState([]);
-  const [prescriptions, setPrescriptions] = useState([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,8 +26,8 @@ export default function DashboardPage() {
         apiGetMyAppointments(),
         apiGetMyPrescriptions(),
       ]);
-      setAppointments(appts.value || []);
-      setPrescriptions(rxs.value || []);
+      setAppointments(appts.status === 'fulfilled' ? (appts.value || []) : []);
+      setPrescriptions(rxs.status === 'fulfilled' ? (rxs.value || []) : []);
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
@@ -151,7 +151,7 @@ export default function DashboardPage() {
                   <div className="appt-list">
                     {upcomingAppts.slice(0, 4).map(appt => {
                       const d = new Date(appt.appointmentDateTime);
-                      const st = statusStyles[appt.status] || statusStyles.Pending;
+                      const st = (statusStyles as any)[appt.status] || statusStyles.Pending;
                       return (
                         <div key={appt.id} className="appt-card" onClick={() => navigate(`/appointments/${appt.id}`)} id={`appt-card-${appt.id}`}>
                           <div className="appt-date-block">
