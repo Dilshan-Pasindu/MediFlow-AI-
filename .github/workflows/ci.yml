@@ -46,9 +46,11 @@ jobs:
         run: dotnet restore MediFlow.sln
 
       - name: Build Backend (Release)
-        run: dotnet build MediFlow.sln --no-restore --configuration Release
+        run: dotnet build MediFlow.sln --configuration Release
 
       - name: Run Backend Tests
+        env:
+          ASPNETCORE_ENVIRONMENT: Development
         run: |
           dotnet test MediFlow.sln \
             --configuration Release \
@@ -94,6 +96,9 @@ jobs:
 
       - name: Type Check (TypeScript)
         run: npx tsc --noEmit
+
+      - name: Run Frontend Tests (Vitest)
+        run: npm test
 
       - name: Build Web Application
         run: npm run build
@@ -141,7 +146,7 @@ jobs:
           if [ -f "ai/pyproject.toml" ]; then pip install .; fi
           pip install pytest flake8
           flake8 ai/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          if [ -d "ai/tests" ]; then pytest ai/tests; fi
+          if [ -d "ai/tests" ]; then PYTHONPATH=. pytest ai/tests; fi
 
   # ─────────────────────────────────────────────────────────────────────────────
   # 4. Mobile Subsystem CI (Flutter)

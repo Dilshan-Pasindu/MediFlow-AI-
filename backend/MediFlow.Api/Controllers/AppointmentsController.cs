@@ -3,6 +3,7 @@ using MediFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Security.Claims;
 
 namespace MediFlow.Api.Controllers;
@@ -32,7 +33,7 @@ public class AppointmentsController : ControllerBase
             return NotFound(new { message = "Doctor not found." });
 
         // Generate appointment number: APT-YYYYMMDD-XXXX
-        var dateStr = request.DateTime.ToString("yyyyMMdd");
+        var dateStr = request.DateTime.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var todayCount = await _db.Appointments
             .CountAsync(a => a.DoctorId == request.DoctorId 
                 && a.AppointmentDateTime.Date == request.DateTime.Date);
@@ -113,7 +114,7 @@ public class AppointmentsController : ControllerBase
     private int GetUserId()
     {
         var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? int.Parse(claim.Value) : throw new UnauthorizedAccessException();
+        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : throw new UnauthorizedAccessException();
     }
 }
 

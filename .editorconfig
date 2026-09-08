@@ -1,0 +1,39 @@
+# EditorConfig is awesome: https://EditorConfig.org
+
+# top-most EditorConfig file
+root = true
+
+# Default settings for all files
+[*]
+indent_style = space
+indent_size = 2
+end_of_line = lf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# C# files
+[*.cs]
+indent_size = 4
+csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+dotnet_sort_system_directives_first = true
+dotnet_style_qualification_for_field = false:suggestion
+dotnet_style_qualification_for_property = false:suggestion
+dotnet_style_qualification_for_method = false:suggestion
+dotnet_style_qualification_for_event = false:suggestion
+
+# Generated EF Core Migrations
+[**/Migrations/**.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.category-Performance.severity = none
+dotnet_analyzer_diagnostic.CA1861.severity = none
+
+# Web files (TS/JS/JSON/YAML)
+[*.{ts,tsx,js,jsx,json,css,html,yml,yaml}]
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
