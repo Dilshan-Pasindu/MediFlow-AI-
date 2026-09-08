@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -28,7 +29,8 @@ public class AuthService
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
         // Check for duplicate email
-        if (await _db.Users.AnyAsync(u => u.Email == request.Email.ToLower().Trim()))
+        var normalizedEmail = request.Email.Trim().ToLower(CultureInfo.InvariantCulture);
+        if (await _db.Users.AnyAsync(u => u.Email == normalizedEmail))
             throw new InvalidOperationException("A user with this email already exists.");
 
         // Parse role or default to Patient
@@ -42,7 +44,7 @@ public class AuthService
         var user = new User
         {
             FullName = request.FullName.Trim(),
-            Email = request.Email.ToLower().Trim(),
+            Email = normalizedEmail,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             PhoneNumber = request.PhoneNumber.Trim(),
             Role = parsedRole,
@@ -100,8 +102,9 @@ public class AuthService
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
+        var normalizedEmail = request.Email.Trim().ToLower(CultureInfo.InvariantCulture);
         var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
+            .FirstOrDefaultAsync(u => u.Email == normalizedEmail);
 
         if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw new UnauthorizedAccessException("Invalid email or password.");
@@ -132,11 +135,11 @@ public class AuthService
 
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString(CultureInfo.InvariantCulture)),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim(ClaimTypes.Name, user.FullName),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
-            new Claim("userId", user.Id.ToString()),
+            new Claim("userId", user.Id.ToString(CultureInfo.InvariantCulture)),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
