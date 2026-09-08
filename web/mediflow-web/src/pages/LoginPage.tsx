@@ -24,7 +24,7 @@ const FEATURES = [
   { icon: '🧠', text: 'AI-powered clinical decision support' },
 ];
 
-function getRoleHome(role) {
+function getRoleHome(role: string) {
   switch (role) {
     case 'Doctor':        return '/doctor/dashboard';
     case 'Receptionist':  return '/receptionist/dashboard';
@@ -70,7 +70,7 @@ function EcgCanvas() {
 }
 
 /* ── Soft background orb ── */
-function Orb({ size, x, y, color, delay, dur }) {
+function Orb({ size, x, y, color, delay, dur }: { size: number | string; x: number; y: number; color: string; delay: number; dur: number }) {
   return (
     <div style={{
       position: 'absolute', left: `${x}%`, top: `${y}%`,
@@ -111,37 +111,37 @@ export default function LoginPage() {
     return s;
   }, [pCrit]);
 
-  const pLabel = { 0: 'Weak', 1: 'Weak', 2: 'Fair', 3: 'Good', 4: 'Strong' }[pScore];
-  const pClass = { 0: 'pw-weak', 1: 'pw-weak', 2: 'pw-fair', 3: 'pw-good', 4: 'pw-strong' }[pScore];
+  const pLabel = ({ 0: 'Weak', 1: 'Weak', 2: 'Fair', 3: 'Good', 4: 'Strong' } as Record<number, string>)[pScore];
+  const pClass = ({ 0: 'pw-weak', 1: 'pw-weak', 2: 'pw-fair', 3: 'pw-good', 4: 'pw-strong' } as Record<number, string>)[pScore];
   const pMatch = form.password && form.confirmPassword && form.password === form.confirmPassword;
 
   const persona = DEMO_PERSONAS.find(p => p.role === selectedPersona) || DEMO_PERSONAS[0];
 
-  const applyPersona = (p) => {
+  const applyPersona = (p: typeof DEMO_PERSONAS[0]) => {
     setSelected(p.role);
     setForm(f => ({ ...f, email: p.email, password: p.password }));
     setError('');
   };
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault(); setError(''); setLoading(true);
     try { const d = await apiLogin(form.email, form.password); navigate(getRoleHome(d.role)); }
-    catch (err) { setError(err.message || 'Login failed. Please verify credentials.'); }
+    catch (err: any) { setError(err?.message || 'Login failed. Please verify credentials.'); }
     finally { setLoading(false); }
   };
 
-  const handleRegister = async (e) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault(); setError('');
     if (form.password !== form.confirmPassword) { setError('Passwords do not match.'); return; }
     if (pScore < 2) { setError('Please choose a stronger password.'); return; }
     if (!agreeTerms) { setError('You must agree to the Terms of Service.'); return; }
     setLoading(true);
-    try { await apiRegister(form.name, form.email, form.password, form.phone, form.role); navigate('/dashboard'); }
-    catch (err) { setError(err.message || 'Registration failed.'); }
+    try { await apiRegister(form.name, form.email, form.password, form.phone, form.role as any); navigate('/dashboard'); }
+    catch (err: any) { setError(err?.message || 'Registration failed.'); }
     finally { setLoading(false); }
   };
 
-  const handleForgot = (e) => {
+  const handleForgot = (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail) { setError('Please enter your email.'); return; }
     setLoading(true);
