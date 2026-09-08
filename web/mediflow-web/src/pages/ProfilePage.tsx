@@ -1,37 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Save, User, Phone, Mail, Droplets, AlertTriangle, Loader, CheckCircle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetProfile, apiUpdateProfile, getUser } from '../services/api';
+import { getUser } from '../services/api';
+import { useProfile, useUpdateProfile } from '../hooks';
+import type { ProfileForm } from '../types/profile';
 
 export default function ProfilePage() {
   const currentUser = getUser();
-  const [form, setForm] = useState({ fullName: '', email: '', phoneNumber: '', bloodGroup: '', allergies: '', address: '' });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { data: profileData, isLoading: loading } = useProfile();
+  const updateProfile = useUpdateProfile();
+
+  const [form, setForm] = useState<ProfileForm>({ fullName: '', email: '', phoneNumber: '', bloodGroup: '', allergies: '', address: '' });
+  const [initialized, setInitialized] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    apiGetProfile().then(d => {
-      if (d) setForm({ fullName: d.fullName || currentUser?.fullName || '', email: d.email || currentUser?.email || '', phoneNumber: d.phoneNumber || '', bloodGroup: d.bloodGroup || '', allergies: d.allergies || '', address: d.address || '' });
-    }).catch(() => {
-      setForm({ fullName: currentUser?.fullName || '', email: currentUser?.email || '', phoneNumber: '', bloodGroup: '', allergies: '', address: '' });
-    }).finally(() => setLoading(false));
-  }, []);
+  // Sync TanStack Query data into local form state once
+  if (profileData && !initialized) {
+    setForm({
+      fullName: profileData.fullName || currentUser?.fullName || '',
+      email: profileData.email || currentUser?.email || '',
+      phoneNumber: profileData.phoneNumber || '',
+      bloodGroup: profileData.bloodGroup || '',
+      allergies: profileData.allergies || '',
+      address: profileData.address || '',
+    });
+    setInitialized(true);
+  }
 
-  const set = (key: string) => (e: any) => setForm(f => ({ ...f, [key]: e.target.value }));
+  const set = (key: keyof ProfileForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm(f => ({ ...f, [key]: e.target.value }));
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true); setError(''); setSuccess(false);
-    try {
-      await apiUpdateProfile(form);
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update profile.');
-    } finally { setSaving(false); }
+    setSuccess(false);
+    updateProfile.mutate(form, {
+      onSuccess: () => {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 3000);
+      },
+    });
   }
 
   const initials = form.fullName ? form.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2) : '?';
@@ -119,11 +127,11 @@ export default function ProfilePage() {
                       <textarea className="form-textarea" id="profile-allergies" value={form.allergies} onChange={set('allergies')} placeholder="e.g. Penicillin, Aspirin, Peanuts..." rows={3} />
                     </div>
 
-                    {error && <div className="form-error"><AlertTriangle size={14} />{error}</div>}
+                    {updateProfile.isError && <div className="form-error"><AlertTriangle size={14} />{(updateProfile.error as Error)?.message || 'Failed to update profile.'}</div>}
                     {success && <div className="form-success"><CheckCircle size={14} />Profile updated successfully!</div>}
 
-                    <button type="submit" className="btn btn-primary btn-lg" disabled={saving} id="save-profile-btn">
-                      {saving ? <><Loader size={16} className="spin" />Saving...</> : <><Save size={16} />Save Changes</>}
+                    <button type="submit" className="btn btn-primary btn-lg" disabled={updateProfile.isPending} id="save-profile-btn">
+                      {updateProfile.isPending ? <><Loader size={16} className="spin" />Saving...</> : <><Save size={16} />Save Changes</>}
                     </button>
                   </form>
                 )}
