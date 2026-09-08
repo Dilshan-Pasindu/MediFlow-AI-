@@ -5,8 +5,8 @@ import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { apiGetDoctor, apiGetDoctorAvailability, apiBookAppointment } from '../services/api';
 
-function generateTimeSlots() {
-  const slots = [];
+function generateTimeSlots(): { time: string; available: boolean }[] {
+  const slots: { time: string; available: boolean }[] = [];
   for (let h = 9; h <= 17; h++) {
     slots.push({ time: `${h.toString().padStart(2, '0')}:00`, available: Math.random() > 0.4 });
     if (h < 17) slots.push({ time: `${h.toString().padStart(2, '0')}:30`, available: Math.random() > 0.4 });
@@ -14,8 +14,8 @@ function generateTimeSlots() {
   return slots;
 }
 
-function getDaysInWeek(date) {
-  const days = [];
+function getDaysInWeek(date: Date): Date[] {
+  const days: Date[] = [];
   const start = new Date(date);
   start.setDate(start.getDate() - start.getDay() + 1);
   for (let i = 0; i < 7; i++) {
@@ -29,10 +29,10 @@ function getDaysInWeek(date) {
 export default function DoctorBookingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [doctor, setDoctor] = useState(null);
+  const [doctor, setDoctor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedTime, setSelectedTime] = useState<any>(null);
   const [notes, setNotes] = useState('');
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d;
@@ -47,12 +47,12 @@ export default function DoctorBookingPage() {
   useEffect(() => { loadDoctor(); }, [id]);
 
   async function loadDoctor() {
-    try { setDoctor(await apiGetDoctor(id)); }
+    try { setDoctor(await apiGetDoctor(id || '')); }
     catch { navigate('/find-doctor'); }
     finally { setLoading(false); }
   }
 
-  async function handleBook(e) {
+  async function handleBook(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedTime) { setBookError('Please select a time slot.'); return; }
     setBooking(true); setBookError('');
@@ -60,10 +60,10 @@ export default function DoctorBookingPage() {
       const dt = new Date(selectedDate);
       const [h, m] = selectedTime.split(':');
       dt.setHours(Number(h), Number(m), 0, 0);
-      await apiBookAppointment(id, dt.toISOString(), notes);
+      await apiBookAppointment(id || '', dt.toISOString(), notes);
       setBooked(true);
-    } catch (err) {
-      setBookError(err.message || 'Booking failed. Please try again.');
+    } catch (err: any) {
+      setBookError(err?.message || 'Booking failed. Please try again.');
     } finally { setBooking(false); }
   }
 
@@ -125,11 +125,11 @@ export default function DoctorBookingPage() {
                 <div style={{ background: 'var(--gradient-hero)', padding: '24px 28px', color: 'white', borderRadius: 'var(--r-lg) var(--r-lg) 0 0' }}>
                   <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
                     <div style={{ width: 72, height: 72, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-xl)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>
-                      {doctor?.fullName?.replace('Dr.', '').trim().split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      {doctor?.fullName ? doctor.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800 }}>{doctor?.fullName}</div>
-                      <div style={{ fontSize: 14, opacity: 0.85, marginTop: 2 }}>{doctor?.specialties?.map(s => s.name).join(', ')}</div>
+                      <div style={{ fontSize: 14, opacity: 0.85, marginTop: 2 }}>{doctor?.specialties?.map((s: any) => s.name).join(', ')}</div>
                       <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 2 }}>{doctor?.qualifications}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>

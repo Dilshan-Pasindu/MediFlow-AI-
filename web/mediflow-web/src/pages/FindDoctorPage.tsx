@@ -14,9 +14,9 @@ const SPECIALTY_ICONS = {
 export default function FindDoctorPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeSpecialty, setActiveSpecialty] = useState(null);
-  const [doctors, setDoctors] = useState([]);
-  const [specialties, setSpecialties] = useState([]);
+  const [activeSpecialty, setActiveSpecialty] = useState<any>(null);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [specialties, setSpecialties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('rating');
 
@@ -130,7 +130,7 @@ export default function FindDoctorPage() {
             <div className="section-title">
               {loading ? 'Loading doctors...' : `${sortedDoctors.length} ${sortedDoctors.length === 1 ? 'Doctor' : 'Doctors'} Found`}
               {activeSpecialty && (() => {
-                const sp = specialties.find(s => s.id === activeSpecialty);
+                const sp = specialties.find((s: any) => s.id === activeSpecialty);
                 return sp ? <span className="badge badge-blue" style={{ marginLeft: 8 }}>{sp.name}</span> : null;
               })()}
             </div>
@@ -174,11 +174,11 @@ export default function FindDoctorPage() {
                   <div className="doctor-card-top-bar" />
                   <div className="doctor-header">
                     <div className="doc-avatar">
-                      {doc.fullName.replace('Dr.', '').trim().split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      {doc.fullName ? doc.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
                     </div>
                     <div>
                       <div className="doc-name">{doc.fullName}</div>
-                      <div className="doc-spec">{doc.specialties?.map(s => s.name).join(', ') || 'General Medicine'}</div>
+                      <div className="doc-spec">{doc.specialties?.map((s: any) => s.name).join(', ') || 'General Medicine'}</div>
                       <div className="doc-quals">{doc.qualifications}</div>
                     </div>
                   </div>
