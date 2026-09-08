@@ -93,7 +93,7 @@ export default function DoctorDashboard() {
                   <div className="appt-list">
                     {displayAppts.map(appt => {
                       const d = new Date(appt.appointmentDateTime);
-                      const st = STATUS_STYLES[appt.status] || STATUS_STYLES.Confirmed;
+                      const st = (STATUS_STYLES as any)[appt.status] || STATUS_STYLES.Confirmed;
                       return (
                         <div key={appt.id} className="appt-card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/doctor/consultation/${appt.id}`)} id={`doctor-appt-${appt.id}`}>
                           <div className="appt-date-block">

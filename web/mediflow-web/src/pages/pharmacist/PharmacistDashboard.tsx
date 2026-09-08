@@ -15,32 +15,32 @@ const STATUS_STYLES = {
 
 export default function PharmacistDashboard() {
   const user = getUser();
-  const [prescriptions, setPrescriptions] = useState([]);
-  const [orders, setOrders] = useState([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState({});
+  const [actionLoading, setActionLoading] = useState<Record<string | number, any>>({});
   const [activeTab, setActiveTab] = useState('orders');
-  const [messages, setMessages] = useState({});
+  const [messages, setMessages] = useState<Record<string | number, any>>({});
 
   const load = () => {
     setLoading(true);
     Promise.allSettled([apiGetPharmacistPrescriptions(), apiGetPharmacistOrders()])
       .then(([rx, ord]) => {
-        setPrescriptions(rx.value || []);
-        setOrders(ord.value || []);
+        setPrescriptions(rx.status === 'fulfilled' ? (rx.value || []) : []);
+        setOrders(ord.status === 'fulfilled' ? (ord.value || []) : []);
       }).finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, []);
 
-  async function handleStatusUpdate(orderId, newStatus) {
+  async function handleStatusUpdate(orderId: number | string, newStatus: string) {
     setActionLoading(a => ({ ...a, [orderId]: newStatus }));
     try {
       await apiUpdateOrderStatus(orderId, newStatus);
       setMessages(m => ({ ...m, [orderId]: { type: 'success', text: `Order status updated to ${newStatus}` } }));
       load();
-    } catch (err) {
-      setMessages(m => ({ ...m, [orderId]: { type: 'error', text: err.message } }));
+    } catch (err: any) {
+      setMessages(m => ({ ...m, [orderId]: { type: 'error', text: err?.message || 'Update failed' } }));
     } finally { setActionLoading(a => ({ ...a, [orderId]: null })); }
   }
 
@@ -107,7 +107,7 @@ export default function PharmacistDashboard() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {activeOrders.map(order => {
-                  const st = STATUS_STYLES[order.status] || STATUS_STYLES.Pending;
+                  const st = (STATUS_STYLES as any)[order.status] || STATUS_STYLES.Pending;
                   const nextStatusIdx = ORDER_STATUS_FLOW.indexOf(order.status) + 1;
                   const nextStatus = ORDER_STATUS_FLOW[nextStatusIdx];
                   const isLoading = actionLoading[order.id];

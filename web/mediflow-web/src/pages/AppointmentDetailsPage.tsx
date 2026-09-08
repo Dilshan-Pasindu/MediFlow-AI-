@@ -23,7 +23,7 @@ const STATUS_META = {
 export default function AppointmentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [appt, setAppt] = useState(null);
+  const [appt, setAppt] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
@@ -32,7 +32,7 @@ export default function AppointmentDetailsPage() {
   useEffect(() => { loadAppointment(); }, [id]);
 
   async function loadAppointment() {
-    try { setAppt(await apiGetAppointment(id)); }
+    try { setAppt(await apiGetAppointment(id || '')); }
     catch { navigate('/appointments'); }
     finally { setLoading(false); }
   }
@@ -40,11 +40,11 @@ export default function AppointmentDetailsPage() {
   async function handlePay() {
     setPaying(true); setPayError('');
     try {
-      await apiPayAppointment(id);
+      await apiPayAppointment(id || '');
       setPaid(true);
-      setAppt(prev => ({ ...prev, status: 'PaymentSubmitted' }));
-    } catch (err) {
-      setPayError(err.message || 'Payment failed. Please try again.');
+      setAppt((prev: any) => ({ ...prev, status: 'PaymentSubmitted' }));
+    } catch (err: any) {
+      setPayError(err?.message || 'Payment failed. Please try again.');
     } finally { setPaying(false); }
   }
 
@@ -68,7 +68,7 @@ export default function AppointmentDetailsPage() {
   if (!appt) return null;
 
   const d = new Date(appt.appointmentDateTime);
-  const st = STATUS_META[appt.status] || STATUS_META.Pending;
+  const st = (STATUS_META as any)[appt.status] || STATUS_META.Pending;
   const currentStepIdx = STATUS_STEPS.findIndex(s => s.key === appt.status);
 
   return (

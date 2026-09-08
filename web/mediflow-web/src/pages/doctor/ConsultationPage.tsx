@@ -6,7 +6,7 @@ import TopBar from '../../components/TopBar';
 import { apiGetAppointment, apiGetPatientHistory, apiRequestClinicalAnalysis, apiSubmitDoctorDecision, apiGetMedicines, apiGeneratePrescription } from '../../services/api';
 
 // Mock clinical AI analysis
-async function mockClinicalAI(symptoms, vitalSigns) {
+async function mockClinicalAI(symptoms: any, vitalSigns: any) {
   await new Promise(r => setTimeout(r, 2000));
   return {
     diagnoses: [
@@ -21,12 +21,12 @@ async function mockClinicalAI(symptoms, vitalSigns) {
 export default function ConsultationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [appt, setAppt] = useState(null);
+  const [appt, setAppt] = useState<any>(null);
   const [step, setStep] = useState('review'); // review | examine | ai | prescribe | done
   const [loading, setLoading] = useState(true);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState(null);
-  const [decisions, setDecisions] = useState({});
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [decisions, setDecisions] = useState<Record<string, any>>({});
   const [exam, setExam] = useState({ chiefComplaint: '', symptoms: '', vitalBP: '', vitalTemp: '', vitalPulse: '', vitalSPO2: '', examination: '', notes: '' });
   const [medicines, setMedicines] = useState([{ name: '', dosage: '', frequency: '', duration: '', quantity: '' }]);
   const [submitting, setSubmitting] = useState(false);
@@ -34,9 +34,9 @@ export default function ConsultationPage() {
 
   useEffect(() => {
     Promise.allSettled([
-      apiGetAppointment(id),
+      apiGetAppointment(id || ''),
     ]).then(([apptRes]) => {
-      setAppt(apptRes.value);
+      setAppt((apptRes as any).value || null);
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -45,7 +45,7 @@ export default function ConsultationPage() {
     try {
       const result = await mockClinicalAI(exam.symptoms, { bp: exam.vitalBP, temp: exam.vitalTemp, pulse: exam.vitalPulse });
       setAiResult(result);
-      const initialDecisions = {};
+      const initialDecisions: Record<string, any> = {};
       result.diagnoses.forEach(d => { initialDecisions[d.id] = null; });
       setDecisions(initialDecisions);
       setStep('ai');
@@ -57,11 +57,11 @@ export default function ConsultationPage() {
     setMedicines([...medicines, { name: '', dosage: '', frequency: '', duration: '', quantity: '' }]);
   }
 
-  function removeMedicine(i) {
+  function removeMedicine(i: number) {
     setMedicines(medicines.filter((_, idx) => idx !== i));
   }
 
-  function setMed(i, key, val) {
+  function setMed(i: number, key: string, val: any) {
     setMedicines(prev => prev.map((m, idx) => idx === i ? { ...m, [key]: val } : m));
   }
 

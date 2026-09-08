@@ -26,12 +26,12 @@ const MOCK_RESTOCK = [
 export default function OwnerDashboard() {
   const user = getUser();
   const [inventory, setInventory] = useState(MOCK_INVENTORY);
-  const [restockRecs, setRestockRecs] = useState([]);
+  const [restockRecs, setRestockRecs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
-  const [decisions, setDecisions] = useState({});
-  const [submitting, setSubmitting] = useState({});
-  const [messages, setMessages] = useState({});
+  const [decisions, setDecisions] = useState<Record<string | number, any>>({});
+  const [submitting, setSubmitting] = useState<Record<string | number, any>>({});
+  const [messages, setMessages] = useState<Record<string | number, any>>({});
   const [activeTab, setActiveTab] = useState('inventory');
 
   const lowStockItems = inventory.filter(i => i.currentStock < i.minStock);
@@ -41,14 +41,14 @@ export default function OwnerDashboard() {
     setAiLoading(true);
     await new Promise(r => setTimeout(r, 1800));
     setRestockRecs(MOCK_RESTOCK);
-    const d = {};
+    const d: Record<string | number, any> = {};
     MOCK_RESTOCK.forEach(r => { d[r.medicineId] = null; });
     setDecisions(d);
     setActiveTab('restock');
     setAiLoading(false);
   }
 
-  async function handleApprove(rec) {
+  async function handleApprove(rec: any) {
     setSubmitting(s => ({ ...s, [rec.medicineId]: true }));
     await new Promise(r => setTimeout(r, 800));
     setMessages(m => ({ ...m, [rec.medicineId]: { type: 'success', text: `Restock request for ${rec.medicineName} sent to supplier!` } }));
@@ -56,12 +56,12 @@ export default function OwnerDashboard() {
     setSubmitting(s => ({ ...s, [rec.medicineId]: false }));
   }
 
-  function handleDismiss(rec) {
+  function handleDismiss(rec: any) {
     setDecisions(d => ({ ...d, [rec.medicineId]: 'dismiss' }));
   }
 
-  const stockPct = (item) => Math.min(100, Math.round((item.currentStock / item.minStock) * 100));
-  const stockLevel = (pct) => pct <= 15 ? 'critical' : pct <= 30 ? 'low' : pct <= 70 ? 'medium' : 'high';
+  const stockPct = (item: any) => Math.min(100, Math.round((item.currentStock / item.minStock) * 100));
+  const stockLevel = (pct: number) => pct <= 15 ? 'critical' : pct <= 30 ? 'low' : pct <= 70 ? 'medium' : 'high';
 
   return (
     <div className="app-shell">
