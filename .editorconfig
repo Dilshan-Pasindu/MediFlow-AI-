@@ -24,6 +24,12 @@ dotnet_style_qualification_for_property = false:suggestion
 dotnet_style_qualification_for_method = false:suggestion
 dotnet_style_qualification_for_event = false:suggestion
 
+# Generated EF Core Migrations
+[**/Migrations/**.cs]
+generated_code = true
+dotnet_analyzer_diagnostic.category-Performance.severity = none
+dotnet_analyzer_diagnostic.CA1861.severity = none
+
 # Web files (TS/JS/JSON/YAML)
 [*.{ts,tsx,js,jsx,json,css,html,yml,yaml}]
 indent_size = 2
