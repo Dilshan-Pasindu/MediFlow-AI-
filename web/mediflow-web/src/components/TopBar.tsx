@@ -1,8 +1,25 @@
-import { Bell, Settings, Search } from 'lucide-react';
-import { getUser } from '../services/api';
+import * as React from 'react';
+import { Bell, Settings } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 
-export default function TopBar({ title, subtitle, actions }) {
-  const user = getUser();
+export interface TopBarProps {
+  title: string;
+  subtitle?: string;
+  actions?: React.ReactNode;
+}
+
+export default function TopBar({ title, subtitle, actions }: TopBarProps) {
+  const { user } = useAuthStore();
+
+  const initials = user?.fullName
+    ? user.fullName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+    : '?';
+
+  const firstName = user?.fullName ? user.fullName.split(' ')[0] : 'User';
 
   return (
     <header className="topbar">
@@ -12,14 +29,14 @@ export default function TopBar({ title, subtitle, actions }) {
       </div>
 
       <div className="topbar-actions">
-        {actions && actions}
+        {actions}
 
-        <button className="topbar-btn" title="Notifications" id="topbar-notifications-btn">
+        <button className="topbar-btn" title="Notifications" id="topbar-notifications-btn" aria-label="Notifications">
           <Bell size={16} />
           <span className="topbar-notif-dot" />
         </button>
 
-        <button className="topbar-btn" title="Settings" id="topbar-settings-btn">
+        <button className="topbar-btn" title="Settings" id="topbar-settings-btn" aria-label="Settings">
           <Settings size={16} />
         </button>
 
@@ -32,11 +49,11 @@ export default function TopBar({ title, subtitle, actions }) {
             color: 'white', fontSize: 11, fontWeight: 700, flexShrink: 0,
             fontFamily: 'Outfit, sans-serif'
           }}>
-            {user?.fullName?.split(' ').map(n => n[0]).join('').slice(0, 2) || '?'}
+            {initials}
           </div>
           <div>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-              {user?.fullName?.split(' ')[0] || 'User'}
+              {firstName}
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 500 }}>{user?.role}</div>
           </div>
