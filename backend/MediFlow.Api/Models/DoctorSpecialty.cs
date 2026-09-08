@@ -8,7 +8,7 @@ public class DoctorSpecialty
     public int Id { get; set; }
     public int DoctorId { get; set; }
     public int SpecialtyId { get; set; }
-    public bool IsPrimary { get; set; } = false;  // Primary specialty vs. secondary
+    public bool IsPrimary { get; set; }  // Primary specialty vs. secondary
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation properties

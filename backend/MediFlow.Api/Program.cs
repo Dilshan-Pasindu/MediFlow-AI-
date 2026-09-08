@@ -11,7 +11,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 // ─── Database ────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsqlOptions => npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // ─── Services ─────────────────────────────────────────────────────────────────
 builder.Services.AddScoped<AuthService>();
@@ -44,8 +46,16 @@ builder.Services.AddCors(options =>
         policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
 });
 
-// ─── Controllers ─────────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+// ─── Controllers & Serialization ──────────────────────────────────────────────
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
+
+// ─── Problem Details & Health Checks ───────────────────────────────────────────
+builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks();
 
 // ─── Swagger / OpenAPI ────────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
@@ -89,6 +99,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ─── Middleware Pipeline ───────────────────────────────────────────────────────
+app.UseExceptionHandler();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -98,6 +110,9 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHealthChecks("/health");
 app.MapControllers();
 
 app.Run();
+
+public partial class Program { }

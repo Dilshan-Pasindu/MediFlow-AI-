@@ -49,5 +49,17 @@ services:
     ports:
       - "3000:80"
 
+  # ─── AI Subsystem (FastAPI / Agentic) ─────────────────────────────────────────
+  ai:
+    build:
+      context: .
+      dockerfile: ai/Dockerfile
+    container_name: mediflow-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+
 volumes:
   postgres_data:

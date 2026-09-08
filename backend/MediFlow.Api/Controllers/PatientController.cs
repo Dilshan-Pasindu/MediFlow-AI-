@@ -3,6 +3,7 @@ using MediFlow.Api.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Security.Claims;
 
 namespace MediFlow.Api.Controllers;
@@ -106,6 +107,6 @@ public class PatientController : ControllerBase
     private int GetUserId()
     {
         var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? int.Parse(claim.Value) : throw new UnauthorizedAccessException();
+        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : throw new UnauthorizedAccessException();
     }
 }
