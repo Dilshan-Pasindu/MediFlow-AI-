@@ -9,12 +9,26 @@ import { apiLogin, apiRegister } from '../services/api';
 
 // Demo quick-login credentials for easy multi-role testing
 const DEMO_PERSONAS = [
-  { role: 'Patient', label: 'Patient', email: 'dilshan@gmail.com', password: 'Test@123', icon: '👤', desc: 'Dilshan Pasindu' },
-  { role: 'Doctor', label: 'Doctor', email: 'nimal.perera@mediflow.lk', password: 'Doctor@123', icon: '🩺', desc: 'Dr. Nimal Perera' },
-  { role: 'Receptionist', label: 'Receptionist', email: 'receptionist@mediflow.lk', password: 'Staff@123', icon: '👩‍💼', desc: 'Kamani Rajapaksa' },
-  { role: 'Pharmacist', label: 'Pharmacist', email: 'pharmacist@mediflow.lk', password: 'Staff@123', icon: '💊', desc: 'Sunil Weerasinghe' },
-  { role: 'Administrator', label: 'Admin', email: 'admin@mediflow.lk', password: 'Admin@123', icon: '🛡️', desc: 'System Admin' },
+  { role: 'Patient',       label: 'Patient',      email: 'dilshan@gmail.com',            password: 'Test@123',   icon: '👤', desc: 'Dilshan Pasindu' },
+  { role: 'Doctor',        label: 'Doctor',        email: 'nimal.perera@mediflow.lk',     password: 'Doctor@123', icon: '🩺', desc: 'Dr. Nimal Perera' },
+  { role: 'Receptionist',  label: 'Receptionist',  email: 'receptionist@mediflow.lk',     password: 'Staff@123',  icon: '👩‍💼', desc: 'Kamani Rajapaksa' },
+  { role: 'Pharmacist',    label: 'Pharmacist',    email: 'pharmacist@mediflow.lk',       password: 'Staff@123',  icon: '💊', desc: 'Sunil Weerasinghe' },
+  { role: 'PharmacyOwner', label: 'Owner',         email: 'owner@mediflow.lk',            password: 'Staff@123',  icon: '🏥', desc: 'Pharmacy Owner' },
+  { role: 'Supplier',      label: 'Supplier',      email: 'supplier@mediflow.lk',         password: 'Staff@123',  icon: '🚚', desc: 'Ravi Kumara' },
+  { role: 'Administrator', label: 'Admin',         email: 'admin@mediflow.lk',            password: 'Admin@123',  icon: '🛡️', desc: 'System Admin' },
 ];
+
+function getRoleHome(role) {
+  switch (role) {
+    case 'Doctor':        return '/doctor/dashboard';
+    case 'Receptionist':  return '/receptionist/dashboard';
+    case 'Pharmacist':    return '/pharmacist/dashboard';
+    case 'PharmacyOwner': return '/owner/dashboard';
+    case 'Supplier':      return '/supplier/dashboard';
+    case 'Administrator': return '/admin/dashboard';
+    default:              return '/dashboard';
+  }
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -96,8 +110,8 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await apiLogin(form.email, form.password);
-      navigate('/dashboard');
+      const data = await apiLogin(form.email, form.password);
+      navigate(getRoleHome(data.role));
     } catch (err) {
       setError(err.message || 'Login failed. Please verify credentials.');
     } finally {
