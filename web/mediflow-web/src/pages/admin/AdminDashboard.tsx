@@ -141,7 +141,7 @@ export default function AdminDashboard() {
               <div style={{ padding: '0 8px' }}>
                 {MOCK_AI_EVENTS.map((ev, idx) => (
                   <div key={idx} className="notif-item" id={`ai-event-${idx}`} style={{ borderBottom: '1px solid var(--border)', cursor: 'default' }}>
-                    <div className="notif-icon" style={{ fontSize: 20, background: 'var(--surface-2)' }}>{ev.icon || '🤖'}</div>
+                    <div className="notif-icon" style={{ fontSize: 20, background: 'var(--surface-2)' }}>{(ev as any).icon || '🤖'}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{ev.agent}</div>
                       <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{ev.event}</div>
