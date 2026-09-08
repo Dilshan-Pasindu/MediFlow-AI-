@@ -1,6 +1,10 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# MediFlow AI — Code Ownership
-# Only @Dilshan-Pasindu is authorized to approve and merge PRs into protected branches.
+# MediFlow AI — Code Ownership & Access Control
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Global code ownership: Dilshan-Pasindu is the primary reviewer for the repository
 * @Dilshan-Pasindu
+
+# Critical CI/CD and Governance files — strictly locked to repository owner
+/.github/CODEOWNERS @Dilshan-Pasindu
+/.github/workflows/ @Dilshan-Pasindu
