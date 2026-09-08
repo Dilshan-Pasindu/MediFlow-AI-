@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, ChevronRight, Plus, FileText } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetMyAppointments } from '../services/api';
+import { useMyAppointments } from '../hooks';
 
 const STATUS = {
   Pending:          { color: '#B45309', bg: '#FFFBEB', label: 'Pending' },
@@ -17,16 +17,7 @@ const STATUS = {
 export default function AppointmentsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('upcoming');
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => { loadAppointments(); }, []);
-
-  async function loadAppointments() {
-    try { setAppointments(await apiGetMyAppointments() || []); }
-    catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  }
+  const { data: appointments = [], isLoading: loading } = useMyAppointments();
 
   const upcomingAppts = appointments.filter(a => ['Confirmed', 'PaymentSubmitted', 'Pending'].includes(a.status));
   const pastAppts = appointments.filter(a => ['Completed', 'Cancelled', 'NoShow'].includes(a.status));

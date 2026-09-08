@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Activity, Pill, Star, ArrowRight, Clock,
@@ -6,34 +6,20 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { getUser, apiGetMyAppointments, apiGetMyPrescriptions } from '../services/api';
+import { getUser } from '../services/api';
+import { useMyAppointments, useMyPrescriptions } from '../hooks';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const user = getUser();
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [prescriptions, setPrescriptions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const { data: appointments = [], isLoading: apptsLoading } = useMyAppointments();
+  const { data: prescriptions = [], isLoading: rxsLoading } = useMyPrescriptions();
+  const loading = apptsLoading || rxsLoading;
 
   useEffect(() => {
-    if (!user) { navigate('/login'); return; }
-    loadData();
-  }, []);
-
-  async function loadData() {
-    try {
-      const [appts, rxs] = await Promise.allSettled([
-        apiGetMyAppointments(),
-        apiGetMyPrescriptions(),
-      ]);
-      setAppointments(appts.status === 'fulfilled' ? (appts.value || []) : []);
-      setPrescriptions(rxs.status === 'fulfilled' ? (rxs.value || []) : []);
-    } catch (err) {
-      console.error('Failed to load data:', err);
-    } finally {
-      setLoading(false);
-    }
-  }
+    if (!user) { navigate('/login'); }
+  }, [user, navigate]);
 
   const today = new Date();
   const hour = today.getHours();
