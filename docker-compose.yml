@@ -1,0 +1,53 @@
+services:
+  # ─── Database ────────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: mediflow-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mediflow_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mediflow_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: mediflow-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=mediflow_db;Username=postgres;Password=postgrespassword"
+      Jwt__Key: "MediFlow_Super_Secret_JWT_Key_For_Local_Docker_Testing_12345!"
+      Jwt__Issuer: "https://mediflow.ai"
+      Jwt__Audience: "https://mediflow.ai"
+    ports:
+      - "5000:5000"
+
+  # ─── Web Frontend ────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ./web/mediflow-web
+      dockerfile: Dockerfile
+    container_name: mediflow-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+
+volumes:
+  postgres_data:
