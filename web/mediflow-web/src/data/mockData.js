@@ -1,0 +1,188 @@
+// Mock data — replaces API calls until backend is wired up
+
+export const currentPatient = {
+  id: 1,
+  name: "Dilshan Pasindu",
+  email: "dilshan@gmail.com",
+  phone: "+94 77 123 4567",
+  dob: "1999-05-14",
+  gender: "Male",
+  bloodGroup: "O+",
+  avatar: "DP",
+};
+
+export const specialties = [
+  { id: 1, name: "Cardiology", icon: "🫀", description: "Heart and cardiovascular system", doctorCount: 8 },
+  { id: 2, name: "Neurology", icon: "🧠", description: "Brain, spinal cord and nervous system", doctorCount: 6 },
+  { id: 3, name: "Gastroenterology", icon: "🫁", description: "Digestive system disorders", doctorCount: 5 },
+  { id: 4, name: "Orthopedics", icon: "🦴", description: "Bones, joints and muscles", doctorCount: 7 },
+  { id: 5, name: "Dermatology", icon: "🩺", description: "Skin, hair and nail conditions", doctorCount: 4 },
+  { id: 6, name: "Ophthalmology", icon: "👁️", description: "Eye disorders and vision", doctorCount: 5 },
+  { id: 7, name: "ENT", icon: "👂", description: "Ear, nose and throat conditions", doctorCount: 4 },
+  { id: 8, name: "General Medicine", icon: "💊", description: "General health and primary care", doctorCount: 12 },
+];
+
+export const doctors = [
+  {
+    id: 1, specialtyId: 1, specialty: "Cardiology",
+    name: "Dr. Nimal Perera", qualifications: "MBBS, MD (Cardiology), MRCP", experience: 15,
+    fee: 2500, rating: 4.9, reviewCount: 128, hospital: "National Heart Hospital, Colombo",
+    avatar: "NP", isAvailable: true,
+    about: "Senior cardiologist with 15 years of experience in interventional cardiology and heart failure management.",
+    availability: [
+      { day: "Monday", slots: ["09:00", "09:30", "10:00", "10:30", "14:00", "14:30"] },
+      { day: "Wednesday", slots: ["09:00", "09:30", "11:00", "11:30"] },
+      { day: "Friday", slots: ["14:00", "14:30", "15:00", "15:30"] },
+    ],
+  },
+  {
+    id: 2, specialtyId: 1, specialty: "Cardiology",
+    name: "Dr. Chaminda Silva", qualifications: "MBBS, MD (Cardiology)", experience: 12,
+    fee: 2000, rating: 4.7, reviewCount: 96, hospital: "Lanka Heart Center, Kandy",
+    avatar: "CS", isAvailable: true,
+    about: "Specialist in echocardiography and preventive cardiology with expertise in managing complex cardiac conditions.",
+    availability: [
+      { day: "Tuesday", slots: ["10:00", "10:30", "11:00", "11:30", "15:00"] },
+      { day: "Thursday", slots: ["09:00", "09:30", "10:00"] },
+    ],
+  },
+  {
+    id: 3, specialtyId: 3, specialty: "Gastroenterology",
+    name: "Dr. Priya Fernando", qualifications: "MBBS, MD (Gastroenterology), FRCPE", experience: 10,
+    fee: 2200, rating: 4.8, reviewCount: 74, hospital: "Apollo Hospital, Colombo",
+    avatar: "PF", isAvailable: true,
+    about: "Expert in endoscopic procedures and management of inflammatory bowel disease and liver disorders.",
+    availability: [
+      { day: "Monday", slots: ["11:00", "11:30", "14:00", "14:30", "15:00"] },
+      { day: "Thursday", slots: ["09:00", "09:30", "10:00", "10:30"] },
+    ],
+  },
+  {
+    id: 4, specialtyId: 2, specialty: "Neurology",
+    name: "Dr. Kasun Jayawardena", qualifications: "MBBS, MD (Neurology)", experience: 8,
+    fee: 2300, rating: 4.6, reviewCount: 61, hospital: "Nawaloka Hospital, Colombo",
+    avatar: "KJ", isAvailable: false,
+    about: "Neurologist specializing in headache disorders, epilepsy, and cerebrovascular diseases.",
+    availability: [
+      { day: "Wednesday", slots: ["10:00", "10:30", "11:00"] },
+      { day: "Friday", slots: ["09:00", "09:30", "10:00", "10:30", "11:00"] },
+    ],
+  },
+  {
+    id: 5, specialtyId: 4, specialty: "Orthopedics",
+    name: "Dr. Rohan Dissanayake", qualifications: "MBBS, MS (Ortho), FRCS", experience: 18,
+    fee: 3000, rating: 4.9, reviewCount: 152, hospital: "Lanka Hospitals, Colombo",
+    avatar: "RD", isAvailable: true,
+    about: "Leading orthopedic surgeon specializing in joint replacement, sports injuries, and spine surgery.",
+    availability: [
+      { day: "Monday", slots: ["08:00", "08:30", "09:00", "13:00", "13:30"] },
+      { day: "Wednesday", slots: ["08:00", "08:30", "09:00"] },
+      { day: "Saturday", slots: ["09:00", "09:30", "10:00", "10:30"] },
+    ],
+  },
+  {
+    id: 6, specialtyId: 8, specialty: "General Medicine",
+    name: "Dr. Samantha Wickramasinghe", qualifications: "MBBS, MRCP", experience: 9,
+    fee: 1500, rating: 4.7, reviewCount: 203, hospital: "Asiri Central Hospital, Colombo",
+    avatar: "SW", isAvailable: true,
+    about: "General physician with broad expertise in managing acute and chronic medical conditions.",
+    availability: [
+      { day: "Monday", slots: ["09:00", "09:30", "10:00", "10:30", "11:00", "14:00", "14:30", "15:00"] },
+      { day: "Tuesday", slots: ["09:00", "09:30", "10:00", "14:00", "14:30"] },
+      { day: "Thursday", slots: ["09:00", "09:30", "10:00", "10:30"] },
+      { day: "Friday", slots: ["09:00", "09:30", "14:00", "14:30", "15:00"] },
+    ],
+  },
+];
+
+export const appointments = [
+  {
+    id: 1,
+    appointmentNumber: "APP-2026-1024",
+    doctorId: 1,
+    doctorName: "Dr. Nimal Perera",
+    specialty: "Cardiology",
+    hospital: "National Heart Hospital, Colombo",
+    date: "2026-08-20",
+    time: "09:30",
+    status: "Completed",
+    fee: 2500,
+    paymentStatus: "Verified",
+    notes: "Follow-up required in 3 months",
+    prescription: {
+      id: "RX-2026-1024",
+      issuedDate: "2026-08-20",
+      doctorName: "Dr. Nimal Perera",
+      medicines: [
+        { name: "Amlodipine 5mg", dosage: "Once daily", duration: "30 days", quantity: 30 },
+        { name: "Atorvastatin 20mg", dosage: "Once daily at night", duration: "30 days", quantity: 30 },
+        { name: "Aspirin 75mg", dosage: "Once daily with food", duration: "30 days", quantity: 30 },
+      ],
+      diagnosis: "Hypertension with mild dyslipidemia",
+      notes: "Monitor blood pressure daily. Avoid high-sodium foods. Return for review in 1 month.",
+    },
+  },
+  {
+    id: 2,
+    appointmentNumber: "APP-2026-1001",
+    doctorId: 3,
+    doctorName: "Dr. Priya Fernando",
+    specialty: "Gastroenterology",
+    hospital: "Apollo Hospital, Colombo",
+    date: "2026-08-10",
+    time: "14:00",
+    status: "Completed",
+    fee: 2200,
+    paymentStatus: "Verified",
+    notes: "Endoscopy scheduled",
+    prescription: {
+      id: "RX-2026-1001",
+      issuedDate: "2026-08-10",
+      doctorName: "Dr. Priya Fernando",
+      medicines: [
+        { name: "Omeprazole 20mg", dosage: "Twice daily before meals", duration: "14 days", quantity: 28 },
+        { name: "Domperidone 10mg", dosage: "Three times daily", duration: "7 days", quantity: 21 },
+      ],
+      diagnosis: "Gastroesophageal reflux disease (GERD)",
+      notes: "Avoid spicy and fatty foods. Elevate head while sleeping. Follow up after 2 weeks.",
+    },
+  },
+  {
+    id: 3,
+    appointmentNumber: "APP-2026-1078",
+    doctorId: 1,
+    doctorName: "Dr. Nimal Perera",
+    specialty: "Cardiology",
+    hospital: "National Heart Hospital, Colombo",
+    date: "2026-09-02",
+    time: "09:00",
+    status: "Confirmed",
+    fee: 2500,
+    paymentStatus: "Verified",
+    notes: "",
+    prescription: null,
+  },
+  {
+    id: 4,
+    appointmentNumber: null,
+    doctorId: 6,
+    doctorName: "Dr. Samantha Wickramasinghe",
+    specialty: "General Medicine",
+    hospital: "Asiri Central Hospital, Colombo",
+    date: "2026-09-05",
+    time: "10:30",
+    status: "PaymentSubmitted",
+    fee: 1500,
+    paymentStatus: "Submitted",
+    notes: "",
+    prescription: null,
+  },
+];
+
+export const statusConfig = {
+  Pending: { label: "Pending", color: "#F59E0B", bg: "#FFFBEB", border: "#FDE68A" },
+  PaymentSubmitted: { label: "Payment Submitted", color: "#6366F1", bg: "#EEF2FF", border: "#C7D2FE" },
+  Confirmed: { label: "Confirmed", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
+  Completed: { label: "Completed", color: "#64748B", bg: "#F8FAFC", border: "#E2E8F0" },
+  Cancelled: { label: "Cancelled", color: "#EF4444", bg: "#FEF2F2", border: "#FECACA" },
+};
