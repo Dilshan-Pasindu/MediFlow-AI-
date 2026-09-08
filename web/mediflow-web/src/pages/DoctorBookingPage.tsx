@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Star, Calendar, Clock, CreditCard, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetDoctor, apiGetDoctorAvailability, apiBookAppointment } from '../services/api';
+import { useDoctor, useBookAppointment } from '../hooks';
+import type { DoctorDetail } from '../types/doctor';
 
 function generateTimeSlots(): { time: string; available: boolean }[] {
   const slots: { time: string; available: boolean }[] = [];
@@ -29,42 +30,34 @@ function getDaysInWeek(date: Date): Date[] {
 export default function DoctorBookingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [doctor, setDoctor] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: doctor, isLoading: loading } = useDoctor(id);
+  const bookAppointment = useBookAppointment();
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTime, setSelectedTime] = useState<any>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d;
   });
-  const [booking, setBooking] = useState(false);
   const [booked, setBooked] = useState(false);
   const [bookError, setBookError] = useState('');
 
   const timeSlots = generateTimeSlots();
   const weekDays = getDaysInWeek(weekStart);
 
-  useEffect(() => { loadDoctor(); }, [id]);
-
-  async function loadDoctor() {
-    try { setDoctor(await apiGetDoctor(id || '')); }
-    catch { navigate('/find-doctor'); }
-    finally { setLoading(false); }
-  }
-
   async function handleBook(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedTime) { setBookError('Please select a time slot.'); return; }
-    setBooking(true); setBookError('');
-    try {
-      const dt = new Date(selectedDate);
-      const [h, m] = selectedTime.split(':');
-      dt.setHours(Number(h), Number(m), 0, 0);
-      await apiBookAppointment(id || '', dt.toISOString(), notes);
-      setBooked(true);
-    } catch (err: any) {
-      setBookError(err?.message || 'Booking failed. Please try again.');
-    } finally { setBooking(false); }
+    setBookError('');
+    const dt = new Date(selectedDate);
+    const [h, m] = selectedTime.split(':');
+    dt.setHours(Number(h), Number(m), 0, 0);
+    bookAppointment.mutate(
+      { doctorId: id || '', dateTime: dt.toISOString(), notes },
+      {
+        onSuccess: () => setBooked(true),
+        onError: (err: Error) => setBookError(err?.message || 'Booking failed. Please try again.'),
+      }
+    );
   }
 
   function prevWeek() { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d); }
@@ -281,10 +274,10 @@ export default function DoctorBookingPage() {
                       type="submit"
                       className="btn btn-primary btn-lg"
                       style={{ width: '100%' }}
-                      disabled={booking || !selectedTime}
+                      disabled={bookAppointment.isPending || !selectedTime}
                       id="confirm-booking-btn"
                     >
-                      {booking ? <><Loader size={16} className="spin" /> Booking...</> : <>Confirm Booking</>}
+                      {bookAppointment.isPending ? <><Loader size={16} className="spin" /> Booking...</> : <>Confirm Booking</>}
                     </button>
 
                     <div className="ai-disclaimer" style={{ marginTop: 14 }}>

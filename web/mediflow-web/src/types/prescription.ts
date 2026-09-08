@@ -19,7 +19,23 @@ export interface Prescription {
   doctorName: string;
   status: PrescriptionStatus;
   items: PrescriptionItem[];
+  itemCount?: number;
   instructions?: string;
   dateIssued: string;
   createdAt: string;
 }
+
+export interface CreatePrescriptionDto {
+  appointmentId: number;
+  doctorId: number;
+  patientId: number;
+  instructions?: string;
+  items: Array<{
+    medicineId: number;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    quantity: number;
+  }>;
+}
+

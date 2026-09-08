@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, CheckCircle, Clock, User, ChevronRight, Activity, Stethoscope, FileText, Loader } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
-import { apiGetDoctorAppointments, getUser } from '../../services/api';
+import { getUser } from '../../services/api';
+import { useDoctorAppointments } from '../../hooks';
+import type { ConsultationAppointment } from '../../types/consultation';
 
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<string, { color: string; bg: string; label: string }> = {
   Confirmed: { color: '#059669', bg: '#ECFDF5', label: 'Confirmed ✅' },
   Completed: { color: '#6366F1', bg: '#EEF2FF', label: 'Completed' },
   Pending:   { color: '#B45309', bg: '#FFFBEB', label: 'Pending' },
@@ -14,13 +16,8 @@ const STATUS_STYLES = {
 export default function DoctorDashboard() {
   const navigate = useNavigate();
   const user = getUser();
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: appointments = [], isLoading: loading } = useDoctorAppointments();
   const [activeTab, setActiveTab] = useState('today');
-
-  useEffect(() => {
-    apiGetDoctorAppointments().then(d => setAppointments(d || [])).catch(() => {}).finally(() => setLoading(false));
-  }, []);
 
   const today = new Date().toDateString();
   const todayAppts = appointments.filter(a => new Date(a.appointmentDateTime).toDateString() === today && a.status === 'Confirmed');
@@ -93,7 +90,7 @@ export default function DoctorDashboard() {
                   <div className="appt-list">
                     {displayAppts.map(appt => {
                       const d = new Date(appt.appointmentDateTime);
-                      const st = (STATUS_STYLES as any)[appt.status] || STATUS_STYLES.Confirmed;
+                      const st = STATUS_STYLES[appt.status] || STATUS_STYLES.Confirmed;
                       return (
                         <div key={appt.id} className="appt-card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/doctor/consultation/${appt.id}`)} id={`doctor-appt-${appt.id}`}>
                           <div className="appt-date-block">

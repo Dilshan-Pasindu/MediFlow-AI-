@@ -1,12 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Brain, CheckCircle, X, Edit3, Stethoscope, AlertCircle, Loader, ArrowLeft, Plus, Trash2, Sparkles } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
-import { apiGetAppointment, apiGetPatientHistory, apiRequestClinicalAnalysis, apiSubmitDoctorDecision, apiGetMedicines, apiGeneratePrescription } from '../../services/api';
+import { apiGeneratePrescription } from '../../services/api';
+import { useAppointment } from '../../hooks';
+import type { ExamForm, MedicineEntry, AIClinicalResult, DiagnosisDecision, ConsultationAppointment } from '../../types/consultation';
 
 // Mock clinical AI analysis
-async function mockClinicalAI(symptoms: any, vitalSigns: any) {
+async function mockClinicalAI(_symptoms: string, _vitalSigns: Record<string, string>): Promise<AIClinicalResult> {
   await new Promise(r => setTimeout(r, 2000));
   return {
     diagnoses: [
@@ -18,27 +20,20 @@ async function mockClinicalAI(symptoms: any, vitalSigns: any) {
   };
 }
 
+type ConsultationStep = 'review' | 'examine' | 'ai' | 'prescribe' | 'done';
+
 export default function ConsultationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [appt, setAppt] = useState<any>(null);
-  const [step, setStep] = useState('review'); // review | examine | ai | prescribe | done
-  const [loading, setLoading] = useState(true);
+  const { data: appt, isLoading: loading } = useAppointment(id);
+  const [step, setStep] = useState<ConsultationStep>('review');
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState<any>(null);
-  const [decisions, setDecisions] = useState<Record<string, any>>({});
-  const [exam, setExam] = useState({ chiefComplaint: '', symptoms: '', vitalBP: '', vitalTemp: '', vitalPulse: '', vitalSPO2: '', examination: '', notes: '' });
-  const [medicines, setMedicines] = useState([{ name: '', dosage: '', frequency: '', duration: '', quantity: '' }]);
+  const [aiResult, setAiResult] = useState<AIClinicalResult | null>(null);
+  const [decisions, setDecisions] = useState<Record<string, DiagnosisDecision>>({});
+  const [exam, setExam] = useState<ExamForm>({ chiefComplaint: '', symptoms: '', vitalBP: '', vitalTemp: '', vitalPulse: '', vitalSPO2: '', examination: '', notes: '' });
+  const [medicines, setMedicines] = useState<MedicineEntry[]>([{ name: '', dosage: '', frequency: '', duration: '', quantity: '' }]);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
-
-  useEffect(() => {
-    Promise.allSettled([
-      apiGetAppointment(id || ''),
-    ]).then(([apptRes]) => {
-      setAppt((apptRes as any).value || null);
-    }).finally(() => setLoading(false));
-  }, [id]);
 
   async function runAIAnalysis() {
     setAiLoading(true);
@@ -204,7 +199,7 @@ export default function ConsultationPage() {
                       ].map(({ key, label, placeholder }) => (
                         <div className="form-group" key={key}>
                           <label className="form-label">{label}</label>
-                          <input type="text" className="form-input" id={`vital-${key}`} placeholder={placeholder} value={exam[key]} onChange={e => setExam(p => ({ ...p, [key]: e.target.value }))} />
+                          <input type="text" className="form-input" id={`vital-${key}`} placeholder={placeholder} value={exam[key as keyof ExamForm]} onChange={e => setExam(p => ({ ...p, [key]: e.target.value }))} />
                         </div>
                       ))}
                     </div>

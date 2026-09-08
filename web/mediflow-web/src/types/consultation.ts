@@ -51,5 +51,15 @@ export interface ConsultationAppointment {
   notes?: string;
   status: string;
   doctorName?: string;
+  specialtyName?: string;
   fee?: number;
 }
+
+export interface ClinicalAnalysisRequestDto {
+  symptoms: string;
+  vitals?: Partial<ExamForm>;
+  patientAge?: number;
+  patientGender?: string;
+  history?: string;
+}
+
