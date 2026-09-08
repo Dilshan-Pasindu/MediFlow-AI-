@@ -95,6 +95,9 @@ jobs:
       - name: Type Check (TypeScript)
         run: npx tsc --noEmit
 
+      - name: Run Frontend Tests (Vitest)
+        run: npm test
+
       - name: Build Web Application
         run: npm run build
 
