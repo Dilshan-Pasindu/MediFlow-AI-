@@ -284,7 +284,6 @@ MediFlow-AI-/
 ├── tests/
 │   └── MediFlow.Tests/           # xUnit backend unit & WebApplicationFactory tests
 ├── .github/workflows/            # GitHub Actions CI/CD, CodeQL & Security guardrails
-├── MediFlowAI_4_Member_Project_Division.md
 ├── docker-compose.yml            # Multi-service local & staging orchestration
 ├── LICENSE                       # MIT License
 └── README.md                     # Project documentation & reference
