@@ -17,7 +17,7 @@ const STATUS = {
 export default function AppointmentsPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('upcoming');
-  const [appointments, setAppointments] = useState([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadAppointments(); }, []);
@@ -100,7 +100,7 @@ export default function AppointmentsPage() {
             <div className="appt-list">
               {displayAppts.map(appt => {
                 const d = new Date(appt.appointmentDateTime);
-                const st = STATUS[appt.status] || STATUS.Pending;
+                const st = (STATUS as any)[appt.status] || STATUS.Pending;
                 return (
                   <div key={appt.id} className="appt-card" onClick={() => navigate(`/appointments/${appt.id}`)} id={`appt-item-${appt.id}`}>
                     <div className="appt-date-block">
