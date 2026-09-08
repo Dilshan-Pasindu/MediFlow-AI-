@@ -31,7 +31,7 @@ public class DoctorsController : ControllerBase
             query = query.Where(d => d.DoctorSpecialties.Any(ds => ds.SpecialtyId == specialtyId.Value));
 
         if (!string.IsNullOrWhiteSpace(search))
-            query = query.Where(d => d.FullName.ToLower().Contains(search.ToLower()));
+            query = query.Where(d => EF.Functions.ILike(d.FullName, $"%{search}%"));
 
         var doctors = await query.Select(d => new
         {
@@ -43,7 +43,7 @@ public class DoctorsController : ControllerBase
             d.ConsultationFee,
             d.IsActive,
             Specialties = d.DoctorSpecialties.Select(ds => new { ds.Specialty.Id, ds.Specialty.Name }),
-            AverageRating = d.Ratings.Any() ? Math.Round(d.Ratings.Average(r => r.Stars), 1) : 0,
+            AverageRating = d.Ratings.Count > 0 ? Math.Round(d.Ratings.Average(r => r.Stars), 1) : 0,
             ReviewCount = d.Ratings.Count,
             Availability = d.Availabilities.Select(a => new { a.DayOfWeek, a.StartTime, a.EndTime })
         }).ToListAsync();
@@ -73,7 +73,7 @@ public class DoctorsController : ControllerBase
                 d.ConsultationFee,
                 d.IsActive,
                 Specialties = d.DoctorSpecialties.Select(ds => new { ds.Specialty.Id, ds.Specialty.Name }),
-                AverageRating = d.Ratings.Any() ? Math.Round(d.Ratings.Average(r => r.Stars), 1) : 0,
+                AverageRating = d.Ratings.Count > 0 ? Math.Round(d.Ratings.Average(r => r.Stars), 1) : 0,
                 ReviewCount = d.Ratings.Count,
                 Availability = d.Availabilities.Select(a => new { a.DayOfWeek, a.StartTime, a.EndTime })
             })
