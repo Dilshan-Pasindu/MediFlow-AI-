@@ -1,0 +1,72 @@
+name: MediFlow AI Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Package and Publish Release Assets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version Tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      # ─── Build Backend Binary Package ──────────────────────────────────────
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish Backend API Binaries
+        run: |
+          dotnet publish backend/MediFlow.Api/MediFlow.Api.csproj -c Release -o publish/backend
+          cd publish/backend && zip -r ../../mediflow-api-linux-x64.zip . && cd ../..
+
+      # ─── Build Frontend Bundle ─────────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build Web Application
+        working-directory: web/mediflow-web
+        run: |
+          npm ci
+          npm run build
+          cd dist && zip -r ../../../mediflow-web-dist.zip . && cd ../../..
+
+      # ─── Create GitHub Release with Assets ─────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "MediFlow AI Release ${{ steps.version.outputs.tag }}"
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            mediflow-api-linux-x64.zip
+            mediflow-web-dist.zip
