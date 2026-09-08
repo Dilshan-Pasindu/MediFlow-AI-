@@ -5,15 +5,21 @@ on:
     branches:
       - main
       - master
+      - dev
       - 'feature/**'
   pull_request:
     branches:
       - main
       - master
+      - dev
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
-  # Backend Build & Verification (.NET 8)
+  # 1. Backend Build & Test (.NET 8)
   # ─────────────────────────────────────────────────────────────────────────────
   backend-ci:
     name: Backend Build & Test (.NET 8)
@@ -32,26 +38,37 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/*.sln') }}
           restore-keys: |
             ${{ runner.os }}-nuget-
 
       - name: Restore Dependencies
-        run: dotnet restore backend/MediFlow.Api/MediFlow.Api.csproj
+        run: dotnet restore MediFlow.sln
 
       - name: Build Backend (Release)
-        run: dotnet build backend/MediFlow.Api/MediFlow.Api.csproj --no-restore --configuration Release
+        run: dotnet build MediFlow.sln --no-restore --configuration Release
 
-      - name: Run Backend Tests (if available)
+      - name: Run Backend Tests
         run: |
-          if [ -d "tests" ] && [ "$(ls -A tests 2>/dev/null)" ]; then
-            dotnet test --configuration Release --no-build --verbosity normal
-          else
-            echo "No test projects found in tests/ directory yet. Skipping test step."
-          fi
+          dotnet test MediFlow.sln \
+            --configuration Release \
+            --no-build \
+            --verbosity normal \
+            --logger "trx;LogFileName=test_results.trx" \
+            --collect:"XPlat Code Coverage"
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            **/TestResults/*.trx
+            **/TestResults/**/coverage.cobertura.xml
+          retention-days: 7
 
   # ─────────────────────────────────────────────────────────────────────────────
-  # Frontend Build & Verification (React / Vite)
+  # 2. Frontend Build & Verification (React + Vite)
   # ─────────────────────────────────────────────────────────────────────────────
   frontend-ci:
     name: Frontend Build (React + Vite)
@@ -75,5 +92,91 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Type Check (TypeScript)
+        run: npx tsc --noEmit
+
       - name: Build Web Application
         run: npm run build
+
+      - name: Upload Frontend Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/mediflow-web/dist
+          retention-days: 7
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 3. AI Subsystem CI (Python / Agentic AI)
+  # ─────────────────────────────────────────────────────────────────────────────
+  ai-ci:
+    name: AI Subsystem Verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check for AI Subsystem Files
+        id: check-ai
+        run: |
+          if [ -d "ai" ] && [ -n "$(find ai -name '*.py' 2>/dev/null)" ]; then
+            echo "has_ai=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_ai=false" >> $GITHUB_OUTPUT
+            echo "No Python files found in ai/ directory. Job marked complete."
+          fi
+
+      - name: Setup Python
+        if: steps.check-ai.outputs.has_ai == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install AI Dependencies & Test
+        if: steps.check-ai.outputs.has_ai == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f "ai/requirements.txt" ]; then pip install -r ai/requirements.txt; fi
+          if [ -f "ai/pyproject.toml" ]; then pip install .; fi
+          pip install pytest flake8
+          flake8 ai/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          if [ -d "ai/tests" ]; then pytest ai/tests; fi
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 4. Mobile Subsystem CI (Flutter)
+  # ─────────────────────────────────────────────────────────────────────────────
+  mobile-ci:
+    name: Mobile Subsystem Verification (Flutter)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check for Flutter Project
+        id: check-mobile
+        run: |
+          if [ -f "mobile/pubspec.yaml" ] || [ -f "mobile/mediflow_mobile/pubspec.yaml" ]; then
+            echo "has_mobile=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_mobile=false" >> $GITHUB_OUTPUT
+            echo "No Flutter pubspec.yaml found in mobile/ directory. Job marked complete."
+          fi
+
+      - name: Setup Flutter SDK
+        if: steps.check-mobile.outputs.has_mobile == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Analyze & Test Flutter
+        if: steps.check-mobile.outputs.has_mobile == 'true'
+        run: |
+          DIR="mobile"
+          if [ -f "mobile/mediflow_mobile/pubspec.yaml" ]; then DIR="mobile/mediflow_mobile"; fi
+          cd "$DIR"
+          flutter pub get
+          flutter analyze
+          if [ -d "test" ]; then flutter test; fi
