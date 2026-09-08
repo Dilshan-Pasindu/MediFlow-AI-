@@ -16,15 +16,15 @@ export default function SupplierDashboard() {
   const user = getUser();
   const [requests, setRequests] = useState(MOCK_REQUESTS);
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState({});
-  const [messages, setMessages] = useState({});
+  const [actionLoading, setActionLoading] = useState<Record<string | number, any>>({});
+  const [messages, setMessages] = useState<Record<string | number, any>>({});
   const [activeTab, setActiveTab] = useState('pending');
 
   const pendingRequests = requests.filter(r => r.status === 'Pending');
   const approvedRequests = requests.filter(r => r.status === 'Approved');
   const display = activeTab === 'pending' ? pendingRequests : approvedRequests;
 
-  async function handleApprove(id) {
+  async function handleApprove(id: number | string) {
     setActionLoading(a => ({ ...a, [id]: 'approve' }));
     await new Promise(r => setTimeout(r, 1000));
     setRequests(prev => prev.map(r => r.id === id ? { ...r, status: 'Approved' } : r));
@@ -32,7 +32,7 @@ export default function SupplierDashboard() {
     setActionLoading(a => ({ ...a, [id]: null }));
   }
 
-  function handleReject(id) {
+  function handleReject(id: number | string) {
     setRequests(prev => prev.filter(r => r.id !== id));
   }
 

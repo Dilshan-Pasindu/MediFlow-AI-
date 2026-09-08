@@ -19,9 +19,9 @@ const STATUS_STYLES = {
 
 export default function OrdersPage() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   useEffect(() => {
     apiGetMyOrders().then(d => setOrders(d || [])).catch(() => {}).finally(() => setLoading(false));
@@ -148,8 +148,8 @@ export default function OrdersPage() {
   );
 }
 
-function OrderCard({ order, onSelect, selected }) {
-  const st = STATUS_STYLES[order.status] || STATUS_STYLES.Pending;
+function OrderCard({ order, onSelect, selected }: { order: any; onSelect: () => void; selected: boolean }) {
+  const st = (STATUS_STYLES as any)[order.status] || STATUS_STYLES.Pending;
   return (
     <div
       className="card"

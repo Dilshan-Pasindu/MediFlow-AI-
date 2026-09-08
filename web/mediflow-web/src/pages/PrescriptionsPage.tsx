@@ -7,9 +7,9 @@ import { apiGetMyPrescriptions } from '../services/api';
 
 export default function PrescriptionsPage() {
   const navigate = useNavigate();
-  const [prescriptions, setPrescriptions] = useState([]);
+  const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
 
   useEffect(() => {
     apiGetMyPrescriptions().then(d => setPrescriptions(d || [])).catch(() => {}).finally(() => setLoading(false));
