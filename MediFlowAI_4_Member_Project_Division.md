@@ -16,17 +16,17 @@ Human professionals approve every critical decision. AI assists users and profes
 
 ### Technology Stack
 
-| Layer | Technology |
-|---|---|
-| Mobile | Flutter / Dart |
-| Web | React / React Router |
-| Backend API | ASP.NET Core Web API / C# |
-| Database | PostgreSQL / Entity Framework Core |
-| Auth | JWT Authentication & Role-Based Authorization |
-| Agentic AI | Python AI Subsystem (LangGraph / FastAPI / Google ADK) |
-| Docs | Swagger / OpenAPI |
-| CI/CD | GitHub Actions |
-| Third-Party | Maps / Location API (Google Maps or equivalent) |
+| Layer | Technology | Specification / Standard |
+|---|---|---|
+| **Mobile** | Flutter (v3.20+) / Dart | Riverpod State Management, GoRouter, cross-platform Android/iOS |
+| **Web Frontend** | React 19 / TypeScript (Strict Mode) | Vite 8, Tailwind CSS 4, TanStack Query 5, Zustand 5, React Router 7, Zod, Vitest |
+| **Backend API** | ASP.NET Core 8 LTS Web API / C# 12 | RESTful Controllers, Dependency Injection, RFC 7807 Problem Details, Health Checks |
+| **Database & ORM** | PostgreSQL 16 / Entity Framework Core 8 | Code-First Migrations, DatabaseSeeder, Connection Pooling |
+| **Auth & Security** | JWT Bearer & BCrypt | Role-Based Access Control (RBAC), Claims-Based Authorization |
+| **Agentic AI** | Python 3.11 AI Subsystem | LangGraph, FastAPI, Pydantic v2, Human-in-the-Loop Safeguards |
+| **API Documentation** | Swagger / OpenAPI v1 | Interactive UI with JWT Bearer support |
+| **Testing & CI/CD** | GitHub Actions / Docker | Vitest (Web), xUnit + WebApplicationFactory (API), Pytest (AI), Flutter Test (Mobile) |
+| **Third-Party** | Maps / Location API | Google Maps or equivalent location provider |
 
 > **Architecture Rule:** React and Flutter must communicate **only** through the ASP.NET Core Web API and must use the same PostgreSQL database, identity, permissions, and business rules. If a Python service is used for AI, it must be an **internal service called by ASP.NET Core**, not directly by React or Flutter.
 
@@ -1665,17 +1665,18 @@ The React application primarily supports **administrative, staff, and profession
 | Agent Monitoring / Execution History | Shared (all contribute) | — |
 | Admin Panel | Shared | — |
 
-### Technical Requirements
+### Technical Requirements & Modern Architecture
 
-- Functional components + React Hooks
-- React Router with protected routes
-- Role-based navigation (different portals per role)
-- Reusable component library
-- State management (Context API or equivalent, justified)
-- Search, filtering, sorting, pagination on list views
-- Form validation
-- Loading states and error states
-- Agent monitoring dashboard (view workflow state, agent results, approval history)
+- **Core Framework**: React 19 + TypeScript (Strict Mode) + Vite 8
+- **UI & Styling**: Tailwind CSS 4 + shadcn/ui design tokens + Lucide React icons
+- **State Management**: TanStack Query 5 (server-state caching, background synchronization) + Zustand 5 (lightweight client state & auth)
+- **Routing**: React Router 7 with route-level code splitting via `React.lazy()` and `<Suspense fallback={<LoadingFallback />}>`
+- **Forms & Validation**: React Hook Form + Zod type-safe schema validation
+- **API Client**: Typed Axios client with JWT Bearer interceptors & error handlers
+- Role-based navigation and protected routes across all 7 user roles
+- Search, filtering, sorting, and pagination on clinical list views
+- Skeletons, loading states, and fail-safe error boundaries
+- Agent monitoring dashboard (view workflow state, agent reasoning, approval history)
 
 ---
 
@@ -1725,10 +1726,10 @@ Each member must include at least one meaningful device feature:
 ### Technical Requirements
 
 - Shared API service layer (HTTP client with JWT headers)
-- Provider or Riverpod state management
-- Navigation with named routes
-- Form validation
-- Error handling and empty states
+- **State Management**: Riverpod (provider pattern, immutable state, scalable reactivity)
+- **Navigation**: GoRouter (declarative routing, deep-linking, path parameters)
+- Form validation & type safety
+- Error handling, offline awareness, and empty states
 - Platform-specific features (camera, GPS, notifications as appropriate)
 
 ---
@@ -1736,32 +1737,33 @@ Each member must include at least one meaningful device feature:
 ## 15. Backend Architecture
 
 ```text
-ASP.NET Core Web API
+ASP.NET Core 8 LTS Web API (C# 12)
         ↓
-Controllers (per member: organized by module)
+Controllers (organized by module, [ApiController], RBAC [Authorize])
         ↓
-DTOs (Request/Response objects with validation)
+DTOs (strongly-typed request/response models with DataAnnotations)
         ↓
-Application / Service Layer (business logic)
+Application / Service Layer (business logic, transactions, agent orchestration)
         ↓
-Data Access Layer
+Data Access Layer (Repository / EF Core DbContext)
         ↓
-Entity Framework Core
+Entity Framework Core 8 (Npgsql PostgreSQL Provider)
         ↓
-PostgreSQL
+PostgreSQL 16 (Relational tables, foreign keys, indexes, audit logs)
 ```
 
 The backend is the **authoritative application layer** for:
 - Public REST APIs consumed by React and Flutter
-- JWT authentication and token validation
-- Role-based authorization
-- Input validation and business rules
-- Data persistence
-- Agent workflow initiation and orchestration calls
-- Human approval recording
-- Audit logging
+- JWT Bearer authentication and Claims-based authorization
+- RFC 7807 Problem Details for standardized API error handling
+- Container readiness and health check probes (`/health`)
+- Input validation and deterministic business rules
+- Data persistence and ACID transactions
+- Agent workflow initiation and orchestration calls to internal Python FastAPI microservice
+- Human approval recording and enforcement
+- Comprehensive audit logging and security telemetry
 
-> **Python AI Service Rule:** If a Python service is used for the AI subsystem, it must be called by ASP.NET Core as an internal service. React and Flutter must **never** call the Python service directly.
+> **Python AI Service Rule:** If a Python service is used for the AI subsystem, it must be called by ASP.NET Core as an internal service (`http://ai:8000` in Docker or `http://localhost:8000` locally). React and Flutter must **never** call the Python service directly.
 
 ---
 
@@ -1958,29 +1960,50 @@ feature/m4-inventory-intelligence
 
 ---
 
-## 21. GitHub Actions CI
+## 21. GitHub Actions CI/CD & DevSecOps Architecture
 
-### Minimum CI Pipeline
+MediFlow AI implements an enterprise-grade automated CI/CD and security governance workflow:
 
-```yaml
-# On every push and pull request:
-Restore NuGet packages
-    ↓
-Build ASP.NET Core API
-    ↓
-Run Backend Unit Tests
-    ↓
-Pass / Fail
+```mermaid
+graph TD
+    A[Git Push / PR to main/dev] --> B[CI Pipeline: ci.yml]
+    A --> S[Security Guard: security-guard.yml]
+    A --> Q[CodeQL SAST: codeql.yml]
+
+    subgraph CI["Automated CI Pipeline (4 Tiers)"]
+        B1["Backend CI: .NET 8 Restore, Build & xUnit Tests"]
+        B2["Frontend CI: Node 20, TypeScript Strict, Vitest & Vite Build"]
+        B3["AI CI: Python 3.11, Flake8 & Pytest Agents"]
+        B4["Mobile CI: Flutter Stable, Analyze & Widget Tests"]
+    end
+
+    B --> B1
+    B --> B2
+    B --> B3
+    B --> B4
+
+    subgraph CD["Continuous Deployment: cd.yml"]
+        D1["Build & Publish Backend Docker Image (GHCR)"]
+        D2["Build & Publish Web Nginx Docker Image (GHCR)"]
+        D3["Build & Publish Python AI Docker Image (GHCR)"]
+        D4["Deploy to Staging Environment with Health Probes (/health)"]
+        D5["Deploy to Production Environment (Workflow Dispatch)"]
+    end
+
+    B1 & B2 & B3 --> D1 & D2 & D3
+    D1 & D2 & D3 --> D4 --> D5
 ```
 
-### Extended CI (Recommended)
+### Automated CI Pipeline Stages (`.github/workflows/ci.yml`)
+1. **Backend CI (`.NET 8 LTS`)**: NuGet cache restore, Release build, xUnit test execution with code coverage reporting.
+2. **Frontend CI (`React 19 + TypeScript`)**: `npm ci`, strict type checking (`npx tsc --noEmit`), Vitest suite execution, and production bundle packaging.
+3. **AI Subsystem CI (`Python 3.11`)**: Flake8 static analysis and Pytest verification of agent schemas and recommendation algorithms.
+4. **Mobile Subsystem CI (`Flutter`)**: Package retrieval, `flutter analyze` lint checks, and unit/widget test execution.
 
-```text
-Backend Build + Test
-React Build + Lint + Test
-Flutter Analyze + Test
-Deploy to staging (on merge to main)
-```
+### Security, Governance & Scanning
+- **Governance Guard (`security-guard.yml`)**: Enforces `CODEOWNERS` file integrity and guards merge authority into protected branches (`main`, `dev`).
+- **CodeQL SAST (`codeql.yml`)**: Automated weekly and PR security scans across C#, JavaScript/TypeScript, and Python.
+- **Docker Multi-Container Orchestration (`docker-compose.yml`)**: Local and containerized execution of `mediflow-db`, `mediflow-api`, `mediflow-web`, and `mediflow-ai`.
 
 ---
 

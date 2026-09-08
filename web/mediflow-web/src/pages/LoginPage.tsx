@@ -1,11 +1,24 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { z } from 'zod';
 import {
   HeartPulse, Eye, EyeOff, ArrowRight, Loader,
   CheckCircle2, XCircle, ShieldCheck, Mail, Lock,
   User, Phone
 } from 'lucide-react';
 import { apiLogin, apiRegister } from '../services/api';
+
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+});
+
+const registerSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Please enter a valid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  phone: z.string().optional(),
+});
 
 const DEMO_PERSONAS = [
   { role: 'Patient',       label: 'Patient',      email: 'dilshan@gmail.com',            password: 'Test@123',   icon: '👤', color: '#0EA5E9' },
@@ -124,7 +137,13 @@ export default function LoginPage() {
   };
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault(); setError(''); setLoading(true);
+    e.preventDefault(); setError('');
+    const validation = loginSchema.safeParse({ email: form.email, password: form.password });
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message || 'Invalid email or password.');
+      return;
+    }
+    setLoading(true);
     try { const d = await apiLogin(form.email, form.password); navigate(getRoleHome(d.role)); }
     catch (err: any) { setError(err?.message || 'Login failed. Please verify credentials.'); }
     finally { setLoading(false); }
@@ -132,6 +151,16 @@ export default function LoginPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault(); setError('');
+    const validation = registerSchema.safeParse({
+      name: form.name,
+      email: form.email,
+      password: form.password,
+      phone: form.phone,
+    });
+    if (!validation.success) {
+      setError(validation.error.issues[0]?.message || 'Please check the form inputs.');
+      return;
+    }
     if (form.password !== form.confirmPassword) { setError('Passwords do not match.'); return; }
     if (pScore < 2) { setError('Please choose a stronger password.'); return; }
     if (!agreeTerms) { setError('You must agree to the Terms of Service.'); return; }
