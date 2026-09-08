@@ -3,10 +3,10 @@
 > **Intelligent Channeling, E-Prescription & Pharmacy Management System**  
 > *An enterprise-grade, multi-agent AI healthcare ecosystem with Human-in-the-Loop clinical decision support.*
 
-[![Backend](https://img.shields.io/badge/Backend-ASP.NET%20Core%20Web%20API-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL%20%2F%20EF%20Core-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Frontend](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
-[![Mobile](https://img.shields.io/badge/Mobile-Flutter%20%2F%20Dart-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
+[![Backend](https://img.shields.io/badge/Backend-ASP.NET%20Core%208%20LTS-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL%2016%20%2F%20EF%20Core%208-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Mobile](https://img.shields.io/badge/Mobile-Flutter%20%2F%20Riverpod-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
 [![AI Subsystem](https://img.shields.io/badge/AI-LangGraph%20%2F%20FastAPI-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Auth](https://img.shields.io/badge/Auth-JWT%20Bearer%20%2B%20BCrypt-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
@@ -79,7 +79,7 @@ graph TB
     end
 
     subgraph Gateway["Application & API Layer"]
-        DotNetAPI["ASP.NET Core 9 Web API<br/>• JWT Authentication & RBAC<br/>• Controllers & Business Services<br/>• Input / Output Validation & DTOs<br/>• Swagger / OpenAPI Docs"]
+        DotNetAPI["ASP.NET Core 8 LTS Web API<br/>• JWT Authentication & RBAC<br/>• Controllers & Business Services<br/>• RFC 7807 Problem Details & Health Checks<br/>• Swagger / OpenAPI Docs"]
     end
 
     subgraph DataLayer["Persistence Layer"]
@@ -182,13 +182,14 @@ sequenceDiagram
 
 | Layer | Technology | Details |
 |---|---|---|
-| **Backend API** | ASP.NET Core 9 / C# | Modular REST API, Dependency Injection, Swagger/OpenAPI |
-| **ORM & Database** | PostgreSQL + EF Core | Code-First migrations, automated seeding, connection pooling |
+| **Web Client** | React 19 + TypeScript (Strict) + Vite 8 | SPA architecture, Tailwind CSS 4, TanStack Query 5, Zustand 5, React Router 7, Zod, Lucide React |
+| **Backend API** | ASP.NET Core 8 LTS / C# 12 | Modular REST API, Dependency Injection, RFC 7807 Problem Details, Health Checks, Swagger/OpenAPI |
+| **ORM & Database** | PostgreSQL 16 + EF Core 8 | Code-First migrations, automated seeding, connection pooling |
 | **Security & Auth** | JWT Bearer & BCrypt | Role-Based Access Control (RBAC), Claims-based authorization |
-| **Web Client** | React 19 + Vite | SPA architecture, React Router v7, Lucide Icons, Custom Design Tokens |
-| **Mobile Client** | Flutter / Dart | Cross-platform mobile (Android/iOS), Provider/Riverpod state |
-| **AI Orchestration** | Python / LangGraph / FastAPI | Structured tool-calling, state graphs, deterministic validation |
-| **CI / CD & Tooling** | GitHub Actions | Automated build, unit tests, and linting pipelines |
+| **Mobile Client** | Flutter / Dart | Cross-platform mobile (Android/iOS), Riverpod state management, GoRouter |
+| **AI Subsystem** | Python 3.11 / FastAPI / LangGraph | Structured tool-calling, state graphs, Pydantic v2 deterministic validation |
+| **Testing** | Vitest, RTL, xUnit, Pytest | Automated frontend, backend API integration, and AI unit test suites |
+| **CI / CD & Tooling** | GitHub Actions & Docker | Automated build, security scanning (CodeQL), Docker Compose orchestration |
 
 ---
 
@@ -239,41 +240,53 @@ The database is pre-seeded with ready-to-test accounts across all roles.
 ```text
 MediFlow-AI-/
 ├── backend/
-│   └── MediFlow.Api/
-│       ├── Auth/                 # JWT configuration & authorization handlers
-│       ├── Controllers/          # REST API endpoints (Auth, Patient, Doctor, etc.)
-│       ├── DTOs/                 # Request & Response data transfer objects
-│       ├── Data/                 # AppDbContext & EF Core configuration
-│       ├── Migrations/           # Database schema migrations
-│       ├── Models/               # PostgreSQL domain entity models
-│       ├── Services/             # Business logic services & DatabaseSeeder
-│       ├── appsettings.json      # Connection strings & JWT secret settings
-│       └── Program.cs            # Application startup & DI configuration
+│   ├── MediFlow.Api/
+│   │   ├── Auth/                 # JWT configuration & authorization handlers
+│   │   ├── Controllers/          # REST API endpoints (Auth, Patient, Doctor, etc.)
+│   │   ├── DTOs/                 # Request & Response data transfer objects
+│   │   ├── Data/                 # AppDbContext & EF Core configuration
+│   │   ├── Migrations/           # Database schema migrations
+│   │   ├── Models/               # PostgreSQL domain entity models
+│   │   ├── Services/             # Business logic services & DatabaseSeeder
+│   │   ├── appsettings.json      # Connection strings & JWT secret settings
+│   │   └── Program.cs            # Application startup, DI & middleware configuration
+│   └── Dockerfile                # Multi-stage production container build
 ├── web/
 │   └── mediflow-web/
 │       ├── src/
-│       │   ├── components/       # Reusable UI components (Sidebar, Navbar, etc.)
-│       │   ├── hooks/            # Custom React hooks
-│       │   ├── pages/            # Page components (Login, Dashboard, Booking, etc.)
-│       │   ├── services/         # API integration services (Axios / Fetch)
-│       │   ├── App.jsx           # Application routing & protected route tree
-│       │   └── index.css         # Custom design tokens & global CSS styles
-│       ├── package.json          # Node dependencies & scripts
-│       └── vite.config.js        # Vite bundler configuration
-├── mobile/
-│   └── mediflow_mobile/          # Flutter mobile client
+│       │   ├── components/       # Reusable UI components & shadcn-inspired primitives
+│       │   ├── hooks/            # TanStack React Query server-state hooks
+│       │   ├── pages/            # Lazy-loaded page components (Login, Dashboard, etc.)
+│       │   ├── services/         # Typed API integration services (Axios)
+│       │   ├── stores/           # Zustand client-state stores (authStore)
+│       │   ├── types/            # TypeScript type declarations & DTO interfaces
+│       │   ├── test/             # Vitest test specifications
+│       │   ├── App.tsx           # Application routing, Suspense fallback & route tree
+│       │   └── index.css         # Tailwind CSS 4 design tokens & global styles
+│       ├── Dockerfile            # Multi-stage Nginx production container build
+│       ├── package.json          # Node dependencies & Vitest scripts
+│       └── vite.config.ts        # Vite 8 configuration with vendor chunk splitting
 ├── ai/
-│   └── mediflow_agents/          # Python Agentic AI subsystem
-│       ├── agents/               # Individual specialized agents (1 to 4)
-│       ├── orchestrator/         # LangGraph workflow orchestration
-│       ├── tools/                # Allow-listed agent tools
-│       └── requirements.txt      # Python dependencies
-├── docs/                         # Project documentation, ADRs & AI usage logs
-├── tests/                        # Unit, integration & agent evaluation suites
-├── .github/                      # CI/CD Workflows
-├── LICENSE                       # MIT License
+│   ├── agents/                   # Agentic workflows & clinical decision recommenders
+│   ├── schemas/                  # Pydantic v2 request/response models
+│   ├── tests/                    # Pytest test suite
+│   ├── main.py                   # FastAPI service definition & endpoints
+│   ├── requirements.txt          # Python dependencies
+│   └── Dockerfile                # AI microservice container build
+├── mobile/
+│   └── mediflow_mobile/
+│       ├── lib/                  # Flutter Dart application code
+│       │   ├── providers/        # Riverpod state providers (auth, appointment)
+│       │   ├── screens/          # Mobile UI screens (login, home)
+│       │   └── main.dart         # Mobile application entry point
+│       └── pubspec.yaml          # Flutter dependencies & metadata
+├── tests/
+│   └── MediFlow.Tests/           # xUnit backend unit & WebApplicationFactory tests
+├── .github/workflows/            # GitHub Actions CI/CD, CodeQL & Security guardrails
 ├── MediFlowAI_4_Member_Project_Division.md
-└── README.md
+├── docker-compose.yml            # Multi-service local & staging orchestration
+├── LICENSE                       # MIT License
+└── README.md                     # Project documentation & reference
 ```
 
 ---
@@ -283,9 +296,9 @@ MediFlow-AI-/
 ### Prerequisites
 
 Ensure you have the following installed on your machine:
-- [.NET 9.0 SDK](https://dotnet.microsoft.com/download)
-- [Node.js (v20+ or LTS)](https://nodejs.org/)
-- [PostgreSQL (v15+)](https://www.postgresql.org/download/)
+- [.NET 8.0 LTS SDK](https://dotnet.microsoft.com/download)
+- [Node.js (v20+ LTS)](https://nodejs.org/)
+- [PostgreSQL (v16+)](https://www.postgresql.org/download/)
 - [Python (v3.11+)](https://www.python.org/downloads/) *(for AI subsystem)*
 - [Flutter SDK (v3.20+)](https://flutter.dev/docs/get-started/install) *(for mobile)*
 
@@ -328,8 +341,9 @@ dotnet ef database update
 dotnet run
 ```
 
-- API Base URL: `http://localhost:5000` (or `https://localhost:7000`)
-- **Interactive Swagger UI:** `http://localhost:5000/swagger`
+- API Base URL: `http://localhost:5224` (or `http://localhost:5000` via Docker)
+- **Interactive Swagger UI:** `http://localhost:5224/swagger`
+- **Health Check Endpoint:** `http://localhost:5224/health`
 
 ---
 
@@ -353,8 +367,8 @@ npm run dev
 ### 4. AI Subsystem Setup (Python)
 
 ```bash
-# Navigate to the AI directory
-cd ai/mediflow_agents
+# Navigate to the root or ai directory
+cd ai
 
 # Create and activate a virtual environment
 python3 -m venv venv
@@ -364,8 +378,12 @@ source venv/bin/activate    # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Start the internal AI service
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn ai.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+- AI Service URL: `http://localhost:8000`
+- AI Health Probe: `http://localhost:8000/health`
+- Recommendation Endpoint: `POST http://localhost:8000/api/ai/recommend-specialist`
 
 ---
 
@@ -479,17 +497,23 @@ Recommended Restock Qty = (Target Safety Days × Demand Rate) - Current Stock Le
 
 ## 🧪 Testing & Quality Assurance
 
-- **Backend:** XUnit & Moq for unit testing services, controllers, EF Core constraints, and DTO validation.
-- **Frontend:** Vitest & React Testing Library for components, routing guards, and user flows.
-- **AI Subsystem:** Golden test case evaluation (rule-based precision scoring, deterministic schema validators, and boundary tests).
-- **Integration Tests:** Automated end-to-end testing of cross-platform workflows.
+- **Backend:** xUnit, Moq & `WebApplicationFactory` for unit testing services, controllers, EF Core constraints, and integration security boundaries.
+- **Frontend:** Vitest & React Testing Library for components, state stores, routing guards, and user flows.
+- **AI Subsystem:** Pytest suite with Pydantic v2 schema validators, deterministic reasoning tests, and fallback evaluations.
+- **Mobile Subsystem:** Flutter widget and unit tests for Riverpod providers and navigation.
 
 ```bash
-# Run backend tests
-cd backend && dotnet test
+# Run backend tests (Unit & WebApplicationFactory Integration)
+dotnet test MediFlow.sln
 
-# Run frontend tests
+# Run frontend tests (Vitest + React Testing Library)
 cd web/mediflow-web && npm test
+
+# Run AI microservice tests (Pytest)
+python3 -m pytest ai/tests
+
+# Run mobile client tests (Flutter)
+cd mobile/mediflow_mobile && flutter test
 ```
 
 ---

@@ -16,17 +16,17 @@ Human professionals approve every critical decision. AI assists users and profes
 
 ### Technology Stack
 
-| Layer | Technology |
-|---|---|
-| Mobile | Flutter / Dart |
-| Web | React / React Router |
-| Backend API | ASP.NET Core Web API / C# |
-| Database | PostgreSQL / Entity Framework Core |
-| Auth | JWT Authentication & Role-Based Authorization |
-| Agentic AI | Python AI Subsystem (LangGraph / FastAPI / Google ADK) |
-| Docs | Swagger / OpenAPI |
-| CI/CD | GitHub Actions |
-| Third-Party | Maps / Location API (Google Maps or equivalent) |
+| Layer | Technology | Specification / Standard |
+|---|---|---|
+| **Mobile** | Flutter (v3.20+) / Dart | Riverpod State Management, GoRouter, cross-platform Android/iOS |
+| **Web Frontend** | React 19 / TypeScript (Strict Mode) | Vite 8, Tailwind CSS 4, TanStack Query 5, Zustand 5, React Router 7, Zod, Vitest |
+| **Backend API** | ASP.NET Core 8 LTS Web API / C# 12 | RESTful Controllers, Dependency Injection, RFC 7807 Problem Details, Health Checks |
+| **Database & ORM** | PostgreSQL 16 / Entity Framework Core 8 | Code-First Migrations, DatabaseSeeder, Connection Pooling |
+| **Auth & Security** | JWT Bearer & BCrypt | Role-Based Access Control (RBAC), Claims-Based Authorization |
+| **Agentic AI** | Python 3.11 AI Subsystem | LangGraph, FastAPI, Pydantic v2, Human-in-the-Loop Safeguards |
+| **API Documentation** | Swagger / OpenAPI v1 | Interactive UI with JWT Bearer support |
+| **Testing & CI/CD** | GitHub Actions / Docker | Vitest (Web), xUnit + WebApplicationFactory (API), Pytest (AI), Flutter Test (Mobile) |
+| **Third-Party** | Maps / Location API | Google Maps or equivalent location provider |
 
 > **Architecture Rule:** React and Flutter must communicate **only** through the ASP.NET Core Web API and must use the same PostgreSQL database, identity, permissions, and business rules. If a Python service is used for AI, it must be an **internal service called by ASP.NET Core**, not directly by React or Flutter.
 
