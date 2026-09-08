@@ -259,6 +259,7 @@ MediFlow-AI-/
 │       │   ├── pages/            # Lazy-loaded page components (Login, Dashboard, etc.)
 │       │   ├── services/         # Typed API integration services (Axios)
 │       │   ├── stores/           # Zustand client-state stores (authStore)
+│       │   ├── schemas/          # Zod validation schemas (auth, profile, booking, consultation)
 │       │   ├── types/            # TypeScript type declarations & DTO interfaces
 │       │   ├── test/             # Vitest test specifications
 │       │   ├── App.tsx           # Application routing, Suspense fallback & route tree

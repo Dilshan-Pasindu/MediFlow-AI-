@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CheckCircle, Clock, AlertCircle, Hash, User, Loader, ChevronRight, RefreshCw } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
-import { apiGetPendingAppointments, apiVerifyPayment, apiGenerateAppointmentNumber, apiCancelAppointment, getUser } from '../../services/api';
+import { apiVerifyPayment, apiGenerateAppointmentNumber, apiCancelAppointment, getUser } from '../../services/api';
+import { usePendingAppointments } from '../../hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ConsultationAppointment } from '../../types/consultation';
 
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<string, { color: string; bg: string; label: string; step: number }> = {
   Pending:          { color: '#B45309', bg: '#FFFBEB', label: 'Pending Payment', step: 1 },
   PaymentSubmitted: { color: '#0369A1', bg: '#EFF6FF', label: 'Payment Sent',    step: 2 },
   Confirmed:        { color: '#059669', bg: '#ECFDF5', label: 'Confirmed',        step: 3 },
@@ -12,18 +15,11 @@ const STATUS_STYLES = {
 
 export default function ReceptionistDashboard() {
   const user = getUser();
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<Record<string | number, any>>({});
+  const queryClient = useQueryClient();
+  const { data: appointments = [], isLoading: loading, refetch: load } = usePendingAppointments();
+  const [actionLoading, setActionLoading] = useState<Record<string | number, string | null>>({});
   const [activeTab, setActiveTab] = useState('PaymentSubmitted');
-  const [messages, setMessages] = useState<Record<string | number, any>>({});
-
-  const load = () => {
-    setLoading(true);
-    apiGetPendingAppointments().then(d => setAppointments(d || [])).catch(() => {}).finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, []);
+  const [messages, setMessages] = useState<Record<string | number, { type: string; text: string } | null>>({});
 
   async function handleVerify(id: number | string) {
     setActionLoading(a => ({ ...a, [id]: 'verify' }));
@@ -59,7 +55,7 @@ export default function ReceptionistDashboard() {
         <TopBar
           title="Receptionist Dashboard"
           subtitle="Manage appointment verification and confirmation"
-          actions={<button className="btn btn-ghost btn-sm" onClick={load} id="refresh-appts-btn"><RefreshCw size={14} /> Refresh</button>}
+          actions={<button className="btn btn-ghost btn-sm" onClick={() => { load(); }} id="refresh-appts-btn"><RefreshCw size={14} /> Refresh</button>}
         />
         <div className="page-body fade-in">
 
@@ -120,7 +116,7 @@ export default function ReceptionistDashboard() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {display.map(appt => {
                 const d = new Date(appt.appointmentDateTime);
-                const st = (STATUS_STYLES as any)[appt.status] || STATUS_STYLES.Pending;
+                const st = STATUS_STYLES[appt.status] || STATUS_STYLES.Pending;
                 const isLoading = actionLoading[appt.id];
                 const msg = messages[appt.id];
                 return (
