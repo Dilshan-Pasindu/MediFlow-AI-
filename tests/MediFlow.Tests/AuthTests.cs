@@ -40,11 +40,7 @@ public class AuthTests
     [Fact]
     public void LoginRequest_Fields_SetProperly()
     {
-        var request = new LoginRequest
-        {
-            Email = "patient@mediflow.ai",
-            Password = "SecurePassword123!"
-        };
+        var request = new LoginRequest("patient@mediflow.ai", "SecurePassword123!");
 
         Assert.Equal("patient@mediflow.ai", request.Email);
         Assert.Equal("SecurePassword123!", request.Password);
