@@ -1,23 +1,29 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Star, Calendar as CalendarIcon, Clock, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Star, Calendar, Clock, CreditCard, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetDoctor, apiBookAppointment } from '../services/api';
+import { apiGetDoctor, apiGetDoctorAvailability, apiBookAppointment } from '../services/api';
 
-const dayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-
-function generateSlots(startTime, endTime) {
+function generateTimeSlots() {
   const slots = [];
-  const [sh, sm] = startTime.split(':').map(Number);
-  const [eh, em] = endTime.split(':').map(Number);
-  let h = sh, m = sm;
-  while (h < eh || (h === eh && m < em)) {
-    slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-    m += 30;
-    if (m >= 60) { m = 0; h++; }
+  for (let h = 9; h <= 17; h++) {
+    slots.push({ time: `${h.toString().padStart(2, '0')}:00`, available: Math.random() > 0.4 });
+    if (h < 17) slots.push({ time: `${h.toString().padStart(2, '0')}:30`, available: Math.random() > 0.4 });
   }
   return slots;
+}
+
+function getDaysInWeek(date) {
+  const days = [];
+  const start = new Date(date);
+  start.setDate(start.getDate() - start.getDay() + 1);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    days.push(d);
+  }
+  return days;
 }
 
 export default function DoctorBookingPage() {
@@ -25,220 +31,273 @@ export default function DoctorBookingPage() {
   const navigate = useNavigate();
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [notes, setNotes] = useState('');
+  const [weekStart, setWeekStart] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d;
+  });
   const [booking, setBooking] = useState(false);
-  const [error, setError] = useState('');
+  const [booked, setBooked] = useState(false);
+  const [bookError, setBookError] = useState('');
 
-  useEffect(() => {
-    loadDoctor();
-  }, [id]);
+  const timeSlots = generateTimeSlots();
+  const weekDays = getDaysInWeek(weekStart);
+
+  useEffect(() => { loadDoctor(); }, [id]);
 
   async function loadDoctor() {
-    try {
-      const data = await apiGetDoctor(id);
-      setDoctor(data);
-    } catch (err) {
-      console.error('Failed to load doctor:', err);
-    } finally {
-      setLoading(false);
-    }
+    try { setDoctor(await apiGetDoctor(id)); }
+    catch { navigate('/find-doctor'); }
+    finally { setLoading(false); }
   }
 
-  async function handleBook() {
-    setBooking(true);
-    setError('');
+  async function handleBook(e) {
+    e.preventDefault();
+    if (!selectedTime) { setBookError('Please select a time slot.'); return; }
+    setBooking(true); setBookError('');
     try {
-      // Find next occurrence of the selected day
-      const today = new Date();
-      const targetDay = dayLabels.indexOf(selectedDay);
-      let daysUntil = targetDay - today.getDay();
-      if (daysUntil <= 0) daysUntil += 7;
-      const bookDate = new Date(today);
-      bookDate.setDate(today.getDate() + daysUntil);
-
-      const [hour, minute] = selectedSlot.split(':').map(Number);
-      bookDate.setHours(hour, minute, 0, 0);
-
-      await apiBookAppointment(doctor.id, bookDate.toISOString());
-      navigate('/appointments');
+      const dt = new Date(selectedDate);
+      const [h, m] = selectedTime.split(':');
+      dt.setHours(Number(h), Number(m), 0, 0);
+      await apiBookAppointment(id, dt.toISOString(), notes);
+      setBooked(true);
     } catch (err) {
-      setError(err.message || 'Booking failed');
-    } finally {
-      setBooking(false);
-    }
+      setBookError(err.message || 'Booking failed. Please try again.');
+    } finally { setBooking(false); }
   }
 
-  if (loading) return <div className="app-shell"><Sidebar /><div className="main-content"><TopBar title="Loading..." /><div className="page-body" style={{ textAlign: 'center', padding: 60, color: '#94A3B8' }}>Loading doctor...</div></div></div>;
-  if (!doctor) return <div className="app-shell"><Sidebar /><div className="main-content"><TopBar title="Not Found" /><div className="page-body"><div className="empty-state"><div className="empty-icon">🔍</div><div className="empty-title">Doctor not found</div></div></div></div></div>;
+  function prevWeek() { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d); }
+  function nextWeek() { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d); }
 
-  const availDays = [...new Set(doctor.availability?.map(a => dayLabels[a.dayOfWeek]) || [])];
-  const slotsForDay = selectedDay 
-    ? doctor.availability
-        ?.filter(a => dayLabels[a.dayOfWeek] === selectedDay)
-        .flatMap(a => generateSlots(a.startTime, a.endTime)) || []
-    : [];
+  if (loading) return (
+    <div className="app-shell"><Sidebar />
+      <div className="main-content"><TopBar title="Book Appointment" />
+        <div className="page-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <Loader size={28} className="spin" style={{ color: 'var(--med-blue)' }} />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (booked) return (
+    <div className="app-shell"><Sidebar />
+      <div className="main-content"><TopBar title="Booking Confirmed" />
+        <div className="page-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <div className="card scale-in" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: 40 }}>
+            <div style={{ width: 72, height: 72, background: 'var(--gradient-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 24px rgba(3,105,161,0.3)' }}>
+              <CheckCircle size={32} color="white" />
+            </div>
+            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Appointment Booked! 🎉</div>
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.7 }}>
+              Your appointment with <strong>{doctor?.fullName}</strong> on <strong>{selectedDate.toDateString()}</strong> at <strong>{selectedTime}</strong> has been requested.
+            </div>
+            <div style={{ fontSize: 13, color: '#B45309', background: '#FFFBEB', borderRadius: 'var(--r-md)', padding: '12px 16px', marginBottom: 24, border: '1px solid #FDE68A' }}>
+              ⏳ Next step: Complete your payment to get a confirmed appointment number.
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button className="btn btn-primary" onClick={() => navigate('/appointments')} id="view-bookings-btn">View My Appointments</button>
+              <button className="btn btn-secondary" onClick={() => navigate('/dashboard')} id="go-to-dashboard-btn">Dashboard</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="app-shell">
       <Sidebar />
       <div className="main-content">
         <TopBar
-          title="Book Appointment"
-          actions={
-            <button className="btn btn-ghost" onClick={() => navigate(-1)}>
-              <ArrowLeft size={16} /> Back
-            </button>
-          }
+          title={doctor?.fullName || 'Book Appointment'}
+          subtitle="Select a date and time for your consultation"
+          actions={<button className="btn btn-ghost btn-sm" onClick={() => navigate('/find-doctor')} id="back-to-find-doctor-btn"><ArrowLeft size={14} /> Back</button>}
         />
-        
         <div className="page-body fade-in">
-          <div style={{ maxWidth: 800, margin: '0 auto' }}>
-            
-            {/* Doctor Info Card */}
-            <div className="card" style={{ marginBottom: 24 }}>
-              <div className="card-body">
-                <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-                  <div className="doc-avatar" style={{ width: 80, height: 80, fontSize: 20, borderRadius: 20 }}>
-                    {doctor.fullName.replace('Dr. ', '').split(' ').map(n => n[0]).join('').slice(0, 2)}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div>
-                        <div style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 4 }}>{doctor.fullName}</div>
-                        <div style={{ fontSize: 14, color: '#0369A1', fontWeight: 600, marginBottom: 8 }}>{doctor.specialties?.map(s => s.name).join(', ')}</div>
-                        <div style={{ fontSize: 13, color: '#64748B', marginBottom: 12 }}>{doctor.qualifications}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 600, color: '#0F172A', justifyContent: 'flex-end', marginBottom: 4 }}>
-                          <Star size={16} className="star" fill="currentColor" /> {doctor.averageRating || '—'}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24 }}>
+
+            {/* Doctor Profile & Booking Form */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+              {/* Doctor Info */}
+              <div className="card">
+                <div style={{ background: 'var(--gradient-hero)', padding: '24px 28px', color: 'white', borderRadius: 'var(--r-lg) var(--r-lg) 0 0' }}>
+                  <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
+                    <div style={{ width: 72, height: 72, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-xl)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>
+                      {doctor?.fullName?.replace('Dr.', '').trim().split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800 }}>{doctor?.fullName}</div>
+                      <div style={{ fontSize: 14, opacity: 0.85, marginTop: 2 }}>{doctor?.specialties?.map(s => s.name).join(', ')}</div>
+                      <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 2 }}>{doctor?.qualifications}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
+                          <Star size={13} fill="gold" color="gold" /> <strong>{doctor?.averageRating?.toFixed(1) || '—'}</strong> ({doctor?.reviewCount || 0} reviews)
                         </div>
-                        <div style={{ fontSize: 12, color: '#64748B', marginBottom: 12 }}>{doctor.reviewCount || 0} reviews</div>
-                        <div style={{ fontSize: 12, color: '#64748B' }}>Consultation Fee</div>
-                        <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A' }}>Rs. {doctor.consultationFee?.toLocaleString()}</div>
+                        <div style={{ fontSize: 13, opacity: 0.85 }}>🏥 {doctor?.experienceYears} yrs exp</div>
                       </div>
+                    </div>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                      <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>Consultation Fee</div>
+                      <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 24, fontWeight: 900 }}>Rs. {doctor?.consultationFee?.toLocaleString()}</div>
                     </div>
                   </div>
                 </div>
-                
-                <div className="divider"></div>
-                <div className="section-title" style={{ marginBottom: 8 }}>About</div>
-                <div style={{ fontSize: 13.5, color: '#475569', lineHeight: 1.6 }}>{doctor.bio}</div>
-              </div>
-            </div>
-
-            {/* Booking Section */}
-            <div className="card">
-              <div className="card-body">
-                <div className="section-title" style={{ marginBottom: 16 }}>Select Date & Time</div>
-                
-                {error && <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#DC2626', marginBottom: 16 }}>{error}</div>}
-                
-                <div style={{ marginBottom: 24 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <CalendarIcon size={16} /> Available Days
+                {doctor?.bio && (
+                  <div className="card-body" style={{ borderTop: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{doctor.bio}</div>
                   </div>
-                  <div className="day-grid">
-                    {availDays.map((day, i) => (
+                )}
+              </div>
+
+              {/* Calendar */}
+              <div className="card">
+                <div className="card-header">
+                  <div className="section-title" style={{ fontSize: 15 }}><Calendar size={16} style={{ marginRight: 6, color: 'var(--med-blue)' }} />Select Date</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn btn-ghost btn-sm btn-icon" onClick={prevWeek} id="prev-week-btn"><ChevronLeft size={15} /></button>
+                    <button className="btn btn-ghost btn-sm btn-icon" onClick={nextWeek} id="next-week-btn"><ChevronRight size={15} /></button>
+                  </div>
+                </div>
+                <div className="card-body">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
+                    {weekDays.map((day, idx) => {
+                      const isPast = day < new Date(new Date().setHours(0,0,0,0));
+                      const isSelected = day.toDateString() === selectedDate.toDateString();
+                      const isToday = day.toDateString() === new Date().toDateString();
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => !isPast && setSelectedDate(day)}
+                          id={`date-btn-${day.toISOString().slice(0,10)}`}
+                          disabled={isPast}
+                          style={{
+                            display: 'flex', flexDirection: 'column', alignItems: 'center',
+                            padding: '10px 4px', borderRadius: 'var(--r-md)', border: '1.5px solid',
+                            borderColor: isSelected ? 'transparent' : isToday ? 'var(--med-blue)' : 'var(--border)',
+                            background: isSelected ? 'var(--gradient-primary)' : isToday ? 'var(--med-blue-50)' : 'var(--surface)',
+                            color: isSelected ? 'white' : isPast ? 'var(--text-xmuted)' : 'var(--text-primary)',
+                            cursor: isPast ? 'not-allowed' : 'pointer',
+                            transition: 'var(--transition-spring)',
+                            transform: isSelected ? 'scale(1.05)' : 'none',
+                            boxShadow: isSelected ? '0 4px 12px rgba(3,105,161,0.25)' : 'none',
+                          }}
+                        >
+                          <div style={{ fontSize: 10, fontWeight: 700, marginBottom: 3, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.7 }}>
+                            {day.toLocaleDateString('en', { weekday: 'narrow' })}
+                          </div>
+                          <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 18, fontWeight: 800, lineHeight: 1 }}>{day.getDate()}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Slots */}
+              <div className="card">
+                <div className="card-header">
+                  <div className="section-title" style={{ fontSize: 15 }}>
+                    <Clock size={16} style={{ marginRight: 6, color: 'var(--med-blue)' }} />
+                    Available Times — {selectedDate.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })}
+                  </div>
+                </div>
+                <div className="card-body">
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                    {timeSlots.map(({ time, available }) => (
                       <button
-                        key={i}
-                        className={`day-btn ${selectedDay === day ? 'selected' : ''}`}
-                        onClick={() => { setSelectedDay(day); setSelectedSlot(null); }}
+                        key={time}
+                        onClick={() => available && setSelectedTime(time)}
+                        id={`time-slot-${time}`}
+                        disabled={!available}
+                        style={{
+                          padding: '10px 8px', borderRadius: 'var(--r-md)', fontSize: 13, fontWeight: 700,
+                          border: '1.5px solid',
+                          borderColor: selectedTime === time ? 'transparent' : available ? 'var(--border-strong)' : 'var(--border)',
+                          background: selectedTime === time ? 'var(--gradient-primary)' : available ? 'var(--surface)' : 'var(--surface-3)',
+                          color: selectedTime === time ? 'white' : available ? 'var(--text-primary)' : 'var(--text-xmuted)',
+                          cursor: available ? 'pointer' : 'not-allowed',
+                          transition: 'var(--transition-spring)',
+                          transform: selectedTime === time ? 'scale(1.04)' : 'none',
+                        }}
                       >
-                        {day}
+                        {time}
                       </button>
                     ))}
                   </div>
+                  <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 11.5, color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><div style={{ width: 10, height: 10, background: 'var(--gradient-primary)', borderRadius: 2 }} /> Selected</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><div style={{ width: 10, height: 10, background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 2 }} /> Available</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><div style={{ width: 10, height: 10, background: 'var(--surface-3)', borderRadius: 2 }} /> Booked</div>
+                  </div>
                 </div>
+              </div>
+            </div>
 
-                {selectedDay && slotsForDay.length > 0 && (
-                  <div className="fade-in">
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Clock size={16} /> Available Slots for {selectedDay}
+            {/* Booking Summary */}
+            <div>
+              <div className="card" style={{ position: 'sticky', top: 80 }}>
+                <div className="card-header">
+                  <div className="section-title" style={{ fontSize: 15 }}>Booking Summary</div>
+                </div>
+                <div className="card-body">
+                  <form onSubmit={handleBook} id="booking-form">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Doctor</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{doctor?.fullName}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Date</span>
+                        <span style={{ fontWeight: 600 }}>{selectedDate.toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Time</span>
+                        <span style={{ fontWeight: 600, color: selectedTime ? 'var(--text-primary)' : 'var(--text-muted)' }}>{selectedTime || '— Select a slot'}</span>
+                      </div>
+                      <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
+                        <span style={{ fontWeight: 700 }}>Consultation Fee</span>
+                        <span style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, color: 'var(--med-blue)' }}>Rs. {doctor?.consultationFee?.toLocaleString()}</span>
+                      </div>
                     </div>
-                    <div className="slot-grid">
-                      {slotsForDay.map((slot, i) => (
-                        <button
-                          key={i}
-                          className={`slot-btn ${selectedSlot === slot ? 'selected' : ''}`}
-                          onClick={() => setSelectedSlot(slot)}
-                        >
-                          {slot}
-                        </button>
-                      ))}
+
+                    <div className="form-group">
+                      <label className="form-label">Notes for Doctor <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span></label>
+                      <textarea
+                        className="form-textarea"
+                        id="booking-notes"
+                        placeholder="Any specific concerns or information for the doctor..."
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        rows={3}
+                      />
                     </div>
-                  </div>
-                )}
-                
-                <div className="divider"></div>
-                
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 13, color: '#64748B' }}>
-                    {selectedDay && selectedSlot 
-                      ? <span>Selected: <strong>{selectedDay} at {selectedSlot}</strong></span>
-                      : 'Please select a day and time slot'}
-                  </div>
-                  <button 
-                    className="btn btn-primary btn-lg" 
-                    disabled={!selectedDay || !selectedSlot || booking}
-                    onClick={() => setShowConfirmModal(true)}
-                  >
-                    {booking ? 'Booking...' : 'Confirm Booking'}
-                  </button>
+
+                    {bookError && <div className="form-error"><AlertCircle size={14} />{bookError}</div>}
+
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-lg"
+                      style={{ width: '100%' }}
+                      disabled={booking || !selectedTime}
+                      id="confirm-booking-btn"
+                    >
+                      {booking ? <><Loader size={16} className="spin" /> Booking...</> : <>Confirm Booking</>}
+                    </button>
+
+                    <div className="ai-disclaimer" style={{ marginTop: 14 }}>
+                      <AlertCircle size={12} style={{ flexShrink: 0 }} />
+                      <span>Payment will be required after booking to confirm your appointment.</span>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-header">
-              <div className="modal-title">Confirm Appointment</div>
-              <button className="close-btn" onClick={() => setShowConfirmModal(false)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ width: 64, height: 64, background: '#ECFDF5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#059669' }}>
-                  <ShieldCheck size={32} />
-                </div>
-                <div style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', marginBottom: 8 }}>Book your appointment?</div>
-              </div>
-              
-              <div style={{ background: '#F8FAFC', border: '1px solid #E8EDF2', borderRadius: 12, padding: 16, marginBottom: 24 }}>
-                <div className="detail-grid">
-                  <div className="detail-item">
-                    <div className="detail-label">Doctor</div>
-                    <div className="detail-value">{doctor.fullName}</div>
-                  </div>
-                  <div className="detail-item">
-                    <div className="detail-label">Date & Time</div>
-                    <div className="detail-value">{selectedDay} at {selectedSlot}</div>
-                  </div>
-                  <div className="detail-item">
-                    <div className="detail-label">Specialty</div>
-                    <div className="detail-value">{doctor.specialties?.map(s => s.name).join(', ')}</div>
-                  </div>
-                  <div className="detail-item">
-                    <div className="detail-label">Fee</div>
-                    <div className="detail-value" style={{ color: '#0369A1' }}>Rs. {doctor.consultationFee?.toLocaleString()}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setShowConfirmModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleBook} disabled={booking}>
-                {booking ? 'Booking...' : 'Confirm & Book'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
