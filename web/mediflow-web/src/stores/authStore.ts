@@ -6,7 +6,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   setAuth: (data: AuthResponse) => void;
-  setUser: (user: User) => void;
+  setUser: (user: User | null) => void;
   logout: () => void;
 }
 
@@ -47,8 +47,12 @@ export const useAuthStore = create<AuthState>((set) => {
       set({ user, token: data.token, isAuthenticated: true });
     },
 
-    setUser: (user: User) => {
-      localStorage.setItem('mediflow_user', JSON.stringify(user));
+    setUser: (user: User | null) => {
+      if (user) {
+        localStorage.setItem('mediflow_user', JSON.stringify(user));
+      } else {
+        localStorage.removeItem('mediflow_user');
+      }
       set({ user });
     },
 

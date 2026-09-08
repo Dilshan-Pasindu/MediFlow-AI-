@@ -2,10 +2,10 @@ import { apiClient } from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import type { User, UserRole, AuthResponse } from '../types/auth';
 import type { ProfileForm } from '../types/profile';
-import type { Order } from '../types/order';
-import type { Prescription } from '../types/prescription';
+import type { Order, CreateOrderDto, RestockRequestDto } from '../types/order';
+import type { Prescription, CreatePrescriptionDto } from '../types/prescription';
 import type { DoctorDetail, SpecialtyInfo, RankedDoctor } from '../types/doctor';
-import type { ConsultationAppointment } from '../types/consultation';
+import type { ConsultationAppointment, ExamForm, MedicineEntry, AIDiagnosis, DiagnosisDecision, ClinicalAnalysisRequestDto } from '../types/consultation';
 
 // ─── Token & Session ──────────────────────────────────────────────────────────
 
@@ -18,21 +18,20 @@ export function setToken(t: string): void {
 }
 
 export function removeToken(): void {
-  useAuthStore.getState().logout();
+  localStorage.removeItem('mediflow_token');
 }
 
 export function getUser(): User | null {
-  const r = localStorage.getItem('mediflow_user');
-  return r ? JSON.parse(r) : null;
+  return useAuthStore.getState().user;
 }
 
-export function setUser(u: User): void {
+export function setUser(u: User | null): void {
   useAuthStore.getState().setUser(u);
 }
 
 // ─── Base Fetch Wrapper (backed by Axios client) ──────────────────────────────
 
-async function apiFetch<T = any>(
+async function apiFetch<T = unknown>(
   endpoint: string,
   options: { method?: string; body?: string; headers?: Record<string, string> } = {}
 ): Promise<T> {
@@ -87,7 +86,7 @@ export async function apiGetMyAppointments(): Promise<ConsultationAppointment[]>
   return apiFetch<ConsultationAppointment[]>('/patient/appointments');
 }
 
-export async function apiSubmitSymptoms(symptoms: any) {
+export async function apiSubmitSymptoms(symptoms: { symptoms: string; duration?: string; severity?: string } | Record<string, unknown>) {
   return apiFetch('/patients/symptoms', { method: 'POST', body: JSON.stringify(symptoms) });
 }
 
@@ -183,7 +182,7 @@ export async function apiConfirmAppointment(appointmentId: number | string, appo
   });
 }
 
-export async function apiRescheduleAppointment(id: number | string, data: any) {
+export async function apiRescheduleAppointment(id: number | string, data: { newDateTime: string; reason?: string } | Record<string, unknown>) {
   return apiFetch(`/receptionist/appointments/${id}/reschedule`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
@@ -201,7 +200,7 @@ export async function apiStartConsultation(apptId: number | string) {
   return apiFetch('/consultations', { method: 'POST', body: JSON.stringify({ appointmentId: apptId }) });
 }
 
-export async function apiUpdateConsultation(id: number | string, data: any) {
+export async function apiUpdateConsultation(id: number | string, data: Partial<ExamForm> | Record<string, unknown>) {
   return apiFetch(`/consultations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 }
 
@@ -209,18 +208,18 @@ export async function apiGetConsultation(id: number | string) {
   return apiFetch(`/consultations/${id}`);
 }
 
-export async function apiCompleteConsultation(appointmentId: number | string, diagnosis: string, prescriptionNotes: string, medicines: any[]) {
+export async function apiCompleteConsultation(appointmentId: number | string, diagnosis: string, prescriptionNotes: string, medicines: MedicineEntry[]) {
   return apiFetch(`/doctor/consultations/${appointmentId}`, {
     method: 'POST',
     body: JSON.stringify({ diagnosis, prescriptionNotes, medicines }),
   });
 }
 
-export async function apiRequestClinicalAnalysis(data: any) {
+export async function apiRequestClinicalAnalysis(data: ClinicalAnalysisRequestDto | Record<string, unknown>) {
   return apiFetch('/clinical-analysis', { method: 'POST', body: JSON.stringify(data) });
 }
 
-export async function apiSubmitDoctorDecision(diagnosisId: number | string, decision: string, modifiedDiagnosis?: any) {
+export async function apiSubmitDoctorDecision(diagnosisId: number | string, decision: DiagnosisDecision | string, modifiedDiagnosis?: string | Partial<AIDiagnosis>) {
   return apiFetch(`/diagnosis/${diagnosisId}/decision`, {
     method: 'POST',
     body: JSON.stringify({ decision, modifiedDiagnosis }),
@@ -241,7 +240,7 @@ export async function apiCheckMedicineAvailability(pharmacyId: number | string, 
   return apiFetch(`/pharmacies/${pharmacyId}/medicine-availability?medicineIds=${medicineIds.join(',')}`);
 }
 
-export async function apiGeneratePrescription(data: any) {
+export async function apiGeneratePrescription(data: CreatePrescriptionDto | Record<string, unknown>) {
   return apiFetch('/prescriptions', { method: 'POST', body: JSON.stringify(data) });
 }
 
@@ -255,7 +254,7 @@ export async function apiGetPrescriptions(): Promise<Prescription[]> {
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
-export async function apiCreateOrder(data: any) {
+export async function apiCreateOrder(data: CreateOrderDto | Record<string, unknown>) {
   return apiFetch('/orders', { method: 'POST', body: JSON.stringify(data) });
 }
 
@@ -303,7 +302,7 @@ export async function apiGenerateRestockRecommendations(pharmacyId: number | str
   return apiFetch(`/pharmacies/${pharmacyId}/generate-restock-recommendations`, { method: 'POST' });
 }
 
-export async function apiCreateRestockRequest(data: any) {
+export async function apiCreateRestockRequest(data: RestockRequestDto | Record<string, unknown>) {
   return apiFetch('/restock-requests', { method: 'POST', body: JSON.stringify(data) });
 }
 

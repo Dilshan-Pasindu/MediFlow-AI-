@@ -29,3 +29,24 @@ export interface Order {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface CreateOrderDto {
+  prescriptionId?: number;
+  pharmacyId: number;
+  items: Array<{
+    medicineId: number;
+    quantity: number;
+    unitPrice?: number;
+  }>;
+  deliveryAddress?: string;
+  notes?: string;
+}
+
+export interface RestockRequestDto {
+  pharmacyId: number;
+  medicineId: number;
+  requestedQuantity: number;
+  reason?: string;
+  urgency?: 'Low' | 'Medium' | 'High';
+}
+
