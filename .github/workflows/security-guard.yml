@@ -1,0 +1,66 @@
+name: Security & Governance Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+      - master
+      - dev
+  push:
+    branches:
+      - main
+      - master
+      - dev
+
+jobs:
+  verify-governance:
+    name: Verify CODEOWNERS & Governance Integrity
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify CODEOWNERS Integrity
+        run: |
+          echo "Checking integrity of .github/CODEOWNERS..."
+
+          if [ ! -f ".github/CODEOWNERS" ]; then
+            echo "::error::Critical governance file .github/CODEOWNERS is missing!"
+            exit 1
+          fi
+
+          if ! grep -q "\* @Dilshan-Pasindu" .github/CODEOWNERS; then
+            echo "::error::Global ownership '* @Dilshan-Pasindu' has been altered or removed!"
+            exit 1
+          fi
+
+          if ! grep -q "/\.github/CODEOWNERS @Dilshan-Pasindu" .github/CODEOWNERS; then
+            echo "::error::Specific ownership '/.github/CODEOWNERS @Dilshan-Pasindu' has been altered or removed!"
+            exit 1
+          fi
+
+          echo "CODEOWNERS integrity verified successfully."
+
+      - name: Restrict CODEOWNERS Modifications to Owner
+        if: github.event_name == 'pull_request'
+        run: |
+          # Fetch the base branch to compare changes
+          git fetch origin ${{ github.base_ref }} --depth=1
+
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          if echo "$CHANGED_FILES" | grep -E '^.github/CODEOWNERS$'; then
+            echo "Detected modifications to .github/CODEOWNERS in Pull Request #${{ github.event.pull_request.number }}."
+            echo "PR Author: ${{ github.actor }}"
+
+            if [ "${{ github.actor }}" != "Dilshan-Pasindu" ]; then
+              echo "::error::SECURITY VIOLATION: Only repository owner @Dilshan-Pasindu is permitted to modify .github/CODEOWNERS!"
+              echo "This Pull Request cannot be merged."
+              exit 1
+            else
+              echo "Modification authored by repository owner @Dilshan-Pasindu. Permitted."
+            fi
+          fi
