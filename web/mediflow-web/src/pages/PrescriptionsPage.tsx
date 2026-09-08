@@ -1,19 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Download, Eye, ChevronRight, Pill } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetMyPrescriptions } from '../services/api';
+import { useMyPrescriptions } from '../hooks';
+import type { Prescription } from '../types/prescription';
 
 export default function PrescriptionsPage() {
   const navigate = useNavigate();
-  const [prescriptions, setPrescriptions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedPrescription, setSelectedPrescription] = useState<any>(null);
-
-  useEffect(() => {
-    apiGetMyPrescriptions().then(d => setPrescriptions(d || [])).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const { data: prescriptions = [], isLoading: loading } = useMyPrescriptions();
+  const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
 
   return (
     <div className="app-shell">
