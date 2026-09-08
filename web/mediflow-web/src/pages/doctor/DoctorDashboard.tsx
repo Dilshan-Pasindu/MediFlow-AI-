@@ -14,7 +14,7 @@ const STATUS_STYLES = {
 export default function DoctorDashboard() {
   const navigate = useNavigate();
   const user = getUser();
-  const [appointments, setAppointments] = useState([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('today');
 
