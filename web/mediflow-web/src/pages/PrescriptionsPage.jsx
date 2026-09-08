@@ -1,85 +1,126 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, ArrowRight } from 'lucide-react';
+import { FileText, Download, Eye, ChevronRight, Pill } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { appointments } from '../data/mockData';
+import { apiGetMyPrescriptions } from '../services/api';
 
 export default function PrescriptionsPage() {
   const navigate = useNavigate();
-  const rxAppointments = appointments.filter(a => a.prescription);
+  const [prescriptions, setPrescriptions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedPrescription, setSelectedPrescription] = useState(null);
+
+  useEffect(() => {
+    apiGetMyPrescriptions().then(d => setPrescriptions(d || [])).catch(() => {}).finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="app-shell">
       <Sidebar />
       <div className="main-content">
-        <TopBar
-          title="My Prescriptions"
-          subtitle="View and order your digital e-prescriptions"
-        />
-        
+        <TopBar title="My Prescriptions" subtitle="View and download your e-prescriptions from doctors" />
         <div className="page-body fade-in">
-          
-          {rxAppointments.length === 0 ? (
+
+          {loading ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 120, borderRadius: 'var(--r-xl)' }} />)}
+            </div>
+          ) : prescriptions.length === 0 ? (
             <div className="empty-state card">
-              <div className="empty-icon">📋</div>
-              <div className="empty-title">No prescriptions found</div>
-              <div className="empty-sub">You don't have any digital prescriptions yet.</div>
+              <div className="empty-icon">💊</div>
+              <div className="empty-title">No prescriptions yet</div>
+              <div className="empty-sub">Your e-prescriptions from doctors will appear here after a consultation.</div>
+              <button className="btn btn-primary" onClick={() => navigate('/find-doctor')} id="book-for-rx-btn">
+                Book a Consultation
+              </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 20 }}>
-              {rxAppointments.map(appt => {
-                const rx = appt.prescription;
-                return (
-                  <div key={rx.id} className="card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                    <div className="card-body" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                          <div style={{ width: 44, height: 44, background: 'linear-gradient(135deg, #F0FDFA, #E0F2FE)', border: '1px solid #CCFBF1', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-                            💊
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', fontFamily: 'monospace' }}>{rx.id}</div>
-                            <div style={{ fontSize: 12, color: '#64748B' }}>{rx.issuedDate}</div>
-                          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: selectedPrescription ? '1fr 400px' : '1fr', gap: 24 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {prescriptions.map(rx => (
+                  <div key={rx.id} className="rx-card" style={{ cursor: 'pointer' }} onClick={() => setSelectedPrescription(rx)} id={`rx-card-${rx.id}`}>
+                    <div className="rx-header">
+                      <div>
+                        <div className="rx-id">Rx #{rx.id}</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{rx.appointmentNumber}</div>
+                      </div>
+                      <span className={`badge ${rx.status === 'Active' ? 'badge-green' : rx.status === 'Fulfilled' ? 'badge-blue' : 'badge-gray'}`}>
+                        {rx.status}
+                      </span>
+                    </div>
+                    <div className="rx-body">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>Dr. {rx.doctorName}</div>
+                          <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>Issued: {new Date(rx.dateIssued).toLocaleDateString('en', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <span className="badge badge-teal"><Pill size={10} /> {rx.items?.length || 1} medicines</span>
+                          <ChevronRight size={16} color="var(--text-muted)" />
                         </div>
                       </div>
-                      
-                      <div style={{ marginBottom: 16 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>{appt.doctorName}</div>
-                        <div style={{ fontSize: 12, color: '#0369A1' }}>{appt.specialty}</div>
-                      </div>
-
-                      <div style={{ background: '#F8FAFC', borderRadius: 8, padding: 12, marginBottom: 16, border: '1px solid #E8EDF2', flex: 1 }}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: '#64748B', textTransform: 'uppercase', marginBottom: 8 }}>Medicines ({rx.medicines.length})</div>
-                        <ul style={{ paddingLeft: 16, fontSize: 13, color: '#475569', margin: 0 }}>
-                          {rx.medicines.slice(0, 2).map((m, i) => (
-                            <li key={i} style={{ marginBottom: 4 }}><strong style={{ color: '#0F172A' }}>{m.name}</strong> - {m.quantity}</li>
+                      {rx.items && rx.items.length > 0 && (
+                        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {rx.items.slice(0, 3).map((item, i) => (
+                            <span key={i} className="pill">{item.medicineName}</span>
                           ))}
-                          {rx.medicines.length > 2 && (
-                            <li style={{ listStyle: 'none', marginLeft: -16, marginTop: 4, color: '#94A3B8', fontSize: 12 }}>+ {rx.medicines.length - 2} more...</li>
-                          )}
-                        </ul>
-                      </div>
-                      
-                      <div style={{ display: 'flex', gap: 10 }}>
-                        <button 
-                          className="btn btn-ghost" 
-                          style={{ flex: 1 }}
-                          onClick={() => navigate(`/appointments/${appt.id}`)}
-                        >
-                          View Details
-                        </button>
-                        <button className="btn btn-teal" style={{ flex: 1 }}>
-                          Order Now
-                        </button>
-                      </div>
+                          {rx.items.length > 3 && <span className="pill" style={{ color: 'var(--med-blue)' }}>+{rx.items.length - 3} more</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
+
+              {/* Detail Panel */}
+              {selectedPrescription && (
+                <div className="card scale-in" style={{ position: 'sticky', top: 80, height: 'fit-content' }}>
+                  <div className="card-header">
+                    <div>
+                      <div className="rx-id">Rx #{selectedPrescription.id}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selectedPrescription.appointmentNumber}</div>
+                    </div>
+                    <button className="close-btn" onClick={() => setSelectedPrescription(null)} id="close-rx-panel-btn">✕</button>
+                  </div>
+                  <div className="card-body">
+                    <div style={{ marginBottom: 16 }}>
+                      <div className="info-row"><span className="info-row-label">Doctor:</span>{selectedPrescription.doctorName}</div>
+                      <div className="info-row"><span className="info-row-label">Date Issued:</span>{new Date(selectedPrescription.dateIssued).toLocaleDateString()}</div>
+                      <div className="info-row"><span className="info-row-label">Status:</span><span className={`badge ${selectedPrescription.status === 'Active' ? 'badge-green' : 'badge-gray'}`}>{selectedPrescription.status}</span></div>
+                    </div>
+
+                    <div className="section-title" style={{ fontSize: 14, marginBottom: 12 }}>Prescribed Medicines</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {(selectedPrescription.items || []).map((item, i) => (
+                        <div key={i} className="rx-medicine-item">
+                          <div>
+                            <div className="rx-med-name">{item.medicineName}</div>
+                            <div className="rx-med-dosage">{item.dosage} — {item.frequency} — {item.duration}</div>
+                          </div>
+                          <div className="rx-med-qty">×{item.quantity}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {selectedPrescription.instructions && (
+                      <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--warning-bg)', borderRadius: 'var(--r-md)', border: '1px solid var(--warning-border)' }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#B45309', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.4 }}>Special Instructions</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{selectedPrescription.instructions}</div>
+                      </div>
+                    )}
+
+                    <button className="btn btn-primary" style={{ width: '100%', marginTop: 18 }} id="download-rx-btn">
+                      <Download size={15} /> Download Prescription
+                    </button>
+                    <button className="btn btn-teal" style={{ width: '100%', marginTop: 8 }} onClick={() => navigate('/orders')} id="order-medicines-btn">
+                      <Pill size={15} /> Order Medicines
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
-
         </div>
       </div>
     </div>
