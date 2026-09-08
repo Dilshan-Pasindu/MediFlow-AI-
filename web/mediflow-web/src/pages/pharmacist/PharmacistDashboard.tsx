@@ -1,11 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { CheckCircle, Loader, RefreshCw, AlertCircle, Pill } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
-import { apiGetPharmacistPrescriptions, apiGetPharmacistOrders, apiUpdateOrderStatus, getUser } from '../../services/api';
+import { apiUpdateOrderStatus, getUser } from '../../services/api';
+import { usePharmacistPrescriptions, usePharmacistOrders } from '../../hooks';
+import { useQueryClient } from '@tanstack/react-query';
+import type { Prescription } from '../../types/prescription';
+import type { Order } from '../../types/order';
 
 const ORDER_STATUS_FLOW = ['Confirmed', 'Preparing', 'Ready', 'Dispensed'];
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<string, { color: string; bg: string }> = {
   Pending:   { color: '#B45309', bg: '#FFFBEB' },
   Confirmed: { color: '#0369A1', bg: '#EFF6FF' },
   Preparing: { color: '#7C3AED', bg: '#EEF2FF' },
@@ -15,23 +19,17 @@ const STATUS_STYLES = {
 
 export default function PharmacistDashboard() {
   const user = getUser();
-  const [prescriptions, setPrescriptions] = useState<any[]>([]);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<Record<string | number, any>>({});
+  const queryClient = useQueryClient();
+  const { data: prescriptions = [], isLoading: rxLoading } = usePharmacistPrescriptions();
+  const { data: orders = [], isLoading: ordLoading, refetch: refetchOrders } = usePharmacistOrders();
+  const loading = rxLoading || ordLoading;
+  const [actionLoading, setActionLoading] = useState<Record<string | number, string | null>>({});
   const [activeTab, setActiveTab] = useState('orders');
-  const [messages, setMessages] = useState<Record<string | number, any>>({});
+  const [messages, setMessages] = useState<Record<string | number, { type: string; text: string } | null>>({});
 
   const load = () => {
-    setLoading(true);
-    Promise.allSettled([apiGetPharmacistPrescriptions(), apiGetPharmacistOrders()])
-      .then(([rx, ord]) => {
-        setPrescriptions(rx.status === 'fulfilled' ? (rx.value || []) : []);
-        setOrders(ord.status === 'fulfilled' ? (ord.value || []) : []);
-      }).finally(() => setLoading(false));
+    queryClient.invalidateQueries({ queryKey: ['pharmacist'] });
   };
-
-  useEffect(() => { load(); }, []);
 
   async function handleStatusUpdate(orderId: number | string, newStatus: string) {
     setActionLoading(a => ({ ...a, [orderId]: newStatus }));
@@ -107,7 +105,7 @@ export default function PharmacistDashboard() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {activeOrders.map(order => {
-                  const st = (STATUS_STYLES as any)[order.status] || STATUS_STYLES.Pending;
+                  const st = STATUS_STYLES[order.status] || STATUS_STYLES.Pending;
                   const nextStatusIdx = ORDER_STATUS_FLOW.indexOf(order.status) + 1;
                   const nextStatus = ORDER_STATUS_FLOW[nextStatusIdx];
                   const isLoading = actionLoading[order.id];

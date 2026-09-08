@@ -14,7 +14,7 @@ const SPECIALTY_ICONS = {
 export default function FindDoctorPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeSpecialty, setActiveSpecialty] = useState<string | null>(null);
+  const [activeSpecialty, setActiveSpecialty] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState('rating');
 
   const { data: specialties = [] } = useSpecialties();

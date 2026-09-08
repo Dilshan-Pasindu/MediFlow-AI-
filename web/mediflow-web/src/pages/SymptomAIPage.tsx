@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Brain, Sparkles, Send, ArrowRight, CheckCircle, AlertCircle, Loader, ChevronRight, Star, Clock, MapPin } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetRankedDoctors, apiGetSpecialties } from '../services/api';
+import { apiGetRankedDoctors } from '../services/api';
+import { useSpecialties } from '../hooks';
+import type { AIRecommendation } from '../types/consultation';
+import type { RankedDoctor, SpecialtyInfo } from '../types/doctor';
 
 // Mock AI recommendation (will be replaced by real AI API call)
-async function mockAIRecommendation(symptoms: string) {
+async function mockAIRecommendation(symptoms: string): Promise<AIRecommendation> {
   await new Promise(r => setTimeout(r, 2200));
   const lower = symptoms.toLowerCase();
   if (lower.includes('stomach') || lower.includes('gastric') || lower.includes('acid') || lower.includes('bloat')) {
@@ -29,14 +32,10 @@ export default function SymptomAIPage() {
   const [symptoms, setSymptoms] = useState('');
   const [severity, setSeverity] = useState(5);
   const [duration, setDuration] = useState('');
-  const [step, setStep] = useState('input'); // input | analyzing | result
-  const [recommendation, setRecommendation] = useState<any>(null);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [specialties, setSpecialties] = useState<any[]>([]);
-
-  useEffect(() => {
-    apiGetSpecialties().then(s => setSpecialties(s || [])).catch(() => {});
-  }, []);
+  const [step, setStep] = useState<'input' | 'analyzing' | 'result'>('input');
+  const [recommendation, setRecommendation] = useState<AIRecommendation | null>(null);
+  const [doctors, setDoctors] = useState<RankedDoctor[]>([]);
+  const { data: specialties = [] } = useSpecialties();
 
   async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
@@ -47,9 +46,9 @@ export default function SymptomAIPage() {
       setRecommendation(rec);
 
       // Try to get ranked doctors for the specialty
-      const matchedSpec = specialties.find((s: any) => s.name.toLowerCase().includes(rec.specialty.toLowerCase()));
+      const matchedSpec = specialties.find((s: SpecialtyInfo) => s.name.toLowerCase().includes(rec.specialty.toLowerCase()));
       if (matchedSpec) {
-        const ranked = await apiGetRankedDoctors(matchedSpec.id).catch(() => []);
+        const ranked = await apiGetRankedDoctors(matchedSpec.id).catch(() => [] as RankedDoctor[]);
         setDoctors(ranked || []);
       }
       setStep('result');

@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Package, CheckCircle, Clock, Truck, AlertCircle, Star } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetMyOrders } from '../services/api';
+import { useMyOrders } from '../hooks';
+import type { Order, OrderStatus } from '../types/order';
 
 const ORDER_STEPS = ['Pending', 'Confirmed', 'Preparing', 'Ready', 'Dispensed'];
 const STEP_ICONS = { Pending: '🕐', Confirmed: '✅', Preparing: '⚗️', Ready: '📦', Dispensed: '✨' };
 
-const STATUS_STYLES = {
+const STATUS_STYLES: Record<string, { color: string; bg: string; label: string }> = {
   Pending:   { color: '#B45309', bg: '#FFFBEB', label: 'Pending' },
   Confirmed: { color: '#0369A1', bg: '#EFF6FF', label: 'Confirmed' },
   Preparing: { color: '#7C3AED', bg: '#EEF2FF', label: 'Preparing' },
@@ -19,13 +20,8 @@ const STATUS_STYLES = {
 
 export default function OrdersPage() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
-
-  useEffect(() => {
-    apiGetMyOrders().then(d => setOrders(d || [])).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+  const { data: orders = [], isLoading: loading } = useMyOrders();
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   const activeOrders = orders.filter(o => !['Dispensed','Cancelled'].includes(o.status));
   const completedOrders = orders.filter(o => ['Dispensed'].includes(o.status));
@@ -148,8 +144,8 @@ export default function OrdersPage() {
   );
 }
 
-function OrderCard({ order, onSelect, selected }: { order: any; onSelect: () => void; selected: boolean }) {
-  const st = (STATUS_STYLES as any)[order.status] || STATUS_STYLES.Pending;
+function OrderCard({ order, onSelect, selected }: { order: Order; onSelect: () => void; selected: boolean }) {
+  const st = STATUS_STYLES[order.status] || STATUS_STYLES.Pending;
   return (
     <div
       className="card"
