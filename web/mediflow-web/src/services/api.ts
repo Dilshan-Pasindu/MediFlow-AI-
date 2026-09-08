@@ -1,6 +1,11 @@
 import { apiClient } from '../api/client';
 import { useAuthStore } from '../stores/authStore';
-import type { User, UserRole } from '../types/auth';
+import type { User, UserRole, AuthResponse } from '../types/auth';
+import type { ProfileForm } from '../types/profile';
+import type { Order } from '../types/order';
+import type { Prescription } from '../types/prescription';
+import type { DoctorDetail, SpecialtyInfo, RankedDoctor } from '../types/doctor';
+import type { ConsultationAppointment } from '../types/consultation';
 
 // ─── Token & Session ──────────────────────────────────────────────────────────
 
@@ -47,7 +52,7 @@ async function apiFetch<T = any>(
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function apiLogin(email: string, password: string) {
-  const data = await apiFetch<any>('/auth/login', {
+  const data = await apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
@@ -56,7 +61,7 @@ export async function apiLogin(email: string, password: string) {
 }
 
 export async function apiRegister(fullName: string, email: string, password: string, phoneNumber: string, role: UserRole = 'Patient') {
-  const data = await apiFetch<any>('/auth/register', {
+  const data = await apiFetch<AuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ fullName, email, password, phoneNumber, role }),
   });
@@ -70,28 +75,28 @@ export function apiLogout() {
 
 // ─── Patient ──────────────────────────────────────────────────────────────────
 
-export async function apiGetProfile() {
-  return apiFetch('/patient/profile');
+export async function apiGetProfile(): Promise<ProfileForm> {
+  return apiFetch<ProfileForm>('/patient/profile');
 }
 
-export async function apiUpdateProfile(data: any) {
-  return apiFetch('/patient/profile', { method: 'PUT', body: JSON.stringify(data) });
+export async function apiUpdateProfile(data: ProfileForm): Promise<ProfileForm> {
+  return apiFetch<ProfileForm>('/patient/profile', { method: 'PUT', body: JSON.stringify(data) });
 }
 
-export async function apiGetMyAppointments() {
-  return apiFetch('/patient/appointments');
+export async function apiGetMyAppointments(): Promise<ConsultationAppointment[]> {
+  return apiFetch<ConsultationAppointment[]>('/patient/appointments');
 }
 
 export async function apiSubmitSymptoms(symptoms: any) {
   return apiFetch('/patients/symptoms', { method: 'POST', body: JSON.stringify(symptoms) });
 }
 
-export async function apiGetMyPrescriptions() {
-  return apiFetch('/prescriptions/my');
+export async function apiGetMyPrescriptions(): Promise<Prescription[]> {
+  return apiFetch<Prescription[]>('/prescriptions/my');
 }
 
-export async function apiGetMyOrders() {
-  return apiFetch('/orders/my');
+export async function apiGetMyOrders(): Promise<Order[]> {
+  return apiFetch<Order[]>('/orders/my');
 }
 
 export async function apiRateDoctor(id: number | string, rating: number, comment?: string) {
@@ -104,45 +109,45 @@ export async function apiRatePharmacy(id: number | string, rating: number, comme
 
 // ─── Doctors ──────────────────────────────────────────────────────────────────
 
-export async function apiGetDoctors(specialtyId?: number | string, search?: string) {
+export async function apiGetDoctors(specialtyId?: number | string, search?: string): Promise<DoctorDetail[]> {
   const params = new URLSearchParams();
   if (specialtyId) params.append('specialtyId', specialtyId.toString());
   if (search) params.append('search', search);
   const qs = params.toString();
-  return apiFetch(`/doctors${qs ? `?${qs}` : ''}`);
+  return apiFetch<DoctorDetail[]>(`/doctors${qs ? `?${qs}` : ''}`);
 }
 
-export async function apiGetDoctor(id: number | string) {
-  return apiFetch(`/doctors/${id}`);
+export async function apiGetDoctor(id: number | string): Promise<DoctorDetail> {
+  return apiFetch<DoctorDetail>(`/doctors/${id}`);
 }
 
-export async function apiGetDoctorById(id: number | string) {
+export async function apiGetDoctorById(id: number | string): Promise<DoctorDetail> {
   return apiGetDoctor(id);
 }
 
-export async function apiGetSpecialties() {
-  return apiFetch('/doctors/specialties');
+export async function apiGetSpecialties(): Promise<SpecialtyInfo[]> {
+  return apiFetch<SpecialtyInfo[]>('/doctors/specialties');
 }
 
 export async function apiGetDoctorAvailability(id: number | string) {
   return apiFetch(`/doctors/${id}/availability`);
 }
 
-export async function apiGetRankedDoctors(specialtyId?: number | string) {
-  return apiFetch(`/doctors/ranked?specialty=${specialtyId || ''}`);
+export async function apiGetRankedDoctors(specialtyId?: number | string): Promise<RankedDoctor[]> {
+  return apiFetch<RankedDoctor[]>(`/doctors/ranked?specialty=${specialtyId || ''}`);
 }
 
 // ─── Appointments ─────────────────────────────────────────────────────────────
 
-export async function apiBookAppointment(doctorId: number | string, dateTime: string, notes?: string) {
-  return apiFetch('/appointments', { method: 'POST', body: JSON.stringify({ doctorId, dateTime, notes }) });
+export async function apiBookAppointment(doctorId: number | string, dateTime: string, notes?: string): Promise<ConsultationAppointment> {
+  return apiFetch<ConsultationAppointment>('/appointments', { method: 'POST', body: JSON.stringify({ doctorId, dateTime, notes }) });
 }
 
-export async function apiGetAppointment(id: number | string) {
-  return apiFetch(`/appointments/${id}`);
+export async function apiGetAppointment(id: number | string): Promise<ConsultationAppointment> {
+  return apiFetch<ConsultationAppointment>(`/appointments/${id}`);
 }
 
-export async function apiGetAppointmentById(id: number | string) {
+export async function apiGetAppointmentById(id: number | string): Promise<ConsultationAppointment> {
   return apiGetAppointment(id);
 }
 
@@ -159,8 +164,8 @@ export async function apiSubmitPayment(appointmentId: number | string, amount: n
 
 // ─── Receptionist ─────────────────────────────────────────────────────────────
 
-export async function apiGetPendingAppointments() {
-  return apiFetch('/receptionist/appointments');
+export async function apiGetPendingAppointments(): Promise<ConsultationAppointment[]> {
+  return apiFetch<ConsultationAppointment[]>('/receptionist/appointments');
 }
 
 export async function apiVerifyPayment(id: number | string) {
@@ -188,8 +193,8 @@ export async function apiCancelAppointment(id: number | string, reason: string) 
 
 // ─── Doctor Clinical ──────────────────────────────────────────────────────────
 
-export async function apiGetDoctorAppointments() {
-  return apiFetch('/doctors/appointments');
+export async function apiGetDoctorAppointments(): Promise<ConsultationAppointment[]> {
+  return apiFetch<ConsultationAppointment[]>('/doctors/appointments');
 }
 
 export async function apiStartConsultation(apptId: number | string) {
@@ -240,12 +245,12 @@ export async function apiGeneratePrescription(data: any) {
   return apiFetch('/prescriptions', { method: 'POST', body: JSON.stringify(data) });
 }
 
-export async function apiGetPrescription(id: number | string) {
-  return apiFetch(`/prescriptions/${id}`);
+export async function apiGetPrescription(id: number | string): Promise<Prescription> {
+  return apiFetch<Prescription>(`/prescriptions/${id}`);
 }
 
-export async function apiGetPrescriptions() {
-  return apiFetch('/pharmacist/prescriptions');
+export async function apiGetPrescriptions(): Promise<Prescription[]> {
+  return apiFetch<Prescription[]>('/pharmacist/prescriptions');
 }
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
@@ -254,8 +259,8 @@ export async function apiCreateOrder(data: any) {
   return apiFetch('/orders', { method: 'POST', body: JSON.stringify(data) });
 }
 
-export async function apiGetOrder(id: number | string) {
-  return apiFetch(`/orders/${id}`);
+export async function apiGetOrder(id: number | string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${id}`);
 }
 
 export async function apiPayOrder(id: number | string) {
@@ -272,12 +277,12 @@ export async function apiCalculateOrderPrice(id: number | string, pharmacyId: nu
 
 // ─── Pharmacist ───────────────────────────────────────────────────────────────
 
-export async function apiGetPharmacistPrescriptions() {
-  return apiFetch('/pharmacist/prescriptions');
+export async function apiGetPharmacistPrescriptions(): Promise<Prescription[]> {
+  return apiFetch<Prescription[]>('/pharmacist/prescriptions');
 }
 
-export async function apiGetPharmacistOrders() {
-  return apiFetch('/pharmacist/orders');
+export async function apiGetPharmacistOrders(): Promise<Order[]> {
+  return apiFetch<Order[]>('/pharmacist/orders');
 }
 
 // ─── Pharmacy Inventory ───────────────────────────────────────────────────────
