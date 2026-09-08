@@ -2,8 +2,8 @@
 # MediFlow AI — Code Ownership & Access Control
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Global code ownership: Dilshan-Pasindu is the primary reviewer for the repository
-* @Dilshan-Pasindu
+# Global code ownership: Dilshan-Pasindu and Thumula99 are authorized reviewers
+* @Dilshan-Pasindu @Thumula99
 
 # Critical CI/CD and Governance files — strictly locked to repository owner
 /.github/CODEOWNERS @Dilshan-Pasindu

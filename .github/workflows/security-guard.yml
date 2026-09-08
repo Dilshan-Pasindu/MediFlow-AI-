@@ -14,7 +14,7 @@ on:
 
 jobs:
   verify-governance:
-    name: Verify CODEOWNERS & Governance Integrity
+    name: Verify Governance & Merge Authority
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +33,7 @@ jobs:
           fi
 
           if ! grep -q "\* @Dilshan-Pasindu" .github/CODEOWNERS; then
-            echo "::error::Global ownership '* @Dilshan-Pasindu' has been altered or removed!"
+            echo "::error::Primary ownership '* @Dilshan-Pasindu' has been altered or removed!"
             exit 1
           fi
 
@@ -44,21 +44,24 @@ jobs:
 
           echo "CODEOWNERS integrity verified successfully."
 
-      - name: Restrict CODEOWNERS Modifications to Owner
+      - name: Guard PR Merge Authority on Main
+        if: github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'master')
+        run: |
+          echo "Evaluating Pull Request #${{ github.event.pull_request.number }} targeting protected branch '${{ github.base_ref }}'..."
+          echo "PR Actor: ${{ github.actor }}"
+          echo "NOTE: Merging into main is exclusively authorized for repository owner @Dilshan-Pasindu."
+
+      - name: Restrict CODEOWNERS Modifications
         if: github.event_name == 'pull_request'
         run: |
-          # Fetch the base branch to compare changes
           git fetch origin ${{ github.base_ref }} --depth=1
-
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
 
           if echo "$CHANGED_FILES" | grep -E '^.github/CODEOWNERS$'; then
             echo "Detected modifications to .github/CODEOWNERS in Pull Request #${{ github.event.pull_request.number }}."
-            echo "PR Author: ${{ github.actor }}"
 
             if [ "${{ github.actor }}" != "Dilshan-Pasindu" ]; then
               echo "::error::SECURITY VIOLATION: Only repository owner @Dilshan-Pasindu is permitted to modify .github/CODEOWNERS!"
-              echo "This Pull Request cannot be merged."
               exit 1
             else
               echo "Modification authored by repository owner @Dilshan-Pasindu. Permitted."
