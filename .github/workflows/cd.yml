@@ -28,8 +28,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  BACKEND_IMAGE_NAME: ${{ github.repository }}/backend
-  FRONTEND_IMAGE_NAME: ${{ github.repository }}/web
 
 permissions:
   contents: read
@@ -52,6 +50,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Prepare Sanitized Docker Image Reference
+        id: prep
+        run: |
+          # Lowercase and strip trailing hyphens/underscores (OCI naming standard)
+          CLEAN_REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | sed 's/[-_]*$//')
+          echo "image=${{ env.REGISTRY }}/${CLEAN_REPO}/backend" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -66,7 +71,7 @@ jobs:
         id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          images: ${{ steps.prep.outputs.image }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short,prefix=sha-
@@ -74,7 +79,7 @@ jobs:
             type=ref,event=tag
 
       - name: Build and Push Backend Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: backend/Dockerfile
@@ -96,6 +101,13 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Prepare Sanitized Docker Image Reference
+        id: prep
+        run: |
+          # Lowercase and strip trailing hyphens/underscores (OCI naming standard)
+          CLEAN_REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | sed 's/[-_]*$//')
+          echo "image=${{ env.REGISTRY }}/${CLEAN_REPO}/web" >> $GITHUB_OUTPUT
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -110,7 +122,7 @@ jobs:
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+          images: ${{ steps.prep.outputs.image }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,format=short,prefix=sha-
@@ -118,7 +130,7 @@ jobs:
             type=ref,event=tag
 
       - name: Build and Push Frontend Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./web/mediflow-web
           file: ./web/mediflow-web/Dockerfile
@@ -135,14 +147,18 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [build-and-push-backend, build-and-push-frontend]
-    if: ${{ always() && !contains(needs.*.result, 'failure') && (github.event_name == 'push' || inputs.environment == 'staging') }}
-    environment:
-      name: staging
-      url: https://staging.mediflow.ai
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && (github.event_name == 'push' || inputs.environment == 'staging') }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Prepare Sanitized Image References
+        id: prep
+        run: |
+          CLEAN_REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | sed 's/[-_]*$//')
+          echo "backend_image=${{ env.REGISTRY }}/${CLEAN_REPO}/backend" >> $GITHUB_OUTPUT
+          echo "frontend_image=${{ env.REGISTRY }}/${CLEAN_REPO}/web" >> $GITHUB_OUTPUT
 
       - name: Verify Staging Deployment Artifacts
         run: |
@@ -150,8 +166,8 @@ jobs:
           echo " Deploying MediFlow AI to STAGING Environment"
           echo " Commit SHA: ${{ github.sha }}"
           echo " Triggered by: ${{ github.actor }}"
-          echo " Target Backend Image: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:sha-${{ github.sha }}"
-          echo " Target Frontend Image: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:sha-${{ github.sha }}"
+          echo " Target Backend Image: ${{ steps.prep.outputs.backend_image }}:sha-${{ github.sha }}"
+          echo " Target Frontend Image: ${{ steps.prep.outputs.frontend_image }}:sha-${{ github.sha }}"
           echo "=========================================================="
 
       - name: Run Smoke Tests & Health Check (Staging)
@@ -167,21 +183,26 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.environment == 'production' }}
-    environment:
-      name: production
-      url: https://app.mediflow.ai
+    needs: [build-and-push-backend, build-and-push-frontend]
+    if: ${{ always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') && github.event_name == 'workflow_dispatch' && inputs.environment == 'production' }}
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Prepare Sanitized Image References
+        id: prep
+        run: |
+          CLEAN_REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]' | sed 's/[-_]*$//')
+          echo "backend_image=${{ env.REGISTRY }}/${CLEAN_REPO}/backend" >> $GITHUB_OUTPUT
+          echo "frontend_image=${{ env.REGISTRY }}/${CLEAN_REPO}/web" >> $GITHUB_OUTPUT
+
       - name: Execute Production Deployment
         run: |
           echo "=========================================================="
           echo " Deploying MediFlow AI to PRODUCTION Environment"
-          echo " Verified from Staging Run"
           echo " Release Version: ${{ github.ref_name }}"
           echo " Commit SHA: ${{ github.sha }}"
+          echo " Target Backend Image: ${{ steps.prep.outputs.backend_image }}:sha-${{ github.sha }}"
+          echo " Target Frontend Image: ${{ steps.prep.outputs.frontend_image }}:sha-${{ github.sha }}"
           echo "=========================================================="
