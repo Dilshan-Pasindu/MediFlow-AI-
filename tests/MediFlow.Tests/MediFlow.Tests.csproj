@@ -26,6 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\backend\MediFlow.Api\MediFlow.Api.csproj" />
+    <ProjectReference Include="../../backend/MediFlow.Api/MediFlow.Api.csproj" />
   </ItemGroup>
 </Project>

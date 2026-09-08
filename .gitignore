@@ -4,6 +4,7 @@ obj/
 *.user
 *.suo
 .vs/
+TestResults/
 appsettings.Development.json
 
 # Flutter
