@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Star, Filter, ChevronDown, SlidersHorizontal, MapPin, Clock, ArrowRight, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetDoctors, apiGetSpecialties } from '../services/api';
+import { useDoctors, useSpecialties } from '../hooks';
 
 const SPECIALTY_ICONS = {
   'Cardiology': '❤️', 'Neurology': '🧠', 'Dermatology': '🩹', 'Gastroenterology': '🫁',
@@ -14,24 +14,11 @@ const SPECIALTY_ICONS = {
 export default function FindDoctorPage() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeSpecialty, setActiveSpecialty] = useState<any>(null);
-  const [doctors, setDoctors] = useState<any[]>([]);
-  const [specialties, setSpecialties] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activeSpecialty, setActiveSpecialty] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState('rating');
 
-  useEffect(() => { loadSpecialties(); }, []);
-  useEffect(() => { loadDoctors(); }, [activeSpecialty, searchTerm]);
-
-  async function loadSpecialties() {
-    try { setSpecialties(await apiGetSpecialties() || []); } catch {}
-  }
-
-  async function loadDoctors() {
-    setLoading(true);
-    try { setDoctors(await apiGetDoctors(activeSpecialty, searchTerm || undefined) || []); } catch {}
-    finally { setLoading(false); }
-  }
+  const { data: specialties = [] } = useSpecialties();
+  const { data: doctors = [], isLoading: loading } = useDoctors(activeSpecialty || undefined, searchTerm || undefined);
 
   const sortedDoctors = [...doctors].sort((a, b) => {
     if (sortBy === 'rating') return (b.averageRating || 0) - (a.averageRating || 0);
