@@ -20,21 +20,21 @@ export default function ProfilePage() {
     }).finally(() => setLoading(false));
   }, []);
 
-  const set = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
+  const set = (key: string) => (e: any) => setForm(f => ({ ...f, [key]: e.target.value }));
 
-  async function handleSave(e) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true); setError(''); setSuccess(false);
     try {
       await apiUpdateProfile(form);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to update profile.');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update profile.');
     } finally { setSaving(false); }
   }
 
-  const initials = form.fullName.split(' ').map(n => n[0]).join('').slice(0, 2) || '?';
+  const initials = form.fullName ? form.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2) : '?';
 
   return (
     <div className="app-shell">

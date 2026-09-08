@@ -106,15 +106,15 @@ export default function AdminDashboard() {
                     <tr key={u.id} id={`user-row-${u.id}`}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 32, height: 32, background: ROLE_COLORS[u.role] || 'var(--gradient-primary)', borderRadius: 'var(--r-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 700 }}>
-                            {u.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                          <div style={{ width: 32, height: 32, background: (ROLE_COLORS as any)[u.role] || 'var(--gradient-primary)', borderRadius: 'var(--r-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: 11, fontWeight: 700 }}>
+                            {u.name ? u.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'U'}
                           </div>
                           <span style={{ fontWeight: 600 }}>{u.name}</span>
                         </div>
                       </td>
                       <td style={{ color: 'var(--text-muted)' }}>{u.email}</td>
                       <td>
-                        <span className="badge" style={{ background: (ROLE_COLORS[u.role] || '#0369A1') + '20', color: ROLE_COLORS[u.role] || '#0369A1' }}>
+                        <span className="badge" style={{ background: ((ROLE_COLORS as any)[u.role] || '#0369A1') + '20', color: (ROLE_COLORS as any)[u.role] || '#0369A1' }}>
                           {u.role}
                         </span>
                       </td>
