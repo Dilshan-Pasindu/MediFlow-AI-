@@ -15,6 +15,7 @@ public class Patient
     public string? Gender { get; set; }
     public string? Address { get; set; }
     public string? BloodGroup { get; set; }
+    public string? Allergies { get; set; }   // Known drug/food allergies
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

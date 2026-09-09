@@ -8,5 +8,6 @@ public record UpdatePatientRequest(
     DateOnly? DateOfBirth = null,
     string? Gender = null,
     string? Address = null,
-    string? BloodGroup = null
+    string? BloodGroup = null,
+    string? Allergies = null
 );
