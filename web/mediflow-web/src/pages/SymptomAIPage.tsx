@@ -1,31 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Brain, Sparkles, Send, ArrowRight, CheckCircle, AlertCircle, Loader, ChevronRight, Star, Clock, MapPin } from 'lucide-react';
+import { Brain, Sparkles, Send, ArrowRight, CheckCircle, AlertCircle, Loader, Star } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetRankedDoctors } from '../services/api';
+import { apiSubmitSymptoms, apiGetRankedDoctors } from '../services/api';
 import { useSpecialties } from '../hooks';
 import type { AIRecommendation } from '../types/consultation';
 import type { RankedDoctor, SpecialtyInfo } from '../types/doctor';
-
-// Mock AI recommendation (will be replaced by real AI API call)
-async function mockAIRecommendation(symptoms: string): Promise<AIRecommendation> {
-  await new Promise(r => setTimeout(r, 2200));
-  const lower = symptoms.toLowerCase();
-  if (lower.includes('stomach') || lower.includes('gastric') || lower.includes('acid') || lower.includes('bloat')) {
-    return { specialty: 'Gastroenterology', confidence: 91, alt: 'General Medicine', altConf: 64, reason: 'Your symptoms (stomach pain, bloating, acid reflux) are commonly evaluated by gastroenterologists. A specialist can perform targeted diagnostic tests.' };
-  }
-  if (lower.includes('chest') || lower.includes('heart') || lower.includes('palpitation')) {
-    return { specialty: 'Cardiology', confidence: 88, alt: 'General Medicine', altConf: 72, reason: 'Chest pain and palpitations warrant cardiac evaluation. A cardiologist can perform an ECG and relevant tests.' };
-  }
-  if (lower.includes('skin') || lower.includes('rash') || lower.includes('itch') || lower.includes('acne')) {
-    return { specialty: 'Dermatology', confidence: 94, alt: 'General Medicine', altConf: 45, reason: 'Skin symptoms are best assessed by a dermatologist who specializes in skin, hair, and nail conditions.' };
-  }
-  if (lower.includes('head') || lower.includes('migrain') || lower.includes('neuro') || lower.includes('dizzy')) {
-    return { specialty: 'Neurology', confidence: 86, alt: 'General Medicine', altConf: 68, reason: 'Neurological symptoms require specialist evaluation. A neurologist can investigate causes of headaches and dizziness.' };
-  }
-  return { specialty: 'General Medicine', confidence: 85, alt: 'Internal Medicine', altConf: 60, reason: 'Based on your symptoms, a general medicine consultation is recommended as a starting point for comprehensive evaluation.' };
-}
 
 export default function SymptomAIPage() {
   const navigate = useNavigate();
@@ -42,17 +23,45 @@ export default function SymptomAIPage() {
     if (!symptoms.trim()) return;
     setStep('analyzing');
     try {
-      const rec = await mockAIRecommendation(symptoms);
+      // Call the real backend specialist recommendation agent
+      const severityStr = severity <= 3 ? 'Mild' : severity <= 6 ? 'Moderate' : 'Severe';
+      const res = await apiSubmitSymptoms({
+        symptoms,
+        duration: duration || undefined,
+        severity: severityStr,
+      }) as {
+        specialty: string;
+        confidence: number;
+        altSpecialty: string;
+        altConfidence: number;
+        reason: string;
+      };
+
+      const rec: AIRecommendation = {
+        specialty: res.specialty,
+        confidence: res.confidence,
+        alt: res.altSpecialty,
+        altConf: res.altConfidence,
+        reason: res.reason,
+      };
       setRecommendation(rec);
 
-      // Try to get ranked doctors for the specialty
-      const matchedSpec = specialties.find((s: SpecialtyInfo) => s.name.toLowerCase().includes(rec.specialty.toLowerCase()));
+      // Get ranked doctors for the recommended specialty
+      const matchedSpec = specialties.find((s: SpecialtyInfo) =>
+        s.name.toLowerCase().includes(rec.specialty.toLowerCase()) ||
+        rec.specialty.toLowerCase().includes(s.name.toLowerCase())
+      );
       if (matchedSpec) {
         const ranked = await apiGetRankedDoctors(matchedSpec.id).catch(() => [] as RankedDoctor[]);
+        setDoctors(ranked || []);
+      } else {
+        // Try by name if ID not found
+        const ranked = await apiGetRankedDoctors().catch(() => [] as RankedDoctor[]);
         setDoctors(ranked || []);
       }
       setStep('result');
     } catch (err) {
+      console.error('Symptom analysis failed:', err);
       setStep('input');
     }
   }

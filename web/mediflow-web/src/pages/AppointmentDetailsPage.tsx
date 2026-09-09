@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Clock, MapPin, CreditCard, CheckCircle, AlertCircle, Phone, Loader, Hash, Star } from 'lucide-react';
+import { ArrowLeft, CreditCard, CheckCircle, AlertCircle, Phone, Loader, Hash, XCircle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetAppointment, apiPayAppointment } from '../services/api';
+import { apiGetAppointment, apiPayAppointment, apiPatientCancelAppointment } from '../services/api';
 
 const STATUS_STEPS = [
   { key: 'Pending',          label: 'Booking Placed',       icon: '📋', desc: 'Appointment request submitted' },
@@ -28,6 +28,9 @@ export default function AppointmentDetailsPage() {
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [payError, setPayError] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState('');
+  const [cancelled, setCancelled] = useState(false);
 
   useEffect(() => { loadAppointment(); }, [id]);
 
@@ -46,6 +49,18 @@ export default function AppointmentDetailsPage() {
     } catch (err: any) {
       setPayError(err?.message || 'Payment failed. Please try again.');
     } finally { setPaying(false); }
+  }
+
+  async function handleCancel() {
+    if (!window.confirm('Are you sure you want to cancel this appointment? This action cannot be undone.')) return;
+    setCancelling(true); setCancelError('');
+    try {
+      await apiPatientCancelAppointment(id || '', 'Cancelled by patient');
+      setCancelled(true);
+      setAppt((prev: any) => ({ ...prev, status: 'Cancelled' }));
+    } catch (err: any) {
+      setCancelError(err?.message || 'Failed to cancel. Please try again.');
+    } finally { setCancelling(false); }
   }
 
   if (loading) {
@@ -195,9 +210,23 @@ export default function AppointmentDetailsPage() {
                     <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', width: '100%' }} id="contact-support-btn">
                       <Phone size={14} /> Contact Support
                     </button>
-                    <button className="btn btn-ghost" style={{ justifyContent: 'flex-start', width: '100%', color: 'var(--danger)' }} id="cancel-appointment-btn">
-                      Cancel Appointment
-                    </button>
+                    {cancelError && <div className="form-error"><AlertCircle size={13} />{cancelError}</div>}
+                    {!cancelled && ['Pending', 'PaymentSubmitted', 'Confirmed'].includes(appt?.status) && (
+                      <button
+                        className="btn btn-ghost"
+                        style={{ justifyContent: 'flex-start', width: '100%', color: 'var(--danger)' }}
+                        id="cancel-appointment-btn"
+                        onClick={handleCancel}
+                        disabled={cancelling}
+                      >
+                        {cancelling ? <><Loader size={13} className="spin" /> Cancelling...</> : <><XCircle size={14} /> Cancel Appointment</>}
+                      </button>
+                    )}
+                    {cancelled && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600, padding: '8px 12px', background: '#FEF2F2', borderRadius: 'var(--r-md)' }}>
+                        <XCircle size={14} /> Appointment Cancelled
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
