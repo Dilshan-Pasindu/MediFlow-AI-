@@ -68,6 +68,58 @@ public class AppointmentsController : ControllerBase
     }
 
     /// <summary>
+    /// Patient submits payment for an appointment.
+    /// </summary>
+    [HttpPost("{id}/pay")]
+    public async Task<IActionResult> PayAppointment(int id)
+    {
+        var userId = GetUserId();
+        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (patient == null)
+            return NotFound(new { message = "Patient profile not found." });
+
+        var appointment = await _db.Appointments
+            .Include(a => a.Payment)
+            .FirstOrDefaultAsync(a => a.Id == id && a.PatientId == patient.Id);
+
+        if (appointment == null)
+            return NotFound(new { message = "Appointment not found." });
+
+        if (appointment.Payment == null)
+        {
+            appointment.Payment = new AppointmentPayment
+            {
+                AppointmentId = appointment.Id,
+                Amount = appointment.Fee ?? 2500,
+                Status = PaymentStatus.Submitted,
+                PaymentMethod = "Card",
+                PaidAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+        }
+        else
+        {
+            appointment.Payment.Status = PaymentStatus.Submitted;
+            appointment.Payment.PaidAt = DateTime.UtcNow;
+            appointment.Payment.UpdatedAt = DateTime.UtcNow;
+        }
+
+        appointment.Status = AppointmentStatus.PaymentSubmitted;
+        appointment.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            appointment.Id,
+            Status = appointment.Status.ToString(),
+            PaymentStatus = appointment.Payment.Status.ToString(),
+            message = "Payment submitted successfully. Awaiting receptionist verification."
+        });
+    }
+
+    /// <summary>
     /// Get a specific appointment by ID (Patient only).
     /// </summary>
     [HttpGet("{id}")]
