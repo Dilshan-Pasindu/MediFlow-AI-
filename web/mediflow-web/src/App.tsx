@@ -19,6 +19,7 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 
 // Doctor
 const DoctorDashboard = React.lazy(() => import('./pages/doctor/DoctorDashboard'));
+const DoctorAppointmentsPage = React.lazy(() => import('./pages/doctor/DoctorAppointmentsPage'));
 const ConsultationPage = React.lazy(() => import('./pages/doctor/ConsultationPage'));
 
 // Receptionist
@@ -145,7 +146,7 @@ function App() {
 
           {/* Doctor Portal */}
           <Route path="/doctor/dashboard" element={<ProtectedRoute roles={['Doctor']}><DoctorDashboard /></ProtectedRoute>} />
-          <Route path="/doctor/appointments" element={<ProtectedRoute roles={['Doctor']}><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/doctor/appointments" element={<ProtectedRoute roles={['Doctor']}><DoctorAppointmentsPage /></ProtectedRoute>} />
           <Route path="/doctor/consultation/:id" element={<ProtectedRoute roles={['Doctor']}><ConsultationPage /></ProtectedRoute>} />
 
           {/* Receptionist Portal */}
