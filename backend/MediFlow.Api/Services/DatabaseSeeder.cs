@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace MediFlow.Api.Services;
 
 /// <summary>
+/// Seeds the database with initial specialties, doctors, demo staff accounts, availability data, and sample appointments.
 /// Seeds the database with initial specialties, doctors, demo staff accounts, and availability data.
 /// Member 4: Also seeds Pharmacy, SupplierProfile, Medicines, InventoryItems, and InventoryBatches.
 /// </summary>
@@ -66,6 +67,7 @@ public static class DatabaseSeeder
                         FullName = u.FullName,
                         Email = u.Email,
                         PhoneNumber = u.PhoneNumber,
+                        BloodGroup = "O+",
                         CreatedAt = DateTime.UtcNow,
                         UpdatedAt = DateTime.UtcNow
                     });
@@ -119,7 +121,7 @@ public static class DatabaseSeeder
             await db.SaveChangesAsync();
 
             // ── Doctor Availability ──────────────────────────────────────────
-            var days = new[] { DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday, DayOfWeek.Saturday };
+            var days = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday };
             foreach (var doctor in doctors)
             {
                 foreach (var day in days)
@@ -129,13 +131,120 @@ public static class DatabaseSeeder
                         DoctorId = doctor.Id,
                         DayOfWeek = day,
                         StartTime = new TimeOnly(9, 0),
-                        EndTime = new TimeOnly(13, 0)
+                        EndTime = new TimeOnly(17, 0)
                     });
                 }
             }
             await db.SaveChangesAsync();
         }
 
+        // ── Seed Sample Appointments if missing ─────────────────────────────
+        if (!await db.Appointments.AnyAsync())
+        {
+            var doctors = await db.Doctors.ToListAsync();
+            var mainDoctor = doctors.FirstOrDefault(d => d.FullName.Contains("Nimal")) ?? doctors.FirstOrDefault();
+
+            if (mainDoctor != null)
+            {
+                var patientNames = new[] { "Kasun Kalhara", "Sarath Perera", "Kanthi Jayasinghe", "Chamari Athapaththu", "Nalaka Silva", "Dilshan Pasindu" };
+                var bloodGroups = new[] { "A+", "B+", "O+", "AB+", "O-", "B+" };
+                var samplePatients = new List<Patient>();
+
+                for (int i = 0; i < patientNames.Length; i++)
+                {
+                    var pName = patientNames[i];
+                    var bg = bloodGroups[i];
+                    var p = await db.Patients.FirstOrDefaultAsync(x => x.FullName == pName);
+                    if (p == null)
+                    {
+                        p = new Patient
+                        {
+                            FullName = pName,
+                            Email = $"{pName.ToLower().Replace(" ", ".")}@example.com",
+                            PhoneNumber = "+94770001122",
+                            BloodGroup = bg,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow
+                        };
+                        db.Patients.Add(p);
+                        await db.SaveChangesAsync();
+                    }
+                    samplePatients.Add(p);
+                }
+
+                var today = DateTime.UtcNow;
+
+                var sampleAppts = new List<Appointment>
+                {
+                    new()
+                    {
+                        PatientId = samplePatients[0].Id,
+                        DoctorId = mainDoctor.Id,
+                        AppointmentDateTime = new DateTime(today.Year, today.Month, today.Day, 9, 30, 0, DateTimeKind.Utc),
+                        AppointmentNumber = $"APT-{today:yyyyMMdd}-0001",
+                        Status = AppointmentStatus.Confirmed,
+                        Fee = mainDoctor.ConsultationFee,
+                        Notes = "Experiencing chest tightness and mild shortness of breath after morning walk.",
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new()
+                    {
+                        PatientId = samplePatients[1].Id,
+                        DoctorId = mainDoctor.Id,
+                        AppointmentDateTime = new DateTime(today.Year, today.Month, today.Day, 10, 45, 0, DateTimeKind.Utc),
+                        AppointmentNumber = $"APT-{today:yyyyMMdd}-0002",
+                        Status = AppointmentStatus.Confirmed,
+                        Fee = mainDoctor.ConsultationFee,
+                        Notes = "Routine hypertension review and blood pressure medication checkup.",
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new()
+                    {
+                        PatientId = samplePatients[2].Id,
+                        DoctorId = mainDoctor.Id,
+                        AppointmentDateTime = new DateTime(today.Year, today.Month, today.Day, 11, 30, 0, DateTimeKind.Utc),
+                        AppointmentNumber = $"APT-{today:yyyyMMdd}-0003",
+                        Status = AppointmentStatus.Confirmed,
+                        Fee = mainDoctor.ConsultationFee,
+                        Notes = "Follow up on ECG results and lipid profile report.",
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new()
+                    {
+                        PatientId = samplePatients[3].Id,
+                        DoctorId = mainDoctor.Id,
+                        AppointmentDateTime = new DateTime(today.Year, today.Month, today.Day, 14, 0, 0, DateTimeKind.Utc),
+                        AppointmentNumber = $"APT-{today:yyyyMMdd}-0004",
+                        Status = AppointmentStatus.Pending,
+                        Fee = mainDoctor.ConsultationFee,
+                        Notes = "Intermittent palpitations during rest.",
+                        CreatedAt = DateTime.UtcNow
+                    },
+                    new()
+                    {
+                        PatientId = samplePatients[4].Id,
+                        DoctorId = mainDoctor.Id,
+                        AppointmentDateTime = today.AddDays(-1),
+                        AppointmentNumber = $"APT-{today.AddDays(-1):yyyyMMdd}-0005",
+                        Status = AppointmentStatus.Completed,
+                        Fee = mainDoctor.ConsultationFee,
+                        Notes = "Completed cardiac evaluation. Prescribed Amlodipine 5mg.",
+                        CreatedAt = DateTime.UtcNow.AddDays(-1)
+                    },
+                    new()
+                    {
+                        PatientId = samplePatients[5].Id,
+                        DoctorId = mainDoctor.Id,
+                        AppointmentDateTime = today.AddDays(1),
+                        AppointmentNumber = $"APT-{today.AddDays(1):yyyyMMdd}-0006",
+                        Status = AppointmentStatus.Confirmed,
+                        Fee = mainDoctor.ConsultationFee,
+                        Notes = "Annual health checkup and stress test recommendation.",
+                        CreatedAt = DateTime.UtcNow
+                    }
+                };
+
+                db.Appointments.AddRange(sampleAppts);
         // ════════════════════════════════════════════════════════════════
         // MEMBER 4 — Pharmacy, Supplier, Medicine & Inventory Seed Data
         // ════════════════════════════════════════════════════════════════
