@@ -131,7 +131,7 @@ public class AppointmentsController : ControllerBase
             return NotFound(new { message = "Patient profile not found." });
 
         var appointment = await _db.Appointments
-            .Include(a => a.Doctor)
+            .Include(a => a.Doctor).ThenInclude(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
             .Include(a => a.Payment)
             .Where(a => a.Id == id && a.PatientId == patient.Id)
             .Select(a => new
@@ -140,6 +140,9 @@ public class AppointmentsController : ControllerBase
                 a.AppointmentNumber,
                 DoctorName = a.Doctor.FullName,
                 DoctorBio = a.Doctor.Bio,
+                DoctorQualifications = a.Doctor.Qualifications,
+                SpecialtyName = a.Doctor.DoctorSpecialties
+                    .Select(ds => ds.Specialty.Name).FirstOrDefault() ?? "General Medicine",
                 a.AppointmentDateTime,
                 Status = a.Status.ToString(),
                 a.Fee,
