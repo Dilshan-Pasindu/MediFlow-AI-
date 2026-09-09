@@ -29,6 +29,7 @@ export interface AIClinicalResult {
   diagnoses: AIDiagnosis[];
   labTests: string[];
   urgency: 'routine' | 'urgent' | 'emergency';
+  warnings?: string[];
 }
 
 export type DiagnosisDecision = 'accept' | 'modify' | 'reject' | null;
@@ -57,9 +58,14 @@ export interface ConsultationAppointment {
 
 export interface ClinicalAnalysisRequestDto {
   symptoms: string;
-  vitals?: Partial<ExamForm>;
+  chiefComplaint?: string;
+  vitals?: {
+    bp?: string;
+    temp?: string;
+    pulse?: string;
+    spo2?: string;
+  };
+  patientAllergies?: string;
   patientAge?: number;
   patientGender?: string;
-  history?: string;
 }
-
