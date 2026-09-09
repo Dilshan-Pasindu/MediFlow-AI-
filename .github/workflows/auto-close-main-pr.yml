@@ -1,0 +1,65 @@
+name: Guard Main PRs
+
+on:
+  pull_request_target:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  auto-close:
+    name: Auto Close Unauthorized PRs to Main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR Author and Auto-Close if not Dilshan-Pasindu
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+            const prNumber = pr.number;
+
+            // Allow only @Dilshan-Pasindu to open PRs targeting main
+            if (author.toLowerCase() === 'dilshan-pasindu') {
+              console.log(`PR #${prNumber} opened by repository owner @${author}. Allowed.`);
+              return;
+            }
+
+            console.log(`PR #${prNumber} opened by @${author} targeting main. Automatically closing...`);
+
+            const commentBody = `⚠️ **Direct Pull Requests to \`main\` are not permitted.**\n\n` +
+              `Hi @${author}, pull requests cannot target \`main\` directly. All features, fixes, and contributions must target the **\`dev\`** branch first for integration and testing.\n\n` +
+              `Only repository owner @Dilshan-Pasindu is authorized to target \`main\`.\n\n` +
+              `This pull request has been automatically closed. Please edit this PR to change the base branch to **\`dev\`**, or open a new PR targeting **\`dev\`**.`;
+
+            try {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody
+              });
+            } catch (err) {
+              console.error('Failed to post comment:', err);
+            }
+
+            try {
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                state: 'closed'
+              });
+              console.log(`Successfully closed PR #${prNumber}.`);
+            } catch (err) {
+              console.error('Failed to close PR:', err);
+              throw err;
+            }
