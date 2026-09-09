@@ -245,6 +245,9 @@ public static class DatabaseSeeder
                 };
 
                 db.Appointments.AddRange(sampleAppts);
+                await db.SaveChangesAsync();
+            }
+        }
         // ════════════════════════════════════════════════════════════════
         // MEMBER 4 — Pharmacy, Supplier, Medicine & Inventory Seed Data
         // ════════════════════════════════════════════════════════════════
