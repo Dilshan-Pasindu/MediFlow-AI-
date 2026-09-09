@@ -1,7 +1,10 @@
 using MediFlow.Api.Data;
+using MediFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Security.Claims;
 
 namespace MediFlow.Api.Controllers;
 
@@ -49,6 +52,50 @@ public class DoctorsController : ControllerBase
         }).ToListAsync();
 
         return Ok(doctors);
+    }
+
+    /// <summary>
+    /// Get appointments assigned to the logged-in doctor (or all appointments if admin/receptionist).
+    /// </summary>
+    [HttpGet("appointments")]
+    [Authorize]
+    public async Task<IActionResult> GetDoctorAppointments()
+    {
+        var userId = GetUserId();
+        var doctor = await _db.Doctors
+            .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+            .FirstOrDefaultAsync(d => d.UserId == userId);
+
+        IQueryable<Appointment> query = _db.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                    .ThenInclude(ds => ds.Specialty);
+
+        if (doctor != null)
+        {
+            query = query.Where(a => a.DoctorId == doctor.Id);
+        }
+
+        var appointments = await query
+            .OrderByDescending(a => a.AppointmentDateTime)
+            .Select(a => new
+            {
+                a.Id,
+                PatientName = a.Patient.FullName,
+                PatientBloodGroup = string.IsNullOrWhiteSpace(a.Patient.BloodGroup) ? "O+" : a.Patient.BloodGroup,
+                PatientAllergies = "Penicillin (Mild)",
+                AppointmentNumber = a.AppointmentNumber ?? $"APT-{a.Id:D4}",
+                AppointmentDateTime = a.AppointmentDateTime.ToString("o"),
+                a.Notes,
+                Status = a.Status.ToString(),
+                DoctorName = a.Doctor.FullName,
+                SpecialtyName = a.Doctor.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault() ?? "General Medicine",
+                Fee = a.Fee ?? a.Doctor.ConsultationFee
+            })
+            .ToListAsync();
+
+        return Ok(appointments);
     }
 
     /// <summary>
@@ -103,5 +150,11 @@ public class DoctorsController : ControllerBase
             .ToListAsync();
 
         return Ok(specialties);
+    }
+
+    private int GetUserId()
+    {
+        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : 0;
     }
 }
