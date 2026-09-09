@@ -5,8 +5,11 @@ from ai.schemas.agent_schemas import (
     HealthCheckResponse,
     SymptomInput,
     SpecialistRecommendation,
+    ClinicalCDSInput,
+    ClinicalCDSResult,
 )
 from ai.agents.specialist_recommender import recommend_specialist
+from ai.agents.clinical_decision_support import evaluate_clinical_decision_support
 
 app = FastAPI(
     title="MediFlow AI Microservice",
@@ -43,3 +46,16 @@ async def get_specialist_recommendation(payload: SymptomInput):
         return recommendation
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Recommendation pipeline failed: {str(exc)}")
+
+
+@app.post("/api/ai/clinical-cds", response_model=ClinicalCDSResult, tags=["Agents"])
+async def get_clinical_decision_support(payload: ClinicalCDSInput):
+    """
+    Evaluates patient examination data (symptoms, vitals, allergies)
+    and returns AI differential diagnosis, lab recommendations, and warnings.
+    """
+    try:
+        result = evaluate_clinical_decision_support(payload)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"CDS evaluation pipeline failed: {str(exc)}")
