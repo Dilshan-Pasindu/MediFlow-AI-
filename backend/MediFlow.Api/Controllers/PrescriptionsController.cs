@@ -8,7 +8,7 @@ using System.Security.Claims;
 
 namespace MediFlow.Api.Controllers;
 
-public class MedicineDto
+public class StandardMedicineDto
 {
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -22,16 +22,16 @@ public class MedicineDto
 public class PrescriptionsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private static readonly List<MedicineDto> StandardMedicines = new()
+    private static readonly List<StandardMedicineDto> StandardMedicines = new()
     {
-        new MedicineDto { Id = 1, Name = "Amoxicillin", Form = "Capsule", Strength = "500mg", Category = "Antibiotic" },
-        new MedicineDto { Id = 2, Name = "Paracetamol", Form = "Tablet", Strength = "500mg", Category = "Analgesic" },
-        new MedicineDto { Id = 3, Name = "Metformin", Form = "Tablet", Strength = "850mg", Category = "Antidiabetic" },
-        new MedicineDto { Id = 4, Name = "Omeprazole", Form = "Capsule", Strength = "20mg", Category = "Gastrointestinal" },
-        new MedicineDto { Id = 5, Name = "Atorvastatin", Form = "Tablet", Strength = "20mg", Category = "Cardiovascular" },
-        new MedicineDto { Id = 6, Name = "Cetirizine", Form = "Tablet", Strength = "10mg", Category = "Antihistamine" },
-        new MedicineDto { Id = 7, Name = "Salbutamol", Form = "Inhaler", Strength = "100mcg", Category = "Respiratory" },
-        new MedicineDto { Id = 8, Name = "Ibuprofen", Form = "Tablet", Strength = "400mg", Category = "NSAID" }
+        new StandardMedicineDto { Id = 1, Name = "Amoxicillin", Form = "Capsule", Strength = "500mg", Category = "Antibiotic" },
+        new StandardMedicineDto { Id = 2, Name = "Paracetamol", Form = "Tablet", Strength = "500mg", Category = "Analgesic" },
+        new StandardMedicineDto { Id = 3, Name = "Metformin", Form = "Tablet", Strength = "850mg", Category = "Antidiabetic" },
+        new StandardMedicineDto { Id = 4, Name = "Omeprazole", Form = "Capsule", Strength = "20mg", Category = "Gastrointestinal" },
+        new StandardMedicineDto { Id = 5, Name = "Atorvastatin", Form = "Tablet", Strength = "20mg", Category = "Cardiovascular" },
+        new StandardMedicineDto { Id = 6, Name = "Cetirizine", Form = "Tablet", Strength = "10mg", Category = "Antihistamine" },
+        new StandardMedicineDto { Id = 7, Name = "Salbutamol", Form = "Inhaler", Strength = "100mcg", Category = "Respiratory" },
+        new StandardMedicineDto { Id = 8, Name = "Ibuprofen", Form = "Tablet", Strength = "400mg", Category = "NSAID" }
     };
 
     private static readonly List<object> InStorePrescriptions = new();
@@ -45,7 +45,7 @@ public class PrescriptionsController : ControllerBase
     [AllowAnonymous]
     public IActionResult GetMedicines([FromQuery] string? search)
     {
-        IEnumerable<MedicineDto> result = StandardMedicines;
+        IEnumerable<StandardMedicineDto> result = StandardMedicines;
         if (!string.IsNullOrWhiteSpace(search))
         {
             result = result.Where(m => m.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
@@ -118,6 +118,34 @@ public class PrescriptionsController : ControllerBase
     public IActionResult GetPrescriptions()
     {
         return Ok(InStorePrescriptions);
+    }
+
+    /// <summary>
+    /// Get prescriptions for the currently logged-in patient.
+    /// Returns prescriptions from InStorePrescriptions that match the patient's ID.
+    /// </summary>
+    [HttpGet("my")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> GetMyPrescriptions()
+    {
+        var userIdStr = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
+            return Unauthorized();
+
+        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (patient == null)
+            return NotFound(new { message = "Patient profile not found." });
+
+        // Filter InStorePrescriptions by patient ID or name
+        var myPrescriptions = InStorePrescriptions
+            .Where(p =>
+            {
+                var patId = p.GetType().GetProperty("PatientId")?.GetValue(p);
+                return patId != null && patId.ToString() == patient.Id.ToString();
+            })
+            .ToList();
+
+        return Ok(myPrescriptions);
     }
 
     [HttpGet("{id}")]
