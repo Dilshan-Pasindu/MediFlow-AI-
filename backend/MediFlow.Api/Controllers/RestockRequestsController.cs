@@ -113,28 +113,41 @@ public class RestockRequestsController : ControllerBase
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "PharmacyOwner,Administrator")]
-    public async Task<IActionResult> Create([FromBody] CreateRestockRequestDto dto)
+    public async Task<IActionResult> Create(
+        [FromBody] CreateRestockRequestDto dto,
+        [FromQuery] int? pharmacyId = null)
     {
         var userId = GetUserId();
 
-        // Resolve pharmacy for owner
-        int pharmacyId;
+        // Resolve pharmacy for owner or admin
+        int targetPharmacyId;
         if (User.IsInRole("PharmacyOwner"))
         {
             var pharmacy = await _db.Pharmacies.FirstOrDefaultAsync(p => p.OwnerId == userId);
             if (pharmacy == null)
                 return BadRequest(new { message = "No pharmacy found for this owner." });
-            pharmacyId = pharmacy.Id;
+            targetPharmacyId = pharmacy.Id;
+        }
+        else if (User.IsInRole("Administrator"))
+        {
+            var requestedPharmacyId = pharmacyId ?? dto.PharmacyId;
+            if (!requestedPharmacyId.HasValue)
+                return BadRequest(new { message = "Administrator must specify a pharmacyId via query parameter or request body." });
+
+            var pharmacyExists = await _db.Pharmacies.AnyAsync(p => p.Id == requestedPharmacyId.Value);
+            if (!pharmacyExists)
+                return NotFound(new { message = $"Pharmacy with ID {requestedPharmacyId.Value} not found." });
+
+            targetPharmacyId = requestedPharmacyId.Value;
         }
         else
         {
-            // Admin must be calling for a specific pharmacy; require a pharmacyId query param
-            return BadRequest(new { message = "Administrator must use pharmacy-scoped endpoint." });
+            return Forbid();
         }
 
         try
         {
-            var request = await _inventoryService.CreateRestockRequestAsync(pharmacyId, dto);
+            var request = await _inventoryService.CreateRestockRequestAsync(targetPharmacyId, dto);
             return CreatedAtAction(nameof(GetById), new { id = request.Id }, new { request.Id, message = "Restock request created." });
         }
         catch (KeyNotFoundException ex)

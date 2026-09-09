@@ -51,7 +51,8 @@ public record InventoryListResponse(
 public record CreateRestockRequestDto(
     int SupplierProfileId,
     string? Notes,
-    List<CreateRestockRequestItemDto> Items
+    List<CreateRestockRequestItemDto> Items,
+    int? PharmacyId = null
 );
 
 public record CreateRestockRequestItemDto(

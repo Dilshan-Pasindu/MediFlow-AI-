@@ -334,13 +334,30 @@ export default function SupplierDashboard() {
                         </button>
                       )}
 
-                      {req.status === 'Dispatched' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#0891B2', fontWeight: 700, fontSize: 13 }}>
-                          <Truck size={15} /> Dispatched — Awaiting pharmacy confirmation.
+                      {req.status === 'Dispatched' && !messages[req.id] && (
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#0891B2', fontWeight: 700, fontSize: 13, flex: 1 }}>
+                            <Truck size={15} /> Dispatched — In transit
+                          </div>
+                          <button
+                            className="btn btn-success btn-sm"
+                            onClick={() => handleAction(req.id, 'Delivered', 'Stock delivered to pharmacy.')}
+                            disabled={!!isActing}
+                            id={`deliver-supply-${req.id}`}
+                          >
+                            {isActing === 'Delivered' ? <Loader size={13} className="spin" /> : <CheckCircle size={13} />}
+                            {isActing === 'Delivered' ? 'Updating...' : 'Mark Delivered'}
+                          </button>
                         </div>
                       )}
 
-                      {(req.status === 'Delivered' || req.status === 'Completed') && (
+                      {req.status === 'Delivered' && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontWeight: 700, fontSize: 13 }}>
+                          <Truck size={15} /> Delivered — Awaiting pharmacy receipt confirmation.
+                        </div>
+                      )}
+
+                      {req.status === 'Completed' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--success)', fontWeight: 700, fontSize: 13 }}>
                           <CheckCircle size={15} /> Completed — Inventory updated at pharmacy.
                         </div>
