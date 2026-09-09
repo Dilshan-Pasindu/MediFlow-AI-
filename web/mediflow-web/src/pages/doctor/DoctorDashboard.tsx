@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Stethoscope, Calendar, CheckCircle2, Clock, ChevronRight,
   Brain, Activity, TrendingUp, Users, Star, AlertCircle,
-  ClipboardList, Sparkles, ArrowRight, UserCheck,
+  ClipboardList, Sparkles, ArrowRight, UserCheck, Pill, Send, Printer
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -72,7 +72,7 @@ function KPICard({ icon: Icon, label, value, sub, color, bg, loading }: {
   );
 }
 
-function AppointmentRow({ appt, onConsult }: { appt: ConsultationAppointment; onConsult: () => void }) {
+function AppointmentRow({ appt, onConsult, onPrescribe }: { appt: ConsultationAppointment; onConsult: () => void; onPrescribe: () => void }) {
   const st = getStatus(appt.status);
   const { day, month, weekday } = fmtDate(appt.appointmentDateTime);
   const isConfirmed = appt.status === 'Confirmed';
@@ -124,7 +124,7 @@ function AppointmentRow({ appt, onConsult }: { appt: ConsultationAppointment; on
       </div>
 
       {/* Status + CTA */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
         <span style={{
           fontSize: 11.5, fontWeight: 700, padding: '4px 10px', borderRadius: 'var(--r-full)',
           color: st.color, background: st.bg, border: `1px solid ${st.border}`,
@@ -133,6 +133,22 @@ function AppointmentRow({ appt, onConsult }: { appt: ConsultationAppointment; on
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: st.dot, flexShrink: 0 }} />
           {st.label}
         </span>
+
+        <button
+          id={`issue-rx-${appt.id}`}
+          onClick={e => { e.stopPropagation(); onPrescribe(); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px',
+            background: '#F0F9FF', color: '#0369A1', borderRadius: 'var(--r-full)',
+            fontSize: 11.5, fontWeight: 700, border: '1px solid #BAE6FD', cursor: 'pointer',
+            transition: 'var(--transition)',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#E0F2FE'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = '#F0F9FF'; }}
+        >
+          <Pill size={12} /> Issue Rx
+        </button>
+
         {isConfirmed && (
           <button
             id={`start-consult-${appt.id}`}
@@ -325,6 +341,7 @@ export default function DoctorDashboard() {
                         key={appt.id}
                         appt={appt}
                         onConsult={() => navigate(`/doctor/consultation/${appt.id}`)}
+                        onPrescribe={() => navigate(`/doctor/e-prescription?apptId=${appt.id}&patientName=${encodeURIComponent(appt.patientName)}`)}
                       />
                     ))}
                     {displayAppts.length >= 5 && (
@@ -416,8 +433,9 @@ export default function DoctorDashboard() {
                   <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 12 }}>Quick Actions</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {[
-                      { label: 'View All Appointments', icon: Calendar, path: '/doctor/appointments', color: '#059669', bg: '#ECFDF5', id: 'qa-all-appts' },
-                      { label: 'My Profile',            icon: Activity, path: '/profile',              color: '#0369A1', bg: '#F0F9FF', id: 'qa-profile' },
+                      { label: 'Issue E-Prescription',   icon: Pill,     path: '/doctor/e-prescription', color: '#059669', bg: '#ECFDF5', id: 'qa-e-prescription' },
+                      { label: 'View All Appointments', icon: Calendar, path: '/doctor/appointments',   color: '#0369A1', bg: '#F0F9FF', id: 'qa-all-appts' },
+                      { label: 'My Profile',            icon: Activity, path: '/profile',                color: '#6366F1', bg: '#EEF2FF', id: 'qa-profile' },
                     ].map(({ label, icon: Icon, path, color, bg, id }) => (
                       <button
                         key={path}
