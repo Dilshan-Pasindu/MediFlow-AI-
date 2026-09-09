@@ -286,24 +286,93 @@ export async function apiGetPharmacistOrders(): Promise<Order[]> {
 
 // ─── Pharmacy Inventory ───────────────────────────────────────────────────────
 
-export async function apiGetPharmacyInventory(pharmacyId: number | string) {
-  return apiFetch(`/pharmacies/${pharmacyId}/inventory`);
+export async function apiGetMyPharmacy() {
+  return apiFetch<{ id: number; name: string; location: string; contactNumber: string; ownerId: number }>(
+    '/pharmacies/my'
+  );
+}
+
+export async function apiGetPharmacyInventory(
+  pharmacyId: number | string,
+  params?: { search?: string; category?: string; stockFilter?: string; page?: number; pageSize?: number }
+) {
+  const qs = new URLSearchParams();
+  if (params?.search) qs.append('search', params.search);
+  if (params?.category) qs.append('category', params.category);
+  if (params?.stockFilter) qs.append('stockFilter', params.stockFilter);
+  if (params?.page) qs.append('page', String(params.page));
+  if (params?.pageSize) qs.append('pageSize', String(params.pageSize));
+  return apiFetch(`/pharmacies/${pharmacyId}/inventory${qs.toString() ? `?${qs}` : ''}`);
 }
 
 export async function apiGetInventory() {
   return apiFetch('/pharmacist/inventory');
 }
 
-export async function apiGetLowStockItems() {
-  return apiFetch('/inventory/low-stock');
+export async function apiGetLowStockItems(pharmacyId?: number | string) {
+  const qs = pharmacyId ? `?pharmacyId=${pharmacyId}` : '';
+  return apiFetch(`/inventory/low-stock${qs}`);
 }
 
 export async function apiGenerateRestockRecommendations(pharmacyId: number | string) {
   return apiFetch(`/pharmacies/${pharmacyId}/generate-restock-recommendations`, { method: 'POST' });
 }
 
-export async function apiCreateRestockRequest(data: RestockRequestDto | Record<string, unknown>) {
+export async function apiGetRestockRequests(status?: string) {
+  const qs = status ? `?status=${status}` : '';
+  return apiFetch(`/restock-requests${qs}`);
+}
+
+export async function apiCreateRestockRequest(data: {
+  supplierProfileId: number;
+  notes?: string;
+  items: Array<{ medicineId: number; quantity: number; unitPrice: number }>;
+}) {
   return apiFetch('/restock-requests', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function apiUpdateRestockStatus(
+  id: number | string,
+  status: string,
+  responseNote?: string,
+  itemBatches?: Array<{ restockRequestItemId: number; batchNumber: string; expiryDate: string }>
+) {
+  return apiFetch(`/restock-requests/${id}/status`, {
+    method: 'PUT',
+    body: JSON.stringify({ status, responseNote, itemBatches }),
+  });
+}
+
+export async function apiReceiveRestockRequest(id: number | string, notes?: string) {
+  return apiFetch(`/restock-requests/${id}/receive`, {
+    method: 'POST',
+    body: JSON.stringify({ notes }),
+  });
+}
+
+export async function apiGetInventoryTransactions(params?: {
+  pharmacyId?: number;
+  medicineId?: number;
+  days?: number;
+}) {
+  const qs = new URLSearchParams();
+  if (params?.pharmacyId) qs.append('pharmacyId', String(params.pharmacyId));
+  if (params?.medicineId) qs.append('medicineId', String(params.medicineId));
+  if (params?.days) qs.append('days', String(params.days));
+  return apiFetch(`/inventory/transactions${qs.toString() ? `?${qs}` : ''}`);
+}
+
+export async function apiGetSuppliers() {
+  return apiFetch('/suppliers');
+}
+
+export async function apiGetMySupplierProfile() {
+  return apiFetch('/suppliers/me');
+}
+
+// Keep legacy compat aliases
+export async function apiUpdateRestockRequest(id: number | string, status: string) {
+  return apiUpdateRestockStatus(id, status);
 }
 
 export async function apiCreateRestockOrder(medicineId: number | string, quantity: number, supplierId: number | string) {
@@ -313,24 +382,17 @@ export async function apiCreateRestockOrder(medicineId: number | string, quantit
   });
 }
 
-export async function apiGetRestockRequests() {
-  return apiFetch('/restock-requests');
-}
-
-export async function apiUpdateRestockRequest(id: number | string, status: string) {
-  return apiFetch(`/restock-requests/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
-}
-
 // ─── Pharmacy Owner ───────────────────────────────────────────────────────────
 
 export async function apiGetOwnerStats() {
   return apiFetch('/pharmacyowner/stats');
 }
 
-// ─── Supplier ─────────────────────────────────────────────────────────────────
+// ─── Supplier ───────────────────────────────────────────────────────
 
+/** @deprecated Use apiUpdateRestockStatus instead */
 export async function apiApproveRestockRequest(supplierId: number | string, requestId: number | string) {
-  return apiFetch(`/suppliers/${supplierId}/approve`, { method: 'POST', body: JSON.stringify({ requestId }) });
+  return apiUpdateRestockStatus(requestId, 'Approved');
 }
 
 export async function apiGetSupplyHistory(supplierId: number | string) {
@@ -338,14 +400,11 @@ export async function apiGetSupplyHistory(supplierId: number | string) {
 }
 
 export async function apiGetSupplierOrders() {
-  return apiFetch('/supplier/orders');
+  return apiFetch('/restock-requests');
 }
 
 export async function apiUpdateDeliveryStatus(orderId: number | string, status: string) {
-  return apiFetch(`/supplier/orders/${orderId}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ status }),
-  });
+  return apiUpdateRestockStatus(orderId, status);
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
