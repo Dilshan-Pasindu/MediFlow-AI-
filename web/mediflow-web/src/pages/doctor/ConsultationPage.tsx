@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Brain, CheckCircle, X, Edit3, Stethoscope, AlertCircle, Loader, ArrowLeft, Plus, Trash2, Sparkles, ShieldAlert, Activity, UserPlus, Edit } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
-import { apiGeneratePrescription } from '../../services/api';
 import { useAppointment } from '../../hooks';
 import type { ExamForm, MedicineEntry, AIClinicalResult, DiagnosisDecision } from '../../types/consultation';
 
@@ -70,7 +69,7 @@ function fallbackClinicalCDS(exam: ExamForm, allergies?: string): AIClinicalResu
   return { diagnoses, labTests, urgency, warnings };
 }
 
-type ConsultationStep = 'review' | 'examine' | 'ai' | 'prescribe' | 'done';
+type ConsultationStep = 'review' | 'examine' | 'ai' | 'done';
 
 export default function ConsultationPage() {
   const { id } = useParams();
@@ -87,8 +86,6 @@ export default function ConsultationPage() {
   const [manualBloodGroup, setManualBloodGroup] = useState('O+');
 
   const [exam, setExam] = useState<ExamForm>({ chiefComplaint: '', symptoms: '', vitalBP: '', vitalTemp: '', vitalPulse: '', vitalSPO2: '', examination: '', notes: '' });
-  const [medicines, setMedicines] = useState<MedicineEntry[]>([{ name: '', dosage: '', frequency: '', duration: '', quantity: '' }]);
-  const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -138,30 +135,7 @@ export default function ConsultationPage() {
     }
   }
 
-  function addMedicine() {
-    setMedicines([...medicines, { name: '', dosage: '', frequency: '', duration: '', quantity: '' }]);
-  }
 
-  function removeMedicine(i: number) {
-    setMedicines(medicines.filter((_, idx) => idx !== i));
-  }
-
-  function setMed(i: number, key: string, val: string) {
-    setMedicines(prev => prev.map((m, idx) => idx === i ? { ...m, [key]: val } : m));
-  }
-
-  async function handleCompletePrescription() {
-    setSubmitting(true);
-    try {
-      await apiGeneratePrescription({ appointmentId: id, items: medicines.filter(m => m.name), clinicianNotes: exam.notes });
-      setDone(true);
-      setStep('done');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   if (loading) return (
     <div className="app-shell"><Sidebar />
@@ -177,7 +151,6 @@ export default function ConsultationPage() {
     { key: 'review',   label: 'Patient Review', icon: '👤' },
     { key: 'examine',  label: 'Examination',    icon: '🩺' },
     { key: 'ai',       label: 'AI Suggestions', icon: '🧠' },
-    { key: 'prescribe',label: 'Prescription',   icon: '💊' },
     { key: 'done',     label: 'Complete',       icon: '✅' },
   ];
   const currentStepIdx = STEPS.findIndex(s => s.key === step);
@@ -497,72 +470,11 @@ export default function ConsultationPage() {
                       className="btn btn-primary btn-lg"
                       style={{ flex: 1 }}
                       disabled={Object.values(decisions).some(d => d === null)}
-                      onClick={() => setStep('prescribe')}
-                      id="proceed-to-prescription-btn"
+                      onClick={() => { setDone(true); setStep('done'); }}
+                      id="proceed-to-complete-btn"
                     >
-                      Proceed to Prescription 💊
+                      Complete Consultation & Save Record ✅
                     </button>
-                  </div>
-                </div>
-              )}
-
-              {/* STEP: Prescribe */}
-              {step === 'prescribe' && (
-                <div className="card fade-in">
-                  <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div className="section-title">💊 Formulate E-Prescription</div>
-                      <div className="section-sub">Add prescribed medication and instructions</div>
-                    </div>
-                    <button className="btn btn-ghost btn-sm" onClick={addMedicine} id="add-medicine-btn"><Plus size={13} /> Add Medicine</button>
-                  </div>
-                  <div className="card-body">
-                    {medicines.map((med, i) => (
-                      <div key={i} style={{ background: 'var(--surface-2)', borderRadius: 'var(--r-lg)', padding: '16px', marginBottom: 12, border: '1px solid var(--border)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)' }}>Medicine Item #{i + 1}</div>
-                          {medicines.length > 1 && (
-                            <button onClick={() => removeMedicine(i)} style={{ color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer' }} id={`remove-med-${i}`}>
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr', gap: 10 }}>
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label">Medicine Name</label>
-                            <input type="text" className="form-input" id={`med-name-${i}`} placeholder="e.g. Omeprazole" value={med.name} onChange={e => setMed(i, 'name', e.target.value)} />
-                          </div>
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label">Dosage</label>
-                            <input type="text" className="form-input" id={`med-dosage-${i}`} placeholder="20mg" value={med.dosage} onChange={e => setMed(i, 'dosage', e.target.value)} />
-                          </div>
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label">Frequency</label>
-                            <input type="text" className="form-input" id={`med-freq-${i}`} placeholder="Twice daily" value={med.frequency} onChange={e => setMed(i, 'frequency', e.target.value)} />
-                          </div>
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label">Duration</label>
-                            <input type="text" className="form-input" id={`med-dur-${i}`} placeholder="7 days" value={med.duration} onChange={e => setMed(i, 'duration', e.target.value)} />
-                          </div>
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label className="form-label">Qty</label>
-                            <input type="number" className="form-input" id={`med-qty-${i}`} placeholder="14" value={med.quantity} onChange={e => setMed(i, 'quantity', e.target.value)} />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    <div className="form-group">
-                      <label className="form-label">Clinician Notes & Special Instructions</label>
-                      <textarea className="form-textarea" id="prescription-notes" rows={3} placeholder="Take after meals, complete full course..." value={exam.notes} onChange={e => setExam(p => ({ ...p, notes: e.target.value }))} />
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <button className="btn btn-secondary" onClick={() => setStep('ai')} id="back-to-ai-btn">Back to AI Analysis</button>
-                      <button className="btn btn-primary btn-lg" style={{ flex: 1 }} onClick={handleCompletePrescription} disabled={submitting} id="generate-prescription-btn">
-                        {submitting ? <><Loader size={16} className="spin" /> Issuing E-Prescription...</> : <>Issue E-Prescription ✅</>}
-                      </button>
-                    </div>
                   </div>
                 </div>
               )}
@@ -574,8 +486,26 @@ export default function ConsultationPage() {
                     <CheckCircle size={32} color="white" />
                   </div>
                   <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Consultation Completed Successfully! 🎉</div>
-                  <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 24 }}>E-Prescription has been generated and dispatched for <strong>{activePatientName}</strong>.</div>
-                  <button className="btn btn-primary btn-lg" onClick={() => navigate('/doctor/dashboard')} id="back-to-doctor-dash-done">Return to Dashboard</button>
+                  <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 24 }}>Clinical examination and AI decision history have been saved for <strong>{activePatientName}</strong>.</div>
+
+                  <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      className="btn btn-primary btn-lg"
+                      onClick={() => navigate('/doctor/dashboard')}
+                      id="back-to-doctor-dash-done"
+                    >
+                      Return to Dashboard
+                    </button>
+
+                    <button
+                      className="btn btn-outline btn-lg"
+                      style={{ border: '1px solid #059669', color: '#059669', background: '#ECFDF5', fontWeight: 700 }}
+                      onClick={() => navigate(`/doctor/e-prescription?apptId=${id}&patientName=${encodeURIComponent(activePatientName)}`)}
+                      id="open-eprescription-standalone"
+                    >
+                      Issue Standalone E-Prescription 💊
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
