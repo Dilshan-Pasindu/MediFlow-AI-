@@ -259,6 +259,150 @@ namespace MediFlow.Api.Migrations
                     b.ToTable("DoctorSpecialties");
                 });
 
+            modelBuilder.Entity("MediFlow.Api.Models.InventoryBatch", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BatchNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("InventoryItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ReceivedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BatchNumber");
+
+                    b.HasIndex("InventoryItemId");
+
+                    b.ToTable("InventoryBatches");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.InventoryItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CurrentStock")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MedicineId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinStockLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PharmacyId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicineId");
+
+                    b.HasIndex("PharmacyId", "MedicineId")
+                        .IsUnique();
+
+                    b.ToTable("InventoryItems");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.InventoryTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("InventoryItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("QuantityChanged")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RestockRequestId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StockAfter")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TransactionType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InventoryItemId");
+
+                    b.HasIndex("TransactionDate");
+
+                    b.ToTable("InventoryTransactions");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.Medicine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("GenericName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("MedicineName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicineName");
+
+                    b.ToTable("Medicines");
+                });
+
             modelBuilder.Entity("MediFlow.Api.Models.Patient", b =>
                 {
                     b.Property<int>("Id")
@@ -310,6 +454,124 @@ namespace MediFlow.Api.Migrations
                     b.ToTable("Patients");
                 });
 
+            modelBuilder.Entity("MediFlow.Api.Models.Pharmacy", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContactNumber")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
+
+                    b.ToTable("Pharmacies");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.RestockRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text");
+
+                    b.Property<int>("PharmacyId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SupplierProfileId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SupplierResponseNote")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PharmacyId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("SupplierProfileId");
+
+                    b.ToTable("RestockRequests");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.RestockRequestItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BatchNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MedicineId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RestockRequestId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("SubTotal")
+                        .HasColumnType("decimal(12,2)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicineId");
+
+                    b.HasIndex("RestockRequestId");
+
+                    b.ToTable("RestockRequestItems");
+                });
+
             modelBuilder.Entity("MediFlow.Api.Models.Specialty", b =>
                 {
                     b.Property<int>("Id")
@@ -343,6 +605,47 @@ namespace MediFlow.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Specialties");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.SupplierProfile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ContactEmail")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ContactPhone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("SupplierProfiles");
                 });
 
             modelBuilder.Entity("MediFlow.Api.Models.SymptomSubmission", b =>
@@ -511,6 +814,107 @@ namespace MediFlow.Api.Migrations
                     b.Navigation("Specialty");
                 });
 
+            modelBuilder.Entity("MediFlow.Api.Models.InventoryBatch", b =>
+                {
+                    b.HasOne("MediFlow.Api.Models.InventoryItem", "InventoryItem")
+                        .WithMany("Batches")
+                        .HasForeignKey("InventoryItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InventoryItem");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.InventoryItem", b =>
+                {
+                    b.HasOne("MediFlow.Api.Models.Medicine", "Medicine")
+                        .WithMany("InventoryItems")
+                        .HasForeignKey("MedicineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MediFlow.Api.Models.Pharmacy", "Pharmacy")
+                        .WithMany("InventoryItems")
+                        .HasForeignKey("PharmacyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Medicine");
+
+                    b.Navigation("Pharmacy");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.InventoryTransaction", b =>
+                {
+                    b.HasOne("MediFlow.Api.Models.InventoryItem", "InventoryItem")
+                        .WithMany("Transactions")
+                        .HasForeignKey("InventoryItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InventoryItem");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.Pharmacy", b =>
+                {
+                    b.HasOne("MediFlow.Api.Models.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.RestockRequest", b =>
+                {
+                    b.HasOne("MediFlow.Api.Models.Pharmacy", "Pharmacy")
+                        .WithMany("RestockRequests")
+                        .HasForeignKey("PharmacyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MediFlow.Api.Models.SupplierProfile", "SupplierProfile")
+                        .WithMany("RestockRequests")
+                        .HasForeignKey("SupplierProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Pharmacy");
+
+                    b.Navigation("SupplierProfile");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.RestockRequestItem", b =>
+                {
+                    b.HasOne("MediFlow.Api.Models.Medicine", "Medicine")
+                        .WithMany()
+                        .HasForeignKey("MedicineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MediFlow.Api.Models.RestockRequest", "RestockRequest")
+                        .WithMany("Items")
+                        .HasForeignKey("RestockRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Medicine");
+
+                    b.Navigation("RestockRequest");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.SupplierProfile", b =>
+                {
+                    b.HasOne("MediFlow.Api.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("MediFlow.Api.Models.SymptomSubmission", b =>
                 {
                     b.HasOne("MediFlow.Api.Models.Patient", "Patient")
@@ -538,6 +942,18 @@ namespace MediFlow.Api.Migrations
                     b.Navigation("Ratings");
                 });
 
+            modelBuilder.Entity("MediFlow.Api.Models.InventoryItem", b =>
+                {
+                    b.Navigation("Batches");
+
+                    b.Navigation("Transactions");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.Medicine", b =>
+                {
+                    b.Navigation("InventoryItems");
+                });
+
             modelBuilder.Entity("MediFlow.Api.Models.Patient", b =>
                 {
                     b.Navigation("Appointments");
@@ -545,9 +961,26 @@ namespace MediFlow.Api.Migrations
                     b.Navigation("SymptomSubmissions");
                 });
 
+            modelBuilder.Entity("MediFlow.Api.Models.Pharmacy", b =>
+                {
+                    b.Navigation("InventoryItems");
+
+                    b.Navigation("RestockRequests");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.RestockRequest", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("MediFlow.Api.Models.Specialty", b =>
                 {
                     b.Navigation("DoctorSpecialties");
+                });
+
+            modelBuilder.Entity("MediFlow.Api.Models.SupplierProfile", b =>
+                {
+                    b.Navigation("RestockRequests");
                 });
 #pragma warning restore 612, 618
         }
