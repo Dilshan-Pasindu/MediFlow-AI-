@@ -87,7 +87,7 @@ export async function apiGetMyAppointments(): Promise<ConsultationAppointment[]>
 }
 
 export async function apiSubmitSymptoms(symptoms: { symptoms: string; duration?: string; severity?: string } | Record<string, unknown>) {
-  return apiFetch('/patients/symptoms', { method: 'POST', body: JSON.stringify(symptoms) });
+  return apiFetch('/patient/symptoms', { method: 'POST', body: JSON.stringify(symptoms) });
 }
 
 export async function apiGetMyPrescriptions(): Promise<Prescription[]> {
@@ -158,6 +158,13 @@ export async function apiSubmitPayment(appointmentId: number | string, amount: n
   return apiFetch(`/appointments/${appointmentId}/payment`, {
     method: 'POST',
     body: JSON.stringify({ amount, paymentMethod }),
+  });
+}
+
+export async function apiPatientCancelAppointment(id: number | string, reason?: string) {
+  return apiFetch(`/patient/appointments/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason: reason || '' }),
   });
 }
 
