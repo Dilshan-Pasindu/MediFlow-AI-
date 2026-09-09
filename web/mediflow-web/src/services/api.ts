@@ -327,6 +327,7 @@ export async function apiCreateRestockRequest(data: {
   supplierProfileId: number;
   notes?: string;
   items: Array<{ medicineId: number; quantity: number; unitPrice: number }>;
+  pharmacyId?: number;
 }) {
   return apiFetch('/restock-requests', { method: 'POST', body: JSON.stringify(data) });
 }
