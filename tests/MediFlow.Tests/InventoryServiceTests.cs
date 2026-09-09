@@ -167,4 +167,33 @@ public class InventoryServiceTests : IDisposable
             _inventoryService.ConfirmReceiptAsync(99, new ReceiveRestockDto(null)));
         Assert.Contains("can only be received when status is 'Delivered' or 'Dispatched'", ex.Message);
     }
+
+    [Fact]
+    public async Task CreateRestockRequest_WithExplicitPharmacyId_Succeeds()
+    {
+        // Arrange
+        var pharmacy = new Pharmacy { Id = 20, Name = "Admin Targeted Pharmacy", OwnerId = 1 };
+        var supplier = new SupplierProfile { Id = 20, UserId = 3, CompanyName = "Admin Supplier" };
+        var med = new Medicine { Id = 20, MedicineName = "Med Admin" };
+        _db.Pharmacies.Add(pharmacy);
+        _db.SupplierProfiles.Add(supplier);
+        _db.Medicines.Add(med);
+        await _db.SaveChangesAsync();
+
+        var dto = new CreateRestockRequestDto(
+            SupplierProfileId: 20,
+            Notes: "Created on behalf of pharmacy",
+            Items: new List<CreateRestockRequestItemDto> { new(20, 200, 5.5m) },
+            PharmacyId: 20
+        );
+
+        // Act
+        var result = await _inventoryService.CreateRestockRequestAsync(dto.PharmacyId!.Value, dto);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(20, result.PharmacyId);
+        Assert.Equal(RestockRequestStatus.Pending, result.Status);
+        Assert.Equal(1100m, result.TotalAmount);
+    }
 }
