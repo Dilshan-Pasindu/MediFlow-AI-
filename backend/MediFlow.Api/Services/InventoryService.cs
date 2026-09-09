@@ -305,9 +305,9 @@ public class InventoryService
             .FirstOrDefaultAsync(r => r.Id == requestId)
             ?? throw new KeyNotFoundException("Restock request not found.");
 
-        if (request.Status != RestockRequestStatus.Delivered)
+        if (request.Status != RestockRequestStatus.Delivered && request.Status != RestockRequestStatus.Dispatched)
             throw new InvalidOperationException(
-                $"Stock can only be received when status is 'Delivered'. Current status: {request.Status}.");
+                $"Stock can only be received when status is 'Delivered' or 'Dispatched'. Current status: {request.Status}.");
 
         var now = DateTime.UtcNow;
 
