@@ -217,7 +217,7 @@ export default function OwnerDashboard() {
     OK: '#22C55E', Low: '#F59E0B', Critical: '#EF4444', OutOfStock: '#7C3AED'
   };
 
-  const deliveredRequests = requests.filter(r => r.status === 'Delivered');
+  const deliveredRequests = requests.filter(r => r.status === 'Delivered' || r.status === 'Dispatched');
 
   return (
     <div className="app-shell">
@@ -278,7 +278,7 @@ export default function OwnerDashboard() {
               <div style={{ flex: 1 }}>
                 <div className="approval-banner-title" style={{ color: '#065F46' }}>Stock Awaiting Your Confirmation</div>
                 <div className="approval-banner-sub" style={{ color: '#047857' }}>
-                  {deliveredRequests.length} delivery(ies) arrived — confirm receipt to update inventory.
+                  {deliveredRequests.length} order(s) dispatched or delivered — confirm receipt to update inventory.
                 </div>
               </div>
               <button className="btn btn-success btn-sm" onClick={() => setActiveTab('requests')}>
@@ -543,7 +543,7 @@ export default function OwnerDashboard() {
                             <td><span className={`badge ${REQUEST_STATUS_COLOR[r.status] || 'badge-blue'}`}>{r.status}</span></td>
                             <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(r.requestedAt).toLocaleDateString()}</td>
                             <td>
-                              {r.status === 'Delivered' && (
+                              {(r.status === 'Delivered' || r.status === 'Dispatched') && (
                                 <button
                                   className="btn btn-success btn-sm"
                                   onClick={() => handleReceive(r.id)}
