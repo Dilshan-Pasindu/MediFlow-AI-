@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import {
   CheckCircle, X, AlertTriangle, Package, Loader, Sparkles,
-  RefreshCw, Search, Filter, ChevronDown, ChevronUp, Truck, Plus, Eye
+  RefreshCw, Search, Filter, ChevronDown, ChevronUp, Truck, Plus, Eye,
+  Calendar, Clock, Edit3, AlertCircle
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import {
   apiGetMyPharmacy, apiGetPharmacyInventory, apiGenerateRestockRecommendations,
   apiCreateRestockRequest, apiGetSuppliers, apiGetRestockRequests,
-  apiReceiveRestockRequest, getUser
+  apiReceiveRestockRequest, apiAddInventoryBatch, apiUpdateBatchExpiry, getUser
 } from '../../services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -24,8 +25,16 @@ interface InventoryItem {
   unitPrice: number;
   stockStatus: string;
   batches: Array<{
-    id: number; batchNumber: string; quantity: number;
-    expiryDate: string; isExpired: boolean; isExpiringSoon: boolean;
+    id: number;
+    batchNumber: string;
+    quantity: number;
+    expiryDate: string;
+    receivedDate?: string;
+    isExpired: boolean;
+    isExpiringSoon: boolean;
+    isCriticalExpiry?: boolean;
+    daysUntilExpiry?: number;
+    expiryStatus?: string;
   }>;
 }
 
@@ -82,6 +91,12 @@ const REQUEST_STATUS_COLOR: Record<string, string> = {
   Completed: 'badge-green',
 };
 
+function getFutureDate(months: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().split('T')[0];
+}
+
 export default function OwnerDashboard() {
   const user = getUser();
   const [pharmacyId, setPharmacyId] = useState<number | null>(null);
@@ -97,6 +112,24 @@ export default function OwnerDashboard() {
   const [activeTab, setActiveTab] = useState('inventory');
   const [search, setSearch] = useState('');
   const [stockFilter, setStockFilter] = useState('');
+
+  // Batch management & expiry state
+  const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
+  const [addBatchModalItem, setAddBatchModalItem] = useState<InventoryItem | null>(null);
+  const [batchNumber, setBatchNumber] = useState('');
+  const [batchQuantity, setBatchQuantity] = useState<number | ''>(100);
+  const [batchExpiryDate, setBatchExpiryDate] = useState(getFutureDate(18));
+  const [batchNotes, setBatchNotes] = useState('');
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [batchModalError, setBatchModalError] = useState<string | null>(null);
+
+  // Edit batch expiry state
+  const [editBatchModal, setEditBatchModal] = useState<{ item: InventoryItem; batch: InventoryItem['batches'][0] } | null>(null);
+  const [editExpiryDate, setEditExpiryDate] = useState('');
+  const [editExpiryNotes, setEditExpiryNotes] = useState('');
+  const [editExpirySubmitting, setEditExpirySubmitting] = useState(false);
+  const [editExpiryError, setEditExpiryError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   // Restock request approval
   const [selectedSupplier, setSelectedSupplier] = useState<number | null>(null);
@@ -218,6 +251,89 @@ export default function OwnerDashboard() {
     }
   }
 
+  function openAddBatchModal(item: InventoryItem) {
+    setAddBatchModalItem(item);
+    setBatchNumber(`B-${item.medicineId}-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`);
+    setBatchQuantity(100);
+    setBatchExpiryDate(getFutureDate(18));
+    setBatchNotes('');
+    setBatchModalError(null);
+  }
+
+  async function handleSaveBatch() {
+    if (!pharmacyId || !addBatchModalItem) return;
+    if (!batchNumber.trim()) {
+      setBatchModalError('Batch number is required.');
+      return;
+    }
+    if (!batchQuantity || Number(batchQuantity) <= 0) {
+      setBatchModalError('Batch quantity must be greater than 0.');
+      return;
+    }
+    if (!batchExpiryDate) {
+      setBatchModalError('Batch expiration date is required.');
+      return;
+    }
+
+    setBatchSubmitting(true);
+    setBatchModalError(null);
+    try {
+      await apiAddInventoryBatch(pharmacyId, addBatchModalItem.id, {
+        batchNumber: batchNumber.trim(),
+        quantity: Number(batchQuantity),
+        expiryDate: batchExpiryDate,
+        notes: batchNotes.trim() || undefined,
+      });
+      setSuccessToast(`Batch ${batchNumber} added successfully for ${addBatchModalItem.medicineName}!`);
+      setAddBatchModalItem(null);
+      loadInventory(pharmacyId);
+      setTimeout(() => setSuccessToast(null), 4000);
+    } catch (err: any) {
+      setBatchModalError(err?.message || 'Failed to add batch.');
+    } finally {
+      setBatchSubmitting(false);
+    }
+  }
+
+  function openEditExpiryModal(item: InventoryItem, batch: InventoryItem['batches'][0]) {
+    setEditBatchModal({ item, batch });
+    setEditExpiryDate(batch.expiryDate ? batch.expiryDate.split('T')[0] : getFutureDate(12));
+    setEditExpiryNotes('');
+    setEditExpiryError(null);
+  }
+
+  async function handleSaveEditExpiry() {
+    if (!pharmacyId || !editBatchModal) return;
+    if (!editExpiryDate) {
+      setEditExpiryError('Please select a valid expiration date.');
+      return;
+    }
+
+    setEditExpirySubmitting(true);
+    setEditExpiryError(null);
+    try {
+      await apiUpdateBatchExpiry(pharmacyId, editBatchModal.item.id, editBatchModal.batch.id, {
+        expiryDate: editExpiryDate,
+        notes: editExpiryNotes.trim() || undefined,
+      });
+      setSuccessToast(`Updated expiration date for batch ${editBatchModal.batch.batchNumber}!`);
+      setEditBatchModal(null);
+      loadInventory(pharmacyId);
+      setTimeout(() => setSuccessToast(null), 4000);
+    } catch (err: any) {
+      setEditExpiryError(err?.message || 'Failed to update expiry date.');
+    } finally {
+      setEditExpirySubmitting(false);
+    }
+  }
+
+  const totalExpiringBatches = inventory.reduce(
+    (acc, i) => acc + i.batches.filter(b => b.isExpiringSoon && !b.isExpired).length, 0
+  );
+  const totalExpiredBatches = inventory.reduce(
+    (acc, i) => acc + i.batches.filter(b => b.isExpired).length, 0
+  );
+
   const stockPct = (item: InventoryItem) =>
     Math.min(100, Math.round((item.currentStock / item.minStockLevel) * 100));
 
@@ -255,21 +371,31 @@ export default function OwnerDashboard() {
               <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 21, fontWeight: 800, marginBottom: 4 }}>Pharmacy Owner Portal</div>
               <div style={{ fontSize: 13, opacity: 0.85 }}>Inventory management, AI demand forecasting, and restock automation</div>
             </div>
-            <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {[
                 { label: 'Total Medicines', value: inventoryMeta.totalCount, icon: '💊' },
                 { label: 'Low Stock', value: inventoryMeta.lowStockCount, icon: '⚠️', highlight: inventoryMeta.lowStockCount > 0 },
                 { label: 'Critical', value: inventoryMeta.criticalCount, icon: '🚨', highlight: inventoryMeta.criticalCount > 0 },
                 { label: 'Out of Stock', value: inventoryMeta.outOfStockCount, icon: '🔴', highlight: inventoryMeta.outOfStockCount > 0 },
+                { label: 'Expiring (<60d)', value: totalExpiringBatches, icon: '⏰', highlight: totalExpiringBatches > 0 },
+                { label: 'Expired', value: totalExpiredBatches, icon: '🛑', highlight: totalExpiredBatches > 0 },
               ].map(s => (
-                <div key={s.label} style={{ background: s.highlight ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: `1.5px solid ${s.highlight ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 'var(--r-lg)', padding: '10px 16px', textAlign: 'center', minWidth: 85 }}>
-                  <div style={{ fontSize: 18 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 900 }}>{s.value}</div>
-                  <div style={{ fontSize: 10, opacity: 0.75 }}>{s.label}</div>
+                <div key={s.label} style={{ background: s.highlight ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: `1.5px solid ${s.highlight ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 'var(--r-lg)', padding: '10px 14px', textAlign: 'center', minWidth: 80 }}>
+                  <div style={{ fontSize: 16 }}>{s.icon}</div>
+                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 20, fontWeight: 900 }}>{s.value}</div>
+                  <div style={{ fontSize: 10, opacity: 0.8 }}>{s.label}</div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Success toast */}
+          {successToast && (
+            <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 'var(--r-md)', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', display: 'flex', gap: 8, alignItems: 'center', fontWeight: 600 }}>
+              <CheckCircle size={16} color="#059669" /> {successToast}
+              <button style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }} onClick={() => setSuccessToast(null)}><X size={14} /></button>
+            </div>
+          )}
 
           {/* Error */}
           {error && (
@@ -366,6 +492,7 @@ export default function OwnerDashboard() {
                         <th>Unit Price</th>
                         <th>Status</th>
                         <th>Expiry Warning</th>
+                        <th style={{ textAlign: 'right' }}>Batches & Expiry</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -373,40 +500,181 @@ export default function OwnerDashboard() {
                         const pct = item.minStockLevel > 0 ? stockPct(item) : 100;
                         const expiringSoon = item.batches.some(b => b.isExpiringSoon && !b.isExpired);
                         const expired = item.batches.some(b => b.isExpired);
+                        const isExpanded = expandedItemId === item.id;
                         return (
-                          <tr key={item.id} id={`inventory-row-${item.id}`}>
-                            <td>
-                              <div style={{ fontWeight: 700 }}>{item.medicineName}</div>
-                              <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{item.genericName}</div>
-                            </td>
-                            <td><span className="badge badge-blue">{item.category}</span></td>
-                            <td>
-                              <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 15, fontWeight: 800, color: STATUS_COLOR[item.stockStatus] || 'var(--text-primary)' }}>
-                                {item.currentStock}
-                              </span> {item.batches.length > 0 ? `(${item.batches.length} batch${item.batches.length > 1 ? 'es' : ''})` : ''}
-                            </td>
-                            <td style={{ color: 'var(--text-muted)' }}>{item.minStockLevel} units</td>
-                            <td style={{ width: 150 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <div className="stock-indicator">
-                                  <div className="stock-fill" style={{ width: `${pct}%`, background: FILL_COLOR[item.stockStatus] || '#22C55E' }} />
+                          <React.Fragment key={item.id}>
+                            <tr id={`inventory-row-${item.id}`}>
+                              <td>
+                                <div style={{ fontWeight: 700 }}>{item.medicineName}</div>
+                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>{item.genericName}</div>
+                              </td>
+                              <td><span className="badge badge-blue">{item.category}</span></td>
+                              <td>
+                                <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 15, fontWeight: 800, color: STATUS_COLOR[item.stockStatus] || 'var(--text-primary)' }}>
+                                  {item.currentStock}
+                                </span> {item.batches.length > 0 ? `(${item.batches.length} batch${item.batches.length > 1 ? 'es' : ''})` : ''}
+                              </td>
+                              <td style={{ color: 'var(--text-muted)' }}>{item.minStockLevel} units</td>
+                              <td style={{ width: 140 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div className="stock-indicator">
+                                    <div className="stock-fill" style={{ width: `${pct}%`, background: FILL_COLOR[item.stockStatus] || '#22C55E' }} />
+                                  </div>
+                                  <span style={{ fontSize: 11.5, fontWeight: 700, minWidth: 32 }}>{pct}%</span>
                                 </div>
-                                <span style={{ fontSize: 11.5, fontWeight: 700, minWidth: 32 }}>{pct}%</span>
-                              </div>
-                            </td>
-                            <td>Rs. {item.unitPrice.toFixed(2)}</td>
-                            <td>
-                              {item.stockStatus === 'OutOfStock' ? <span className="low-stock-badge" style={{ background: '#7C3AED', color: 'white', borderColor: '#7C3AED' }}>🔴 Out of Stock</span>
-                                : item.stockStatus === 'Critical' ? <span className="low-stock-badge">🚨 Critical</span>
-                                : item.stockStatus === 'Low' ? <span className="low-stock-badge">⚠️ Low</span>
-                                : <span className="badge badge-green">✓ OK</span>}
-                            </td>
-                            <td>
-                              {expired ? <span className="low-stock-badge">🔴 Batch Expired</span>
-                                : expiringSoon ? <span className="low-stock-badge" style={{ background: '#FFF7ED', borderColor: '#FED7AA', color: '#C2410C' }}>⏰ Expiring Soon</span>
-                                : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
-                            </td>
-                          </tr>
+                              </td>
+                              <td>Rs. {item.unitPrice.toFixed(2)}</td>
+                              <td>
+                                {item.stockStatus === 'OutOfStock' ? <span className="low-stock-badge" style={{ background: '#7C3AED', color: 'white', borderColor: '#7C3AED' }}>🔴 Out of Stock</span>
+                                  : item.stockStatus === 'Critical' ? <span className="low-stock-badge">🚨 Critical</span>
+                                  : item.stockStatus === 'Low' ? <span className="low-stock-badge">⚠️ Low</span>
+                                  : <span className="badge badge-green">✓ OK</span>}
+                              </td>
+                              <td>
+                                {expired ? <span className="low-stock-badge">🔴 Batch Expired</span>
+                                  : expiringSoon ? <span className="low-stock-badge" style={{ background: '#FFF7ED', borderColor: '#FED7AA', color: '#C2410C' }}>⏰ Expiring Soon</span>
+                                  : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
+                              </td>
+                              <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'inline-flex', gap: 6 }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-sm"
+                                    style={{ fontSize: 12, padding: '4px 8px' }}
+                                    onClick={() => setExpandedItemId(isExpanded ? null : item.id)}
+                                    id={`toggle-batches-${item.id}`}
+                                    title="View/Hide Batch Breakdown"
+                                  >
+                                    <Calendar size={13} /> {item.batches.length} {item.batches.length === 1 ? 'Batch' : 'Batches'}
+                                    {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-primary btn-sm"
+                                    style={{ fontSize: 12, padding: '4px 10px' }}
+                                    onClick={() => openAddBatchModal(item)}
+                                    id={`add-batch-btn-${item.id}`}
+                                    title="Add new batch with real-world expiration date"
+                                  >
+                                    <Plus size={13} /> Add Batch
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr className="fade-in" style={{ background: 'var(--surface-2, #F8FAFC)' }}>
+                                <td colSpan={9} style={{ padding: '14px 20px' }}>
+                                  <div style={{ background: 'var(--card-bg, #FFFFFF)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 16 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <Calendar size={16} style={{ color: 'var(--primary)' }} />
+                                        <span style={{ fontWeight: 700, fontSize: 13.5 }}>Batch Expiry Breakdown for {item.medicineName}</span>
+                                        <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>({item.batches.length} active batches)</span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ fontSize: 11.5, padding: '4px 10px' }}
+                                        onClick={() => openAddBatchModal(item)}
+                                        id={`sub-add-batch-${item.id}`}
+                                      >
+                                        <Plus size={12} /> Log New Batch
+                                      </button>
+                                    </div>
+
+                                    {item.batches.length === 0 ? (
+                                      <div style={{ fontSize: 12.5, color: 'var(--text-muted)', padding: '16px 0', textAlign: 'center' }}>
+                                        No individual batches recorded for this medicine yet. Click "Log New Batch" to add one with a real-world expiry date.
+                                      </div>
+                                    ) : (
+                                      <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ width: '100%', fontSize: 12.5, borderCollapse: 'collapse' }}>
+                                          <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', textAlign: 'left' }}>
+                                              <th style={{ padding: '6px 8px' }}>Batch Number</th>
+                                              <th style={{ padding: '6px 8px' }}>Quantity</th>
+                                              <th style={{ padding: '6px 8px' }}>Received Date</th>
+                                              <th style={{ padding: '6px 8px' }}>Expiration Date</th>
+                                              <th style={{ padding: '6px 8px' }}>Days Remaining</th>
+                                              <th style={{ padding: '6px 8px' }}>Quality / Status</th>
+                                              <th style={{ padding: '6px 8px', textAlign: 'right' }}>Actions</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {item.batches.map(batch => {
+                                              const now = new Date();
+                                              const exp = new Date(batch.expiryDate);
+                                              const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                              const isExp = diffDays <= 0;
+                                              const isCrit = !isExp && diffDays <= 30;
+                                              const isSoon = !isExp && diffDays <= 60;
+
+                                              return (
+                                                <tr key={batch.id} style={{ borderBottom: '1px solid var(--border-light, #F1F5F9)' }}>
+                                                  <td style={{ padding: '10px 8px', fontWeight: 600 }}>
+                                                    <code>{batch.batchNumber}</code>
+                                                  </td>
+                                                  <td style={{ padding: '10px 8px', fontWeight: 700 }}>{batch.quantity} units</td>
+                                                  <td style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>
+                                                    {batch.receivedDate ? new Date(batch.receivedDate).toLocaleDateString() : '—'}
+                                                  </td>
+                                                  <td style={{ padding: '10px 8px', fontWeight: 600 }}>
+                                                    {new Date(batch.expiryDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                                                  </td>
+                                                  <td style={{ padding: '10px 8px' }}>
+                                                    {isExp ? (
+                                                      <span style={{ color: 'var(--danger)', fontWeight: 700 }}>Expired ({Math.abs(diffDays)}d ago)</span>
+                                                    ) : isCrit ? (
+                                                      <span style={{ color: '#DC2626', fontWeight: 700 }}>🚨 {diffDays} days left!</span>
+                                                    ) : isSoon ? (
+                                                      <span style={{ color: '#C2410C', fontWeight: 700 }}>⚠️ {diffDays} days left</span>
+                                                    ) : (
+                                                      <span style={{ color: 'var(--success)', fontWeight: 600 }}>✅ {diffDays} days left</span>
+                                                    )}
+                                                  </td>
+                                                  <td style={{ padding: '10px 8px' }}>
+                                                    {isExp ? (
+                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FEE2E2', color: '#991B1B', borderColor: '#FCA5A5' }}>
+                                                        🔴 Expired
+                                                      </span>
+                                                    ) : isCrit ? (
+                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FEF2F2', color: '#B91C1C', borderColor: '#F87171' }}>
+                                                        🚨 Critical (&le;30d)
+                                                      </span>
+                                                    ) : isSoon ? (
+                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FFF7ED', color: '#C2410C', borderColor: '#FED7AA' }}>
+                                                        ⏰ Expiring (&le;60d)
+                                                      </span>
+                                                    ) : (
+                                                      <span className="badge badge-green" style={{ fontSize: 11 }}>
+                                                        ✓ Good
+                                                      </span>
+                                                    )}
+                                                  </td>
+                                                  <td style={{ padding: '10px 8px', textAlign: 'right' }}>
+                                                    <button
+                                                      type="button"
+                                                      className="btn btn-ghost btn-sm"
+                                                      style={{ fontSize: 11.5, padding: '3px 8px', color: 'var(--primary)' }}
+                                                      onClick={() => openEditExpiryModal(item, batch)}
+                                                      id={`edit-expiry-${batch.id}`}
+                                                      title="Pick new expiration date for this batch"
+                                                    >
+                                                      <Edit3 size={11} /> Edit Expiry
+                                                    </button>
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })}
                     </tbody>
@@ -569,6 +837,232 @@ export default function OwnerDashboard() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Add Batch Modal (Real-World Batch Date Picker & Input Fields) ── */}
+          {addBatchModalItem && (
+            <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+              <div className="card scale-in" style={{ width: '100%', maxWidth: 520, background: 'white', borderRadius: 'var(--r-lg)', padding: 24, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
+                  <div>
+                    <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
+                      📦 Add New Batch
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      {addBatchModalItem.medicineName} ({addBatchModalItem.category})
+                    </div>
+                  </div>
+                  <button className="close-btn" onClick={() => setAddBatchModalItem(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {batchModalError && (
+                  <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 'var(--r-md)', background: '#FEF2F2', color: '#DC2626', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertCircle size={15} /> {batchModalError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <label style={{ fontSize: 12.5, fontWeight: 600 }}>Batch Number *</label>
+                      <button
+                        type="button"
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                        onClick={() => setBatchNumber(`B-${addBatchModalItem.medicineId}-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`)}
+                      >
+                        🔄 Auto-Generate
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={batchNumber}
+                      onChange={e => setBatchNumber(e.target.value)}
+                      placeholder="e.g. BATCH-2026-A12"
+                      id="batch-number-input"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12.5, fontWeight: 600, display: 'block', marginBottom: 4 }}>Batch Quantity (Units) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="form-input"
+                      value={batchQuantity}
+                      onChange={e => setBatchQuantity(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+                      placeholder="100"
+                      id="batch-quantity-input"
+                    />
+                  </div>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <label style={{ fontSize: 12.5, fontWeight: 600 }}>Real-World Batch Expiration Date *</label>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Required for expiry tracking</span>
+                    </div>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={batchExpiryDate}
+                        onChange={e => setBatchExpiryDate(e.target.value)}
+                        id="batch-expiry-date-picker"
+                        min={new Date().toISOString().split('T')[0]}
+                        style={{ fontWeight: 600 }}
+                      />
+                    </div>
+                    {/* Quick Date Presets */}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', alignSelf: 'center' }}>Presets:</span>
+                      {[
+                        { label: '+6 Mo', m: 6 },
+                        { label: '+1 Yr', m: 12 },
+                        { label: '+2 Yrs', m: 24 },
+                        { label: '+3 Yrs', m: 36 },
+                      ].map(preset => (
+                        <button
+                          key={preset.m}
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: 11, padding: '2px 8px', border: '1px solid var(--border)' }}
+                          onClick={() => setBatchExpiryDate(getFutureDate(preset.m))}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12.5, fontWeight: 600, display: 'block', marginBottom: 4 }}>Notes / Manufacturer Info (Optional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={batchNotes}
+                      onChange={e => setBatchNotes(e.target.value)}
+                      placeholder="e.g. Supplier Lot #9948, Stored at 20°C"
+                      id="batch-notes-input"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setAddBatchModalItem(null)}
+                    disabled={batchSubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleSaveBatch}
+                    disabled={batchSubmitting}
+                    id="submit-save-batch-btn"
+                  >
+                    {batchSubmitting ? <><Loader size={14} className="spin" /> Saving Batch...</> : <><Plus size={14} /> Add Batch</>}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Edit Batch Expiry Modal ── */}
+          {editBatchModal && (
+            <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+              <div className="card scale-in" style={{ width: '100%', maxWidth: 480, background: 'white', borderRadius: 'var(--r-lg)', padding: 24 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
+                  <div>
+                    <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 18, fontWeight: 800 }}>
+                      📅 Update Batch Expiry Date
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      {editBatchModal.item.medicineName} — Batch <code>{editBatchModal.batch.batchNumber}</code>
+                    </div>
+                  </div>
+                  <button className="close-btn" onClick={() => setEditBatchModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {editExpiryError && (
+                  <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 'var(--r-md)', background: '#FEF2F2', color: '#DC2626', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertCircle size={15} /> {editExpiryError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 12.5, fontWeight: 600, display: 'block', marginBottom: 4 }}>New Expiration Date *</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editExpiryDate}
+                      onChange={e => setEditExpiryDate(e.target.value)}
+                      id="edit-expiry-date-picker"
+                      style={{ fontWeight: 600 }}
+                    />
+                    {/* Quick Date Presets */}
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', alignSelf: 'center' }}>Presets:</span>
+                      {[
+                        { label: '+6 Mo', m: 6 },
+                        { label: '+1 Yr', m: 12 },
+                        { label: '+2 Yrs', m: 24 },
+                        { label: '+3 Yrs', m: 36 },
+                      ].map(preset => (
+                        <button
+                          key={preset.m}
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          style={{ fontSize: 11, padding: '2px 8px', border: '1px solid var(--border)' }}
+                          onClick={() => setEditExpiryDate(getFutureDate(preset.m))}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: 12.5, fontWeight: 600, display: 'block', marginBottom: 4 }}>Adjustment Reason / Note (Optional)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={editExpiryNotes}
+                      onChange={e => setEditExpiryNotes(e.target.value)}
+                      placeholder="e.g. Manufacturer stability extension letter"
+                      id="edit-expiry-notes"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setEditBatchModal(null)}
+                    disabled={editExpirySubmitting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleSaveEditExpiry}
+                    disabled={editExpirySubmitting}
+                    id="confirm-edit-expiry-btn"
+                  >
+                    {editExpirySubmitting ? <><Loader size={14} className="spin" /> Updating...</> : <><CheckCircle size={14} /> Update Expiry</>}
+                  </button>
+                </div>
               </div>
             </div>
           )}
