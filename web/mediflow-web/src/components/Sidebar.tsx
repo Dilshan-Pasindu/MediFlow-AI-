@@ -40,9 +40,10 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
   ],
   Doctor: [
     { section: 'Clinical', items: [
-      { to: '/doctor/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/doctor/appointments', icon: Calendar,        label: 'Appointments' },
-      { to: '/doctor/history',      icon: ClipboardList,   label: 'Patient History' },
+      { to: '/doctor/dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/doctor/appointments',   icon: Calendar,        label: 'Appointments' },
+      { to: '/doctor/e-prescription', icon: Pill,            label: 'E-Prescription' },
+      { to: '/doctor/history',        icon: ClipboardList,   label: 'Patient History' },
     ]},
     { section: 'Account', items: [
       { to: '/profile', icon: User, label: 'My Profile' },

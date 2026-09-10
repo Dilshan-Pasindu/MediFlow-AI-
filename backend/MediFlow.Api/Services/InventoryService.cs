@@ -45,9 +45,12 @@ public class InventoryService
             .Where(i => i.PharmacyId == pharmacyId);
 
         if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
             query = query.Where(i =>
-                i.Medicine!.MedicineName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                i.Medicine.GenericName.Contains(search, StringComparison.OrdinalIgnoreCase));
+                i.Medicine!.MedicineName.ToLower().Contains(searchLower) ||
+                i.Medicine.GenericName.ToLower().Contains(searchLower));
+        }
 
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(i => i.Medicine!.Category == category);
@@ -305,9 +308,9 @@ public class InventoryService
             .FirstOrDefaultAsync(r => r.Id == requestId)
             ?? throw new KeyNotFoundException("Restock request not found.");
 
-        if (request.Status != RestockRequestStatus.Delivered)
+        if (request.Status != RestockRequestStatus.Delivered && request.Status != RestockRequestStatus.Dispatched)
             throw new InvalidOperationException(
-                $"Stock can only be received when status is 'Delivered'. Current status: {request.Status}.");
+                $"Stock can only be received when status is 'Delivered' or 'Dispatched'. Current status: {request.Status}.");
 
         var now = DateTime.UtcNow;
 
