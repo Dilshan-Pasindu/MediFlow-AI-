@@ -125,6 +125,64 @@ public class InventoryController : ControllerBase
     }
 
     /// <summary>
+    /// POST /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches
+    /// Add a new batch with batch number, quantity, and real-world expiration date.
+    /// </summary>
+    [HttpPost("pharmacies/{pharmacyId:int}/inventory/{itemId:int}/batches")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> AddBatch(int pharmacyId, int itemId, [FromBody] CreateInventoryBatchDto dto)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var updatedItem = await _inventoryService.AddBatchAsync(pharmacyId, itemId, dto);
+            return Ok(updatedItem);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// PUT /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches/{batchId}/expiry
+    /// Update the expiration date for a specific inventory batch.
+    /// </summary>
+    [HttpPut("pharmacies/{pharmacyId:int}/inventory/{itemId:int}/batches/{batchId:int}/expiry")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> UpdateBatchExpiry(int pharmacyId, int itemId, int batchId, [FromBody] UpdateBatchExpiryDto dto)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var updatedBatch = await _inventoryService.UpdateBatchExpiryAsync(pharmacyId, itemId, batchId, dto);
+            return Ok(updatedBatch);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// GET /api/inventory/transactions
     /// Get transaction history for agent demand analysis.
     /// </summary>
