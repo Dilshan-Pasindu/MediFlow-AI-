@@ -152,11 +152,19 @@ export default function OwnerDashboard() {
 
   useEffect(() => {
     if (pharmacyId) {
-      loadInventory(pharmacyId);
       loadRequests();
       apiGetSuppliers().then((s: any) => setSuppliers(s || [])).catch(() => {});
     }
-  }, [pharmacyId, loadInventory, loadRequests]);
+  }, [pharmacyId, loadRequests]);
+
+  useEffect(() => {
+    if (pharmacyId) {
+      const timer = setTimeout(() => {
+        loadInventory(pharmacyId);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [pharmacyId, loadInventory]);
 
   async function handleGenerateRestock() {
     if (!pharmacyId) return;

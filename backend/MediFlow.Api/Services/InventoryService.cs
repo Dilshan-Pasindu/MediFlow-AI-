@@ -45,9 +45,12 @@ public class InventoryService
             .Where(i => i.PharmacyId == pharmacyId);
 
         if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.ToLower();
             query = query.Where(i =>
-                i.Medicine!.MedicineName.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                i.Medicine.GenericName.Contains(search, StringComparison.OrdinalIgnoreCase));
+                i.Medicine!.MedicineName.ToLower().Contains(searchLower) ||
+                i.Medicine.GenericName.ToLower().Contains(searchLower));
+        }
 
         if (!string.IsNullOrWhiteSpace(category))
             query = query.Where(i => i.Medicine!.Category == category);
