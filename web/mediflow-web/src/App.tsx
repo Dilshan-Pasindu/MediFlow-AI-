@@ -19,7 +19,9 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 
 // Doctor
 const DoctorDashboard = React.lazy(() => import('./pages/doctor/DoctorDashboard'));
+const DoctorAppointmentsPage = React.lazy(() => import('./pages/doctor/DoctorAppointmentsPage'));
 const ConsultationPage = React.lazy(() => import('./pages/doctor/ConsultationPage'));
+const DoctorEPrescriptionPage = React.lazy(() => import('./pages/doctor/DoctorEPrescriptionPage'));
 
 // Receptionist
 const ReceptionistDashboard = React.lazy(() => import('./pages/receptionist/ReceptionistDashboard'));
@@ -145,8 +147,9 @@ function App() {
 
           {/* Doctor Portal */}
           <Route path="/doctor/dashboard" element={<ProtectedRoute roles={['Doctor']}><DoctorDashboard /></ProtectedRoute>} />
-          <Route path="/doctor/appointments" element={<ProtectedRoute roles={['Doctor']}><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/doctor/appointments" element={<ProtectedRoute roles={['Doctor']}><DoctorAppointmentsPage /></ProtectedRoute>} />
           <Route path="/doctor/consultation/:id" element={<ProtectedRoute roles={['Doctor']}><ConsultationPage /></ProtectedRoute>} />
+          <Route path="/doctor/e-prescription" element={<ProtectedRoute roles={['Doctor']}><DoctorEPrescriptionPage /></ProtectedRoute>} />
 
           {/* Receptionist Portal */}
           <Route path="/receptionist/dashboard" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistDashboard /></ProtectedRoute>} />
