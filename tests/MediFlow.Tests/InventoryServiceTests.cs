@@ -196,4 +196,66 @@ public class InventoryServiceTests : IDisposable
         Assert.Equal(RestockRequestStatus.Pending, result.Status);
         Assert.Equal(1100m, result.TotalAmount);
     }
+
+    [Fact]
+    public async Task AddBatchAsync_IncreasesStock_AndCalculatesExpiryStatus()
+    {
+        // Arrange
+        var pharmacy = new Pharmacy { Id = 30, Name = "Batch Test Pharmacy", OwnerId = 1 };
+        var med = new Medicine { Id = 30, MedicineName = "Batch Med" };
+        var invItem = new InventoryItem { Id = 30, PharmacyId = 30, MedicineId = 30, CurrentStock = 15, MinStockLevel = 50 };
+
+        _db.Pharmacies.Add(pharmacy);
+        _db.Medicines.Add(med);
+        _db.InventoryItems.Add(invItem);
+        await _db.SaveChangesAsync();
+
+        var expiry = DateTime.UtcNow.AddDays(25); // Critical (<= 30 days)
+        var dto = new CreateInventoryBatchDto("BATCH-TEST-001", 50, expiry, "Test batch log");
+
+        // Act
+        var result = await _inventoryService.AddBatchAsync(30, 30, dto);
+
+        // Assert
+        Assert.Equal(65, result.CurrentStock); // 15 + 50
+        Assert.Single(result.Batches);
+
+        var batch = result.Batches.First();
+        Assert.Equal("BATCH-TEST-001", batch.BatchNumber);
+        Assert.Equal(50, batch.Quantity);
+        Assert.False(batch.IsExpired);
+        Assert.True(batch.IsExpiringSoon);
+        Assert.True(batch.IsCriticalExpiry);
+        Assert.Equal("Critical", batch.ExpiryStatus);
+        Assert.True(batch.DaysUntilExpiry <= 26 && batch.DaysUntilExpiry >= 24);
+    }
+
+    [Fact]
+    public async Task UpdateBatchExpiryAsync_UpdatesExpiry_AndCalculatesAutomatedThresholds()
+    {
+        // Arrange
+        var pharmacy = new Pharmacy { Id = 40, Name = "Batch Update Pharmacy", OwnerId = 1 };
+        var med = new Medicine { Id = 40, MedicineName = "Update Med" };
+        var invItem = new InventoryItem { Id = 40, PharmacyId = 40, MedicineId = 40, CurrentStock = 100, MinStockLevel = 50 };
+
+        _db.Pharmacies.Add(pharmacy);
+        _db.Medicines.Add(med);
+        _db.InventoryItems.Add(invItem);
+        await _db.SaveChangesAsync();
+
+        var initialExpiry = DateTime.UtcNow.AddMonths(12);
+        await _inventoryService.AddBatchAsync(40, 40, new CreateInventoryBatchDto("BATCH-UPDATE-001", 100, initialExpiry));
+
+        var createdBatch = await _db.InventoryBatches.FirstAsync(b => b.BatchNumber == "BATCH-UPDATE-001");
+
+        // Act: update to expired date
+        var pastExpiry = DateTime.UtcNow.AddDays(-2);
+        var updated = await _inventoryService.UpdateBatchExpiryAsync(40, 40, createdBatch.Id, new UpdateBatchExpiryDto(pastExpiry, "Expired inspection"));
+
+        // Assert
+        Assert.True(updated.IsExpired);
+        Assert.False(updated.IsExpiringSoon);
+        Assert.Equal("Expired", updated.ExpiryStatus);
+        Assert.True(updated.DaysUntilExpiry <= 0);
+    }
 }

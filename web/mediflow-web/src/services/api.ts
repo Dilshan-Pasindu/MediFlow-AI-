@@ -312,6 +312,29 @@ export async function apiGetPharmacyInventory(
   return apiFetch(`/pharmacies/${pharmacyId}/inventory${qs.toString() ? `?${qs}` : ''}`);
 }
 
+export async function apiAddInventoryBatch(
+  pharmacyId: number | string,
+  itemId: number | string,
+  data: { batchNumber: string; quantity: number; expiryDate: string; notes?: string }
+) {
+  return apiFetch(`/pharmacies/${pharmacyId}/inventory/${itemId}/batches`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function apiUpdateBatchExpiry(
+  pharmacyId: number | string,
+  itemId: number | string,
+  batchId: number | string,
+  data: { expiryDate: string; notes?: string }
+) {
+  return apiFetch(`/pharmacies/${pharmacyId}/inventory/${itemId}/batches/${batchId}/expiry`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function apiGetInventory() {
   return apiFetch('/pharmacist/inventory');
 }

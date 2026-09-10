@@ -35,7 +35,22 @@ public record InventoryBatchDto(
     DateTime ExpiryDate,
     DateTime ReceivedDate,
     bool IsExpired,
-    bool IsExpiringSoon  // within 60 days
+    bool IsExpiringSoon,       // within 60 days
+    int DaysUntilExpiry = 0,   // automated days calculation
+    string ExpiryStatus = "Good", // Good | ExpiringSoon | Critical | Expired
+    bool IsCriticalExpiry = false // within 30 days
+);
+
+public record CreateInventoryBatchDto(
+    string BatchNumber,
+    int Quantity,
+    DateTime ExpiryDate,
+    string? Notes = null
+);
+
+public record UpdateBatchExpiryDto(
+    DateTime ExpiryDate,
+    string? Notes = null
 );
 
 public record InventoryListResponse(
