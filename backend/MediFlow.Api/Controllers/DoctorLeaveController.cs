@@ -22,8 +22,11 @@ public class DoctorLeaveController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetLeaves(int doctorId)
     {
+        var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == doctorId || d.UserId == doctorId);
+        if (doctor == null) return NotFound(new { message = "Doctor profile not found." });
+
         var leaves = await _context.DoctorLeaves
-            .Where(l => l.DoctorId == doctorId)
+            .Where(l => l.DoctorId == doctor.Id)
             .OrderBy(l => l.StartDate)
             .ToListAsync();
         
@@ -33,17 +36,21 @@ public class DoctorLeaveController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateLeave(int doctorId, [FromBody] DoctorLeave request)
     {
-        // 1. Verify doctor exists
-        var doctor = await _context.Doctors.FindAsync(doctorId);
-        if (doctor == null) return NotFound("Doctor not found.");
+        // 1. Verify doctor exists (by DoctorId or UserId)
+        var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == doctorId || d.UserId == doctorId);
+        if (doctor == null) return NotFound(new { message = "Doctor profile not found." });
 
-        request.DoctorId = doctorId;
+        request.DoctorId = doctor.Id;
         request.CreatedAt = DateTime.UtcNow;
 
-        // 2. Validate dates
+        // Ensure UTC DateTime kinds
+        request.StartDate = DateTime.SpecifyKind(request.StartDate, DateTimeKind.Utc);
+        request.EndDate = DateTime.SpecifyKind(request.EndDate, DateTimeKind.Utc);
+
+        // 2. Validate dates/times
         if (request.StartDate >= request.EndDate)
         {
-            return BadRequest("Start date must be before end date.");
+            return BadRequest(new { message = "Start date and time must be before end date and time." });
         }
 
         // 3. Add the leave to the database
@@ -53,17 +60,17 @@ public class DoctorLeaveController : ControllerBase
         // 4. Find appointments that overlap with this leave
         var overlappingAppointments = await _context.Appointments
             .Include(a => a.Patient)
-            .Where(a => a.DoctorId == doctorId 
+            .Where(a => a.DoctorId == doctor.Id 
                         && a.AppointmentDateTime >= request.StartDate 
                         && a.AppointmentDateTime <= request.EndDate
                         && a.Status != AppointmentStatus.Cancelled)
             .ToListAsync();
 
-        // 5. Cancel overlapping appointments (or notify)
+        // 5. Cancel overlapping appointments
         foreach (var appointment in overlappingAppointments)
         {
             appointment.Status = AppointmentStatus.Cancelled;
-            // A Notification could be created here if a Notification system exists
+            appointment.UpdatedAt = DateTime.UtcNow;
         }
 
         if (overlappingAppointments.Any())
@@ -76,7 +83,7 @@ public class DoctorLeaveController : ControllerBase
             Leave = request, 
             CancelledAppointmentsCount = overlappingAppointments.Count,
             Message = overlappingAppointments.Any() 
-                        ? $"Leave added successfully. {overlappingAppointments.Count} overlapping appointments were cancelled and patients notified." 
+                        ? $"Leave added successfully. {overlappingAppointments.Count} overlapping appointment(s) were cancelled and patients notified." 
                         : "Leave added successfully."
         });
     }
@@ -84,10 +91,13 @@ public class DoctorLeaveController : ControllerBase
     [HttpDelete("{leaveId}")]
     public async Task<IActionResult> DeleteLeave(int doctorId, int leaveId)
     {
-        var leave = await _context.DoctorLeaves
-            .FirstOrDefaultAsync(l => l.Id == leaveId && l.DoctorId == doctorId);
+        var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == doctorId || d.UserId == doctorId);
+        if (doctor == null) return NotFound(new { message = "Doctor profile not found." });
 
-        if (leave == null) return NotFound("Leave not found.");
+        var leave = await _context.DoctorLeaves
+            .FirstOrDefaultAsync(l => l.Id == leaveId && l.DoctorId == doctor.Id);
+
+        if (leave == null) return NotFound(new { message = "Leave not found." });
 
         _context.DoctorLeaves.Remove(leave);
         await _context.SaveChangesAsync();
