@@ -237,6 +237,25 @@ export async function apiGetPatientHistory(appointmentId: number | string) {
   return apiFetch(`/appointments/${appointmentId}/patient-history`);
 }
 
+// ─── Doctor Leave Management ──────────────────────────────────────────────────
+
+export async function apiGetDoctorLeaves(doctorId: number | string) {
+  return apiFetch(`/doctors/${doctorId}/leaves`);
+}
+
+export async function apiCreateDoctorLeave(doctorId: number | string, data: { startDate: string; endDate: string; reason: string }) {
+  return apiFetch(`/doctors/${doctorId}/leaves`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function apiDeleteDoctorLeave(doctorId: number | string, leaveId: number | string) {
+  return apiFetch(`/doctors/${doctorId}/leaves/${leaveId}`, {
+    method: 'DELETE',
+  });
+}
+
 // ─── Medicines & Prescriptions ────────────────────────────────────────────────
 
 export async function apiGetMedicines(search?: string) {

@@ -435,6 +435,7 @@ export default function DoctorDashboard() {
                     {[
                       { label: 'Issue E-Prescription',   icon: Pill,     path: '/doctor/e-prescription', color: '#059669', bg: '#ECFDF5', id: 'qa-e-prescription' },
                       { label: 'View All Appointments', icon: Calendar, path: '/doctor/appointments',   color: '#0369A1', bg: '#F0F9FF', id: 'qa-all-appts' },
+                      { label: 'Leave & Schedule',      icon: Clock,    path: '/doctor/leaves',         color: '#D97706', bg: '#FFFBEB', id: 'qa-leaves' },
                       { label: 'My Profile',            icon: Activity, path: '/profile',                color: '#6366F1', bg: '#EEF2FF', id: 'qa-profile' },
                     ].map(({ label, icon: Icon, path, color, bg, id }) => (
                       <button

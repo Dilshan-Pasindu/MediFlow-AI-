@@ -25,14 +25,59 @@ export interface AIDiagnosis {
   evidence: string[];
 }
 
+export interface AgentThoughtStep {
+  stepNumber: number;
+  thought: string;
+  toolName?: string;
+  toolInput?: string;
+  observation?: string;
+}
+
+export interface AgentLabDraft {
+  id: string;
+  testName: string;
+  indication: string;
+  urgency: string;
+  status?: 'suggested' | 'approved' | 'modified' | 'discarded';
+}
+
+export interface AgentMedicationDraft {
+  id: string;
+  drugName: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+  safetyWarning?: string | null;
+  status?: 'suggested' | 'approved' | 'modified' | 'discarded';
+  overrideJustification?: string;
+}
+
 export interface AIClinicalResult {
   diagnoses: AIDiagnosis[];
   labTests: string[];
   urgency: 'routine' | 'urgent' | 'emergency';
   warnings?: string[];
+  thoughtStream?: AgentThoughtStep[];
+  labDrafts?: AgentLabDraft[];
+  medicationDrafts?: AgentMedicationDraft[];
 }
 
 export type DiagnosisDecision = 'accept' | 'modify' | 'reject' | null;
+
+export interface ApprovedClinicalPlan {
+  appointmentId: string | number;
+  patientName: string;
+  consultationDate: string;
+  primaryDiagnosis: AIDiagnosis | null;
+  differentialDiagnoses: AIDiagnosis[];
+  approvedLabOrders: AgentLabDraft[];
+  approvedMedications: AgentMedicationDraft[];
+  doctorClinicalNotes: string;
+  agentAuditTrail: AgentThoughtStep[];
+  overriddenWarnings: string[];
+}
+
 
 export interface AIRecommendation {
   specialty: string;
