@@ -303,11 +303,11 @@ export async function apiCalculateOrderPrice(id: number | string, pharmacyId: nu
 // ─── Pharmacist ───────────────────────────────────────────────────────────────
 
 export async function apiGetPharmacistPrescriptions(): Promise<Prescription[]> {
-  return apiFetch<Prescription[]>('/pharmacist/prescriptions');
+  return apiFetch<Prescription[]>('/prescriptions');
 }
 
 export async function apiGetPharmacistOrders(): Promise<Order[]> {
-  return apiFetch<Order[]>('/pharmacist/orders');
+  return apiFetch<Order[]>('/orders');
 }
 
 // ─── Pharmacy Inventory ───────────────────────────────────────────────────────

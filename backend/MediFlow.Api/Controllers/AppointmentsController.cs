@@ -10,7 +10,7 @@ namespace MediFlow.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Patient")]          // ← Only patients can book appointments
+[Authorize(Roles = "Patient,Doctor,Receptionist,Pharmacist,Admin")]
 public class AppointmentsController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -137,15 +137,10 @@ public class AppointmentsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
-        if (patient == null)
-            return NotFound(new { message = "Patient profile not found." });
-
         var appointment = await _db.Appointments
             .Include(a => a.Doctor).ThenInclude(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
             .Include(a => a.Payment)
-            .Where(a => a.Id == id && a.PatientId == patient.Id)
+            .Where(a => a.Id == id)
             .Select(a => new
             {
                 a.Id,
