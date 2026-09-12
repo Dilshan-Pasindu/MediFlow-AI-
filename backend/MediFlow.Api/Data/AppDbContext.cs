@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     // SHARED (used across all members)
     // ─────────────────────────────────────────────────────────────────────
     public DbSet<User> Users => Set<User>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     // ─────────────────────────────────────────────────────────────────────
     // MEMBER 1 — Patient & Appointment Management
