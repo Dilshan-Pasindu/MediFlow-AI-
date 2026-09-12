@@ -89,6 +89,7 @@ export interface AIRecommendation {
 
 export interface ConsultationAppointment {
   id: number;
+  patientId?: number;
   patientName: string;
   patientBloodGroup?: string;
   patientAllergies?: string;

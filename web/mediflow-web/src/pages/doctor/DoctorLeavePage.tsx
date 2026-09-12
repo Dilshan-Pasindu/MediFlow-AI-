@@ -73,7 +73,7 @@ export default function DoctorLeavePage() {
     setLoading(true);
     try {
       const data = await apiGetDoctorLeaves(doctorId as number);
-      setLeaves(data);
+      setLeaves((data as DoctorLeave[]) || []);
     } catch (err: any) {
       console.error(err);
       setAlertMessage({ type: 'error', text: 'Failed to load leaves schedule.' });
