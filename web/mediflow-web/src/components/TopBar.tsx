@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { Bell, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
+import NotificationBell from './NotificationBell';
 
 export interface TopBarProps {
   title: string;
@@ -31,10 +32,7 @@ export default function TopBar({ title, subtitle, actions }: TopBarProps) {
       <div className="topbar-actions">
         {actions}
 
-        <button className="topbar-btn" title="Notifications" id="topbar-notifications-btn" aria-label="Notifications">
-          <Bell size={16} />
-          <span className="topbar-notif-dot" />
-        </button>
+        <NotificationBell />
 
         <button className="topbar-btn" title="Settings" id="topbar-settings-btn" aria-label="Settings">
           <Settings size={16} />

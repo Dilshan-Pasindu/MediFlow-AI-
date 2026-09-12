@@ -57,3 +57,21 @@ def test_recommend_specialist_general_fallback():
 def test_recommend_specialist_validation_error(client):
     response = client.post("/api/ai/recommend-specialist", json={"symptoms": []})
     assert response.status_code == 422  # Pydantic min_length validation failure
+
+
+def test_clinical_cds_agent(client):
+    payload = {
+        "symptoms": "Severe epigastric pain after meals, acid regurgitation",
+        "chief_complaint": "Heartburn and nausea",
+        "vitals": {"bp": "120/80", "temp": "37.0", "pulse": "75", "spo2": "98%"},
+        "patient_allergies": "Penicillin"
+    }
+    response = client.post("/api/ai/clinical-cds", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["diagnoses"]) >= 1
+    assert len(data["thoughtStream"]) >= 3
+    assert len(data["labDrafts"]) >= 1
+    assert len(data["medicationDrafts"]) >= 1
+    assert any("ALLERGY ALERT" in w for w in data["warnings"])
+

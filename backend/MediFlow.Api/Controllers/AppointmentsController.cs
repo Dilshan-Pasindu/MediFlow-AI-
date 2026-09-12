@@ -32,6 +32,18 @@ public class AppointmentsController : ControllerBase
         if (doctor == null)
             return NotFound(new { message = "Doctor not found." });
 
+        // Check if the doctor is on leave
+        var overlappingLeave = await _db.DoctorLeaves
+            .Where(l => l.DoctorId == request.DoctorId
+                && l.StartDate <= request.DateTime
+                && l.EndDate >= request.DateTime)
+            .FirstOrDefaultAsync();
+
+        if (overlappingLeave != null)
+        {
+            return BadRequest(new { message = $"Doctor is on leave from {overlappingLeave.StartDate:yyyy-MM-dd} to {overlappingLeave.EndDate:yyyy-MM-dd}." });
+        }
+
         // Generate appointment number: APT-YYYYMMDD-XXXX
         var dateStr = request.DateTime.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
         var todayCount = await _db.Appointments
