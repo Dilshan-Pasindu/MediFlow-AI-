@@ -44,7 +44,7 @@ function getDefaultDateTimeStrings() {
 export default function DoctorLeavePage() {
   const navigate = useNavigate();
   const user = getUser();
-  const doctorId = user?.id;
+  const doctorId = user?.userId;
 
   const [leaves, setLeaves] = useState<DoctorLeave[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +114,15 @@ export default function DoctorLeavePage() {
       fetchLeaves();
     } catch (err: any) {
       console.error('Create leave error:', err);
-      const errMsg = err.response?.data?.message || (typeof err.response?.data === 'string' ? err.response.data : null) || 'Failed to add leave.';
+      let errMsg = 'Failed to add leave.';
+      if (err.response?.data?.errors) {
+        const errorVals = Object.values(err.response.data.errors).flat();
+        errMsg = errorVals.join(' ');
+      } else if (err.response?.data?.message) {
+        errMsg = err.response.data.message;
+      } else if (typeof err.response?.data === 'string') {
+        errMsg = err.response.data;
+      }
       setAlertMessage({ type: 'error', text: errMsg });
     } finally {
       setSubmitLoading(false);
