@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     // SHARED (used across all members)
     // ─────────────────────────────────────────────────────────────────────
     public DbSet<User> Users => Set<User>();
+    public DbSet<Notification> Notifications => Set<Notification>();
 
     // ─────────────────────────────────────────────────────────────────────
     // MEMBER 1 — Patient & Appointment Management
@@ -24,6 +25,7 @@ public class AppDbContext : DbContext
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentPayment> AppointmentPayments => Set<AppointmentPayment>();
     public DbSet<SymptomSubmission> SymptomSubmissions => Set<SymptomSubmission>();
+    public DbSet<DoctorLeave> DoctorLeaves => Set<DoctorLeave>();
 
     // ─────────────────────────────────────────────────────────────────────
     // MEMBER 2 — Doctor Consultation & Clinical Management
@@ -112,6 +114,18 @@ public class AppDbContext : DbContext
             entity.HasOne(da => da.Doctor)
                 .WithMany(d => d.Availabilities)
                 .HasForeignKey(da => da.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── DoctorLeave ───────────────────────────────────────────────────
+        modelBuilder.Entity<DoctorLeave>(entity =>
+        {
+            entity.HasKey(dl => dl.Id);
+            entity.Property(dl => dl.Reason).HasMaxLength(500);
+
+            entity.HasOne(dl => dl.Doctor)
+                .WithMany(d => d.Leaves)
+                .HasForeignKey(dl => dl.DoctorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

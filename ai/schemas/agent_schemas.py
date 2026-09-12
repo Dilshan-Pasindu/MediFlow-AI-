@@ -46,8 +46,37 @@ class DiagnosisCandidate(BaseModel):
     evidence: List[str] = Field(default_factory=list, description="Supporting clinical evidence items")
 
 
+class AgentThoughtStep(BaseModel):
+    stepNumber: int = Field(..., description="Sequence step index")
+    thought: str = Field(..., description="Agent internal clinical reasoning step")
+    toolName: Optional[str] = Field(None, description="Name of tool executed by agent")
+    toolInput: Optional[str] = Field(None, description="Input arguments passed to tool")
+    observation: Optional[str] = Field(None, description="Output observation returned by tool execution")
+
+
+class AgentLabDraft(BaseModel):
+    id: str = Field(..., description="Unique lab order draft ID")
+    testName: str = Field(..., description="Recommended lab/diagnostic test name")
+    indication: str = Field(..., description="Clinical reason/indication for ordering")
+    urgency: str = Field("routine", description="Urgency level: routine, urgent, stat")
+
+
+class AgentMedicationDraft(BaseModel):
+    id: str = Field(..., description="Unique medication draft ID")
+    drugName: str = Field(..., description="Medication name")
+    dosage: str = Field(..., description="Dosage string e.g. 20mg")
+    frequency: str = Field(..., description="Dosing frequency e.g. Once daily after meals")
+    duration: str = Field(..., description="Treatment duration e.g. 14 days")
+    instructions: str = Field("", description="Patient instructions / warnings")
+    safetyWarning: Optional[str] = Field(None, description="Safety or allergy warning flag if present")
+
+
 class ClinicalCDSResult(BaseModel):
     diagnoses: List[DiagnosisCandidate] = Field(..., description="Differential diagnosis candidates")
     labTests: List[str] = Field(default_factory=list, description="Recommended diagnostic/laboratory tests")
     urgency: str = Field("routine", description="Urgency assessment: routine, urgent, emergency")
     warnings: List[str] = Field(default_factory=list, description="Clinical safety warnings or contraindications")
+    thoughtStream: List[AgentThoughtStep] = Field(default_factory=list, description="ReAct thought execution log")
+    labDrafts: List[AgentLabDraft] = Field(default_factory=list, description="Structured lab order drafts")
+    medicationDrafts: List[AgentMedicationDraft] = Field(default_factory=list, description="Structured treatment medication drafts")
+

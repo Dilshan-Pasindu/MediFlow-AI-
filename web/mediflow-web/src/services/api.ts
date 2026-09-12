@@ -237,6 +237,25 @@ export async function apiGetPatientHistory(appointmentId: number | string) {
   return apiFetch(`/appointments/${appointmentId}/patient-history`);
 }
 
+// ─── Doctor Leave Management ──────────────────────────────────────────────────
+
+export async function apiGetDoctorLeaves(doctorId: number | string) {
+  return apiFetch(`/doctors/${doctorId}/leaves`);
+}
+
+export async function apiCreateDoctorLeave(doctorId: number | string, data: { startDate: string; endDate: string; reason: string }) {
+  return apiFetch(`/doctors/${doctorId}/leaves`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function apiDeleteDoctorLeave(doctorId: number | string, leaveId: number | string) {
+  return apiFetch(`/doctors/${doctorId}/leaves/${leaveId}`, {
+    method: 'DELETE',
+  });
+}
+
 // ─── Medicines & Prescriptions ────────────────────────────────────────────────
 
 export async function apiGetMedicines(search?: string) {
@@ -456,4 +475,18 @@ export async function apiGetNearbyPharmacies(lat: number | string, lng: number |
 
 export async function apiGetPharmacyDetails(id: number | string) {
   return apiFetch(`/pharmacies/${id}`);
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+
+export async function apiGetNotifications() {
+  return apiFetch<{ id: number; title: string; message: string; type: string; isRead: boolean; createdAt: string }[]>('/notifications');
+}
+
+export async function apiMarkNotificationRead(id: number) {
+  return apiFetch(`/notifications/${id}/read`, { method: 'POST' });
+}
+
+export async function apiMarkAllNotificationsRead() {
+  return apiFetch('/notifications/read-all', { method: 'POST' });
 }
