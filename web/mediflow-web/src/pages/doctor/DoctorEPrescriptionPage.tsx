@@ -174,8 +174,11 @@ export default function DoctorEPrescriptionPage() {
       ? walkInName
       : (selectedPatientName || 'Registered Patient');
 
+    const selectedAppt = appointments.find(a => String(a.id) === selectedApptId);
+
     const payload = {
       appointmentId: selectedApptId ? parseInt(selectedApptId, 10) : undefined,
+      patientId: selectedAppt?.patientId,
       doctorId: doctorUser?.userId,
       doctorName: doctorUser?.fullName || 'Dr. Clinical Specialist',
       patientName: patientNameFinal,

@@ -71,11 +71,26 @@ public class PrescriptionsController : ControllerBase
         var doctorName = doctor?.FullName ?? "Dr. Clinical Specialist";
         var doctorSpecialty = doctor?.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault() ?? "General Medicine";
 
-        var isWalkIn = request.IsWalkIn || (request.PatientId == null && request.AppointmentId == null);
-        var patientName = isWalkIn
-            ? (request.WalkInPatientDetails?.FullName ?? request.PatientName ?? "Walk-in Patient")
-            : (request.PatientName ?? "Registered Patient");
+        // Resolve patient details if appointment or patientId provided
+        Patient? patient = null;
+        if (request.PatientId.HasValue && request.PatientId.Value > 0)
+        {
+            patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == request.PatientId.Value);
+        }
+        else if (request.AppointmentId.HasValue && request.AppointmentId.Value > 0)
+        {
+            var appt = await _db.Appointments.Include(a => a.Patient).FirstOrDefaultAsync(a => a.Id == request.AppointmentId.Value);
+            patient = appt?.Patient;
+        }
 
+        var isWalkIn = request.IsWalkIn || (patient == null && request.PatientId == null && request.AppointmentId == null);
+        var patientName = patient != null
+            ? patient.FullName
+            : (isWalkIn
+                ? (request.WalkInPatientDetails?.FullName ?? request.PatientName ?? "Walk-in Patient")
+                : (request.PatientName ?? "Registered Patient"));
+
+        var patientIdFinal = patient?.Id ?? request.PatientId;
         var prescriptionId = "RX-" + Random.Shared.Next(10000, 99999);
         var recipients = request.FulfillmentSource == "InHouse" ? "Both (Pharmacist & Patient)" : "Patient Only";
 
@@ -83,11 +98,11 @@ public class PrescriptionsController : ControllerBase
         {
             Id = prescriptionId,
             AppointmentId = request.AppointmentId,
-            PatientId = request.PatientId,
+            PatientId = patientIdFinal,
             PatientName = patientName,
-            PatientAge = request.WalkInPatientDetails?.Age ?? "N/A",
-            PatientGender = request.WalkInPatientDetails?.Gender ?? "N/A",
-            PatientPhone = request.WalkInPatientDetails?.Phone ?? "N/A",
+            PatientAge = request.WalkInPatientDetails?.Age ?? (patient?.DateOfBirth.HasValue == true ? (DateTime.UtcNow.Year - patient.DateOfBirth.Value.Year).ToString() : "N/A"),
+            PatientGender = request.WalkInPatientDetails?.Gender ?? (patient?.Gender ?? "N/A"),
+            PatientPhone = request.WalkInPatientDetails?.Phone ?? (patient?.PhoneNumber ?? "N/A"),
             IsWalkIn = isWalkIn,
             DoctorId = doctor?.Id ?? 1,
             DoctorName = doctorName,
@@ -105,6 +120,30 @@ public class PrescriptionsController : ControllerBase
         };
 
         InStorePrescriptions.Insert(0, response);
+
+        // If registered patient exists, send in-app notification
+        if (patient != null && patient.UserId > 0)
+        {
+            var medSummary = request.Items != null && request.Items.Count > 0
+                ? string.Join(", ", request.Items.Select(i => i.MedicineName))
+                : "Prescription items";
+
+            var notificationMessage = request.FulfillmentSource == "InHouse"
+                ? $"Dr. {doctorName} has issued prescription ({prescriptionId}: {medSummary}) and sent it directly to the center pharmacist and your account. You can collect your medicines at the dispensary."
+                : $"Dr. {doctorName} has issued prescription ({prescriptionId}: {medSummary}) for you.";
+
+            var notification = new Notification
+            {
+                UserId = patient.UserId,
+                Title = "New Prescription Issued",
+                Message = notificationMessage,
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            };
+
+            _db.Notifications.Add(notification);
+            await _db.SaveChangesAsync();
+        }
 
         return Ok(new
         {

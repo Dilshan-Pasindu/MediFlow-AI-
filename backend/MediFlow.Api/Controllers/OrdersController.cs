@@ -55,6 +55,13 @@ public class OrdersController : ControllerBase
         }
     }
 
+    [HttpGet]
+    [AllowAnonymous]
+    public IActionResult GetOrders()
+    {
+        return Ok(Array.Empty<object>());
+    }
+
     private int GetUserId()
     {
         var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
