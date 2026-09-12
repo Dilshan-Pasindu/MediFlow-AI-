@@ -8,6 +8,7 @@ import {
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { useAppointment } from '../../hooks';
+import { apiGeneratePrescription } from '../../services/api';
 import type { 
   ExamForm, AIClinicalResult, AIDiagnosis, AgentThoughtStep, 
   AgentLabDraft, AgentMedicationDraft, ApprovedClinicalPlan 
@@ -354,7 +355,7 @@ export default function ConsultationPage() {
   }
 
   // Finalize Care Plan
-  function finalizeClinicalCarePlan() {
+  async function finalizeClinicalCarePlan() {
     const approvedDiagList = editableDiagnoses.filter(d => d.status === 'approved' || d.status === 'modified');
     const primaryDiag = approvedDiagList[0] || null;
     const diffList = approvedDiagList.slice(1);
@@ -380,6 +381,30 @@ export default function ConsultationPage() {
 
     setApprovedPlan(plan);
     setStep('done');
+
+    // Auto-generate prescription for InHouse dispatch
+    if (approvedMedList.length > 0) {
+      try {
+        await apiGeneratePrescription({
+          appointmentId: id ? parseInt(id, 10) : undefined,
+          patientId: appt?.patientId,
+          patientName: activePatientName,
+          diagnosis: primaryDiag?.diagnosis || 'Clinical Assessment Completed',
+          fulfillmentSource: 'InHouse',
+          instructions: 'Take as directed by doctor',
+          items: approvedMedList.map(med => ({
+            medicineName: med.drugName,
+            dosage: med.dosage,
+            frequency: med.frequency,
+            duration: med.duration,
+            quantity: 1, 
+            instructions: med.instructions
+          }))
+        });
+      } catch (err) {
+        console.error('Failed to auto-dispatch prescription:', err);
+      }
+    }
   }
 
   if (loading) return (
