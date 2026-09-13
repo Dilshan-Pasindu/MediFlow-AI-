@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Users, Activity, ShieldCheck, BarChart3, Settings, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Users, Activity, ShieldCheck, BarChart3, AlertTriangle, CheckCircle } from 'lucide-react';
+import PortalHeader from '../../components/PortalHeader';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { getUser } from '../../services/api';
@@ -42,26 +43,16 @@ export default function AdminDashboard() {
         <TopBar title="Admin Dashboard" subtitle="System health, user management, and AI monitoring" />
         <div className="page-body fade-in">
 
-          {/* Dark banner */}
-          <div style={{ background: 'linear-gradient(135deg,#0F172A,#1E293B)', borderRadius: 'var(--r-xl)', padding: '22px 28px', color: 'white', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(15,23,42,0.4)' }}>
-            <div>
-              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 21, fontWeight: 800, marginBottom: 4 }}>System Administration</div>
-              <div style={{ fontSize: 13, opacity: 0.7 }}>Monitor all portal activities, user accounts, and AI agent operations</div>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[
-                { label: 'Total Users', value: MOCK_USERS.length, icon: '👥' },
-                { label: 'AI Events Today', value: MOCK_AI_EVENTS.length, icon: '🤖' },
-                { label: 'System Status', value: '✅', icon: '🟢' },
-              ].map(s => (
-                <div key={s.label} style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 'var(--r-lg)', padding: '10px 16px', textAlign: 'center', minWidth: 90 }}>
-                  <div style={{ fontSize: 18 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 900 }}>{s.value}</div>
-                  <div style={{ fontSize: 10, opacity: 0.6 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PortalHeader
+            role="admin"
+            title="System Administration"
+            subtitle="Monitor portal activities, user accounts, and AI agent operations"
+            stats={[
+              { label: 'Total Users',    value: MOCK_USERS.length,     icon: '👥' },
+              { label: 'AI Events Today',value: MOCK_AI_EVENTS.length, icon: '🤖' },
+              { label: 'System Status',  value: '✅',                   icon: '🟢' },
+            ]}
+          />
 
           {/* AI Agent Stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>

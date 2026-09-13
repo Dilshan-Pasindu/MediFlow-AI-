@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CheckCircle, Loader, RefreshCw, AlertCircle, Pill } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
+import PortalHeader from '../../components/PortalHeader';
 import { apiUpdateOrderStatus, getUser } from '../../services/api';
 import { usePharmacistPrescriptions, usePharmacistOrders } from '../../hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -56,26 +57,17 @@ export default function PharmacistDashboard() {
         />
         <div className="page-body fade-in">
 
-          {/* Amber banner */}
-          <div style={{ background: 'linear-gradient(135deg,#78350F,#B45309)', borderRadius: 'var(--r-xl)', padding: '22px 28px', color: 'white', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(180,83,9,0.3)' }}>
-            <div>
-              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 21, fontWeight: 800, marginBottom: 4 }}>Pharmacist Portal</div>
-              <div style={{ fontSize: 13, opacity: 0.85 }}>Process prescriptions and manage medicine dispensing</div>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[
-                { label: 'New Prescriptions', value: prescriptions.filter(p => p.status === 'Active').length, icon: '📋' },
-                { label: 'Active Orders', value: activeOrders.length, icon: '⚗️', highlight: true },
-                { label: 'Dispensed Today', value: completedOrders.length, icon: '✅' },
-              ].map(s => (
-                <div key={s.label} style={{ background: s.highlight ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: `1.5px solid ${s.highlight ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 'var(--r-lg)', padding: '10px 16px', textAlign: 'center', minWidth: 90 }}>
-                  <div style={{ fontSize: 18 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 900 }}>{loading ? '—' : s.value}</div>
-                  <div style={{ fontSize: 10, opacity: 0.75 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PortalHeader
+            role="pharma"
+            title="Pharmacist Portal"
+            subtitle="Process prescriptions and manage medicine dispensing"
+            loading={loading}
+            stats={[
+              { label: 'New Prescriptions', value: prescriptions.filter(p => p.status === 'Active').length, icon: '📋' },
+              { label: 'Active Orders',      value: activeOrders.length, icon: '⚗️', highlight: activeOrders.length > 0 },
+              { label: 'Dispensed Today',    value: completedOrders.length, icon: '✅' },
+            ]}
+          />
 
           {/* Tabs */}
           <div className="tabs" style={{ marginBottom: 20 }}>
