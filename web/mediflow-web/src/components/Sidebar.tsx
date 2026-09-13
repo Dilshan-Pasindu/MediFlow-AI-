@@ -21,7 +21,7 @@ interface NavSection {
   items: NavItem[];
 }
 
-// Role-specific navigation definitions
+// ─── Role-specific navigation ──────────────────────────────────
 const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
   Patient: [
     { section: 'Main', items: [
@@ -104,14 +104,15 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
   ],
 };
 
-const ROLE_META: Record<UserRole, { label: string; gradient: string }> = {
-  Patient:       { label: 'Patient Portal',       gradient: 'var(--gradient-primary)' },
-  Doctor:        { label: 'Doctor Portal',         gradient: 'var(--gradient-doctor)' },
-  Receptionist:  { label: 'Reception Portal',      gradient: 'linear-gradient(135deg,#5B21B6,#7C3AED)' },
-  Pharmacist:    { label: 'Pharmacist Portal',     gradient: 'var(--gradient-pharma)' },
-  PharmacyOwner: { label: 'Owner Portal',          gradient: 'linear-gradient(135deg,#991B1B,#DC2626)' },
-  Supplier:      { label: 'Supplier Portal',       gradient: 'var(--gradient-supplier)' },
-  Administrator: { label: 'Admin Portal',          gradient: 'var(--gradient-admin)' },
+// ─── Role meta (avatar gradient only — nav item active color from CSS) ──────
+const ROLE_META: Record<UserRole, { label: string; avatarGradient: string }> = {
+  Patient:       { label: 'Patient Portal',    avatarGradient: 'linear-gradient(135deg,#2A7DE1,#4FD1C5)' },
+  Doctor:        { label: 'Doctor Portal',     avatarGradient: 'linear-gradient(135deg,#065F46,#059669)' },
+  Receptionist:  { label: 'Reception Portal',  avatarGradient: 'linear-gradient(135deg,#4C1D95,#7C3AED)' },
+  Pharmacist:    { label: 'Pharmacist Portal', avatarGradient: 'linear-gradient(135deg,#78350F,#D97706)' },
+  PharmacyOwner: { label: 'Owner Portal',      avatarGradient: 'linear-gradient(135deg,#991B1B,#DC2626)' },
+  Supplier:      { label: 'Supplier Portal',   avatarGradient: 'linear-gradient(135deg,#155E75,#0891B2)' },
+  Administrator: { label: 'Admin Portal',      avatarGradient: 'linear-gradient(135deg,#0F172A,#1E293B)' },
 };
 
 export default function Sidebar() {
@@ -127,6 +128,7 @@ export default function Sidebar() {
         .map((n) => n[0])
         .join('')
         .slice(0, 2)
+        .toUpperCase()
     : '?';
 
   const handleLogout = () => {
@@ -136,11 +138,11 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      {/* Logo */}
+      {/* ── Logo ── */}
       <div className="sidebar-logo">
         <div className="logo-mark">
           <div className="logo-icon">
-            <HeartPulse size={18} />
+            <HeartPulse size={17} />
           </div>
           <div>
             <div className="logo-text">MediFlow AI</div>
@@ -149,7 +151,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation */}
+      {/* ── Navigation ── */}
       <nav className="sidebar-nav">
         {sections.map(({ section, items }) => (
           <div key={section} className="nav-section">
@@ -158,9 +160,9 @@ export default function Sidebar() {
               <NavLink
                 key={to}
                 to={to}
-                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
               >
-                <Icon className="nav-icon" size={17} />
+                <Icon className="nav-icon" size={16} />
                 <span style={{ flex: 1 }}>{label}</span>
                 {badge && <span className="nav-badge">{badge}</span>}
               </NavLink>
@@ -169,24 +171,28 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer user card */}
+      {/* ── Footer user card ── */}
       <div className="sidebar-footer">
         <div className="user-card">
-          <div className="user-avatar" style={{ background: meta.gradient }}>
+          <div
+            className="user-avatar"
+            style={{ background: meta.avatarGradient }}
+          >
             {initials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="user-name">{user?.fullName || 'Guest'}</div>
-            <span className="user-role" style={{ color: 'var(--med-blue)' }}>{role}</span>
+            <div className="user-role">{role}</div>
           </div>
           <button
-            className="close-btn"
+            className="close-btn touch-target"
             onClick={handleLogout}
             title="Sign out"
             id="sidebar-logout-btn"
             aria-label="Sign out"
+            style={{ width: 30, height: 30, minWidth: 30, minHeight: 30 }}
           >
-            <LogOut size={15} />
+            <LogOut size={14} />
           </button>
         </div>
       </div>
