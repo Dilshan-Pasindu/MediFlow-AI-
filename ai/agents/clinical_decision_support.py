@@ -423,11 +423,21 @@ def _parse_gemini_response(text: str, thought_stream: List[AgentThoughtStep], in
 
     lab_test_names = data.get("labTests", [l.testName for l in lab_drafts])
 
+    warnings = data.get("warnings", [])
+    if input_data.patient_allergies and not any("ALLERGY ALERT" in w for w in warnings):
+        al_lower = input_data.patient_allergies.lower()
+        if "penicillin" in al_lower or "amoxicillin" in al_lower:
+            warnings.append("ALLERGY ALERT: Patient is allergic to Penicillins. Avoid beta-lactam prescribing.")
+        elif "nsaid" in al_lower or "aspirin" in al_lower:
+            warnings.append("ALLERGY ALERT: Patient has reported NSAID sensitivity.")
+        else:
+            warnings.append(f"ALLERGY ALERT: Documented patient allergy: {input_data.patient_allergies.strip()}.")
+
     return ClinicalCDSResult(
         diagnoses=diagnoses,
         labTests=lab_test_names,
         urgency=data.get("urgency", "routine"),
-        warnings=data.get("warnings", []),
+        warnings=warnings,
         thoughtStream=thought_stream,
         labDrafts=lab_drafts,
         medicationDrafts=med_drafts
@@ -563,6 +573,16 @@ def _rule_based_fallback(input_data: ClinicalCDSInput) -> ClinicalCDSResult:
         for med in medication_drafts:
             if contraindication["drug"].lower() in med.drugName.lower():
                 med.safetyWarning = f"CRITICAL CONTRAINDICATION: {contraindication['recommendation']}"
+
+    # General allergy awareness warnings
+    if allergies and allergies.strip():
+        al_lower = allergies.lower()
+        if "penicillin" in al_lower or "amoxicillin" in al_lower:
+            warnings.append("ALLERGY ALERT: Patient is allergic to Penicillins. Avoid beta-lactam prescribing.")
+        elif "nsaid" in al_lower or "aspirin" in al_lower:
+            warnings.append("ALLERGY ALERT: Patient has reported NSAID sensitivity.")
+        elif not any("ALLERGY ALERT" in w for w in warnings):
+            warnings.append(f"ALLERGY ALERT: Documented allergy to {allergies.strip()}.")
 
     thought_stream.append(AgentThoughtStep(
         stepNumber=step,

@@ -4,10 +4,10 @@ Each function here is a real tool that the Gemini model can autonomously
 decide to invoke during its ReAct reasoning loop.
 """
 
-from typing import Optional
+from typing import Optional, List, Dict
 
 
-def check_allergy_contraindications(allergies: str, proposed_medications: list[str]) -> dict:
+def check_allergy_contraindications(allergies: str, proposed_medications: List[str]) -> Dict:
     """
     Real-time drug-allergy cross-check tool.
     Checks proposed medications against patient's known allergy list.
