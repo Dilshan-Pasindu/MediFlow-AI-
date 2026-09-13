@@ -80,3 +80,67 @@ class ClinicalCDSResult(BaseModel):
     labDrafts: List[AgentLabDraft] = Field(default_factory=list, description="Structured lab order drafts")
     medicationDrafts: List[AgentMedicationDraft] = Field(default_factory=list, description="Structured treatment medication drafts")
 
+
+# Medication Intelligence Schemas (Agent 3)
+class DrugInteraction(BaseModel):
+    drug_pair: List[str] = Field(..., description="Pair of interacting drug names")
+    severity: str = Field(..., description="Severity level: High, Moderate, Low")
+    description: str = Field(..., description="Interaction clinical description")
+    recommendation: str = Field(..., description="Clinical recommendation for managing the interaction")
+
+
+class AlternativeDrug(BaseModel):
+    original_drug: str = Field(..., description="Original requested drug name")
+    alternative_drug: str = Field(..., description="Recommended bioequivalent alternative")
+    reason: str = Field(..., description="Clinical/availability reason for substitution")
+    dosage_guidance: str = Field(..., description="Equivalent dosage guidance")
+
+
+class MedicationCheckInput(BaseModel):
+    medications: List[str] = Field(..., min_length=1, description="List of prescribed/dispensed medication names")
+    patient_allergies: Optional[str] = Field(None, description="Documented patient allergies")
+    pharmacy_id: Optional[int] = Field(None, description="Target pharmacy ID for stock validation")
+    patient_conditions: Optional[List[str]] = Field(default_factory=list, description="Patient medical conditions")
+
+
+class MedicationCheckResult(BaseModel):
+    safe_to_dispense: bool = Field(..., description="Whether prescription is clinically safe to dispense")
+    safety_score: int = Field(..., ge=0, le=100, description="Calculated safety confidence score 0-100")
+    interactions: List[DrugInteraction] = Field(default_factory=list, description="Detected drug-drug interactions")
+    allergy_warnings: List[str] = Field(default_factory=list, description="Allergy contraindication alerts")
+    alternatives: List[AlternativeDrug] = Field(default_factory=list, description="Suggested bioequivalent alternatives")
+    summary: str = Field(..., description="Clinical reasoning summary for pharmacist")
+
+
+# Pharmacy & Inventory Intelligence Schemas (Agent 4)
+class StockoutRiskItem(BaseModel):
+    medicine_id: int = Field(..., description="Medicine unique ID")
+    medicine_name: str = Field(..., description="Medicine brand / generic name")
+    current_stock: int = Field(..., description="Current on-hand inventory units")
+    daily_burn_rate: float = Field(..., description="Calculated units consumed per day")
+    days_until_stockout: int = Field(..., description="Estimated days until stock is exhausted")
+    urgency: str = Field(..., description="Risk urgency: CRITICAL, WARNING, HEALTHY")
+
+
+class RestockProposal(BaseModel):
+    medicine_id: int = Field(..., description="Medicine unique ID")
+    medicine_name: str = Field(..., description="Medicine brand / generic name")
+    suggested_quantity: int = Field(..., description="Proposed reorder quantity")
+    reason: str = Field(..., description="Algorithmic rationale for proposed batch size")
+    estimated_unit_cost: float = Field(..., description="Estimated cost per unit in LKR")
+    priority: str = Field("NORMAL", description="Priority level: HIGH, NORMAL, LOW")
+
+
+class InventoryForecastInput(BaseModel):
+    pharmacy_id: int = Field(..., description="Pharmacy ID to forecast inventory for")
+    lookback_days: Optional[int] = Field(30, description="Historical analysis window in days")
+
+
+class InventoryForecastResult(BaseModel):
+    pharmacy_id: int = Field(..., description="Pharmacy ID evaluated")
+    risk_items: List[StockoutRiskItem] = Field(default_factory=list, description="Medicines facing stockout risk")
+    restock_recommendations: List[RestockProposal] = Field(default_factory=list, description="Automated batch restock proposals")
+    total_projected_cost: float = Field(..., description="Total estimated cost for recommended restock")
+    summary: str = Field(..., description="Executive inventory health summary")
+
+
