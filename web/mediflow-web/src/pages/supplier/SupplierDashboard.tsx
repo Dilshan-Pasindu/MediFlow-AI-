@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, X, Loader, Truck, RefreshCw, Package, AlertTriangle } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
+import PortalHeader from '../../components/PortalHeader';
 import { apiGetRestockRequests, apiUpdateRestockStatus, apiGetMySupplierProfile, getUser } from '../../services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -174,26 +175,17 @@ export default function SupplierDashboard() {
         />
         <div className="page-body fade-in">
 
-          {/* Header banner */}
-          <div style={{ background: 'linear-gradient(135deg,#155E75,#0891B2)', borderRadius: 'var(--r-xl)', padding: '22px 28px', color: 'white', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(8,145,178,0.3)' }}>
-            <div>
-              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 21, fontWeight: 800, marginBottom: 4 }}>Supplier Portal</div>
-              <div style={{ fontSize: 13, opacity: 0.85 }}>Review pharmacy restock requests and manage supply chain</div>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[
-                { label: 'Pending', value: pending.length, icon: '📦', highlight: pending.length > 0 },
-                { label: 'Approved', value: approved.length, icon: '✅' },
-                { label: 'History', value: history.length, icon: '📊' },
-              ].map(s => (
-                <div key={s.label} style={{ background: s.highlight ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: `1.5px solid ${s.highlight ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 'var(--r-lg)', padding: '10px 16px', textAlign: 'center', minWidth: 80 }}>
-                  <div style={{ fontSize: 18 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 900 }}>{s.value}</div>
-                  <div style={{ fontSize: 10, opacity: 0.75 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PortalHeader
+            role="supplier"
+            title="Supplier Portal"
+            subtitle="Review pharmacy restock requests and manage supply chain"
+            loading={loading}
+            stats={[
+              { label: 'Pending',  value: pending.length,  icon: '📦', highlight: pending.length > 0 },
+              { label: 'Approved', value: approved.length, icon: '✅' },
+              { label: 'History',  value: history.length,  icon: '📊' },
+            ]}
+          />
 
           {/* Human Approval Banner */}
           <div className="approval-banner" style={{ marginBottom: 20, background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', borderColor: '#BFDBFE' }}>

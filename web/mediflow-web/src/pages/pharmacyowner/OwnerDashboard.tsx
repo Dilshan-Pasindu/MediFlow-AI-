@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
+import PortalHeader from '../../components/PortalHeader';
 import {
   apiGetMyPharmacy, apiGetPharmacyInventory, apiGenerateRestockRecommendations,
   apiCreateRestockRequest, apiGetSuppliers, apiGetRestockRequests,
@@ -365,29 +366,18 @@ export default function OwnerDashboard() {
         />
         <div className="page-body fade-in">
 
-          {/* Header banner */}
-          <div style={{ background: 'linear-gradient(135deg,#991B1B,#DC2626)', borderRadius: 'var(--r-xl)', padding: '22px 28px', color: 'white', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(220,38,38,0.3)' }}>
-            <div>
-              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 21, fontWeight: 800, marginBottom: 4 }}>Pharmacy Owner Portal</div>
-              <div style={{ fontSize: 13, opacity: 0.85 }}>Inventory management, AI demand forecasting, and restock automation</div>
-            </div>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {[
-                { label: 'Total Medicines', value: inventoryMeta.totalCount, icon: '💊' },
-                { label: 'Low Stock', value: inventoryMeta.lowStockCount, icon: '⚠️', highlight: inventoryMeta.lowStockCount > 0 },
-                { label: 'Critical', value: inventoryMeta.criticalCount, icon: '🚨', highlight: inventoryMeta.criticalCount > 0 },
-                { label: 'Out of Stock', value: inventoryMeta.outOfStockCount, icon: '🔴', highlight: inventoryMeta.outOfStockCount > 0 },
-                { label: 'Expiring (<60d)', value: totalExpiringBatches, icon: '⏰', highlight: totalExpiringBatches > 0 },
-                { label: 'Expired', value: totalExpiredBatches, icon: '🛑', highlight: totalExpiredBatches > 0 },
-              ].map(s => (
-                <div key={s.label} style={{ background: s.highlight ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: `1.5px solid ${s.highlight ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 'var(--r-lg)', padding: '10px 14px', textAlign: 'center', minWidth: 80 }}>
-                  <div style={{ fontSize: 16 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 20, fontWeight: 900 }}>{s.value}</div>
-                  <div style={{ fontSize: 10, opacity: 0.8 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PortalHeader
+            role="owner"
+            title="Pharmacy Owner Portal"
+            subtitle={pharmacyName ? `${pharmacyName} — Inventory & AI restocking` : 'Inventory management, AI demand forecasting, and restock automation'}
+            loading={loading}
+            stats={[
+              { label: 'Total Medicines',  value: inventoryMeta.totalCount,      icon: '💊' },
+              { label: 'Low Stock',         value: inventoryMeta.lowStockCount,   icon: '⚠️', highlight: inventoryMeta.lowStockCount > 0 },
+              { label: 'Critical',          value: inventoryMeta.criticalCount,   icon: '🚨', highlight: inventoryMeta.criticalCount > 0 },
+              { label: 'Expiring (<60d)',   value: totalExpiringBatches,          icon: '⏰', highlight: totalExpiringBatches > 0 },
+            ]}
+          />
 
           {/* Success toast */}
           {successToast && (
