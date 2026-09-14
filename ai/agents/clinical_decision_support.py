@@ -27,20 +27,26 @@ for _p in [str(_workspace_root), str(_ai_dir)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-import base64
-
-# Default Gemini API key for MediFlow AI
-DEFAULT_GEMINI_API_KEY = base64.b64decode(
-    b"QVEuQWI4Uk42THpkVGpJQVZyNEJvQUZuV1pvRzBDcTJLWDBuS09jUWtmSU5tV1ZxSG5hTGc="
-).decode("utf-8")
-
 # Load environment variables from .env file if present
 try:
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv  # type: ignore
     load_dotenv(dotenv_path=os.path.join(str(_ai_dir), '.env'))
     load_dotenv(dotenv_path=os.path.join(str(_workspace_root), '.env'))
 except ImportError:
-    pass
+    # Fallback minimal .env loader if python-dotenv is not installed
+    for _env_file in [os.path.join(str(_ai_dir), '.env'), os.path.join(str(_workspace_root), '.env')]:
+        if os.path.isfile(_env_file):
+            try:
+                with open(_env_file, 'r', encoding='utf-8') as _f:
+                    for _line in _f:
+                        _line = _line.strip()
+                        if _line and not _line.startswith('#') and '=' in _line:
+                            _k, _v = _line.split('=', 1)
+                            _k, _v = _k.strip(), _v.strip().strip('"\'')
+                            if _k and _k not in os.environ:
+                                os.environ[_k] = _v
+            except Exception:
+                pass
 
 try:
     from ai.schemas.agent_schemas import (
@@ -221,11 +227,13 @@ def _run_gemini_agent(input_data: ClinicalCDSInput) -> ClinicalCDSResult:
     4. Gemini synthesises a final clinical plan from accumulated tool evidence.
     5. We parse the final structured JSON response into ClinicalCDSResult.
     """
-    import google.generativeai as genai
+    import google.generativeai as genai  # type: ignore
 
-    api_key = os.environ.get("GEMINI_API_KEY") or DEFAULT_GEMINI_API_KEY
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key or api_key == "your_gemini_api_key_here":
-        api_key = DEFAULT_GEMINI_API_KEY
+        raise ValueError(
+            "GEMINI_API_KEY is not configured. Please set GEMINI_API_KEY in your .env file."
+        )
 
     genai.configure(api_key=api_key)
 
@@ -360,7 +368,7 @@ INSTRUCTIONS:
                 )
 
                 # Return tool result to Gemini
-                from google.ai.generativelanguage_v1beta.types import content as glm
+                from google.ai.generativelanguage_v1beta.types import content as glm  # type: ignore
                 tool_content = glm.Content(
                     role="user",
                     parts=[glm.Part(
@@ -672,10 +680,9 @@ def evaluate_clinical_decision_support(input_data: ClinicalCDSInput) -> Clinical
     Primary clinical decision support entry point.
     Attempts Gemini AI agent first; gracefully falls back to rule-based engine.
     """
-    api_key = os.environ.get("GEMINI_API_KEY") or DEFAULT_GEMINI_API_KEY
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     
     if api_key and api_key != "your_gemini_api_key_here":
-        os.environ["GEMINI_API_KEY"] = api_key
         try:
             logger.info("Routing to Gemini AI Agent (Level 1 + Level 2 Function Calling)")
             return _run_gemini_agent(input_data)
