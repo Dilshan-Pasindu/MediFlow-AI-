@@ -36,7 +36,14 @@ venv/
 *.DS_Store
 Thumbs.db
 
-# Secrets — NEVER commit these
+# Environment & Secrets — NEVER commit these
+.env
+.env.*
+.env.local
+.env.production
+*.env
+**/.env
+**/.env.*
 *.pfx
 *.p12
 secrets.json
