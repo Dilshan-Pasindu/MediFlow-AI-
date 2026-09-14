@@ -11,7 +11,7 @@ import {
   apiGetMyPharmacy, apiGetPharmacyInventory, apiGenerateRestockRecommendations,
   apiCreateRestockRequest, apiGetSuppliers, apiGetRestockRequests,
   apiReceiveRestockRequest, apiAddInventoryBatch,
-  apiCreateInventoryItem, apiUpdateInventoryItem, getUser
+  apiCreateInventoryItem, apiUpdateInventoryItem, apiDeleteExpiredBatch, getUser
 } from '../../services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -127,6 +127,10 @@ export default function OwnerDashboard() {
 
   // Edit batch expiry state
   const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  // Delete expired batch state
+  const [confirmDeleteBatch, setConfirmDeleteBatch] = useState<{ item: InventoryItem; batch: InventoryItem['batches'][0] } | null>(null);
+  const [deletingBatchId, setDeletingBatchId] = useState<number | null>(null);
 
   // Edit Inventory Item modal state
   const [editItemModal, setEditItemModal] = useState<InventoryItem | null>(null);
@@ -279,6 +283,23 @@ export default function OwnerDashboard() {
     setBatchExpiryDate(getFutureDate(18));
     setBatchNotes('');
     setBatchModalError(null);
+  }
+
+  async function handleDeleteBatch(item: InventoryItem, batch: InventoryItem['batches'][0]) {
+    if (!pharmacyId) return;
+    setDeletingBatchId(batch.id);
+    setConfirmDeleteBatch(null);
+    try {
+      await apiDeleteExpiredBatch(pharmacyId, item.id, batch.id);
+      setSuccessToast(`Expired batch ${batch.batchNumber} removed. Stock adjusted.`);
+      loadInventory(pharmacyId);
+      setTimeout(() => setSuccessToast(null), 5000);
+    } catch (err: any) {
+      setSuccessToast(`Error: ${err?.message || 'Failed to delete batch.'}`);
+      setTimeout(() => setSuccessToast(null), 6000);
+    } finally {
+      setDeletingBatchId(null);
+    }
   }
 
   function openEditItemModal(item: InventoryItem) {
@@ -742,7 +763,45 @@ export default function OwnerDashboard() {
                                                     )}
                                                   </td>
                                                   <td style={{ padding: '10px 8px', textAlign: 'right' }}>
-                                                    {/* Batch fields are read-only after creation */}
+                                                    {isExp && (
+                                                      confirmDeleteBatch?.batch.id === batch.id ? (
+                                                        // Inline confirm row
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                                          <span style={{ fontSize: 11, color: '#DC2626', fontWeight: 600, whiteSpace: 'nowrap' }}>Remove batch?</span>
+                                                          <button
+                                                            type="button"
+                                                            className="btn btn-sm"
+                                                            style={{ fontSize: 11, padding: '2px 8px', background: '#DC2626', color: '#fff', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}
+                                                            onClick={() => handleDeleteBatch(item, batch)}
+                                                            disabled={deletingBatchId === batch.id}
+                                                            id={`confirm-delete-batch-${batch.id}`}
+                                                          >
+                                                            {deletingBatchId === batch.id ? 'Removing...' : 'Yes, Remove'}
+                                                          </button>
+                                                          <button
+                                                            type="button"
+                                                            className="btn btn-ghost btn-sm"
+                                                            style={{ fontSize: 11, padding: '2px 8px' }}
+                                                            onClick={() => setConfirmDeleteBatch(null)}
+                                                            id={`cancel-delete-batch-${batch.id}`}
+                                                          >
+                                                            Cancel
+                                                          </button>
+                                                        </span>
+                                                      ) : (
+                                                        <button
+                                                          type="button"
+                                                          className="btn btn-ghost btn-sm"
+                                                          style={{ fontSize: 11.5, padding: '3px 8px', color: '#DC2626', border: '1px solid #FCA5A5' }}
+                                                          onClick={() => setConfirmDeleteBatch({ item, batch })}
+                                                          disabled={deletingBatchId === batch.id}
+                                                          id={`delete-batch-${batch.id}`}
+                                                          title="Remove this expired batch and write off stock"
+                                                        >
+                                                          🗑 Delete
+                                                        </button>
+                                                      )
+                                                    )}
                                                   </td>
                                                 </tr>
                                               );
