@@ -361,6 +361,97 @@ public class InventoryService
         return request;
     }
 
+    // ── Batch Management & Expiry Calculations ────────────────────────────────
+
+    public async Task<InventoryItemDto> AddBatchAsync(int pharmacyId, int inventoryItemId, CreateInventoryBatchDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.BatchNumber))
+            throw new ArgumentException("Batch number is required.");
+        if (dto.Quantity <= 0)
+            throw new ArgumentException("Batch quantity must be greater than zero.");
+
+        var item = await _db.InventoryItems
+            .Include(i => i.Medicine)
+            .Include(i => i.Batches)
+            .FirstOrDefaultAsync(i => i.Id == inventoryItemId && i.PharmacyId == pharmacyId)
+            ?? throw new KeyNotFoundException($"Inventory item {inventoryItemId} not found in pharmacy {pharmacyId}.");
+
+        var now = DateTime.UtcNow;
+        var batch = new InventoryBatch
+        {
+            InventoryItemId = item.Id,
+            BatchNumber = dto.BatchNumber.Trim(),
+            Quantity = dto.Quantity,
+            ExpiryDate = dto.ExpiryDate,
+            ReceivedDate = now
+        };
+
+        _db.InventoryBatches.Add(batch);
+        item.CurrentStock += dto.Quantity;
+
+        _db.InventoryTransactions.Add(new InventoryTransaction
+        {
+            InventoryItemId = item.Id,
+            TransactionType = TransactionType.Restock,
+            QuantityChanged = dto.Quantity,
+            StockAfter = item.CurrentStock,
+            TransactionDate = now,
+            Notes = $"New batch logged: {dto.BatchNumber}. Expiry: {dto.ExpiryDate:yyyy-MM-dd}. {dto.Notes}".Trim()
+        });
+
+        await _db.SaveChangesAsync();
+        return MapToDto(item);
+    }
+
+    public async Task<InventoryBatchDto> UpdateBatchExpiryAsync(int pharmacyId, int inventoryItemId, int batchId, UpdateBatchExpiryDto dto)
+    {
+        var item = await _db.InventoryItems
+            .Include(i => i.Batches)
+            .FirstOrDefaultAsync(i => i.Id == inventoryItemId && i.PharmacyId == pharmacyId)
+            ?? throw new KeyNotFoundException($"Inventory item {inventoryItemId} not found in pharmacy {pharmacyId}.");
+
+        var batch = item.Batches.FirstOrDefault(b => b.Id == batchId)
+            ?? throw new KeyNotFoundException($"Batch {batchId} not found for inventory item {inventoryItemId}.");
+
+        var oldExpiry = batch.ExpiryDate;
+        batch.ExpiryDate = dto.ExpiryDate;
+
+        var now = DateTime.UtcNow;
+        _db.InventoryTransactions.Add(new InventoryTransaction
+        {
+            InventoryItemId = item.Id,
+            TransactionType = TransactionType.Adjustment,
+            QuantityChanged = 0,
+            StockAfter = item.CurrentStock,
+            TransactionDate = now,
+            Notes = $"Batch {batch.BatchNumber} expiry updated from {oldExpiry:yyyy-MM-dd} to {dto.ExpiryDate:yyyy-MM-dd}. {dto.Notes}".Trim()
+        });
+
+        await _db.SaveChangesAsync();
+
+        var daysUntilExpiry = (int)Math.Ceiling((batch.ExpiryDate.Date - now.Date).TotalDays);
+        bool isExpired = daysUntilExpiry <= 0;
+        bool isCriticalExpiry = !isExpired && daysUntilExpiry <= 30;
+        bool isExpiringSoon = !isExpired && daysUntilExpiry <= 60;
+        string expiryStatus = isExpired ? "Expired"
+            : isCriticalExpiry ? "Critical"
+            : isExpiringSoon ? "ExpiringSoon"
+            : "Good";
+
+        return new InventoryBatchDto(
+            Id: batch.Id,
+            BatchNumber: batch.BatchNumber,
+            Quantity: batch.Quantity,
+            ExpiryDate: batch.ExpiryDate,
+            ReceivedDate: batch.ReceivedDate,
+            IsExpired: isExpired,
+            IsExpiringSoon: isExpiringSoon,
+            DaysUntilExpiry: daysUntilExpiry,
+            ExpiryStatus: expiryStatus,
+            IsCriticalExpiry: isCriticalExpiry
+        );
+    }
+
     // ── Mappers ───────────────────────────────────────────────────────────────
 
     public static InventoryItemDto MapToDto(InventoryItem i)
@@ -378,15 +469,30 @@ public class InventoryService
             MinStockLevel: i.MinStockLevel,
             UnitPrice: i.UnitPrice,
             StockStatus: GetStockStatus(i.CurrentStock, i.MinStockLevel),
-            Batches: i.Batches.Select(b => new InventoryBatchDto(
-                Id: b.Id,
-                BatchNumber: b.BatchNumber,
-                Quantity: b.Quantity,
-                ExpiryDate: b.ExpiryDate,
-                ReceivedDate: b.ReceivedDate,
-                IsExpired: b.ExpiryDate <= now,
-                IsExpiringSoon: b.ExpiryDate > now && b.ExpiryDate <= now.AddDays(60)
-            )).ToList()
+            Batches: i.Batches.Select(b =>
+            {
+                var daysUntilExpiry = (int)Math.Ceiling((b.ExpiryDate.Date - now.Date).TotalDays);
+                bool isExpired = daysUntilExpiry <= 0;
+                bool isCriticalExpiry = !isExpired && daysUntilExpiry <= 30;
+                bool isExpiringSoon = !isExpired && daysUntilExpiry <= 60;
+                string expiryStatus = isExpired ? "Expired"
+                    : isCriticalExpiry ? "Critical"
+                    : isExpiringSoon ? "ExpiringSoon"
+                    : "Good";
+
+                return new InventoryBatchDto(
+                    Id: b.Id,
+                    BatchNumber: b.BatchNumber,
+                    Quantity: b.Quantity,
+                    ExpiryDate: b.ExpiryDate,
+                    ReceivedDate: b.ReceivedDate,
+                    IsExpired: isExpired,
+                    IsExpiringSoon: isExpiringSoon,
+                    DaysUntilExpiry: daysUntilExpiry,
+                    ExpiryStatus: expiryStatus,
+                    IsCriticalExpiry: isCriticalExpiry
+                );
+            }).OrderBy(b => b.ExpiryDate).ToList()
         );
     }
 
