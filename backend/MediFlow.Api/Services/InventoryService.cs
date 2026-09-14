@@ -278,18 +278,33 @@ public class InventoryService
         request.SupplierResponseNote = dto.ResponseNote;
         request.UpdatedAt = DateTime.UtcNow;
 
-        // When supplier dispatches: attach batch numbers and expiry dates to items
+        // When supplier dispatches: attach batch numbers, expiry dates,
+        // and confirmed pricing/quantities to each item, then recalculate total.
         if (newStatus == RestockRequestStatus.Dispatched && dto.ItemBatches != null)
         {
             foreach (var batchInfo in dto.ItemBatches)
             {
                 var item = request.Items.FirstOrDefault(i => i.Id == batchInfo.RestockRequestItemId);
-                if (item != null)
-                {
-                    item.BatchNumber = batchInfo.BatchNumber;
-                    item.ExpiryDate = batchInfo.ExpiryDate;
-                }
+                if (item == null) continue;
+
+                item.BatchNumber = batchInfo.BatchNumber;
+                item.ExpiryDate  = DateTime.SpecifyKind(batchInfo.ExpiryDate, DateTimeKind.Utc);
+
+                // Apply supplier-confirmed quantities and pricing if provided
+                if (batchInfo.Quantity.HasValue && batchInfo.Quantity.Value > 0)
+                    item.Quantity = batchInfo.Quantity.Value;
+
+                if (batchInfo.UnitPrice.HasValue && batchInfo.UnitPrice.Value >= 0)
+                    item.UnitPrice = batchInfo.UnitPrice.Value;
+
+                // Recalculate subtotal (use explicit value if provided, otherwise derive it)
+                item.SubTotal = batchInfo.SubTotal.HasValue && batchInfo.SubTotal.Value >= 0
+                    ? batchInfo.SubTotal.Value
+                    : item.Quantity * item.UnitPrice;
             }
+
+            // Recalculate order total from confirmed item subtotals
+            request.TotalAmount = request.Items.Sum(i => i.SubTotal);
         }
 
         await _db.SaveChangesAsync();
