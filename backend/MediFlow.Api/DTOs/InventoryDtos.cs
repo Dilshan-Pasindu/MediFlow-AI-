@@ -149,7 +149,26 @@ public record RestockRequestDto(
     DateTime? ReceivedAt,
     DateTime RequestedAt,
     DateTime UpdatedAt,
+    string? SupplierBankName,
+    string? SupplierAccountName,
+    string? SupplierAccountNumber,
+    string? SupplierBranch,
+    string PaymentStatus,
+    string? PaymentSlipUrl,
     List<RestockRequestItemDto> Items
+);
+
+// ── Payment DTOs ─────────────────────────────────────────────────────────────
+
+public record SubmitBankDetailsDto(
+    string BankName,
+    string AccountName,
+    string AccountNumber,
+    string Branch
+);
+
+public record SubmitPaymentSlipDto(
+    string PaymentSlipUrl // Base64 encoded string or URL
 );
 
 public record RestockRequestItemDto(
