@@ -40,5 +40,15 @@ public class RestockRequest
     public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // ── Payment Information ───────────────────────────────────────────────────
+    public string? SupplierBankName { get; set; }
+    public string? SupplierAccountName { get; set; }
+    public string? SupplierAccountNumber { get; set; }
+    public string? SupplierBranch { get; set; }
+    
+    /// <summary>Status of payment: Pending, Submitted, Verified</summary>
+    public string PaymentStatus { get; set; } = "Pending";
+    public string? PaymentSlipUrl { get; set; } // Base64 or URL
+
     public ICollection<RestockRequestItem> Items { get; set; } = new List<RestockRequestItem>();
 }
