@@ -568,6 +568,13 @@ namespace MediFlow.Api.Migrations
                     b.Property<string>("Notes")
                         .HasColumnType("text");
 
+                    b.Property<string>("PaymentSlipUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PaymentStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("PharmacyId")
                         .HasColumnType("integer");
 
@@ -579,6 +586,18 @@ namespace MediFlow.Api.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupplierAccountName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupplierAccountNumber")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupplierBankName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SupplierBranch")
                         .HasColumnType("text");
 
                     b.Property<int>("SupplierProfileId")
