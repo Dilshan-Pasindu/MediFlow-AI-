@@ -38,6 +38,9 @@ interface BatchInfo {
   restockRequestItemId: number;
   batchNumber: string;
   expiryDate: string;
+  quantity: number;
+  unitPrice: number;
+  subTotal: number;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -120,13 +123,15 @@ export default function SupplierDashboard() {
     setDispatchingId(req.id);
     const init: Record<number, BatchInfo> = {};
     req.items.forEach(item => {
-      // Default: generate batch number, set expiry 18 months from now
       const defaultExpiry = new Date();
       defaultExpiry.setMonth(defaultExpiry.getMonth() + 18);
       init[item.id] = {
         restockRequestItemId: item.id,
         batchNumber: `BATCH-${req.id}-${item.medicineId}-${Date.now()}`,
-        expiryDate: defaultExpiry.toISOString().split('T')[0]
+        expiryDate: defaultExpiry.toISOString().split('T')[0],
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        subTotal: item.quantity * item.unitPrice,
       };
     });
     setBatchInputs(init);
@@ -140,13 +145,20 @@ export default function SupplierDashboard() {
         dispatchingId,
         'Dispatched',
         'Stock dispatched with batch and expiry information.',
-        Object.values(batchInputs)
+        Object.values(batchInputs).map(b => ({
+          restockRequestItemId: b.restockRequestItemId,
+          batchNumber: b.batchNumber,
+          expiryDate: b.expiryDate,
+          quantity: b.quantity,
+          unitPrice: b.unitPrice,
+          subTotal: b.subTotal,
+        }))
       );
       setMessages(m => ({ ...m, [dispatchingId]: { type: 'success', text: 'Dispatched! Pharmacy will confirm receipt.' } }));
       setDispatchingId(null);
       loadData();
     } catch (e: any) {
-      setError(e?.response?.data?.message || 'Dispatch failed.');
+      setError(e?.message || 'Dispatch failed.');
     } finally {
       setDispatchLoading(false);
     }
@@ -383,41 +395,90 @@ export default function SupplierDashboard() {
                 <button className="close-btn" onClick={() => setDispatchingId(null)}><X size={16} /></button>
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
-                Provide batch number and expiry date for each medicine. This information will be recorded for pharmacy inventory tracking.
+                Confirm dispatch details for each medicine. Inventory will only be updated after the pharmacy confirms receipt.
               </div>
 
-              {req.items.map(item => (
-                <div key={item.id} style={{ padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)', marginBottom: 14 }}>
-                  <div style={{ fontWeight: 700, marginBottom: 10 }}>{item.medicineName} — {item.quantity} units</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Batch Number *</label>
-                      <input
-                        className="form-input"
-                        value={batchInputs[item.id]?.batchNumber || ''}
-                        onChange={e => setBatchInputs(prev => ({
-                          ...prev,
-                          [item.id]: { ...prev[item.id], batchNumber: e.target.value }
-                        }))}
-                        id={`batch-number-${item.id}`}
-                      />
+              {req.items.map(item => {
+                const bi = batchInputs[item.id] || { quantity: item.quantity, unitPrice: item.unitPrice, subTotal: item.quantity * item.unitPrice, batchNumber: '', expiryDate: '' };
+                return (
+                  <div key={item.id} style={{ padding: '16px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)', marginBottom: 14 }}>
+                    <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14 }}>{item.medicineName}</div>
+
+                    {/* Row 1: pricing */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Unit Price (Rs.) *</label>
+                        <input
+                          type="number" min="0" step="0.01"
+                          className="form-input"
+                          value={bi.unitPrice}
+                          onChange={e => {
+                            const up = Math.max(0, parseFloat(e.target.value) || 0);
+                            const st = parseFloat((bi.quantity * up).toFixed(2));
+                            setBatchInputs(prev => ({ ...prev, [item.id]: { ...prev[item.id], unitPrice: up, subTotal: st } }));
+                          }}
+                          id={`unit-price-${item.id}`}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Quantity (Units) *</label>
+                        <input
+                          type="number" min="1"
+                          className="form-input"
+                          value={bi.quantity}
+                          onChange={e => {
+                            const qty = Math.max(1, parseInt(e.target.value) || 1);
+                            const st = parseFloat((qty * bi.unitPrice).toFixed(2));
+                            setBatchInputs(prev => ({ ...prev, [item.id]: { ...prev[item.id], quantity: qty, subTotal: st } }));
+                          }}
+                          id={`quantity-${item.id}`}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Subtotal (Rs.)</label>
+                        <div style={{ padding: '8px 12px', background: 'var(--surface-card, #fff)', borderRadius: 'var(--r-sm)', border: '1px solid var(--border)', fontWeight: 800, fontSize: 14, color: 'var(--primary)' }}>
+                          Rs. {bi.subTotal.toFixed(2)}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Expiry Date *</label>
-                      <input
-                        type="date"
-                        className="form-input"
-                        value={batchInputs[item.id]?.expiryDate || ''}
-                        onChange={e => setBatchInputs(prev => ({
-                          ...prev,
-                          [item.id]: { ...prev[item.id], expiryDate: e.target.value }
-                        }))}
-                        id={`expiry-date-${item.id}`}
-                      />
+
+                    {/* Row 2: batch info */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Batch Number *</label>
+                        <input
+                          className="form-input"
+                          value={bi.batchNumber}
+                          onChange={e => setBatchInputs(prev => ({ ...prev, [item.id]: { ...prev[item.id], batchNumber: e.target.value } }))}
+                          id={`batch-number-${item.id}`}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Expiry Date *</label>
+                        <input
+                          type="date"
+                          className="form-input"
+                          value={bi.expiryDate}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={e => setBatchInputs(prev => ({ ...prev, [item.id]: { ...prev[item.id], expiryDate: e.target.value } }))}
+                          id={`expiry-date-${item.id}`}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+
+              {/* Live order total */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)', marginBottom: 14, marginTop: 4 }}>
+                <span style={{ fontWeight: 700, fontSize: 13.5 }}>Order Total</span>
+                <span style={{ fontFamily: 'Outfit, sans-serif', fontSize: 20, fontWeight: 900, color: 'var(--primary)' }}>
+                  Rs. {Object.values(batchInputs).reduce((s, b) => s + b.subTotal, 0).toFixed(2)}
+                </span>
+              </div>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                🔒 Inventory will only update when the pharmacy owner confirms receipt — not at dispatch.
+              </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
                 <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleDispatch} disabled={dispatchLoading} id="confirm-dispatch-btn">
