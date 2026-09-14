@@ -387,6 +387,16 @@ export async function apiAddInventoryBatch(
   });
 }
 
+export async function apiDeleteExpiredBatch(
+  pharmacyId: number | string,
+  itemId: number | string,
+  batchId: number | string
+) {
+  return apiFetch(`/pharmacies/${pharmacyId}/inventory/${itemId}/batches/${batchId}`, {
+    method: 'DELETE',
+  });
+}
+
 export async function apiUpdateBatchExpiry(
   pharmacyId: number | string,
   itemId: number | string,
