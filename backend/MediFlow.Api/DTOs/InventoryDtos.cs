@@ -126,7 +126,10 @@ public record UpdateRestockStatusDto(
 public record UpdateRestockItemBatchDto(
     int RestockRequestItemId,
     string BatchNumber,
-    DateTime ExpiryDate
+    DateTime ExpiryDate,
+    int? Quantity = null,         // Supplier-confirmed quantity (may differ from requested)
+    decimal? UnitPrice = null,    // Supplier-confirmed unit price
+    decimal? SubTotal = null      // Supplier-confirmed subtotal (auto-calculated if null)
 );
 
 public record ReceiveRestockDto(
