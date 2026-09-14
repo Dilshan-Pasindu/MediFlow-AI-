@@ -1,21 +1,49 @@
+import os
+import sys
+from pathlib import Path
+
+# Add project root and ai directory to sys.path so modules resolve correctly in all environments
+_current_dir = Path(__file__).resolve().parent
+_workspace_root = _current_dir.parent
+for _p in [str(_workspace_root), str(_current_dir)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from ai.schemas.agent_schemas import (
-    HealthCheckResponse,
-    SymptomInput,
-    SpecialistRecommendation,
-    ClinicalCDSInput,
-    ClinicalCDSResult,
-    MedicationCheckInput,
-    MedicationCheckResult,
-    InventoryForecastInput,
-    InventoryForecastResult,
-)
-from ai.agents.specialist_recommender import recommend_specialist
-from ai.agents.clinical_decision_support import evaluate_clinical_decision_support
-from ai.agents.medication_intelligence import evaluate_medication_intelligence
-from ai.agents.inventory_intelligence import evaluate_inventory_intelligence
+try:
+    from ai.schemas.agent_schemas import (
+        HealthCheckResponse,
+        SymptomInput,
+        SpecialistRecommendation,
+        ClinicalCDSInput,
+        ClinicalCDSResult,
+        MedicationCheckInput,
+        MedicationCheckResult,
+        InventoryForecastInput,
+        InventoryForecastResult,
+    )
+    from ai.agents.specialist_recommender import recommend_specialist
+    from ai.agents.clinical_decision_support import evaluate_clinical_decision_support
+    from ai.agents.medication_intelligence import evaluate_medication_intelligence
+    from ai.agents.inventory_intelligence import evaluate_inventory_intelligence
+except ImportError:
+    from schemas.agent_schemas import (  # type: ignore
+        HealthCheckResponse,
+        SymptomInput,
+        SpecialistRecommendation,
+        ClinicalCDSInput,
+        ClinicalCDSResult,
+        MedicationCheckInput,
+        MedicationCheckResult,
+        InventoryForecastInput,
+        InventoryForecastResult,
+    )
+    from agents.specialist_recommender import recommend_specialist  # type: ignore
+    from agents.clinical_decision_support import evaluate_clinical_decision_support  # type: ignore
+    from agents.medication_intelligence import evaluate_medication_intelligence  # type: ignore
+    from agents.inventory_intelligence import evaluate_inventory_intelligence  # type: ignore
 
 app = FastAPI(
     title="MediFlow AI Microservice",
