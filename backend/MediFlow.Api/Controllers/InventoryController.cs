@@ -226,6 +226,39 @@ public class InventoryController : ControllerBase
     }
 
     /// <summary>
+    /// DELETE /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches/{batchId}
+    /// Removes an expired batch, adjusts CurrentStock, and writes an Expired audit transaction.
+    /// Rejected (409) if the batch has not yet expired.
+    /// Accessible by: PharmacyOwner (own pharmacy), Administrator.
+    /// </summary>
+    [HttpDelete("pharmacies/{pharmacyId:int}/inventory/{itemId:int}/batches/{batchId:int}")]
+    [Authorize(Roles = "PharmacyOwner,Administrator")]
+    public async Task<IActionResult> DeleteExpiredBatch(int pharmacyId, int itemId, int batchId)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var result = await _inventoryService.DeleteExpiredBatchAsync(pharmacyId, itemId, batchId);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// PUT /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches/{batchId}/expiry
     /// Update the expiration date for a specific inventory batch.
     /// </summary>
