@@ -558,6 +558,64 @@ public class InventoryService
         return MapToDto(item);
     }
 
+    // ── Delete Expired Batch ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Permanently removes an expired batch from inventory.
+    /// Guards: batch must belong to the given pharmacy item AND must be expired.
+    /// Side-effects:
+    ///   - Subtracts batch.Quantity from item.CurrentStock (removes ghost stock).
+    ///   - Writes an Expired transaction to the audit log.
+    /// Transaction history is preserved; only the batch row is deleted.
+    /// </summary>
+    public async Task<InventoryItemDto> DeleteExpiredBatchAsync(int pharmacyId, int inventoryItemId, int batchId)
+    {
+        var item = await _db.InventoryItems
+            .Include(i => i.Medicine)
+            .Include(i => i.Batches)
+            .FirstOrDefaultAsync(i => i.Id == inventoryItemId && i.PharmacyId == pharmacyId)
+            ?? throw new KeyNotFoundException(
+                $"Inventory item {inventoryItemId} not found in pharmacy {pharmacyId}.");
+
+        var batch = item.Batches.FirstOrDefault(b => b.Id == batchId)
+            ?? throw new KeyNotFoundException(
+                $"Batch {batchId} not found for inventory item {inventoryItemId}.");
+
+        // Only expired batches may be deleted via this path
+        if (batch.ExpiryDate >= DateTime.UtcNow)
+            throw new InvalidOperationException(
+                $"Batch '{batch.BatchNumber}' has not yet expired (expiry: {batch.ExpiryDate:yyyy-MM-dd}). " +
+                "Only expired batches can be deleted.");
+
+        var removedQty = batch.Quantity;
+        var newStock   = Math.Max(0, item.CurrentStock - removedQty);
+
+        // Audit trail — written before deleting the batch row
+        _db.InventoryTransactions.Add(new InventoryTransaction
+        {
+            InventoryItemId = item.Id,
+            TransactionType = TransactionType.Expired,
+            QuantityChanged = -removedQty,
+            StockAfter      = newStock,
+            TransactionDate = DateTime.UtcNow,
+            Notes           = $"Expired batch removed: {batch.BatchNumber} " +
+                              $"(expired {batch.ExpiryDate:yyyy-MM-dd}, {removedQty} units written off)."
+        });
+
+        item.CurrentStock = newStock;
+        _db.InventoryBatches.Remove(batch);
+
+        await _db.SaveChangesAsync();
+
+        // Reload to get updated navigation collections for mapping
+        item = await _db.InventoryItems
+            .Include(i => i.Medicine)
+            .Include(i => i.Batches)
+            .FirstAsync(i => i.Id == item.Id);
+
+        return MapToDto(item);
+    }
+
     public async Task<InventoryBatchDto> UpdateBatchExpiryAsync(int pharmacyId, int inventoryItemId, int batchId, UpdateBatchExpiryDto dto)
     {
         var item = await _db.InventoryItems
