@@ -331,14 +331,69 @@ export async function apiGetPharmacyInventory(
   return apiFetch(`/pharmacies/${pharmacyId}/inventory${qs.toString() ? `?${qs}` : ''}`);
 }
 
+export async function apiCreateInventoryItem(
+  pharmacyId: number | string,
+  data: {
+    medicineName: string;
+    genericName: string;
+    category: string;
+    unitOfMeasure: string;
+    minStockLevel: number;
+    unitPrice: number;
+    initialStock: number;
+    batchNumber?: string;
+    expiryDate?: string;
+    batchNotes?: string;
+  }
+) {
+  // Normalise expiryDate to full ISO datetime so ASP.NET DateTime binding works
+  const expiryDateIso = data.expiryDate
+    ? (data.expiryDate.includes('T') ? data.expiryDate : `${data.expiryDate}T00:00:00`)
+    : undefined;
+  return apiFetch(`/pharmacies/${pharmacyId}/inventory`, {
+    method: 'POST',
+    body: JSON.stringify({ ...data, expiryDate: expiryDateIso }),
+  });
+}
+
+export async function apiUpdateInventoryItem(
+  pharmacyId: number | string,
+  itemId: number | string,
+  data: {
+    minStockLevel: number;
+    unitPrice: number;
+    stockAdjustment: number;
+    adjustmentReason?: string;
+  }
+) {
+  return apiFetch(`/pharmacies/${pharmacyId}/inventory/${itemId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
 export async function apiAddInventoryBatch(
   pharmacyId: number | string,
   itemId: number | string,
   data: { batchNumber: string; quantity: number; expiryDate: string; notes?: string }
 ) {
+  // Ensure expiryDate is a full ISO datetime — ASP.NET DateTime binding requires time component
+  const expiryDateIso = data.expiryDate.includes('T')
+    ? data.expiryDate
+    : `${data.expiryDate}T00:00:00`;
   return apiFetch(`/pharmacies/${pharmacyId}/inventory/${itemId}/batches`, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, expiryDate: expiryDateIso }),
+  });
+}
+
+export async function apiDeleteExpiredBatch(
+  pharmacyId: number | string,
+  itemId: number | string,
+  batchId: number | string
+) {
+  return apiFetch(`/pharmacies/${pharmacyId}/inventory/${itemId}/batches/${batchId}`, {
+    method: 'DELETE',
   });
 }
 
@@ -348,9 +403,12 @@ export async function apiUpdateBatchExpiry(
   batchId: number | string,
   data: { expiryDate: string; notes?: string }
 ) {
+  const expiryDateIso = data.expiryDate.includes('T')
+    ? data.expiryDate
+    : `${data.expiryDate}T00:00:00`;
   return apiFetch(`/pharmacies/${pharmacyId}/inventory/${itemId}/batches/${batchId}/expiry`, {
     method: 'PUT',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ ...data, expiryDate: expiryDateIso }),
   });
 }
 
@@ -385,11 +443,23 @@ export async function apiUpdateRestockStatus(
   id: number | string,
   status: string,
   responseNote?: string,
-  itemBatches?: Array<{ restockRequestItemId: number; batchNumber: string; expiryDate: string }>
+  itemBatches?: Array<{
+    restockRequestItemId: number;
+    batchNumber: string;
+    expiryDate: string;
+    quantity?: number;
+    unitPrice?: number;
+    subTotal?: number;
+  }>
 ) {
+  // Normalise expiryDate on each batch item to full ISO datetime
+  const normalisedBatches = itemBatches?.map(b => ({
+    ...b,
+    expiryDate: b.expiryDate.includes('T') ? b.expiryDate : `${b.expiryDate}T00:00:00`,
+  }));
   return apiFetch(`/restock-requests/${id}/status`, {
     method: 'PUT',
-    body: JSON.stringify({ status, responseNote, itemBatches }),
+    body: JSON.stringify({ status, responseNote, itemBatches: normalisedBatches }),
   });
 }
 
