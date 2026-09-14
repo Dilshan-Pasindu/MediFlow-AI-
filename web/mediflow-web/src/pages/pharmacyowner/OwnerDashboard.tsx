@@ -65,7 +65,7 @@ interface RestockRequest {
   totalAmount: number;
   supplierName: string;
   requestedAt: string;
-  items: Array<{ medicineName: string; quantity: number; unitPrice: number }>;
+  items: Array<{ id: number; medicineName: string; quantity: number; unitPrice: number }>;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -940,13 +940,15 @@ export default function OwnerDashboard() {
                     <table className="table">
                       <thead>
                         <tr>
-                          <th>#</th>
+                          <th>Order ID</th>
                           <th>Supplier</th>
-                          <th>Items</th>
+                          <th>Medicine(s)</th>
+                          <th>Quantity</th>
+                          <th>Unit Price</th>
                           <th>Total Amount</th>
                           <th>Status</th>
                           <th>Requested</th>
-                          <th>Action</th>
+                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -954,22 +956,32 @@ export default function OwnerDashboard() {
                           <tr key={r.id} id={`request-row-${r.id}`}>
                             <td><span style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700 }}>#{r.id}</span></td>
                             <td>{r.supplierName}</td>
-                            <td>{(r.items || []).length} item(s)</td>
+                            <td>
+                              {r.items?.map(i => <div key={i.id} style={{ padding: '2px 0' }}>{i.medicineName}</div>)}
+                            </td>
+                            <td>
+                              {r.items?.map(i => <div key={i.id} style={{ padding: '2px 0' }}>{i.quantity}</div>)}
+                            </td>
+                            <td>
+                              {r.items?.map(i => <div key={i.id} style={{ padding: '2px 0' }}>Rs. {i.unitPrice.toFixed(2)}</div>)}
+                            </td>
                             <td>Rs. {r.totalAmount.toFixed(2)}</td>
                             <td><span className={`badge ${REQUEST_STATUS_COLOR[r.status] || 'badge-blue'}`}>{r.status}</span></td>
                             <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(r.requestedAt).toLocaleDateString()}</td>
                             <td>
-                              {(r.status === 'Delivered' || r.status === 'Dispatched') && (
-                                <button
-                                  className="btn btn-success btn-sm"
-                                  onClick={() => handleReceive(r.id)}
-                                  disabled={receiveLoading && receivingId === r.id}
-                                  id={`receive-stock-${r.id}`}
-                                >
-                                  {receiveLoading && receivingId === r.id ? <Loader size={12} className="spin" /> : <Truck size={12} />}
-                                  {receiveLoading && receivingId === r.id ? 'Confirming...' : 'Confirm Receipt'}
-                                </button>
-                              )}
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {(r.status === 'Delivered' || r.status === 'Dispatched') && (
+                                  <button
+                                    className="btn btn-success btn-sm"
+                                    onClick={() => handleReceive(r.id)}
+                                    disabled={receiveLoading && receivingId === r.id}
+                                    id={`receive-stock-${r.id}`}
+                                  >
+                                    {receiveLoading && receivingId === r.id ? <Loader size={12} className="spin" /> : <Truck size={12} />}
+                                    {receiveLoading && receivingId === r.id ? 'Confirming...' : 'Confirm Receipt'}
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))}
