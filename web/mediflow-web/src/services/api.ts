@@ -443,11 +443,23 @@ export async function apiUpdateRestockStatus(
   id: number | string,
   status: string,
   responseNote?: string,
-  itemBatches?: Array<{ restockRequestItemId: number; batchNumber: string; expiryDate: string }>
+  itemBatches?: Array<{
+    restockRequestItemId: number;
+    batchNumber: string;
+    expiryDate: string;
+    quantity?: number;
+    unitPrice?: number;
+    subTotal?: number;
+  }>
 ) {
+  // Normalise expiryDate on each batch item to full ISO datetime
+  const normalisedBatches = itemBatches?.map(b => ({
+    ...b,
+    expiryDate: b.expiryDate.includes('T') ? b.expiryDate : `${b.expiryDate}T00:00:00`,
+  }));
   return apiFetch(`/restock-requests/${id}/status`, {
     method: 'PUT',
-    body: JSON.stringify({ status, responseNote, itemBatches }),
+    body: JSON.stringify({ status, responseNote, itemBatches: normalisedBatches }),
   });
 }
 
