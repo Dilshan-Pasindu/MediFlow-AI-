@@ -738,6 +738,12 @@ public class InventoryService
             ReceivedAt: r.ReceivedAt,
             RequestedAt: r.RequestedAt,
             UpdatedAt: r.UpdatedAt,
+            SupplierBankName: r.SupplierBankName,
+            SupplierAccountName: r.SupplierAccountName,
+            SupplierAccountNumber: r.SupplierAccountNumber,
+            SupplierBranch: r.SupplierBranch,
+            PaymentStatus: r.PaymentStatus,
+            PaymentSlipUrl: r.PaymentSlipUrl,
             Items: r.Items.Select(i => new RestockRequestItemDto(
                 Id: i.Id,
                 MedicineId: i.MedicineId,
@@ -749,4 +755,89 @@ public class InventoryService
                 ExpiryDate: i.ExpiryDate
             )).ToList()
         );
+    // ── Payment Workflow ───────────────────────────────────────────────────────
+
+    public async Task<RestockRequest> SubmitBankDetailsAsync(int requestId, SubmitBankDetailsDto dto, int actingUserId)
+    {
+        var request = await _db.RestockRequests
+            .Include(r => r.SupplierProfile)
+            .FirstOrDefaultAsync(r => r.Id == requestId)
+            ?? throw new KeyNotFoundException("Restock request not found.");
+
+        // Must be the assigned supplier or admin
+        if (request.SupplierProfile == null || actingUserId != request.SupplierProfile.UserId)
+        {
+            var user = await _db.Users.FindAsync(actingUserId);
+            if (user?.Role != UserRole.Administrator)
+                throw new InvalidOperationException("Not authorized to submit bank details for this request.");
+        }
+
+        if (request.Status == RestockRequestStatus.Pending || request.Status == RestockRequestStatus.Rejected)
+            throw new InvalidOperationException("Cannot submit bank details for a pending or rejected request.");
+
+        if (string.IsNullOrWhiteSpace(dto.BankName) || string.IsNullOrWhiteSpace(dto.AccountName) || 
+            string.IsNullOrWhiteSpace(dto.AccountNumber) || string.IsNullOrWhiteSpace(dto.Branch))
+            throw new ArgumentException("All bank details (Bank Name, Account Name, Account Number, Branch) are required.");
+
+        request.SupplierBankName = dto.BankName;
+        request.SupplierAccountName = dto.AccountName;
+        request.SupplierAccountNumber = dto.AccountNumber;
+        request.SupplierBranch = dto.Branch;
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return request;
+    }
+
+    public async Task<RestockRequest> SubmitPaymentSlipAsync(int requestId, SubmitPaymentSlipDto dto, int actingUserId)
+    {
+        var request = await _db.RestockRequests
+            .Include(r => r.Pharmacy)
+            .FirstOrDefaultAsync(r => r.Id == requestId)
+            ?? throw new KeyNotFoundException("Restock request not found.");
+
+        if (actingUserId != request.Pharmacy!.OwnerId)
+        {
+            var user = await _db.Users.FindAsync(actingUserId);
+            if (user?.Role != UserRole.Administrator)
+                throw new InvalidOperationException("Not authorized to submit payment for this request.");
+        }
+
+        if (string.IsNullOrEmpty(request.SupplierBankName))
+            throw new InvalidOperationException("Supplier has not provided bank details yet.");
+
+        if (string.IsNullOrWhiteSpace(dto.PaymentSlipUrl))
+            throw new ArgumentException("A payment slip must be provided.");
+
+        request.PaymentSlipUrl = dto.PaymentSlipUrl;
+        request.PaymentStatus = "Submitted";
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return request;
+    }
+
+    public async Task<RestockRequest> VerifyPaymentAsync(int requestId, int actingUserId)
+    {
+        var request = await _db.RestockRequests
+            .Include(r => r.SupplierProfile)
+            .FirstOrDefaultAsync(r => r.Id == requestId)
+            ?? throw new KeyNotFoundException("Restock request not found.");
+
+        if (request.SupplierProfile == null || actingUserId != request.SupplierProfile.UserId)
+        {
+            var user = await _db.Users.FindAsync(actingUserId);
+            if (user?.Role != UserRole.Administrator)
+                throw new InvalidOperationException("Not authorized to verify payment for this request.");
+        }
+
+        if (request.PaymentStatus != "Submitted")
+            throw new InvalidOperationException("Payment has not been submitted by the pharmacy owner.");
+
+        request.PaymentStatus = "Verified";
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return request;
+    }
 }
