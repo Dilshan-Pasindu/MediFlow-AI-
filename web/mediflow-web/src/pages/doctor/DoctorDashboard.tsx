@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
+import PortalHeader from '../../components/PortalHeader';
 import { getUser } from '../../services/api';
 import { useDoctorAppointments } from '../../hooks';
 import type { ConsultationAppointment } from '../../types/consultation';
@@ -212,53 +213,17 @@ export default function DoctorDashboard() {
         />
         <div className="page-body fade-in">
 
-          {/* ── Hero Banner ────────────────────────────────────────── */}
-          <div style={{
-            background: 'var(--gradient-doctor)',
-            borderRadius: 'var(--r-xl)', padding: '28px 32px', color: 'white',
-            marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            boxShadow: '0 12px 40px rgba(5,150,105,0.35)', position: 'relative', overflow: 'hidden',
-          }}>
-            {/* Decorative circles */}
-            <div style={{ position: 'absolute', top: '-40%', right: '10%', width: 220, height: 220, background: 'radial-gradient(circle,rgba(255,255,255,0.1) 0%,transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-            <div style={{ position: 'absolute', bottom: '-30%', right: '25%', width: 160, height: 160, background: 'radial-gradient(circle,rgba(255,255,255,0.07) 0%,transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
-
-            <div style={{ zIndex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ background: 'rgba(255,255,255,0.18)', borderRadius: 'var(--r-full)', padding: '3px 12px', fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
-                  🩺 Clinical Portal
-                </div>
-              </div>
-              <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 26, fontWeight: 900, letterSpacing: -0.5, marginBottom: 6 }}>
-                {getGreeting()}, Dr. {user?.fullName?.split(' ')[1] ?? 'Doctor'}
-              </div>
-              <div style={{ fontSize: 14, opacity: 0.88, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Calendar size={14} />
-                You have <strong style={{ margin: '0 3px' }}>{loading ? '…' : stats.todayQueue.length}</strong> confirmed appointment{stats.todayQueue.length !== 1 ? 's' : ''} in today's queue.
-              </div>
-            </div>
-
-            {/* Hero stat chips */}
-            <div style={{ display: 'flex', gap: 12, zIndex: 1 }}>
-              {[
-                { label: "Today's Queue", value: stats.todayQueue.length, emoji: '📋' },
-                { label: 'All Confirmed',  value: stats.allConfirmed.length, emoji: '✅' },
-                { label: 'Completed',      value: stats.completed.length, emoji: '✨' },
-              ].map(s => (
-                <div key={s.label} style={{
-                  background: 'rgba(255,255,255,0.18)', backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255,255,255,0.25)', borderRadius: 'var(--r-lg)',
-                  padding: '14px 18px', textAlign: 'center', minWidth: 88,
-                }}>
-                  <div style={{ fontSize: 22 }}>{s.emoji}</div>
-                  <div style={{ fontFamily: 'Outfit,sans-serif', fontSize: 28, fontWeight: 900, lineHeight: 1.1 }}>
-                    {loading ? '—' : s.value}
-                  </div>
-                  <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PortalHeader
+            role="doctor"
+            title={`${getGreeting()}, Dr. ${user?.fullName?.split(' ')[1] ?? 'Doctor'}`}
+            subtitle={`You have ${loading ? '…' : stats.todayQueue.length} confirmed appointment${stats.todayQueue.length !== 1 ? 's' : ''} in today's queue.`}
+            loading={loading}
+            stats={[
+              { label: "Today's Queue", value: stats.todayQueue.length,   icon: '📋' },
+              { label: 'All Confirmed',  value: stats.allConfirmed.length, icon: '✅' },
+              { label: 'Completed',      value: stats.completed.length,    icon: '✨' },
+            ]}
+          />
 
           {/* ── KPI Stats Row ───────────────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
@@ -435,6 +400,7 @@ export default function DoctorDashboard() {
                     {[
                       { label: 'Issue E-Prescription',   icon: Pill,     path: '/doctor/e-prescription', color: '#059669', bg: '#ECFDF5', id: 'qa-e-prescription' },
                       { label: 'View All Appointments', icon: Calendar, path: '/doctor/appointments',   color: '#0369A1', bg: '#F0F9FF', id: 'qa-all-appts' },
+                      { label: 'Leave & Schedule',      icon: Clock,    path: '/doctor/leaves',         color: '#D97706', bg: '#FFFBEB', id: 'qa-leaves' },
                       { label: 'My Profile',            icon: Activity, path: '/profile',                color: '#6366F1', bg: '#EEF2FF', id: 'qa-profile' },
                     ].map(({ label, icon: Icon, path, color, bg, id }) => (
                       <button

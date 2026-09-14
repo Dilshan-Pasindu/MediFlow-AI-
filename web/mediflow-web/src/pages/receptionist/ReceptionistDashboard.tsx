@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CheckCircle, Clock, AlertCircle, Hash, Loader, RefreshCw, XCircle } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
+import PortalHeader from '../../components/PortalHeader';
 import { apiVerifyPayment, apiGenerateAppointmentNumber, apiCancelAppointment, getUser } from '../../services/api';
 import { usePendingAppointments } from '../../hooks';
 import { useQueryClient } from '@tanstack/react-query';
@@ -65,26 +66,17 @@ export default function ReceptionistDashboard() {
         />
         <div className="page-body fade-in">
 
-          {/* Purple Header Banner */}
-          <div style={{ background: 'linear-gradient(135deg,#5B21B6,#7C3AED)', borderRadius: 'var(--r-xl)', padding: '22px 28px', color: 'white', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 8px 32px rgba(124,58,237,0.3)' }}>
-            <div>
-              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 21, fontWeight: 800, marginBottom: 4 }}>Reception Portal</div>
-              <div style={{ fontSize: 13, opacity: 0.85 }}>Verify payments and confirm appointments with unique numbers</div>
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[
-                { label: 'Pending Payment', value: pending.length, icon: '🕐' },
-                { label: 'Awaiting Verify', value: paymentSent.length, icon: '💳', highlight: true },
-                { label: 'Confirmed', value: confirmed.length, icon: '✅' },
-              ].map(s => (
-                <div key={s.label} style={{ background: s.highlight ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: `1.5px solid ${s.highlight ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 'var(--r-lg)', padding: '10px 16px', textAlign: 'center', minWidth: 90 }}>
-                  <div style={{ fontSize: 18 }}>{s.icon}</div>
-                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 900 }}>{loading ? '—' : s.value}</div>
-                  <div style={{ fontSize: 10, opacity: 0.75 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <PortalHeader
+            role="recept"
+            title="Reception Portal"
+            subtitle="Verify payments and confirm appointments with unique numbers"
+            loading={loading}
+            stats={[
+              { label: 'Pending Payment', value: pending.length,    icon: '🕐' },
+              { label: 'Awaiting Verify', value: paymentSent.length,icon: '💳', highlight: paymentSent.length > 0 },
+              { label: 'Confirmed',       value: confirmed.length,  icon: '✅' },
+            ]}
+          />
 
           {/* Human Approval Banner */}
           <div className="approval-banner" style={{ background: 'linear-gradient(135deg, #FEF3C7, #FFFBEB)', border: '1.5px solid #F59E0B', padding: '16px', borderRadius: 'var(--r-lg)', marginBottom: 20, display: 'flex', gap: 12 }}>

@@ -18,4 +18,5 @@ public class Doctor
     public ICollection<DoctorAvailability> Availabilities { get; set; } = new List<DoctorAvailability>();
     public ICollection<DoctorRating> Ratings { get; set; } = new List<DoctorRating>();
     public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+    public ICollection<DoctorLeave> Leaves { get; set; } = new List<DoctorLeave>();
 }

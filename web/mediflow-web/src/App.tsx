@@ -22,21 +22,31 @@ const DoctorDashboard = React.lazy(() => import('./pages/doctor/DoctorDashboard'
 const DoctorAppointmentsPage = React.lazy(() => import('./pages/doctor/DoctorAppointmentsPage'));
 const ConsultationPage = React.lazy(() => import('./pages/doctor/ConsultationPage'));
 const DoctorEPrescriptionPage = React.lazy(() => import('./pages/doctor/DoctorEPrescriptionPage'));
+const DoctorLeavePage = React.lazy(() => import('./pages/doctor/DoctorLeavePage'));
+const DoctorHistoryPage = React.lazy(() => import('./pages/doctor/DoctorHistoryPage'));
 
 // Receptionist
 const ReceptionistDashboard = React.lazy(() => import('./pages/receptionist/ReceptionistDashboard'));
+const ReceptionistHistoryPage = React.lazy(() => import('./pages/receptionist/ReceptionistHistoryPage'));
 
 // Pharmacist
 const PharmacistDashboard = React.lazy(() => import('./pages/pharmacist/PharmacistDashboard'));
+const PharmacistPrescriptionsPage = React.lazy(() => import('./pages/pharmacist/PharmacistPrescriptionsPage'));
+const PharmacistMedicinesPage = React.lazy(() => import('./pages/pharmacist/PharmacistMedicinesPage'));
 
 // Pharmacy Owner
 const OwnerDashboard = React.lazy(() => import('./pages/pharmacyowner/OwnerDashboard'));
+const OwnerAnalyticsPage = React.lazy(() => import('./pages/pharmacyowner/OwnerAnalyticsPage'));
 
 // Supplier
 const SupplierDashboard = React.lazy(() => import('./pages/supplier/SupplierDashboard'));
+const SupplierHistoryPage = React.lazy(() => import('./pages/supplier/SupplierHistoryPage'));
 
 // Admin
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminUsersPage = React.lazy(() => import('./pages/admin/AdminUsersPage'));
+const AdminAuditPage = React.lazy(() => import('./pages/admin/AdminAuditPage'));
+const AdminAIMonitorPage = React.lazy(() => import('./pages/admin/AdminAIMonitorPage'));
 
 // ─── Branded Loading Fallback ─────────────────────────────────────────────────
 
@@ -150,28 +160,36 @@ function App() {
           <Route path="/doctor/appointments" element={<ProtectedRoute roles={['Doctor']}><DoctorAppointmentsPage /></ProtectedRoute>} />
           <Route path="/doctor/consultation/:id" element={<ProtectedRoute roles={['Doctor']}><ConsultationPage /></ProtectedRoute>} />
           <Route path="/doctor/e-prescription" element={<ProtectedRoute roles={['Doctor']}><DoctorEPrescriptionPage /></ProtectedRoute>} />
+          <Route path="/doctor/leaves" element={<ProtectedRoute roles={['Doctor']}><DoctorLeavePage /></ProtectedRoute>} />
+          <Route path="/doctor/history" element={<ProtectedRoute roles={['Doctor']}><DoctorHistoryPage /></ProtectedRoute>} />
 
           {/* Receptionist Portal */}
           <Route path="/receptionist/dashboard" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistDashboard /></ProtectedRoute>} />
           <Route path="/receptionist/queue" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistDashboard /></ProtectedRoute>} />
+          <Route path="/receptionist/history" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistHistoryPage /></ProtectedRoute>} />
 
           {/* Pharmacist Portal */}
           <Route path="/pharmacist/dashboard" element={<ProtectedRoute roles={['Pharmacist']}><PharmacistDashboard /></ProtectedRoute>} />
-          <Route path="/pharmacist/prescriptions" element={<ProtectedRoute roles={['Pharmacist']}><PharmacistDashboard /></ProtectedRoute>} />
+          <Route path="/pharmacist/prescriptions" element={<ProtectedRoute roles={['Pharmacist']}><PharmacistPrescriptionsPage /></ProtectedRoute>} />
           <Route path="/pharmacist/orders" element={<ProtectedRoute roles={['Pharmacist']}><PharmacistDashboard /></ProtectedRoute>} />
+          <Route path="/pharmacist/medicines" element={<ProtectedRoute roles={['Pharmacist']}><PharmacistMedicinesPage /></ProtectedRoute>} />
 
           {/* Pharmacy Owner Portal */}
           <Route path="/owner/dashboard" element={<ProtectedRoute roles={['PharmacyOwner']}><OwnerDashboard /></ProtectedRoute>} />
           <Route path="/owner/inventory" element={<ProtectedRoute roles={['PharmacyOwner']}><OwnerDashboard /></ProtectedRoute>} />
           <Route path="/owner/restock" element={<ProtectedRoute roles={['PharmacyOwner']}><OwnerDashboard /></ProtectedRoute>} />
+          <Route path="/owner/analytics" element={<ProtectedRoute roles={['PharmacyOwner']}><OwnerAnalyticsPage /></ProtectedRoute>} />
 
           {/* Supplier Portal */}
           <Route path="/supplier/dashboard" element={<ProtectedRoute roles={['Supplier']}><SupplierDashboard /></ProtectedRoute>} />
           <Route path="/supplier/requests" element={<ProtectedRoute roles={['Supplier']}><SupplierDashboard /></ProtectedRoute>} />
+          <Route path="/supplier/history" element={<ProtectedRoute roles={['Supplier']}><SupplierHistoryPage /></ProtectedRoute>} />
 
           {/* Admin Portal */}
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={['Administrator']}><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin/users" element={<ProtectedRoute roles={['Administrator']}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/users" element={<ProtectedRoute roles={['Administrator']}><AdminUsersPage /></ProtectedRoute>} />
+          <Route path="/admin/audit" element={<ProtectedRoute roles={['Administrator']}><AdminAuditPage /></ProtectedRoute>} />
+          <Route path="/admin/ai-monitor" element={<ProtectedRoute roles={['Administrator']}><AdminAIMonitorPage /></ProtectedRoute>} />
 
           {/* 404 / Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

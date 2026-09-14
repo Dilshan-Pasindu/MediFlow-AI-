@@ -10,7 +10,7 @@ namespace MediFlow.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Patient")]          // ← Only patients can book appointments
+[Authorize(Roles = "Patient,Doctor,Receptionist,Pharmacist,Admin")]
 public class AppointmentsController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -31,6 +31,18 @@ public class AppointmentsController : ControllerBase
         var doctor = await _db.Doctors.FindAsync(request.DoctorId);
         if (doctor == null)
             return NotFound(new { message = "Doctor not found." });
+
+        // Check if the doctor is on leave
+        var overlappingLeave = await _db.DoctorLeaves
+            .Where(l => l.DoctorId == request.DoctorId
+                && l.StartDate <= request.DateTime
+                && l.EndDate >= request.DateTime)
+            .FirstOrDefaultAsync();
+
+        if (overlappingLeave != null)
+        {
+            return BadRequest(new { message = $"Doctor is on leave from {overlappingLeave.StartDate:yyyy-MM-dd} to {overlappingLeave.EndDate:yyyy-MM-dd}." });
+        }
 
         // Generate appointment number: APT-YYYYMMDD-XXXX
         var dateStr = request.DateTime.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
@@ -125,15 +137,10 @@ public class AppointmentsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
-        if (patient == null)
-            return NotFound(new { message = "Patient profile not found." });
-
         var appointment = await _db.Appointments
             .Include(a => a.Doctor).ThenInclude(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
             .Include(a => a.Payment)
-            .Where(a => a.Id == id && a.PatientId == patient.Id)
+            .Where(a => a.Id == id)
             .Select(a => new
             {
                 a.Id,

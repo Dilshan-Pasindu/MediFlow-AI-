@@ -7,9 +7,15 @@ from ai.schemas.agent_schemas import (
     SpecialistRecommendation,
     ClinicalCDSInput,
     ClinicalCDSResult,
+    MedicationCheckInput,
+    MedicationCheckResult,
+    InventoryForecastInput,
+    InventoryForecastResult,
 )
 from ai.agents.specialist_recommender import recommend_specialist
 from ai.agents.clinical_decision_support import evaluate_clinical_decision_support
+from ai.agents.medication_intelligence import evaluate_medication_intelligence
+from ai.agents.inventory_intelligence import evaluate_inventory_intelligence
 
 app = FastAPI(
     title="MediFlow AI Microservice",
@@ -59,3 +65,30 @@ async def get_clinical_decision_support(payload: ClinicalCDSInput):
         return result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"CDS evaluation pipeline failed: {str(exc)}")
+
+
+@app.post("/api/ai/medication-check", response_model=MedicationCheckResult, tags=["Agents"])
+async def check_medication_safety(payload: MedicationCheckInput):
+    """
+    Evaluates medication safety, checks for drug-drug interactions,
+    flags allergy contraindications, and recommends bioequivalent alternatives.
+    """
+    try:
+        result = evaluate_medication_intelligence(payload)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Medication check pipeline failed: {str(exc)}")
+
+
+@app.post("/api/ai/inventory-forecast", response_model=InventoryForecastResult, tags=["Agents"])
+async def get_inventory_forecast(payload: InventoryForecastInput):
+    """
+    Performs predictive inventory demand forecasting, identifies stockout horizons,
+    and constructs automated batch restock proposals.
+    """
+    try:
+        result = evaluate_inventory_intelligence(payload)
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Inventory forecast pipeline failed: {str(exc)}")
+
