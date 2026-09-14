@@ -470,6 +470,28 @@ export async function apiReceiveRestockRequest(id: number | string, notes?: stri
   });
 }
 
+// ── Payment Workflow ─────────────────────────────────────────────────────────
+
+export async function apiSubmitBankDetails(id: number | string, data: { bankName: string; accountName: string; accountNumber: string; branch: string }) {
+  return apiFetch(`/restock-requests/${id}/bank-details`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function apiSubmitPaymentSlip(id: number | string, paymentSlipUrl: string) {
+  return apiFetch(`/restock-requests/${id}/payment-slip`, {
+    method: 'POST',
+    body: JSON.stringify({ paymentSlipUrl }),
+  });
+}
+
+export async function apiVerifyRestockPayment(id: number | string) {
+  return apiFetch(`/restock-requests/${id}/verify-payment`, {
+    method: 'POST',
+  });
+}
+
 export async function apiGetInventoryTransactions(params?: {
   pharmacyId?: number;
   medicineId?: number;
