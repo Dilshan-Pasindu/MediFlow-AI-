@@ -24,7 +24,7 @@ class Appointment {
       id: json['id'] ?? 0,
       doctorId: json['doctorId'] ?? 0,
       doctorName: json['doctorName'] ?? 'Doctor',
-      specialty: json['specialty'] ?? 'General Medicine',
+      specialty: json['specialtyName'] ?? json['specialty'] ?? 'General Medicine',
       appointmentDateTime: DateTime.tryParse(json['appointmentDateTime'] ?? '') ?? DateTime.now(),
       status: json['status'] ?? 'Pending',
       appointmentNumber: json['appointmentNumber'],
