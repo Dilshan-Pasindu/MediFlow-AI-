@@ -12,6 +12,11 @@ on:
       - master
       - dev
 
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
 jobs:
   verify-governance:
     name: Verify Governance & Merge Authority
@@ -67,3 +72,63 @@ jobs:
               echo "Modification authored by repository owner @Dilshan-Pasindu. Permitted."
             fi
           fi
+
+      - name: Enforce Minimum Commits for Contributors
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const author = (pr.user && pr.user.login) ? pr.user.login : context.actor;
+            const prNumber = pr.number;
+            const commitCount = pr.commits;
+            const MAX_ALLOWED_COMMITS = 3;
+
+            console.log(`Evaluating PR #${prNumber} authored by @${author}`);
+            console.log(`Total commits in PR: ${commitCount}`);
+
+            // Repository owner @Dilshan-Pasindu is exempt from commit count limits
+            if (author.toLowerCase() === 'dilshan-pasindu' || context.actor.toLowerCase() === 'dilshan-pasindu') {
+              console.log(`PR authored/acted by repository owner @Dilshan-Pasindu. Exempt from commit count restrictions. Unlimited commits permitted.`);
+              return;
+            }
+
+            // Check commit count for all other contributors
+            if (commitCount > MAX_ALLOWED_COMMITS) {
+              const errorMsg = `COMMIT POLICY VIOLATION: Pull Request contains ${commitCount} commits, exceeding the allowed maximum of ${MAX_ALLOWED_COMMITS} commits for contributors.`;
+              core.setFailed(errorMsg);
+
+              const commentBody = `⚠️ **Commit Policy Violation — Excessive Commits Detected**\n\n` +
+                `Hi @${author}, MediFlow AI requires all contributors to submit pull requests with **minimum commits** (maximum **${MAX_ALLOWED_COMMITS} commits** per PR, ideally 1-2 atomic commits).\n\n` +
+                `Your pull request currently contains **${commitCount} commits**.\n\n` +
+                `### 🛠️ How to Squash Your Commits:\n` +
+                `Run the following commands on your local feature branch to squash your changes into a single clean commit:\n\n` +
+                `\`\`\`bash\n` +
+                `# 1. Fetch the latest target branch\n` +
+                `git fetch origin dev\n\n` +
+                `# 2. Reset your commits to dev while preserving your code changes in working directory\n` +
+                `git reset --soft origin/dev\n\n` +
+                `# 3. Create a clean, consolidated commit\n` +
+                `git add .\n` +
+                `git commit -m "feat(scope): your consolidated feature description"\n\n` +
+                `# 4. Force push the squashed commit\n` +
+                `git push --force-with-lease\n` +
+                `\`\`\`\n\n` +
+                `Once squashed, this check will automatically pass. Thank you for keeping our git history clean!\n\n` +
+                `*(Note: Repository owner @Dilshan-Pasindu is exempt from this policy)*`;
+
+              try {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  body: commentBody
+                });
+                console.log(`Posted commit policy guidance comment on PR #${prNumber}`);
+              } catch (err) {
+                console.warn(`Could not post PR comment (token permissions on fork): ${err.message}`);
+              }
+            } else {
+              console.log(`Commit count check passed: ${commitCount} / ${MAX_ALLOWED_COMMITS} commits.`);
+            }
