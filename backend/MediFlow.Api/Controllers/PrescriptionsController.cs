@@ -1,77 +1,107 @@
+using System.Globalization;
+using System.Security.Claims;
 using MediFlow.Api.Data;
+using MediFlow.Api.DTOs;
 using MediFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Globalization;
-using System.Security.Claims;
 
 namespace MediFlow.Api.Controllers;
 
-public class StandardMedicineDto
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Form { get; set; } = string.Empty;
-    public string Strength { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
-}
-
+/// <summary>
+/// E-Prescription endpoints.
+/// Owned by Member 3 — E-Prescription &amp; Medicine Ordering.
+/// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class PrescriptionsController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private static readonly List<StandardMedicineDto> StandardMedicines = new()
-    {
-        new StandardMedicineDto { Id = 1, Name = "Amoxicillin", Form = "Capsule", Strength = "500mg", Category = "Antibiotic" },
-        new StandardMedicineDto { Id = 2, Name = "Paracetamol", Form = "Tablet", Strength = "500mg", Category = "Analgesic" },
-        new StandardMedicineDto { Id = 3, Name = "Metformin", Form = "Tablet", Strength = "850mg", Category = "Antidiabetic" },
-        new StandardMedicineDto { Id = 4, Name = "Omeprazole", Form = "Capsule", Strength = "20mg", Category = "Gastrointestinal" },
-        new StandardMedicineDto { Id = 5, Name = "Atorvastatin", Form = "Tablet", Strength = "20mg", Category = "Cardiovascular" },
-        new StandardMedicineDto { Id = 6, Name = "Cetirizine", Form = "Tablet", Strength = "10mg", Category = "Antihistamine" },
-        new StandardMedicineDto { Id = 7, Name = "Salbutamol", Form = "Inhaler", Strength = "100mcg", Category = "Respiratory" },
-        new StandardMedicineDto { Id = 8, Name = "Ibuprofen", Form = "Tablet", Strength = "400mg", Category = "NSAID" }
-    };
 
-    private static readonly List<object> InStorePrescriptions = new();
+    public PrescriptionsController(AppDbContext db) => _db = db;
 
-    public PrescriptionsController(AppDbContext db)
+    // ─── Helper ────────────────────────────────────────────────────────────
+
+    private int? TryGetUserId()
     {
-        _db = db;
+        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+        return claim != null && int.TryParse(claim.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
+            ? id
+            : null;
     }
 
-    [HttpGet("medicines")]
-    [AllowAnonymous]
-    public IActionResult GetMedicines([FromQuery] string? search)
+    private static PrescriptionDto ToDto(Prescription p, string doctorName, string? doctorSpecialty)
     {
-        IEnumerable<StandardMedicineDto> result = StandardMedicines;
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            result = result.Where(m => m.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
-        }
-        return Ok(result.ToList());
+        var patientName = p.IsWalkIn
+            ? (p.WalkInPatientName ?? "Walk-in Patient")
+            : (p.Patient?.FullName ?? "Registered Patient");
+
+        var patientAge = p.IsWalkIn
+            ? p.WalkInPatientAge
+            : (p.Patient?.DateOfBirth.HasValue == true
+                ? (DateTime.UtcNow.Year - p.Patient.DateOfBirth.Value.Year).ToString(CultureInfo.InvariantCulture)
+                : null);
+
+        return new PrescriptionDto(
+            Id: p.Id,
+            AppointmentId: p.AppointmentId,
+            PatientId: p.PatientId,
+            PatientName: patientName,
+            PatientAge: patientAge,
+            PatientGender: p.IsWalkIn ? p.WalkInPatientGender : p.Patient?.Gender,
+            PatientPhone: p.IsWalkIn ? p.WalkInPatientPhone : p.Patient?.PhoneNumber,
+            IsWalkIn: p.IsWalkIn,
+            DoctorId: p.DoctorId,
+            DoctorName: doctorName,
+            DoctorSpecialty: doctorSpecialty,
+            DoctorLicenseNo: "SLMC-84920",
+            Diagnosis: p.Diagnosis,
+            Status: p.Status.ToString(),
+            FulfillmentSource: p.FulfillmentSource.ToString(),
+            Recipients: p.Recipients.ToString(),
+            Instructions: p.Instructions,
+            Items: p.Items.Select(i => new PrescriptionItemDto(
+                MedicineId: i.MedicineId,
+                MedicineName: i.MedicineName,
+                Dosage: i.Dosage,
+                Frequency: i.Frequency,
+                Duration: i.Duration,
+                Quantity: i.Quantity,
+                Instructions: i.Instructions
+            )).ToList(),
+            ItemCount: p.Items.Count,
+            DateIssued: p.IssuedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+            CreatedAt: p.CreatedAt.ToString("o", CultureInfo.InvariantCulture)
+        );
     }
 
+    // ─── POST /api/prescriptions ───────────────────────────────────────────
+
+    /// <summary>
+    /// Issue a new prescription. Only Doctors may call this endpoint.
+    /// The doctor profile is resolved from the JWT userId claim.
+    /// </summary>
     [HttpPost]
-    [Authorize]
-    public async Task<IActionResult> CreatePrescription([FromBody] CreatePrescriptionRequest request)
+    [Authorize(Roles = "Doctor")]
+    public async Task<IActionResult> CreatePrescription([FromBody] CreatePrescriptionRequestDto request)
     {
-        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        int userId = 0;
-        if (!string.IsNullOrEmpty(userIdStr))
-        {
-            _ = int.TryParse(userIdStr, out userId);
-        }
+        var userId = TryGetUserId();
+        if (userId == null) return Unauthorized();
 
+        // Resolve the doctor from the logged-in user
         var doctor = await _db.Doctors
             .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
-            .FirstOrDefaultAsync(d => d.UserId == userId);
+            .FirstOrDefaultAsync(d => d.UserId == userId.Value);
 
-        var doctorName = doctor?.FullName ?? "Dr. Clinical Specialist";
-        var doctorSpecialty = doctor?.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault() ?? "General Medicine";
+        if (doctor == null)
+            return NotFound(new { message = "Doctor profile not found for this user." });
 
-        // Resolve patient details if appointment or patientId provided
+        var doctorSpecialty = doctor.DoctorSpecialties
+            .Select(ds => ds.Specialty.Name)
+            .FirstOrDefault();
+
+        // Resolve registered patient if provided
         Patient? patient = null;
         if (request.PatientId.HasValue && request.PatientId.Value > 0)
         {
@@ -79,177 +109,223 @@ public class PrescriptionsController : ControllerBase
         }
         else if (request.AppointmentId.HasValue && request.AppointmentId.Value > 0)
         {
-            var appt = await _db.Appointments.Include(a => a.Patient).FirstOrDefaultAsync(a => a.Id == request.AppointmentId.Value);
+            var appt = await _db.Appointments
+                .Include(a => a.Patient)
+                .FirstOrDefaultAsync(a => a.Id == request.AppointmentId.Value);
             patient = appt?.Patient;
         }
 
         var isWalkIn = request.IsWalkIn || (patient == null && request.PatientId == null && request.AppointmentId == null);
-        var patientName = patient != null
-            ? patient.FullName
-            : (isWalkIn
-                ? (request.WalkInPatientDetails?.FullName ?? request.PatientName ?? "Walk-in Patient")
-                : (request.PatientName ?? "Registered Patient"));
 
-        var patientIdFinal = patient?.Id ?? request.PatientId;
-        var prescriptionId = "RX-" + Random.Shared.Next(10000, 99999);
-        var recipients = request.FulfillmentSource == "InHouse" ? "Both (Pharmacist & Patient)" : "Patient Only";
+        // Parse fulfillment / recipients enums — default gracefully
+        var fulfillmentSource = Enum.TryParse<FulfillmentSource>(request.FulfillmentSource, out var fs)
+            ? fs : FulfillmentSource.InHouse;
 
-        var response = new
+        var recipients = Enum.TryParse<PrescriptionRecipients>(request.Recipients, out var rec)
+            ? rec : PrescriptionRecipients.Both;
+
+        // Build the Prescription entity
+        var prescription = new Prescription
         {
-            Id = prescriptionId,
             AppointmentId = request.AppointmentId,
-            PatientId = patientIdFinal,
-            PatientName = patientName,
-            PatientAge = request.WalkInPatientDetails?.Age ?? (patient?.DateOfBirth.HasValue == true ? (DateTime.UtcNow.Year - patient.DateOfBirth.Value.Year).ToString() : "N/A"),
-            PatientGender = request.WalkInPatientDetails?.Gender ?? (patient?.Gender ?? "N/A"),
-            PatientPhone = request.WalkInPatientDetails?.Phone ?? (patient?.PhoneNumber ?? "N/A"),
+            PatientId = patient?.Id ?? request.PatientId,
+            DoctorId = doctor.Id,
             IsWalkIn = isWalkIn,
-            DoctorId = doctor?.Id ?? 1,
-            DoctorName = doctorName,
-            DoctorSpecialty = doctorSpecialty,
-            DoctorLicenseNo = "SLMC-84920",
-            Diagnosis = request.Diagnosis ?? "Clinical Assessment Completed",
-            FulfillmentSource = request.FulfillmentSource ?? "InHouse",
+            WalkInPatientName = isWalkIn ? (request.WalkInPatientDetails?.FullName ?? request.PatientName) : null,
+            WalkInPatientAge = isWalkIn ? request.WalkInPatientDetails?.Age : null,
+            WalkInPatientGender = isWalkIn ? request.WalkInPatientDetails?.Gender : null,
+            WalkInPatientPhone = isWalkIn ? request.WalkInPatientDetails?.Phone : null,
+            Diagnosis = request.Diagnosis,
+            Instructions = request.Instructions,
+            FulfillmentSource = fulfillmentSource,
             Recipients = recipients,
-            Status = "Active",
-            Instructions = request.Instructions ?? "Take as directed by doctor",
-            Items = request.Items,
-            ItemCount = request.Items?.Count ?? 0,
-            DateIssued = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
-            CreatedAt = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture)
+            Status = PrescriptionStatus.Active,
+            IssuedAt = DateTime.UtcNow,
+            ExpiryDate = DateTime.UtcNow.AddDays(30),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
 
-        InStorePrescriptions.Insert(0, response);
+        // Build prescription line items
+        foreach (var item in request.Items)
+        {
+            prescription.Items.Add(new PrescriptionItem
+            {
+                MedicineId = item.MedicineId,
+                MedicineName = item.MedicineName,
+                Dosage = item.Dosage,
+                Frequency = item.Frequency,
+                Duration = item.Duration,
+                Quantity = item.Quantity,
+                Instructions = item.Instructions
+            });
+        }
 
-        // If registered patient exists, send in-app notification
+        _db.Prescriptions.Add(prescription);
+        await _db.SaveChangesAsync();
+
+        // Send in-app notification to the registered patient if one exists
         if (patient != null && patient.UserId > 0)
         {
-            var medSummary = request.Items != null && request.Items.Count > 0
+            var medSummary = request.Items.Count > 0
                 ? string.Join(", ", request.Items.Select(i => i.MedicineName))
                 : "Prescription items";
 
-            var notificationMessage = request.FulfillmentSource == "InHouse"
-                ? $"Dr. {doctorName} has issued prescription ({prescriptionId}: {medSummary}) and sent it directly to the center pharmacist and your account. You can collect your medicines at the dispensary."
-                : $"Dr. {doctorName} has issued prescription ({prescriptionId}: {medSummary}) for you.";
+            var notificationMessage = fulfillmentSource == FulfillmentSource.InHouse
+                ? $"Dr. {doctor.FullName} has issued a prescription (ID: {prescription.Id} — {medSummary}) and sent it directly to the pharmacist and your account. You can collect your medicines at the dispensary."
+                : $"Dr. {doctor.FullName} has issued a prescription (ID: {prescription.Id} — {medSummary}) for you.";
 
-            var notification = new Notification
+            _db.Notifications.Add(new Notification
             {
                 UserId = patient.UserId,
                 Title = "New Prescription Issued",
                 Message = notificationMessage,
+                Type = "success",
                 CreatedAt = DateTime.UtcNow,
                 IsRead = false
-            };
-
-            _db.Notifications.Add(notification);
+            });
             await _db.SaveChangesAsync();
         }
 
+        var dto = ToDto(prescription, doctor.FullName, doctorSpecialty);
+
         return Ok(new
         {
-            Message = $"Prescription {prescriptionId} issued successfully and sent to {recipients}.",
-            Prescription = response
+            message = $"Prescription {prescription.Id} issued successfully.",
+            prescription = dto
         });
     }
 
+    // ─── GET /api/prescriptions ────────────────────────────────────────────
+
+    /// <summary>Internal/admin listing of all prescriptions.</summary>
     [HttpGet]
     [Authorize]
-    public IActionResult GetPrescriptions()
+    public async Task<IActionResult> GetPrescriptions()
     {
-        return Ok(InStorePrescriptions);
+        var prescriptions = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                .ThenInclude(ds => ds.Specialty)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var dtos = prescriptions.Select(p =>
+        {
+            var specialty = p.Doctor?.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault();
+            return ToDto(p, p.Doctor?.FullName ?? "Unknown Doctor", specialty);
+        }).ToList();
+
+        return Ok(dtos);
     }
 
-    /// <summary>
-    /// Get prescriptions for the currently logged-in patient.
-    /// Returns prescriptions from InStorePrescriptions that match the patient's ID.
-    /// </summary>
+    // ─── GET /api/prescriptions/my ─────────────────────────────────────────
+
+    /// <summary>Returns prescriptions for the currently logged-in patient.</summary>
     [HttpGet("my")]
     [Authorize(Roles = "Patient")]
     public async Task<IActionResult> GetMyPrescriptions()
     {
-        var userIdStr = User.FindFirst("userId")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out var userId))
-            return Unauthorized();
+        var userId = TryGetUserId();
+        if (userId == null) return Unauthorized();
 
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId.Value);
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
-        // Filter InStorePrescriptions by patient ID or name
-        var myPrescriptions = InStorePrescriptions
-            .Where(p =>
-            {
-                var patId = p.GetType().GetProperty("PatientId")?.GetValue(p);
-                return patId != null && patId.ToString() == patient.Id.ToString();
-            })
-            .ToList();
+        var prescriptions = await _db.Prescriptions
+            .Where(p => p.PatientId == patient.Id)
+            .Include(p => p.Items)
+            .Include(p => p.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                .ThenInclude(ds => ds.Specialty)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
 
-        return Ok(myPrescriptions);
-    }
-
-    [HttpGet("{id}")]
-    [AllowAnonymous]
-    public IActionResult GetPrescriptionById(string id)
-    {
-        var rx = InStorePrescriptions.FirstOrDefault(p => p.GetType().GetProperty("Id")?.GetValue(p)?.ToString() == id);
-        if (rx == null)
+        var dtos = prescriptions.Select(p =>
         {
-            return Ok(new
-            {
-                Id = id,
-                PatientName = "John Doe",
-                PatientAge = "34",
-                PatientGender = "Male",
-                DoctorName = "Dr. Sarah Jenkins",
-                DoctorSpecialty = "General Physician",
-                DoctorLicenseNo = "SLMC-92817",
-                Diagnosis = "Acute Upper Respiratory Tract Infection",
-                FulfillmentSource = "InHouse",
-                Recipients = "Both (Pharmacist & Patient)",
-                Status = "Active",
-                Instructions = "Drink plenty of water. Finish full course of antibiotics.",
-                DateIssued = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
-                Items = new List<object>
-                {
-                    new { MedicineName = "Amoxicillin 500mg", Dosage = "1 capsule", Frequency = "Three times daily (TID)", Duration = "5 days", Quantity = 15, Instructions = "Take after meals" },
-                    new { MedicineName = "Paracetamol 500mg", Dosage = "2 tablets", Frequency = "As needed every 6 hours", Duration = "3 days", Quantity = 12, Instructions = "For fever/pain" }
-                }
-            });
-        }
-        return Ok(rx);
+            var specialty = p.Doctor?.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault();
+            return ToDto(p, p.Doctor?.FullName ?? "Unknown Doctor", specialty);
+        }).ToList();
+
+        return Ok(dtos);
     }
-}
 
-public class CreatePrescriptionRequest
-{
-    public int? AppointmentId { get; set; }
-    public int? PatientId { get; set; }
-    public string? PatientName { get; set; }
-    public bool IsWalkIn { get; set; }
-    public WalkInDetails? WalkInPatientDetails { get; set; }
-    public string? Diagnosis { get; set; }
-    public string? FulfillmentSource { get; set; }
-    public string? Recipients { get; set; }
-    public string? Instructions { get; set; }
-    public List<PrescriptionItemRequest> Items { get; set; } = new();
-}
+    // ─── GET /api/prescriptions/{id} ──────────────────────────────────────
 
-public class WalkInDetails
-{
-    public string FullName { get; set; } = string.Empty;
-    public string? Age { get; set; }
-    public string? Gender { get; set; }
-    public string? Phone { get; set; }
-    public string? Address { get; set; }
-}
+    [HttpGet("{id:int}")]
+    [Authorize]
+    public async Task<IActionResult> GetPrescriptionById(int id)
+    {
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                .ThenInclude(ds => ds.Specialty)
+            .FirstOrDefaultAsync(p => p.Id == id);
 
-public class PrescriptionItemRequest
-{
-    public int? MedicineId { get; set; }
-    public string MedicineName { get; set; } = string.Empty;
-    public string Dosage { get; set; } = string.Empty;
-    public string Frequency { get; set; } = string.Empty;
-    public string Duration { get; set; } = string.Empty;
-    public int Quantity { get; set; } = 1;
-    public string? Instructions { get; set; }
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        // Patients may only view their own prescriptions
+        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        if (roles.Contains("Patient"))
+        {
+            var userId = TryGetUserId();
+            var patient = userId != null
+                ? await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId.Value)
+                : null;
+
+            if (patient == null || prescription.PatientId != patient.Id)
+                return Forbid();
+        }
+
+        var specialty = prescription.Doctor?.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault();
+        return Ok(ToDto(prescription, prescription.Doctor?.FullName ?? "Unknown Doctor", specialty));
+    }
+
+    // ─── GET /api/prescriptions/patient/{patientId} ────────────────────────
+
+    [HttpGet("patient/{patientId:int}")]
+    [Authorize]
+    public async Task<IActionResult> GetPrescriptionsByPatient(int patientId)
+    {
+        var prescriptions = await _db.Prescriptions
+            .Where(p => p.PatientId == patientId)
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                .ThenInclude(ds => ds.Specialty)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var dtos = prescriptions.Select(p =>
+        {
+            var specialty = p.Doctor?.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault();
+            return ToDto(p, p.Doctor?.FullName ?? "Unknown Doctor", specialty);
+        }).ToList();
+
+        return Ok(dtos);
+    }
+
+    // ─── GET /api/prescriptions/medicines (kept for backward compat) ───────
+
+    [HttpGet("medicines")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetMedicines([FromQuery] string? search)
+    {
+        var query = _db.Medicines.Where(m => m.IsActive);
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(m => m.MedicineName.Contains(search));
+
+        var result = await query
+            .Select(m => new { m.Id, Name = m.MedicineName, m.Category, m.UnitOfMeasure })
+            .ToListAsync();
+
+        return Ok(result);
+    }
 }
