@@ -50,7 +50,7 @@ public class PharmacistController : ControllerBase
             DoctorId: p.DoctorId,
             DoctorName: doctorName,
             DoctorSpecialty: doctorSpecialty,
-            DoctorLicenseNo: "SLMC-84920",
+            DoctorLicenseNo: $"SLMC-{p.DoctorId:D5}",
             Diagnosis: p.Diagnosis,
             Status: p.Status.ToString(),
             FulfillmentSource: p.FulfillmentSource.ToString(),
