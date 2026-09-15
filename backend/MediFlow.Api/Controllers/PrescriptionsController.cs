@@ -55,7 +55,7 @@ public class PrescriptionsController : ControllerBase
             DoctorId: p.DoctorId,
             DoctorName: doctorName,
             DoctorSpecialty: doctorSpecialty,
-            DoctorLicenseNo: "SLMC-84920",
+            DoctorLicenseNo: $"SLMC-{p.DoctorId:D5}",
             Diagnosis: p.Diagnosis,
             Status: p.Status.ToString(),
             FulfillmentSource: p.FulfillmentSource.ToString(),
@@ -89,6 +89,19 @@ public class PrescriptionsController : ControllerBase
         var userId = TryGetUserId();
         if (userId == null) return Unauthorized();
 
+        // Validate prescription items
+        if (request.Items == null || request.Items.Count == 0)
+            return BadRequest(new { message = "At least one prescription item is required." });
+
+        foreach (var item in request.Items)
+        {
+            if (string.IsNullOrWhiteSpace(item.MedicineName))
+                return BadRequest(new { message = "Medicine name is required for all prescription items." });
+
+            if (item.Quantity <= 0)
+                return BadRequest(new { message = $"Quantity for '{item.MedicineName}' must be greater than zero." });
+        }
+
         // Resolve the doctor from the logged-in user
         var doctor = await _db.Doctors
             .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
@@ -118,10 +131,10 @@ public class PrescriptionsController : ControllerBase
         var isWalkIn = request.IsWalkIn || (patient == null && request.PatientId == null && request.AppointmentId == null);
 
         // Parse fulfillment / recipients enums — default gracefully
-        var fulfillmentSource = Enum.TryParse<FulfillmentSource>(request.FulfillmentSource, out var fs)
+        var fulfillmentSource = Enum.TryParse<FulfillmentSource>(request.FulfillmentSource, true, out var fs)
             ? fs : FulfillmentSource.InHouse;
 
-        var recipients = Enum.TryParse<PrescriptionRecipients>(request.Recipients, out var rec)
+        var recipients = Enum.TryParse<PrescriptionRecipients>(request.Recipients, true, out var rec)
             ? rec : PrescriptionRecipients.Both;
 
         // Build the Prescription entity

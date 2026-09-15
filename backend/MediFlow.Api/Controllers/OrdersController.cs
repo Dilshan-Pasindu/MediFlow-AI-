@@ -96,6 +96,11 @@ public class OrdersController : ControllerBase
         var userId = TryGetUserId();
         if (userId == null) return Unauthorized();
 
+        // Validate pharmacy exists
+        var pharmacyExists = await _db.Pharmacies.AnyAsync(p => p.Id == request.PharmacyId);
+        if (!pharmacyExists)
+            return BadRequest(new { message = $"Pharmacy with ID {request.PharmacyId} not found." });
+
         // Optionally resolve prescription
         Prescription? prescription = null;
         if (request.PrescriptionId.HasValue)
@@ -127,6 +132,12 @@ public class OrdersController : ControllerBase
 
         foreach (var item in itemsSource)
         {
+            if (string.IsNullOrWhiteSpace(item.MedicineName))
+                return BadRequest(new { message = "Medicine name is required for all order items." });
+
+            if (item.Quantity <= 0)
+                return BadRequest(new { message = $"Quantity for '{item.MedicineName}' must be greater than zero." });
+
             // Look up unit price from pharmacy inventory if not supplied
             decimal unitPrice = item.UnitPrice ?? 0m;
             if (unitPrice == 0m && item.MedicineId.HasValue)
@@ -352,6 +363,7 @@ public class OrdersController : ControllerBase
 
     /// <summary>Marks the order as paid.</summary>
     [HttpPost("{id:int}/payment")]
+    [Authorize(Roles = "Patient,Pharmacist,Administrator")]
     public async Task<IActionResult> MarkAsPaid(int id)
     {
         var order = await _db.Orders.FindAsync(id);
@@ -360,7 +372,7 @@ public class OrdersController : ControllerBase
 
         // Patients may only pay their own orders
         var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
-        if (roles.Contains("Patient"))
+        if (roles.Contains("Patient") && !roles.Contains("Pharmacist") && !roles.Contains("Administrator"))
         {
             var userId = TryGetUserId();
             var patient = userId != null
