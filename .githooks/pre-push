@@ -34,13 +34,12 @@ do
     # 2. Contributor Minimum Commits Policy Guard (Exempt: @Dilshan-Pasindu)
     if [ "$IS_OWNER" -ne 1 ] && [ "$remote_sha" != "$z40" ] && [ -n "$local_sha" ]; then
         COMMIT_COUNT=$(git rev-list --count "$remote_sha..$local_sha" 2>/dev/null || echo "0")
-        if [ "$COMMIT_COUNT" -gt 3 ]; then
+        if [ "$COMMIT_COUNT" -gt 30 ]; then
             echo "================================================================"
             echo " BLOCKED: Excessive commits detected ($COMMIT_COUNT commits)!"
-            echo " Contributors must keep commits to a minimum (max 3 per push)."
-            echo " Please squash your branch into minimal commits before pushing:"
-            echo "   git reset --soft $remote_sha"
-            echo "   git commit -m \"feat(scope): consolidated feature summary\""
+            echo " Contributors must keep commits to a reasonable limit (max 30 per push)."
+            echo " Please squash your branch to 20-30 commits before pushing:"
+            echo "   git rebase -i HEAD~$COMMIT_COUNT"
             echo " (Note: Repository owner @Dilshan-Pasindu is exempt)"
             echo "================================================================"
             exit 1
