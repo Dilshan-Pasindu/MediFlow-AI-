@@ -224,6 +224,7 @@ public class RestockRequestsController : ControllerBase
             return Ok(new { updated.Id, message = "Bank details submitted successfully." });
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
@@ -237,6 +238,7 @@ public class RestockRequestsController : ControllerBase
             return Ok(new { updated.Id, message = "Payment slip submitted successfully." });
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
@@ -250,6 +252,7 @@ public class RestockRequestsController : ControllerBase
             return Ok(new { updated.Id, message = "Payment verified successfully." });
         }
         catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
