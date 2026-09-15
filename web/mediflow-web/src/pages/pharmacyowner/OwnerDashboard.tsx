@@ -11,7 +11,7 @@ import {
   apiGetMyPharmacy, apiGetPharmacyInventory, apiGenerateRestockRecommendations,
   apiCreateRestockRequest, apiGetSuppliers, apiGetRestockRequests,
   apiReceiveRestockRequest, apiAddInventoryBatch,
-  apiCreateInventoryItem, apiUpdateInventoryItem, apiDeleteExpiredBatch, getUser
+  apiCreateInventoryItem, apiUpdateInventoryItem, apiDeleteExpiredBatch, apiSubmitPaymentSlip, getUser
 } from '../../services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -66,6 +66,12 @@ interface RestockRequest {
   supplierName: string;
   requestedAt: string;
   items: Array<{ id: number; medicineName: string; quantity: number; unitPrice: number }>;
+  supplierBankName?: string;
+  supplierAccountName?: string;
+  supplierAccountNumber?: string;
+  supplierBranch?: string;
+  paymentStatus: string;
+  paymentSlipUrl?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -163,6 +169,11 @@ export default function OwnerDashboard() {
   const [submitting, setSubmitting] = useState<Record<number, boolean>>({});
   const [messages, setMessages] = useState<Record<number, string>>({});
 
+  // Payment State
+  const [paymentModalReq, setPaymentModalReq] = useState<RestockRequest | null>(null);
+  const [paymentSlipBase64, setPaymentSlipBase64] = useState<string | null>(null);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+
   // Receive modal
   const [receivingId, setReceivingId] = useState<number | null>(null);
   const [receiveLoading, setReceiveLoading] = useState(false);
@@ -258,6 +269,35 @@ export default function OwnerDashboard() {
       setMessages(m => ({ ...m, [rec.medicineId]: e?.response?.data?.message || 'Error creating request.' }));
     } finally {
       setSubmitting(s => ({ ...s, [rec.medicineId]: false }));
+    }
+  }
+
+  // ── Payment Handlers ────────────────────────────────────────────────────────
+
+  function handlePaymentFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentSlipBase64(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  async function handleSubmitPayment() {
+    if (!paymentModalReq || !paymentSlipBase64) return;
+    setPaymentSubmitting(true);
+    try {
+      await apiSubmitPaymentSlip(paymentModalReq.id, paymentSlipBase64);
+      setSuccessToast('Payment slip submitted successfully.');
+      setPaymentModalReq(null);
+      setPaymentSlipBase64(null);
+      loadRequests();
+    } catch (e: any) {
+      setError(e?.response?.data?.message || e?.message || 'Failed to submit payment slip.');
+    } finally {
+      setPaymentSubmitting(false);
     }
   }
 
@@ -659,16 +699,6 @@ export default function OwnerDashboard() {
                                     <Calendar size={13} /> {item.batches.length} {item.batches.length === 1 ? 'Batch' : 'Batches'}
                                     {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="btn btn-primary btn-sm"
-                                    style={{ fontSize: 12, padding: '4px 10px' }}
-                                    onClick={() => openAddBatchModal(item)}
-                                    id={`add-batch-btn-${item.id}`}
-                                    title="Add new batch with real-world expiration date"
-                                  >
-                                    <Plus size={13} /> Add Batch
-                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -676,21 +706,12 @@ export default function OwnerDashboard() {
                               <tr className="fade-in" style={{ background: 'var(--surface-2, #F8FAFC)' }}>
                                 <td colSpan={9} style={{ padding: '14px 20px' }}>
                                   <div style={{ background: 'var(--card-bg, #FFFFFF)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 16 }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <Calendar size={16} style={{ color: 'var(--primary)' }} />
                                         <span style={{ fontWeight: 700, fontSize: 13.5 }}>Batch Expiry Breakdown for {item.medicineName}</span>
                                         <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>({item.batches.length} active batches)</span>
                                       </div>
-                                      <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm"
-                                        style={{ fontSize: 11.5, padding: '4px 10px' }}
-                                        onClick={() => openAddBatchModal(item)}
-                                        id={`sub-add-batch-${item.id}`}
-                                      >
-                                        <Plus size={12} /> Log New Batch
-                                      </button>
                                     </div>
 
                                     {item.batches.length === 0 ? (
@@ -946,7 +967,8 @@ export default function OwnerDashboard() {
                           <th>Quantity</th>
                           <th>Unit Price</th>
                           <th>Total Amount</th>
-                          <th>Status</th>
+                          <th>Order Status</th>
+                          <th>Payment Status</th>
                           <th>Requested</th>
                           <th>Actions</th>
                         </tr>
@@ -967,9 +989,29 @@ export default function OwnerDashboard() {
                             </td>
                             <td>Rs. {r.totalAmount.toFixed(2)}</td>
                             <td><span className={`badge ${REQUEST_STATUS_COLOR[r.status] || 'badge-blue'}`}>{r.status}</span></td>
+                            <td>
+                              {r.paymentStatus === 'Pending' ? (
+                                <span className="badge badge-yellow">Unpaid</span>
+                              ) : r.paymentStatus === 'Submitted' ? (
+                                <span className="badge badge-blue">Slip Uploaded</span>
+                              ) : (
+                                <span className="badge badge-green">Verified</span>
+                              )}
+                            </td>
                             <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(r.requestedAt).toLocaleDateString()}</td>
                             <td>
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                {r.supplierBankName && r.paymentStatus === 'Pending' && (
+                                  <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={() => {
+                                      setPaymentModalReq(r);
+                                      setPaymentSlipBase64(null);
+                                    }}
+                                  >
+                                    Pay Supplier
+                                  </button>
+                                )}
                                 {(r.status === 'Delivered' || r.status === 'Dispatched') && (
                                   <button
                                     className="btn btn-success btn-sm"
@@ -1338,6 +1380,63 @@ export default function OwnerDashboard() {
                   >
                     {batchSubmitting ? <><Loader size={14} className="spin" /> Saving Batch...</> : <><Plus size={14} /> Add Batch</>}
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Pay Supplier Modal ── */}
+          {paymentModalReq && (
+            <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+              <div className="card scale-in" style={{ width: '100%', maxWidth: 500, background: 'white', borderRadius: 'var(--r-lg)', padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 19, fontWeight: 800 }}>Pay Supplier</div>
+                  <button onClick={() => setPaymentModalReq(null)} className="close-btn"><X size={20} /></button>
+                </div>
+                
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                  Please transfer <strong style={{ color: 'var(--primary)', fontSize: 15 }}>Rs. {paymentModalReq.totalAmount.toFixed(2)}</strong> to the following bank account, then upload the receipt.
+                </div>
+
+                <div style={{ background: 'var(--surface-2)', padding: 16, borderRadius: 'var(--r-md)', marginBottom: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Bank Name</span>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{paymentModalReq.supplierBankName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Account Name</span>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{paymentModalReq.supplierAccountName}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Account Number</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: 1 }}>{paymentModalReq.supplierAccountNumber}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Branch</span>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>{paymentModalReq.supplierBranch}</span>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 20 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8 }}>Upload Payment Slip / Receipt *</label>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    className="form-input"
+                    onChange={handlePaymentFileChange}
+                  />
+                  {paymentSlipBase64 && (
+                    <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 4 }}>
+                      <img src={paymentSlipBase64} alt="Preview" style={{ width: '100%', maxHeight: 200, objectFit: 'contain' }} />
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button className="btn btn-success" style={{ flex: 1 }} onClick={handleSubmitPayment} disabled={paymentSubmitting || !paymentSlipBase64}>
+                    {paymentSubmitting ? 'Submitting...' : 'Submit Payment Slip'}
+                  </button>
+                  <button className="btn btn-ghost" onClick={() => setPaymentModalReq(null)}>Cancel</button>
                 </div>
               </div>
             </div>

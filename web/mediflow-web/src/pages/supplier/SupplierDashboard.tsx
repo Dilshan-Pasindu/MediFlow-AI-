@@ -3,7 +3,7 @@ import { CheckCircle, X, Loader, Truck, RefreshCw, Package, AlertTriangle } from
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
-import { apiGetRestockRequests, apiUpdateRestockStatus, apiGetMySupplierProfile, getUser } from '../../services/api';
+import { apiGetRestockRequests, apiUpdateRestockStatus, apiGetMySupplierProfile, getUser, apiSubmitBankDetails, apiVerifyRestockPayment } from '../../services/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +30,12 @@ interface RestockRequest {
   requestedAt: string;
   updatedAt: string;
   items: RestockRequestItem[];
+  supplierBankName?: string;
+  supplierAccountName?: string;
+  supplierAccountNumber?: string;
+  supplierBranch?: string;
+  paymentStatus?: string;
+  paymentSlipUrl?: string;
 }
 
 // ─── Batch input for dispatch ──────────────────────────────────────────────
@@ -71,6 +77,15 @@ export default function SupplierDashboard() {
   const [dispatchingId, setDispatchingId] = useState<number | null>(null);
   const [batchInputs, setBatchInputs] = useState<Record<number, BatchInfo>>({});
   const [dispatchLoading, setDispatchLoading] = useState(false);
+
+  // Bank Details state
+  const [bankModalReq, setBankModalReq] = useState<RestockRequest | null>(null);
+  const [bankDetails, setBankDetails] = useState({ bankName: '', accountName: '', accountNumber: '', branch: '' });
+  const [bankSubmitting, setBankSubmitting] = useState(false);
+
+  // Verify Payment state
+  const [verifyModalReq, setVerifyModalReq] = useState<RestockRequest | null>(null);
+  const [verifySubmitting, setVerifySubmitting] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -161,6 +176,38 @@ export default function SupplierDashboard() {
       setError(e?.message || 'Dispatch failed.');
     } finally {
       setDispatchLoading(false);
+    }
+  }
+
+  // ── Payment Handlers ────────────────────────────────────────────────────────
+
+  async function handleBankDetailsSubmit() {
+    if (!bankModalReq) return;
+    setBankSubmitting(true);
+    try {
+      await apiSubmitBankDetails(bankModalReq.id, bankDetails);
+      setMessages(m => ({ ...m, [bankModalReq.id]: { type: 'success', text: 'Bank details submitted.' } }));
+      setBankModalReq(null);
+      loadData();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to submit bank details.');
+    } finally {
+      setBankSubmitting(false);
+    }
+  }
+
+  async function handleVerifyPayment() {
+    if (!verifyModalReq) return;
+    setVerifySubmitting(true);
+    try {
+      await apiVerifyRestockPayment(verifyModalReq.id);
+      setMessages(m => ({ ...m, [verifyModalReq.id]: { type: 'success', text: 'Payment verified.' } }));
+      setVerifyModalReq(null);
+      loadData();
+    } catch (e: any) {
+      setError(e?.message || 'Failed to verify payment.');
+    } finally {
+      setVerifySubmitting(false);
     }
   }
 
@@ -333,9 +380,11 @@ export default function SupplierDashboard() {
                       )}
 
                       {req.status === 'Approved' && !messages[req.id] && (
-                        <button className="btn btn-primary" onClick={() => openDispatch(req)} id={`dispatch-supply-${req.id}`} style={{ width: '100%' }}>
-                          <Truck size={14} /> Dispatch Stock (Enter Batch Info)
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          <button className="btn btn-primary" onClick={() => openDispatch(req)} id={`dispatch-supply-${req.id}`} style={{ width: '100%' }}>
+                            <Truck size={14} /> Dispatch Stock (Enter Batch Info)
+                          </button>
+                        </div>
                       )}
 
                       {req.status === 'Dispatched' && !messages[req.id] && (
@@ -370,6 +419,27 @@ export default function SupplierDashboard() {
                       {req.status === 'Rejected' && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--danger)', fontWeight: 700, fontSize: 13 }}>
                           <X size={15} /> Rejected{req.supplierResponseNote ? `: ${req.supplierResponseNote}` : ''}
+                        </div>
+                      )}
+
+                      {/* Payment Actions (Independent of fulfillment status) */}
+                      {req.status !== 'Pending' && req.status !== 'Rejected' && (
+                        <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {!req.supplierBankName && (
+                            <button className="btn btn-ghost" onClick={() => { setBankModalReq(req); setBankDetails({ bankName: '', accountName: '', accountNumber: '', branch: '' }); }} style={{ width: '100%', fontSize: 13, background: 'var(--surface-2)' }}>
+                              🏦 Submit Bank Details
+                            </button>
+                          )}
+                          {req.supplierBankName && req.paymentStatus === 'Submitted' && (
+                            <button className="btn btn-success" onClick={() => setVerifyModalReq(req)} style={{ width: '100%' }}>
+                              ✅ Verify Payment (Slip Uploaded)
+                            </button>
+                          )}
+                          {req.supplierBankName && req.paymentStatus === 'Verified' && (
+                            <div style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600, textAlign: 'center', background: 'var(--surface-2)', padding: '10px', borderRadius: 'var(--r-md)' }}>
+                              ✅ Payment Verified
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -490,6 +560,83 @@ export default function SupplierDashboard() {
           </div>
         );
       })()}
+
+      {/* ── Bank Details Modal ── */}
+      {bankModalReq && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div className="card scale-in" style={{ width: '100%', maxWidth: 450, background: 'white', borderRadius: 'var(--r-lg)', padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 19, fontWeight: 800 }}>Submit Bank Details</div>
+              <button onClick={() => setBankModalReq(null)} className="close-btn"><X size={20} /></button>
+            </div>
+            
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
+              Provide bank details for Pharmacy #{bankModalReq.pharmacyId} to transfer Rs. {bankModalReq.totalAmount.toFixed(2)}.
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Bank Name *</label>
+                <input className="form-input" value={bankDetails.bankName} onChange={e => setBankDetails(p => ({ ...p, bankName: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Account Name *</label>
+                <input className="form-input" value={bankDetails.accountName} onChange={e => setBankDetails(p => ({ ...p, accountName: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Account Number *</label>
+                <input className="form-input" value={bankDetails.accountNumber} onChange={e => setBankDetails(p => ({ ...p, accountNumber: e.target.value }))} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, display: 'block', marginBottom: 4 }}>Branch *</label>
+                <input className="form-input" value={bankDetails.branch} onChange={e => setBankDetails(p => ({ ...p, branch: e.target.value }))} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleBankDetailsSubmit} disabled={bankSubmitting || !bankDetails.bankName || !bankDetails.accountName || !bankDetails.accountNumber}>
+                {bankSubmitting ? 'Submitting...' : 'Submit Details'}
+              </button>
+              <button className="btn btn-ghost" onClick={() => setBankModalReq(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Verify Payment Modal ── */}
+      {verifyModalReq && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div className="card scale-in" style={{ width: '100%', maxWidth: 500, background: 'white', borderRadius: 'var(--r-lg)', padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 19, fontWeight: 800 }}>Verify Payment</div>
+              <button onClick={() => setVerifyModalReq(null)} className="close-btn"><X size={20} /></button>
+            </div>
+            
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
+              The pharmacy owner has submitted a payment slip for Order #{verifyModalReq.id} (Rs. {verifyModalReq.totalAmount.toFixed(2)}).
+            </div>
+
+            {verifyModalReq.paymentSlipUrl ? (
+              <div style={{ marginBottom: 20, textAlign: 'center', background: 'var(--surface-2)', padding: 10, borderRadius: 'var(--r-md)' }}>
+                {verifyModalReq.paymentSlipUrl.startsWith('data:image') || verifyModalReq.paymentSlipUrl.startsWith('http') ? (
+                  <img src={verifyModalReq.paymentSlipUrl} alt="Payment Slip" style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain' }} />
+                ) : (
+                  <div style={{ padding: 20, fontSize: 13, wordBreak: 'break-all' }}>{verifyModalReq.paymentSlipUrl}</div>
+                )}
+              </div>
+            ) : (
+              <div style={{ padding: 20, background: 'var(--surface-2)', textAlign: 'center', marginBottom: 20, color: 'var(--text-muted)' }}>No slip provided.</div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button className="btn btn-success" style={{ flex: 1 }} onClick={handleVerifyPayment} disabled={verifySubmitting}>
+                {verifySubmitting ? 'Verifying...' : 'Mark as Verified'}
+              </button>
+              <button className="btn btn-ghost" onClick={() => setVerifyModalReq(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
