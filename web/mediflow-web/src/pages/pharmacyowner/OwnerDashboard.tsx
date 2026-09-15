@@ -172,6 +172,9 @@ export default function OwnerDashboard() {
   // Payment State
   const [paymentModalReq, setPaymentModalReq] = useState<RestockRequest | null>(null);
   const [paymentSlipBase64, setPaymentSlipBase64] = useState<string | null>(null);
+  const [paymentFileName, setPaymentFileName] = useState<string>('');
+  const [paymentFileType, setPaymentFileType] = useState<string>('');
+  const [paymentModalError, setPaymentModalError] = useState<string | null>(null);
   const [paymentSubmitting, setPaymentSubmitting] = useState(false);
 
   // Receive modal
@@ -275,8 +278,16 @@ export default function OwnerDashboard() {
   // ── Payment Handlers ────────────────────────────────────────────────────────
 
   function handlePaymentFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setPaymentModalError(null);
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setPaymentModalError('File size exceeds 5MB limit. Please upload a smaller receipt image or PDF.');
+        e.target.value = '';
+        return;
+      }
+      setPaymentFileName(file.name);
+      setPaymentFileType(file.type);
       const reader = new FileReader();
       reader.onloadend = () => {
         setPaymentSlipBase64(reader.result as string);
@@ -288,14 +299,19 @@ export default function OwnerDashboard() {
   async function handleSubmitPayment() {
     if (!paymentModalReq || !paymentSlipBase64) return;
     setPaymentSubmitting(true);
+    setPaymentModalError(null);
     try {
       await apiSubmitPaymentSlip(paymentModalReq.id, paymentSlipBase64);
       setSuccessToast('Payment slip submitted successfully.');
       setPaymentModalReq(null);
       setPaymentSlipBase64(null);
+      setPaymentFileName('');
+      setPaymentFileType('');
       loadRequests();
     } catch (e: any) {
-      setError(e?.response?.data?.message || e?.message || 'Failed to submit payment slip.');
+      const msg = e?.response?.data?.message || e?.message || 'Failed to submit payment slip.';
+      setPaymentModalError(msg);
+      setError(msg);
     } finally {
       setPaymentSubmitting(false);
     }
@@ -680,6 +696,16 @@ export default function OwnerDashboard() {
                                 <div style={{ display: 'inline-flex', gap: 6 }}>
                                   <button
                                     type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ fontSize: 12, padding: '4px 8px' }}
+                                    onClick={() => openAddBatchModal(item)}
+                                    id={`add-batch-btn-${item.id}`}
+                                    title="Log a new batch with expiry date"
+                                  >
+                                    <Plus size={13} /> Add Batch
+                                  </button>
+                                  <button
+                                    type="button"
                                     className="btn btn-ghost btn-sm"
                                     style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
                                     onClick={() => openEditItemModal(item)}
@@ -706,12 +732,21 @@ export default function OwnerDashboard() {
                               <tr className="fade-in" style={{ background: 'var(--surface-2, #F8FAFC)' }}>
                                 <td colSpan={9} style={{ padding: '14px 20px' }}>
                                   <div style={{ background: 'var(--card-bg, #FFFFFF)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 16 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <Calendar size={16} style={{ color: 'var(--primary)' }} />
                                         <span style={{ fontWeight: 700, fontSize: 13.5 }}>Batch Expiry Breakdown for {item.medicineName}</span>
                                         <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>({item.batches.length} active batches)</span>
                                       </div>
+                                      <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ fontSize: 11.5, padding: '4px 10px' }}
+                                        onClick={() => openAddBatchModal(item)}
+                                        id={`sub-add-batch-${item.id}`}
+                                      >
+                                        <Plus size={12} /> Log New Batch
+                                      </button>
                                     </div>
 
                                     {item.batches.length === 0 ? (
@@ -1391,8 +1426,14 @@ export default function OwnerDashboard() {
               <div className="card scale-in" style={{ width: '100%', maxWidth: 500, background: 'white', borderRadius: 'var(--r-lg)', padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
                   <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 19, fontWeight: 800 }}>Pay Supplier</div>
-                  <button onClick={() => setPaymentModalReq(null)} className="close-btn"><X size={20} /></button>
+                  <button onClick={() => { setPaymentModalReq(null); setPaymentSlipBase64(null); setPaymentFileName(''); setPaymentFileType(''); setPaymentModalError(null); }} className="close-btn"><X size={20} /></button>
                 </div>
+
+                {paymentModalError && (
+                  <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16 }}>
+                    ⚠️ {paymentModalError}
+                  </div>
+                )}
                 
                 <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
                   Please transfer <strong style={{ color: 'var(--primary)', fontSize: 15 }}>Rs. {paymentModalReq.totalAmount.toFixed(2)}</strong> to the following bank account, then upload the receipt.
@@ -1418,7 +1459,7 @@ export default function OwnerDashboard() {
                 </div>
 
                 <div style={{ marginBottom: 20 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8 }}>Upload Payment Slip / Receipt *</label>
+                  <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 8 }}>Upload Payment Slip / Receipt (Max 5MB) *</label>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
@@ -1426,9 +1467,30 @@ export default function OwnerDashboard() {
                     onChange={handlePaymentFileChange}
                   />
                   {paymentSlipBase64 && (
-                    <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 4 }}>
-                      <img src={paymentSlipBase64} alt="Preview" style={{ width: '100%', maxHeight: 200, objectFit: 'contain' }} />
-                    </div>
+                    paymentSlipBase64.startsWith('data:application/pdf') || paymentFileType === 'application/pdf' ? (
+                      <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 12, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontSize: 24 }}>📄</span>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{paymentFileName || 'Payment Slip PDF'}</div>
+                            <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>PDF document attached</div>
+                          </div>
+                        </div>
+                        <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '2px 8px', color: '#DC2626' }} onClick={() => { setPaymentSlipBase64(null); setPaymentFileName(''); setPaymentFileType(''); }}>
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 8, background: 'var(--surface-2)' }}>
+                        <img src={paymentSlipBase64} alt="Preview" style={{ width: '100%', maxHeight: 180, objectFit: 'contain', borderRadius: 'var(--r-sm)' }} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                          <span>{paymentFileName || 'Receipt Image'}</span>
+                          <button type="button" className="btn btn-ghost btn-sm" style={{ padding: '2px 6px', color: '#DC2626' }} onClick={() => { setPaymentSlipBase64(null); setPaymentFileName(''); setPaymentFileType(''); }}>
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    )
                   )}
                 </div>
 
@@ -1436,7 +1498,7 @@ export default function OwnerDashboard() {
                   <button className="btn btn-success" style={{ flex: 1 }} onClick={handleSubmitPayment} disabled={paymentSubmitting || !paymentSlipBase64}>
                     {paymentSubmitting ? 'Submitting...' : 'Submit Payment Slip'}
                   </button>
-                  <button className="btn btn-ghost" onClick={() => setPaymentModalReq(null)}>Cancel</button>
+                  <button className="btn btn-ghost" onClick={() => { setPaymentModalReq(null); setPaymentSlipBase64(null); setPaymentFileName(''); setPaymentFileType(''); setPaymentModalError(null); }}>Cancel</button>
                 </div>
               </div>
             </div>
