@@ -258,4 +258,124 @@ public class InventoryServiceTests : IDisposable
         Assert.Equal("Expired", updated.ExpiryStatus);
         Assert.True(updated.DaysUntilExpiry <= 0);
     }
+
+    [Fact]
+    public async Task PaymentWorkflow_FullLifecycle_Succeeds()
+    {
+        // Arrange
+        const int pharmacyOwnerId = 5;
+        const int supplierUserId = 6;
+        var pharmacy = new Pharmacy { Id = 50, Name = "Payment Test Pharmacy", OwnerId = pharmacyOwnerId };
+        var supplier = new SupplierProfile { Id = 50, UserId = supplierUserId, CompanyName = "Pharma Supplies Co" };
+        var med = new Medicine { Id = 50, MedicineName = "Payment Med" };
+
+        _db.Pharmacies.Add(pharmacy);
+        _db.SupplierProfiles.Add(supplier);
+        _db.Medicines.Add(med);
+
+        var request = new RestockRequest
+        {
+            Id = 501,
+            PharmacyId = 50,
+            SupplierProfileId = 50,
+            Status = RestockRequestStatus.Approved,
+            TotalAmount = 5000m,
+            PaymentStatus = "Pending"
+        };
+        _db.RestockRequests.Add(request);
+        await _db.SaveChangesAsync();
+
+        // 1. Supplier submits bank details
+        var bankDto = new SubmitBankDetailsDto("Commercial Bank", "Pharma Supplies PVT", "1234567890", "Colombo 03");
+        var withBank = await _inventoryService.SubmitBankDetailsAsync(501, bankDto, supplierUserId);
+        Assert.Equal("Commercial Bank", withBank.SupplierBankName);
+        Assert.Equal("1234567890", withBank.SupplierAccountNumber);
+
+        // 2. Pharmacy Owner submits payment slip
+        var slipDto = new SubmitPaymentSlipDto("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+        var withSlip = await _inventoryService.SubmitPaymentSlipAsync(501, slipDto, pharmacyOwnerId);
+        Assert.Equal("Submitted", withSlip.PaymentStatus);
+        Assert.NotNull(withSlip.PaymentSlipUrl);
+
+        // 3. Supplier verifies payment
+        var verified = await _inventoryService.VerifyPaymentAsync(501, supplierUserId);
+        Assert.Equal("Verified", verified.PaymentStatus);
+    }
+
+    [Fact]
+    public async Task SubmitBankDetailsAsync_MissingFields_ThrowsArgumentException()
+    {
+        // Arrange
+        var request = new RestockRequest
+        {
+            Id = 502,
+            PharmacyId = 1,
+            SupplierProfileId = 1,
+            SupplierProfile = new SupplierProfile { Id = 1, UserId = 2, CompanyName = "Test" },
+            Status = RestockRequestStatus.Approved
+        };
+        _db.RestockRequests.Add(request);
+        await _db.SaveChangesAsync();
+
+        var invalidDto = new SubmitBankDetailsDto("", "Name", "12345", "Branch");
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _inventoryService.SubmitBankDetailsAsync(502, invalidDto, 2));
+        Assert.Contains("All bank details", ex.Message);
+    }
+
+    [Fact]
+    public async Task SubmitPaymentSlipAsync_WithoutBankDetails_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var pharmacy = new Pharmacy { Id = 60, Name = "Slip Test Pharmacy", OwnerId = 10 };
+        _db.Pharmacies.Add(pharmacy);
+
+        var request = new RestockRequest
+        {
+            Id = 503,
+            PharmacyId = 60,
+            SupplierProfileId = 1,
+            Status = RestockRequestStatus.Approved,
+            SupplierBankName = null // Not set yet
+        };
+        _db.RestockRequests.Add(request);
+        await _db.SaveChangesAsync();
+
+        var slipDto = new SubmitPaymentSlipDto("data:image/png;base64,abc");
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            _inventoryService.SubmitPaymentSlipAsync(503, slipDto, 10));
+        Assert.Contains("Supplier has not provided bank details yet", ex.Message);
+    }
+
+    [Fact]
+    public async Task SubmitPaymentSlipAsync_OversizedPayload_ThrowsArgumentException()
+    {
+        // Arrange
+        var pharmacy = new Pharmacy { Id = 70, Name = "Oversize Test Pharmacy", OwnerId = 15 };
+        _db.Pharmacies.Add(pharmacy);
+
+        var request = new RestockRequest
+        {
+            Id = 504,
+            PharmacyId = 70,
+            SupplierProfileId = 1,
+            Status = RestockRequestStatus.Approved,
+            SupplierBankName = "Test Bank"
+        };
+        _db.RestockRequests.Add(request);
+        await _db.SaveChangesAsync();
+
+        // 11MB string
+        var oversizedSlip = new string('x', 11 * 1024 * 1024);
+        var slipDto = new SubmitPaymentSlipDto(oversizedSlip);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _inventoryService.SubmitPaymentSlipAsync(504, slipDto, 15));
+        Assert.Contains("exceeds the maximum allowed size", ex.Message);
+    }
 }

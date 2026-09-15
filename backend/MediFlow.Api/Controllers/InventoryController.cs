@@ -56,6 +56,43 @@ public class InventoryController : ControllerBase
     }
 
     /// <summary>
+    /// POST /api/pharmacies/{pharmacyId}/inventory
+    /// Creates a new Medicine, InventoryItem, and optional initial InventoryBatch.
+    /// Rule: InitialStock > 0 → BatchNumber and ExpiryDate required.
+    /// Accessible by: PharmacyOwner (own pharmacy), Administrator.
+    /// </summary>
+    [HttpPost("pharmacies/{pharmacyId:int}/inventory")]
+    [Authorize(Roles = "PharmacyOwner,Administrator")]
+    public async Task<IActionResult> AddMedicineWithInventory(int pharmacyId, [FromBody] CreateMedicineWithInventoryDto dto)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var result = await _inventoryService.AddMedicineWithInventoryAsync(pharmacyId, dto);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// GET /api/inventory/low-stock
     /// Returns all inventory items below their minimum stock level.
     /// Accessible by: PharmacyOwner, Pharmacist, Administrator.
@@ -75,6 +112,39 @@ public class InventoryController : ControllerBase
 
         var items = await _inventoryService.GetLowStockAsync(pharmacyId);
         return Ok(items);
+    }
+
+    /// <summary>
+    /// PUT /api/pharmacies/{pharmacyId}/inventory/{itemId}
+    /// Updates MinStockLevel, UnitPrice, and applies an optional signed stock adjustment.
+    /// Writes an Adjustment transaction to the audit log when stock changes.
+    /// Accessible by: PharmacyOwner (own pharmacy), Pharmacist, Administrator.
+    /// </summary>
+    [HttpPut("pharmacies/{pharmacyId:int}/inventory/{itemId:int}")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> UpdateInventoryItem(int pharmacyId, int itemId, [FromBody] UpdateInventoryItemDto dto)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var result = await _inventoryService.UpdateInventoryItemAsync(pharmacyId, itemId, dto);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
     }
 
     /// <summary>
@@ -152,6 +222,39 @@ public class InventoryController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// DELETE /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches/{batchId}
+    /// Removes an expired batch, adjusts CurrentStock, and writes an Expired audit transaction.
+    /// Rejected (409) if the batch has not yet expired.
+    /// Accessible by: PharmacyOwner (own pharmacy), Administrator.
+    /// </summary>
+    [HttpDelete("pharmacies/{pharmacyId:int}/inventory/{itemId:int}/batches/{batchId:int}")]
+    [Authorize(Roles = "PharmacyOwner,Administrator")]
+    public async Task<IActionResult> DeleteExpiredBatch(int pharmacyId, int itemId, int batchId)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var result = await _inventoryService.DeleteExpiredBatchAsync(pharmacyId, itemId, batchId);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
         }
     }
 

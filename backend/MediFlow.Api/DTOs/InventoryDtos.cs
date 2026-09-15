@@ -11,6 +11,34 @@ public record MedicineDto(
     bool IsActive
 );
 
+public record CreateMedicineDto(
+    string MedicineName,
+    string GenericName,
+    string Category,
+    string UnitOfMeasure
+);
+
+/// <summary>
+/// Creates a Medicine (or links an existing one), InventoryItem, and an optional initial InventoryBatch.
+/// Rule: If InitialStock > 0, BatchNumber and ExpiryDate are required.
+/// </summary>
+public record CreateMedicineWithInventoryDto(
+    // Medicine fields
+    string MedicineName,
+    string GenericName,
+    string Category,
+    string UnitOfMeasure,
+    // InventoryItem fields
+    int MinStockLevel,
+    decimal UnitPrice,
+    // Initial stock (0 = no batch created)
+    int InitialStock,
+    // Required when InitialStock > 0
+    string? BatchNumber,
+    DateTime? ExpiryDate,
+    string? BatchNotes
+);
+
 // ─── Inventory DTOs ──────────────────────────────────────────────────────────
 
 public record InventoryItemDto(
@@ -26,6 +54,19 @@ public record InventoryItemDto(
     decimal UnitPrice,
     string StockStatus,    // OK | Low | Critical | OutOfStock
     List<InventoryBatchDto> Batches
+);
+
+/// <summary>
+/// Editable fields for an existing InventoryItem.
+/// StockAdjustment is a signed delta applied to CurrentStock (0 = no change).
+/// Positive values add stock, negative values remove it.
+/// An Adjustment transaction is written whenever StockAdjustment != 0.
+/// </summary>
+public record UpdateInventoryItemDto(
+    int MinStockLevel,
+    decimal UnitPrice,
+    int StockAdjustment,   // signed delta: +N or -N (0 = no change)
+    string? AdjustmentReason  // written to transaction Notes
 );
 
 public record InventoryBatchDto(
@@ -85,7 +126,10 @@ public record UpdateRestockStatusDto(
 public record UpdateRestockItemBatchDto(
     int RestockRequestItemId,
     string BatchNumber,
-    DateTime ExpiryDate
+    DateTime ExpiryDate,
+    int? Quantity = null,         // Supplier-confirmed quantity (may differ from requested)
+    decimal? UnitPrice = null,    // Supplier-confirmed unit price
+    decimal? SubTotal = null      // Supplier-confirmed subtotal (auto-calculated if null)
 );
 
 public record ReceiveRestockDto(
@@ -105,7 +149,26 @@ public record RestockRequestDto(
     DateTime? ReceivedAt,
     DateTime RequestedAt,
     DateTime UpdatedAt,
+    string? SupplierBankName,
+    string? SupplierAccountName,
+    string? SupplierAccountNumber,
+    string? SupplierBranch,
+    string PaymentStatus,
+    string? PaymentSlipUrl,
     List<RestockRequestItemDto> Items
+);
+
+// ── Payment DTOs ─────────────────────────────────────────────────────────────
+
+public record SubmitBankDetailsDto(
+    string BankName,
+    string AccountName,
+    string AccountNumber,
+    string Branch
+);
+
+public record SubmitPaymentSlipDto(
+    string PaymentSlipUrl // Base64 encoded string or URL
 );
 
 public record RestockRequestItemDto(

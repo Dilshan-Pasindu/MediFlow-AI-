@@ -377,8 +377,11 @@ source venv/bin/activate    # On Windows: venv\Scripts\activate
 # Install requirements
 pip install -r requirements.txt
 
-# Start the internal AI service
-uvicorn ai.main:app --host 0.0.0.0 --port 8000 --reload
+# Start the internal AI service (when inside ai/ directory)
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+# Alternatively, from the repository root:
+# uvicorn ai.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 - AI Service URL: `http://localhost:8000`
