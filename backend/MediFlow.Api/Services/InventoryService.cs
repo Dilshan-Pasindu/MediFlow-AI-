@@ -278,18 +278,33 @@ public class InventoryService
         request.SupplierResponseNote = dto.ResponseNote;
         request.UpdatedAt = DateTime.UtcNow;
 
-        // When supplier dispatches: attach batch numbers and expiry dates to items
+        // When supplier dispatches: attach batch numbers, expiry dates,
+        // and confirmed pricing/quantities to each item, then recalculate total.
         if (newStatus == RestockRequestStatus.Dispatched && dto.ItemBatches != null)
         {
             foreach (var batchInfo in dto.ItemBatches)
             {
                 var item = request.Items.FirstOrDefault(i => i.Id == batchInfo.RestockRequestItemId);
-                if (item != null)
-                {
-                    item.BatchNumber = batchInfo.BatchNumber;
-                    item.ExpiryDate = batchInfo.ExpiryDate;
-                }
+                if (item == null) continue;
+
+                item.BatchNumber = batchInfo.BatchNumber;
+                item.ExpiryDate  = DateTime.SpecifyKind(batchInfo.ExpiryDate, DateTimeKind.Utc);
+
+                // Apply supplier-confirmed quantities and pricing if provided
+                if (batchInfo.Quantity.HasValue && batchInfo.Quantity.Value > 0)
+                    item.Quantity = batchInfo.Quantity.Value;
+
+                if (batchInfo.UnitPrice.HasValue && batchInfo.UnitPrice.Value >= 0)
+                    item.UnitPrice = batchInfo.UnitPrice.Value;
+
+                // Recalculate subtotal (use explicit value if provided, otherwise derive it)
+                item.SubTotal = batchInfo.SubTotal.HasValue && batchInfo.SubTotal.Value >= 0
+                    ? batchInfo.SubTotal.Value
+                    : item.Quantity * item.UnitPrice;
             }
+
+            // Recalculate order total from confirmed item subtotals
+            request.TotalAmount = request.Items.Sum(i => i.SubTotal);
         }
 
         await _db.SaveChangesAsync();
@@ -361,6 +376,161 @@ public class InventoryService
         return request;
     }
 
+    // ── Add Medicine + InventoryItem + optional initial Batch ────────────────
+
+    /// <summary>
+    /// Creates a new Medicine (or reuses an existing one by name), creates an InventoryItem
+    /// for the given pharmacy, and optionally creates an initial InventoryBatch.
+    /// Business rule: InitialStock > 0 → BatchNumber and ExpiryDate are required.
+    /// </summary>
+    public async Task<InventoryItemDto> AddMedicineWithInventoryAsync(int pharmacyId, CreateMedicineWithInventoryDto dto)
+    {
+        // Validate pharmacy exists
+        var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId)
+            ?? throw new KeyNotFoundException($"Pharmacy {pharmacyId} not found.");
+
+        if (string.IsNullOrWhiteSpace(dto.MedicineName))
+            throw new ArgumentException("Medicine name is required.");
+        if (dto.MinStockLevel < 0)
+            throw new ArgumentException("Minimum stock level cannot be negative.");
+        if (dto.UnitPrice < 0)
+            throw new ArgumentException("Unit price cannot be negative.");
+        if (dto.InitialStock < 0)
+            throw new ArgumentException("Initial stock cannot be negative.");
+
+        // When stock > 0, batch details are mandatory
+        if (dto.InitialStock > 0)
+        {
+            if (string.IsNullOrWhiteSpace(dto.BatchNumber))
+                throw new ArgumentException("Batch number is required when initial stock is greater than zero.");
+            if (!dto.ExpiryDate.HasValue)
+                throw new ArgumentException("Expiry date is required when initial stock is greater than zero.");
+        }
+
+        // Find or create Medicine (case-insensitive name match)
+        var medicine = await _db.Medicines.FirstOrDefaultAsync(m =>
+            m.MedicineName.ToLower() == dto.MedicineName.Trim().ToLower());
+
+        if (medicine == null)
+        {
+            medicine = new Medicine
+            {
+                MedicineName  = dto.MedicineName.Trim(),
+                GenericName   = dto.GenericName.Trim(),
+                Category      = dto.Category.Trim(),
+                UnitOfMeasure = dto.UnitOfMeasure.Trim(),
+                IsActive      = true
+            };
+            _db.Medicines.Add(medicine);
+            await _db.SaveChangesAsync(); // generate Medicine.Id
+        }
+
+        // Prevent duplicate InventoryItem for same pharmacy+medicine
+        var existing = await _db.InventoryItems
+            .FirstOrDefaultAsync(i => i.PharmacyId == pharmacyId && i.MedicineId == medicine.Id);
+        if (existing != null)
+            throw new InvalidOperationException(
+                $"'{medicine.MedicineName}' is already in your inventory (item #{existing.Id}). " +
+                "Use 'Add Batch' to add more stock.");
+
+        var now = DateTime.UtcNow;
+
+        var item = new InventoryItem
+        {
+            PharmacyId    = pharmacyId,
+            MedicineId    = medicine.Id,
+            Medicine      = medicine,
+            CurrentStock  = dto.InitialStock,
+            MinStockLevel = dto.MinStockLevel,
+            UnitPrice     = dto.UnitPrice
+        };
+        _db.InventoryItems.Add(item);
+        await _db.SaveChangesAsync(); // generate InventoryItem.Id
+
+        // Create initial batch if stock > 0
+        if (dto.InitialStock > 0)
+        {
+            _db.InventoryBatches.Add(new InventoryBatch
+            {
+                InventoryItemId = item.Id,
+                BatchNumber     = dto.BatchNumber!.Trim(),
+                Quantity        = dto.InitialStock,
+                ExpiryDate      = dto.ExpiryDate!.Value,
+                ReceivedDate    = now
+            });
+
+            _db.InventoryTransactions.Add(new InventoryTransaction
+            {
+                InventoryItemId = item.Id,
+                TransactionType = TransactionType.Restock,
+                QuantityChanged = dto.InitialStock,
+                StockAfter      = dto.InitialStock,
+                TransactionDate = now,
+                Notes           = $"Initial stock on medicine creation. Batch: {dto.BatchNumber}. " +
+                                  $"Expiry: {dto.ExpiryDate!.Value:yyyy-MM-dd}. {dto.BatchNotes}".Trim('.')
+            });
+
+            await _db.SaveChangesAsync();
+        }
+
+        // Reload with navigation props for mapping
+        item = await _db.InventoryItems
+            .Include(i => i.Medicine)
+            .Include(i => i.Batches)
+            .FirstAsync(i => i.Id == item.Id);
+
+        return MapToDto(item);
+    }
+
+    // ── Inventory Item Update ─────────────────────────────────────────────────
+
+    /// <summary>
+    /// Updates MinStockLevel, UnitPrice, and optionally adjusts CurrentStock.
+    /// When StockAdjustment != 0, an Adjustment transaction is written to the audit log.
+    /// </summary>
+    public async Task<InventoryItemDto> UpdateInventoryItemAsync(int pharmacyId, int itemId, UpdateInventoryItemDto dto)
+    {
+        if (dto.MinStockLevel < 0)
+            throw new ArgumentException("Minimum stock level cannot be negative.");
+        if (dto.UnitPrice < 0)
+            throw new ArgumentException("Unit price cannot be negative.");
+
+        var item = await _db.InventoryItems
+            .Include(i => i.Medicine)
+            .Include(i => i.Batches)
+            .FirstOrDefaultAsync(i => i.Id == itemId && i.PharmacyId == pharmacyId)
+            ?? throw new KeyNotFoundException($"Inventory item {itemId} not found in pharmacy {pharmacyId}.");
+
+        // Validate adjustment won't take stock below zero
+        int newStock = item.CurrentStock + dto.StockAdjustment;
+        if (newStock < 0)
+            throw new ArgumentException(
+                $"Adjustment of {dto.StockAdjustment} would result in negative stock ({newStock}). " +
+                $"Current stock is {item.CurrentStock}.");
+
+        item.MinStockLevel = dto.MinStockLevel;
+        item.UnitPrice     = dto.UnitPrice;
+
+        // Write audit transaction only when stock actually changes
+        if (dto.StockAdjustment != 0)
+        {
+            item.CurrentStock = newStock;
+            _db.InventoryTransactions.Add(new InventoryTransaction
+            {
+                InventoryItemId = item.Id,
+                TransactionType = TransactionType.Adjustment,
+                QuantityChanged = dto.StockAdjustment,
+                StockAfter      = newStock,
+                TransactionDate = DateTime.UtcNow,
+                Notes           = $"Manual stock adjustment: {(dto.StockAdjustment > 0 ? "+" : "")}{dto.StockAdjustment} units. " +
+                                  $"Reason: {(string.IsNullOrWhiteSpace(dto.AdjustmentReason) ? "Not specified" : dto.AdjustmentReason.Trim())}"
+            });
+        }
+
+        await _db.SaveChangesAsync();
+        return MapToDto(item);
+    }
+
     // ── Batch Management & Expiry Calculations ────────────────────────────────
 
     public async Task<InventoryItemDto> AddBatchAsync(int pharmacyId, int inventoryItemId, CreateInventoryBatchDto dto)
@@ -400,6 +570,64 @@ public class InventoryService
         });
 
         await _db.SaveChangesAsync();
+        return MapToDto(item);
+    }
+
+    // ── Delete Expired Batch ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Permanently removes an expired batch from inventory.
+    /// Guards: batch must belong to the given pharmacy item AND must be expired.
+    /// Side-effects:
+    ///   - Subtracts batch.Quantity from item.CurrentStock (removes ghost stock).
+    ///   - Writes an Expired transaction to the audit log.
+    /// Transaction history is preserved; only the batch row is deleted.
+    /// </summary>
+    public async Task<InventoryItemDto> DeleteExpiredBatchAsync(int pharmacyId, int inventoryItemId, int batchId)
+    {
+        var item = await _db.InventoryItems
+            .Include(i => i.Medicine)
+            .Include(i => i.Batches)
+            .FirstOrDefaultAsync(i => i.Id == inventoryItemId && i.PharmacyId == pharmacyId)
+            ?? throw new KeyNotFoundException(
+                $"Inventory item {inventoryItemId} not found in pharmacy {pharmacyId}.");
+
+        var batch = item.Batches.FirstOrDefault(b => b.Id == batchId)
+            ?? throw new KeyNotFoundException(
+                $"Batch {batchId} not found for inventory item {inventoryItemId}.");
+
+        // Only expired batches may be deleted via this path
+        if (batch.ExpiryDate >= DateTime.UtcNow)
+            throw new InvalidOperationException(
+                $"Batch '{batch.BatchNumber}' has not yet expired (expiry: {batch.ExpiryDate:yyyy-MM-dd}). " +
+                "Only expired batches can be deleted.");
+
+        var removedQty = batch.Quantity;
+        var newStock   = Math.Max(0, item.CurrentStock - removedQty);
+
+        // Audit trail — written before deleting the batch row
+        _db.InventoryTransactions.Add(new InventoryTransaction
+        {
+            InventoryItemId = item.Id,
+            TransactionType = TransactionType.Expired,
+            QuantityChanged = -removedQty,
+            StockAfter      = newStock,
+            TransactionDate = DateTime.UtcNow,
+            Notes           = $"Expired batch removed: {batch.BatchNumber} " +
+                              $"(expired {batch.ExpiryDate:yyyy-MM-dd}, {removedQty} units written off)."
+        });
+
+        item.CurrentStock = newStock;
+        _db.InventoryBatches.Remove(batch);
+
+        await _db.SaveChangesAsync();
+
+        // Reload to get updated navigation collections for mapping
+        item = await _db.InventoryItems
+            .Include(i => i.Medicine)
+            .Include(i => i.Batches)
+            .FirstAsync(i => i.Id == item.Id);
+
         return MapToDto(item);
     }
 
@@ -510,6 +738,12 @@ public class InventoryService
             ReceivedAt: r.ReceivedAt,
             RequestedAt: r.RequestedAt,
             UpdatedAt: r.UpdatedAt,
+            SupplierBankName: r.SupplierBankName,
+            SupplierAccountName: r.SupplierAccountName,
+            SupplierAccountNumber: r.SupplierAccountNumber,
+            SupplierBranch: r.SupplierBranch,
+            PaymentStatus: r.PaymentStatus,
+            PaymentSlipUrl: r.PaymentSlipUrl,
             Items: r.Items.Select(i => new RestockRequestItemDto(
                 Id: i.Id,
                 MedicineId: i.MedicineId,
@@ -521,4 +755,92 @@ public class InventoryService
                 ExpiryDate: i.ExpiryDate
             )).ToList()
         );
+    // ── Payment Workflow ───────────────────────────────────────────────────────
+
+    public async Task<RestockRequest> SubmitBankDetailsAsync(int requestId, SubmitBankDetailsDto dto, int actingUserId)
+    {
+        var request = await _db.RestockRequests
+            .Include(r => r.SupplierProfile)
+            .FirstOrDefaultAsync(r => r.Id == requestId)
+            ?? throw new KeyNotFoundException("Restock request not found.");
+
+        // Must be the assigned supplier or admin
+        if (request.SupplierProfile == null || actingUserId != request.SupplierProfile.UserId)
+        {
+            var user = await _db.Users.FindAsync(actingUserId);
+            if (user?.Role != UserRole.Administrator)
+                throw new InvalidOperationException("Not authorized to submit bank details for this request.");
+        }
+
+        if (request.Status == RestockRequestStatus.Pending || request.Status == RestockRequestStatus.Rejected)
+            throw new InvalidOperationException("Cannot submit bank details for a pending or rejected request.");
+
+        if (string.IsNullOrWhiteSpace(dto.BankName) || string.IsNullOrWhiteSpace(dto.AccountName) || 
+            string.IsNullOrWhiteSpace(dto.AccountNumber) || string.IsNullOrWhiteSpace(dto.Branch))
+            throw new ArgumentException("All bank details (Bank Name, Account Name, Account Number, Branch) are required.");
+
+        request.SupplierBankName = dto.BankName;
+        request.SupplierAccountName = dto.AccountName;
+        request.SupplierAccountNumber = dto.AccountNumber;
+        request.SupplierBranch = dto.Branch;
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return request;
+    }
+
+    public async Task<RestockRequest> SubmitPaymentSlipAsync(int requestId, SubmitPaymentSlipDto dto, int actingUserId)
+    {
+        var request = await _db.RestockRequests
+            .Include(r => r.Pharmacy)
+            .FirstOrDefaultAsync(r => r.Id == requestId)
+            ?? throw new KeyNotFoundException("Restock request not found.");
+
+        if (actingUserId != request.Pharmacy!.OwnerId)
+        {
+            var user = await _db.Users.FindAsync(actingUserId);
+            if (user?.Role != UserRole.Administrator)
+                throw new InvalidOperationException("Not authorized to submit payment for this request.");
+        }
+
+        if (string.IsNullOrEmpty(request.SupplierBankName))
+            throw new InvalidOperationException("Supplier has not provided bank details yet.");
+
+        if (string.IsNullOrWhiteSpace(dto.PaymentSlipUrl))
+            throw new ArgumentException("A payment slip must be provided.");
+
+        if (dto.PaymentSlipUrl.Length > 10 * 1024 * 1024)
+            throw new ArgumentException("Payment slip file exceeds the maximum allowed size (5MB).");
+
+        request.PaymentSlipUrl = dto.PaymentSlipUrl;
+        request.PaymentStatus = "Submitted";
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return request;
+    }
+
+    public async Task<RestockRequest> VerifyPaymentAsync(int requestId, int actingUserId)
+    {
+        var request = await _db.RestockRequests
+            .Include(r => r.SupplierProfile)
+            .FirstOrDefaultAsync(r => r.Id == requestId)
+            ?? throw new KeyNotFoundException("Restock request not found.");
+
+        if (request.SupplierProfile == null || actingUserId != request.SupplierProfile.UserId)
+        {
+            var user = await _db.Users.FindAsync(actingUserId);
+            if (user?.Role != UserRole.Administrator)
+                throw new InvalidOperationException("Not authorized to verify payment for this request.");
+        }
+
+        if (request.PaymentStatus != "Submitted")
+            throw new InvalidOperationException("Payment has not been submitted by the pharmacy owner.");
+
+        request.PaymentStatus = "Verified";
+        request.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return request;
+    }
 }

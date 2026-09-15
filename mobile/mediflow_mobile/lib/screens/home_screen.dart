@@ -162,14 +162,40 @@ class HomeScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          trailing: Chip(
-                            label: Text(
-                              appt.status,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                            backgroundColor: appt.status == 'Confirmed'
-                                ? const Color(0xFFDCFCE7)
-                                : const Color(0xFFFEF3C7),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Chip(
+                                label: Text(
+                                  appt.status,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: appt.status == 'Confirmed'
+                                        ? const Color(0xFF166534)
+                                        : const Color(0xFF854D0E),
+                                  ),
+                                ),
+                                padding: EdgeInsets.zero,
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                backgroundColor: appt.status == 'Confirmed'
+                                    ? const Color(0xFFDCFCE7)
+                                    : const Color(0xFFFEF3C7),
+                              ),
+                              if (appt.appointmentNumber != null &&
+                                  appt.appointmentNumber!.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  '#${appt.appointmentNumber}',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       );

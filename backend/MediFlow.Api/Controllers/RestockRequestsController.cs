@@ -212,6 +212,50 @@ public class RestockRequestsController : ControllerBase
         catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
     }
 
+    // ── Payment Workflow ────────────────────────────────────────────────────────
+
+    [HttpPost("{id:int}/bank-details")]
+    [Authorize(Roles = "Supplier,Administrator")]
+    public async Task<IActionResult> SubmitBankDetails(int id, [FromBody] SubmitBankDetailsDto dto)
+    {
+        try
+        {
+            var updated = await _inventoryService.SubmitBankDetailsAsync(id, dto, GetUserId());
+            return Ok(new { updated.Id, message = "Bank details submitted successfully." });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPost("{id:int}/payment-slip")]
+    [Authorize(Roles = "PharmacyOwner,Administrator")]
+    public async Task<IActionResult> SubmitPaymentSlip(int id, [FromBody] SubmitPaymentSlipDto dto)
+    {
+        try
+        {
+            var updated = await _inventoryService.SubmitPaymentSlipAsync(id, dto, GetUserId());
+            return Ok(new { updated.Id, message = "Payment slip submitted successfully." });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPost("{id:int}/verify-payment")]
+    [Authorize(Roles = "Supplier,Administrator")]
+    public async Task<IActionResult> VerifyPayment(int id)
+    {
+        try
+        {
+            var updated = await _inventoryService.VerifyPaymentAsync(id, GetUserId());
+            return Ok(new { updated.Id, message = "Payment verified successfully." });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private bool CanAccessRequest(RestockRequest request)
