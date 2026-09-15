@@ -11,9 +11,9 @@
 - [ ] 🧪 Tests
 
 ### ⚠️ Contributor Commit Policy Checklist
-> **Important**: MediFlow AI requires all contributors to maintain clean git history with **minimum commits** (maximum **3 commits** per PR, ideally 1–2 atomic commits). Pull requests with excessive commits are automatically rejected by CI. *(Repository owner @Dilshan-Pasindu is exempt).*
+> **Important**: MediFlow AI requires all contributors to maintain clean git history with **reasonable commits** (maximum **20–30 commits** per PR). Pull requests with excessive commits (> 30) are automatically rejected by CI. *(Repository owner @Dilshan-Pasindu is exempt).*
 
-- [ ] **Minimum Commits**: Commits are squashed/consolidated to $\le 3$ atomic commits.
+- [ ] **Commit Limit**: Commits are kept to $\le 30$ commits per PR.
 - [ ] **Target Branch**: This PR targets the `dev` branch (`main` is strictly protected).
 - [ ] **Build & Tests**: Code builds with 0 errors and all unit tests pass locally.
 - [ ] **No Secrets**: No API keys, passwords, or `.env` files are committed.

@@ -12,6 +12,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Contribution & Commit Policy
 # ─────────────────────────────────────────────────────────────────────────────
-# Contributors must keep commits to a minimum (maximum 3 atomic commits per PR).
+# Contributors must keep commits to a reasonable limit (maximum 20–30 commits per PR).
 # Excessive micro-commits are blocked by the Security & Governance CI Guard.
 # Repository owner @Dilshan-Pasindu is exempt from commit count limits.

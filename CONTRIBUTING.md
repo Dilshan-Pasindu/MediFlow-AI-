@@ -16,13 +16,12 @@ Thank you for contributing to MediFlow AI! To maintain a clean, high-quality, an
 
 ---
 
-## ⚡ Commit Minimization Policy
-
-> **Crucial Rule**: Contributors must submit pull requests with **MINIMUM COMMITS** (maximum **3 atomic commits** per PR, ideally 1–2 squashed commits).
+## ⚡ Commit Policy
+> **Crucial Rule**: Contributors must submit pull requests with **reasonable commits** (maximum **20–30 commits** per PR). Excessive micro-commits should be consolidated.
 >
 > **Exemption**: Repository owner **@Dilshan-Pasindu** is exempt from commit limit policies.
 
-Our CI pipeline (`Security & Governance Guard`) automatically inspects the commit count of incoming pull requests. PRs containing **more than 3 commits** will fail CI validation and cannot be merged.
+Our CI pipeline (`Security & Governance Guard`) automatically inspects the commit count of incoming pull requests. PRs containing **more than 30 commits** will fail CI validation and cannot be merged.
 
 ### 🛠️ How to Squash Your Commits Before Submitting
 

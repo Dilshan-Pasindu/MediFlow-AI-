@@ -83,7 +83,7 @@ jobs:
             const author = (pr.user && pr.user.login) ? pr.user.login : context.actor;
             const prNumber = pr.number;
             const commitCount = pr.commits;
-            const MAX_ALLOWED_COMMITS = 3;
+            const MAX_ALLOWED_COMMITS = 30;
 
             console.log(`Evaluating PR #${prNumber} authored by @${author}`);
             console.log(`Total commits in PR: ${commitCount}`);
@@ -100,7 +100,7 @@ jobs:
               core.setFailed(errorMsg);
 
               const commentBody = `⚠️ **Commit Policy Violation — Excessive Commits Detected**\n\n` +
-                `Hi @${author}, MediFlow AI requires all contributors to submit pull requests with **minimum commits** (maximum **${MAX_ALLOWED_COMMITS} commits** per PR, ideally 1-2 atomic commits).\n\n` +
+                `Hi @${author}, MediFlow AI requires all contributors to submit pull requests with **reasonable commits** (maximum **${MAX_ALLOWED_COMMITS} commits** per PR, recommended 20–30 commits).\n\n` +
                 `Your pull request currently contains **${commitCount} commits**.\n\n` +
                 `### 🛠️ How to Squash Your Commits:\n` +
                 `Run the following commands on your local feature branch to squash your changes into a single clean commit:\n\n` +
