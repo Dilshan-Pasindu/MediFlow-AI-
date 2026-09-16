@@ -8,3 +8,10 @@
 # Critical CI/CD and Governance files — strictly locked to repository owner
 /.github/CODEOWNERS @Dilshan-Pasindu
 /.github/workflows/ @Dilshan-Pasindu
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Contribution & Commit Policy
+# ─────────────────────────────────────────────────────────────────────────────
+# Contributors must keep commits to a reasonable limit (maximum 20–30 commits per PR).
+# Excessive micro-commits are blocked by the Security & Governance CI Guard.
+# Repository owner @Dilshan-Pasindu is exempt from commit count limits.

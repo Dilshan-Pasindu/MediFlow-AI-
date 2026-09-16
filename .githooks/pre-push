@@ -1,0 +1,50 @@
+#!/bin/sh
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pre-push hook: Branch Protection & Contributor Commit Minimization
+# ─────────────────────────────────────────────────────────────────────────────
+
+z40="0000000000000000000000000000000000000000"
+
+# Check if current user is repository owner @Dilshan-Pasindu
+GIT_USER=$(git config user.name 2>/dev/null || echo "")
+GIT_EMAIL=$(git config user.email 2>/dev/null || echo "")
+
+IS_OWNER=0
+case "$GIT_USER $GIT_EMAIL" in
+    *[Dd]ilshan*|*[Pp]asindu*)
+        IS_OWNER=1
+        ;;
+esac
+
+while read local_ref local_sha remote_ref remote_sha
+do
+    # 1. Protected Branch Guard
+    if [ "$remote_ref" = "refs/heads/main" ] || [ "$remote_ref" = "refs/heads/master" ] || [ "$remote_ref" = "refs/heads/dev" ]; then
+        if [ "$IS_OWNER" -ne 1 ]; then
+            echo "================================================================"
+            echo " BLOCKED: Direct push to '$remote_ref' is strictly prohibited!"
+            echo " All changes to dev and main must go through a Pull Request"
+            echo " that can only be merged by @Dilshan-Pasindu."
+            echo "================================================================"
+            exit 1
+        fi
+    fi
+
+    # 2. Contributor Minimum Commits Policy Guard (Exempt: @Dilshan-Pasindu)
+    if [ "$IS_OWNER" -ne 1 ] && [ "$remote_sha" != "$z40" ] && [ -n "$local_sha" ]; then
+        COMMIT_COUNT=$(git rev-list --count "$remote_sha..$local_sha" 2>/dev/null || echo "0")
+        if [ "$COMMIT_COUNT" -gt 30 ]; then
+            echo "================================================================"
+            echo " BLOCKED: Excessive commits detected ($COMMIT_COUNT commits)!"
+            echo " Contributors must keep commits to a reasonable limit (max 30 per push)."
+            echo " Please squash your branch to 20-30 commits before pushing:"
+            echo "   git rebase -i HEAD~$COMMIT_COUNT"
+            echo " (Note: Repository owner @Dilshan-Pasindu is exempt)"
+            echo "================================================================"
+            exit 1
+        fi
+    fi
+done
+
+exit 0

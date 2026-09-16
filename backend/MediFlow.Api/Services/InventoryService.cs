@@ -809,6 +809,9 @@ public class InventoryService
         if (string.IsNullOrWhiteSpace(dto.PaymentSlipUrl))
             throw new ArgumentException("A payment slip must be provided.");
 
+        if (dto.PaymentSlipUrl.Length > 10 * 1024 * 1024)
+            throw new ArgumentException("Payment slip file exceeds the maximum allowed size (5MB).");
+
         request.PaymentSlipUrl = dto.PaymentSlipUrl;
         request.PaymentStatus = "Submitted";
         request.UpdatedAt = DateTime.UtcNow;

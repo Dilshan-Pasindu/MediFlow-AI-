@@ -82,10 +82,12 @@ export default function SupplierDashboard() {
   const [bankModalReq, setBankModalReq] = useState<RestockRequest | null>(null);
   const [bankDetails, setBankDetails] = useState({ bankName: '', accountName: '', accountNumber: '', branch: '' });
   const [bankSubmitting, setBankSubmitting] = useState(false);
+  const [bankModalError, setBankModalError] = useState<string | null>(null);
 
   // Verify Payment state
   const [verifyModalReq, setVerifyModalReq] = useState<RestockRequest | null>(null);
   const [verifySubmitting, setVerifySubmitting] = useState(false);
+  const [verifyModalError, setVerifyModalError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -184,13 +186,17 @@ export default function SupplierDashboard() {
   async function handleBankDetailsSubmit() {
     if (!bankModalReq) return;
     setBankSubmitting(true);
+    setBankModalError(null);
     try {
       await apiSubmitBankDetails(bankModalReq.id, bankDetails);
       setMessages(m => ({ ...m, [bankModalReq.id]: { type: 'success', text: 'Bank details submitted.' } }));
       setBankModalReq(null);
+      setBankDetails({ bankName: '', accountName: '', accountNumber: '', branch: '' });
       loadData();
     } catch (e: any) {
-      setError(e?.message || 'Failed to submit bank details.');
+      const msg = e?.response?.data?.message || e?.message || 'Failed to submit bank details.';
+      setBankModalError(msg);
+      setError(msg);
     } finally {
       setBankSubmitting(false);
     }
@@ -199,13 +205,16 @@ export default function SupplierDashboard() {
   async function handleVerifyPayment() {
     if (!verifyModalReq) return;
     setVerifySubmitting(true);
+    setVerifyModalError(null);
     try {
       await apiVerifyRestockPayment(verifyModalReq.id);
       setMessages(m => ({ ...m, [verifyModalReq.id]: { type: 'success', text: 'Payment verified.' } }));
       setVerifyModalReq(null);
       loadData();
     } catch (e: any) {
-      setError(e?.message || 'Failed to verify payment.');
+      const msg = e?.response?.data?.message || e?.message || 'Failed to verify payment.';
+      setVerifyModalError(msg);
+      setError(msg);
     } finally {
       setVerifySubmitting(false);
     }
@@ -567,8 +576,14 @@ export default function SupplierDashboard() {
           <div className="card scale-in" style={{ width: '100%', maxWidth: 450, background: 'white', borderRadius: 'var(--r-lg)', padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 19, fontWeight: 800 }}>Submit Bank Details</div>
-              <button onClick={() => setBankModalReq(null)} className="close-btn"><X size={20} /></button>
+              <button onClick={() => { setBankModalReq(null); setBankModalError(null); }} className="close-btn"><X size={20} /></button>
             </div>
+
+            {bankModalError && (
+              <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16 }}>
+                ⚠️ {bankModalError}
+              </div>
+            )}
             
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 20 }}>
               Provide bank details for Pharmacy #{bankModalReq.pharmacyId} to transfer Rs. {bankModalReq.totalAmount.toFixed(2)}.
@@ -597,7 +612,7 @@ export default function SupplierDashboard() {
               <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleBankDetailsSubmit} disabled={bankSubmitting || !bankDetails.bankName || !bankDetails.accountName || !bankDetails.accountNumber}>
                 {bankSubmitting ? 'Submitting...' : 'Submit Details'}
               </button>
-              <button className="btn btn-ghost" onClick={() => setBankModalReq(null)}>Cancel</button>
+              <button className="btn btn-ghost" onClick={() => { setBankModalReq(null); setBankModalError(null); }}>Cancel</button>
             </div>
           </div>
         </div>
@@ -609,19 +624,48 @@ export default function SupplierDashboard() {
           <div className="card scale-in" style={{ width: '100%', maxWidth: 500, background: 'white', borderRadius: 'var(--r-lg)', padding: 28, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.15)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 19, fontWeight: 800 }}>Verify Payment</div>
-              <button onClick={() => setVerifyModalReq(null)} className="close-btn"><X size={20} /></button>
+              <button onClick={() => { setVerifyModalReq(null); setVerifyModalError(null); }} className="close-btn"><X size={20} /></button>
             </div>
+
+            {verifyModalError && (
+              <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16 }}>
+                ⚠️ {verifyModalError}
+              </div>
+            )}
             
             <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14 }}>
               The pharmacy owner has submitted a payment slip for Order #{verifyModalReq.id} (Rs. {verifyModalReq.totalAmount.toFixed(2)}).
             </div>
 
             {verifyModalReq.paymentSlipUrl ? (
-              <div style={{ marginBottom: 20, textAlign: 'center', background: 'var(--surface-2)', padding: 10, borderRadius: 'var(--r-md)' }}>
-                {verifyModalReq.paymentSlipUrl.startsWith('data:image') || verifyModalReq.paymentSlipUrl.startsWith('http') ? (
-                  <img src={verifyModalReq.paymentSlipUrl} alt="Payment Slip" style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain' }} />
+              <div style={{ marginBottom: 20, textAlign: 'center', background: 'var(--surface-2)', padding: 12, borderRadius: 'var(--r-md)' }}>
+                {verifyModalReq.paymentSlipUrl.startsWith('data:application/pdf') || verifyModalReq.paymentSlipUrl.endsWith('.pdf') ? (
+                  <div style={{ padding: 16 }}>
+                    <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>PDF Payment Receipt Attached</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>The pharmacy owner uploaded a PDF payment document.</div>
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                      <a href={verifyModalReq.paymentSlipUrl} download={`order-${verifyModalReq.id}-payment-slip.pdf`} className="btn btn-secondary btn-sm">
+                        Download PDF
+                      </a>
+                      <a href={verifyModalReq.paymentSlipUrl} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">
+                        Open in New Tab
+                      </a>
+                    </div>
+                  </div>
+                ) : verifyModalReq.paymentSlipUrl.startsWith('data:image') || verifyModalReq.paymentSlipUrl.startsWith('http') ? (
+                  <div>
+                    <img src={verifyModalReq.paymentSlipUrl} alt="Payment Slip" style={{ maxWidth: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 'var(--r-sm)' }} />
+                    <div style={{ marginTop: 8 }}>
+                      <a href={verifyModalReq.paymentSlipUrl} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm" style={{ fontSize: 12 }}>
+                        Open Full Size
+                      </a>
+                    </div>
+                  </div>
                 ) : (
-                  <div style={{ padding: 20, fontSize: 13, wordBreak: 'break-all' }}>{verifyModalReq.paymentSlipUrl}</div>
+                  <div style={{ padding: 16, fontSize: 12, color: 'var(--text-muted)', wordBreak: 'break-all' }}>
+                    Payment reference: {verifyModalReq.paymentSlipUrl}
+                  </div>
                 )}
               </div>
             ) : (
@@ -632,7 +676,7 @@ export default function SupplierDashboard() {
               <button className="btn btn-success" style={{ flex: 1 }} onClick={handleVerifyPayment} disabled={verifySubmitting}>
                 {verifySubmitting ? 'Verifying...' : 'Mark as Verified'}
               </button>
-              <button className="btn btn-ghost" onClick={() => setVerifyModalReq(null)}>Close</button>
+              <button className="btn btn-ghost" onClick={() => { setVerifyModalReq(null); setVerifyModalError(null); }}>Close</button>
             </div>
           </div>
         </div>

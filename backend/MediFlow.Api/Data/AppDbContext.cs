@@ -34,8 +34,11 @@ public class AppDbContext : DbContext
 
     // ─────────────────────────────────────────────────────────────────────
     // MEMBER 3 — E-Prescription & Medicine Ordering
-    // (Member 3 will add their DbSet<> entries here)
     // ─────────────────────────────────────────────────────────────────────
+    public DbSet<Prescription> Prescriptions => Set<Prescription>();
+    public DbSet<PrescriptionItem> PrescriptionItems => Set<PrescriptionItem>();
+    public DbSet<MedicineOrder> Orders => Set<MedicineOrder>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 
     // ─────────────────────────────────────────────────────────────────────
     // MEMBER 4 — Pharmacy Inventory & Supplier Management
@@ -193,6 +196,116 @@ public class AppDbContext : DbContext
                 .WithMany(p => p.SymptomSubmissions)
                 .HasForeignKey(ss => ss.PatientId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ════════════════════════════════════════════════════════════════
+        // MEMBER 3 — E-Prescription & Medicine Ordering
+        // ════════════════════════════════════════════════════════════════
+
+        // ── Prescription ──────────────────────────────────────────────────
+        modelBuilder.Entity<Prescription>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Status).HasConversion<string>();
+            entity.Property(p => p.FulfillmentSource).HasConversion<string>();
+            entity.Property(p => p.Recipients).HasConversion<string>();
+            entity.HasIndex(p => p.DoctorId);
+            entity.HasIndex(p => p.PatientId);
+            entity.HasIndex(p => p.Status);
+
+            // FK into Member 1 — Doctor (Restrict: deleting a doctor must not cascade)
+            entity.HasOne(p => p.Doctor)
+                .WithMany()
+                .HasForeignKey(p => p.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // FK into Member 1 — Patient (nullable; Restrict to protect patient history)
+            entity.HasOne(p => p.Patient)
+                .WithMany()
+                .HasForeignKey(p => p.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // FK into Member 1 — Appointment (nullable soft link; Restrict)
+            entity.HasOne(p => p.Appointment)
+                .WithMany()
+                .HasForeignKey(p => p.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── PrescriptionItem ──────────────────────────────────────────────
+        modelBuilder.Entity<PrescriptionItem>(entity =>
+        {
+            entity.HasKey(pi => pi.Id);
+            entity.Property(pi => pi.MedicineName).IsRequired().HasMaxLength(200);
+            entity.Property(pi => pi.Dosage).HasMaxLength(100);
+            entity.Property(pi => pi.Frequency).HasMaxLength(100);
+            entity.Property(pi => pi.Duration).HasMaxLength(100);
+            entity.HasIndex(pi => pi.PrescriptionId);
+
+            // Parent Prescription — Cascade: items are deleted with their prescription
+            entity.HasOne(pi => pi.Prescription)
+                .WithMany(p => p.Items)
+                .HasForeignKey(pi => pi.PrescriptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // FK into Member 4 — Medicine catalogue (nullable; Restrict)
+            entity.HasOne(pi => pi.Medicine)
+                .WithMany()
+                .HasForeignKey(pi => pi.MedicineId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── MedicineOrder ─────────────────────────────────────────────────
+        modelBuilder.Entity<MedicineOrder>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+            entity.Property(o => o.Status).HasConversion<string>();
+            entity.Property(o => o.TotalAmount).HasColumnType("decimal(10,2)");
+            entity.HasIndex(o => o.PrescriptionId);
+            entity.HasIndex(o => o.PatientId);
+            entity.HasIndex(o => o.PharmacyId);
+            entity.HasIndex(o => o.Status);
+
+            // FK into Member 3 — Prescription (nullable; Restrict)
+            entity.HasOne(o => o.Prescription)
+                .WithMany(p => p.Orders)
+                .HasForeignKey(o => o.PrescriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // FK into Member 1 — Patient (nullable; Restrict)
+            entity.HasOne(o => o.Patient)
+                .WithMany()
+                .HasForeignKey(o => o.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // FK into Member 4 — Pharmacy (nullable; Restrict)
+            entity.HasOne(o => o.Pharmacy)
+                .WithMany()
+                .HasForeignKey(o => o.PharmacyId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── OrderItem ─────────────────────────────────────────────────────
+        modelBuilder.Entity<OrderItem>(entity =>
+        {
+            entity.HasKey(oi => oi.Id);
+            entity.Property(oi => oi.MedicineName).IsRequired().HasMaxLength(200);
+            entity.Property(oi => oi.Dosage).HasMaxLength(100);
+            entity.Property(oi => oi.UnitPrice).HasColumnType("decimal(10,2)");
+            entity.Property(oi => oi.Subtotal).HasColumnType("decimal(10,2)");
+            entity.HasIndex(oi => oi.MedicineOrderId);
+
+            // Parent MedicineOrder — Cascade: items are deleted with their order
+            entity.HasOne(oi => oi.MedicineOrder)
+                .WithMany(o => o.Items)
+                .HasForeignKey(oi => oi.MedicineOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // FK into Member 4 — Medicine catalogue (nullable; Restrict)
+            entity.HasOne(oi => oi.Medicine)
+                .WithMany()
+                .HasForeignKey(oi => oi.MedicineId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ════════════════════════════════════════════════════════════════

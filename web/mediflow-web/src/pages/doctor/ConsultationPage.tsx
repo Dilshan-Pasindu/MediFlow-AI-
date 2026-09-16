@@ -391,6 +391,7 @@ export default function ConsultationPage() {
           patientName: activePatientName,
           diagnosis: primaryDiag?.diagnosis || 'Clinical Assessment Completed',
           fulfillmentSource: 'InHouse',
+          recipients: 'Both',
           instructions: 'Take as directed by doctor',
           items: approvedMedList.map(med => ({
             medicineName: med.drugName,
