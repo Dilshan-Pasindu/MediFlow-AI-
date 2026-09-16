@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { ClipboardList, Search, Calendar, User, Clock, FileText, ArrowRight, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { ClipboardList, Search, Calendar, User, Clock, FileText, ArrowRight, RefreshCw, CheckCircle2, Stethoscope, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -48,9 +48,9 @@ export default function DoctorHistoryPage() {
             subtitle="Search and review past consultations, vital trends, and diagnostic summaries"
             loading={loading}
             stats={[
-              { label: 'Completed Consults', value: completedConsults, icon: '🩺' },
-              { label: 'Unique Patients', value: totalPatients, icon: '👥' },
-              { label: 'Encounter Records', value: appointments.length, icon: '📋' },
+              { label: 'Completed Consults', value: completedConsults, icon: <Stethoscope size={18} /> },
+              { label: 'Unique Patients', value: totalPatients, icon: <Users size={18} /> },
+              { label: 'Encounter Records', value: appointments.length, icon: <ClipboardList size={18} /> },
             ]}
           />
 

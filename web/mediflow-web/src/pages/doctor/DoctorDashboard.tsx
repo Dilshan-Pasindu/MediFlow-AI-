@@ -196,11 +196,11 @@ export default function DoctorDashboard() {
   );
 
   const STEPS = [
-    { n: '1', emoji: '👤', label: 'Review Patient History' },
-    { n: '2', emoji: '🩺', label: 'Record Clinical Examination' },
-    { n: '3', emoji: '🧠', label: 'Review AI Suggestions' },
-    { n: '4', emoji: '💊', label: 'Write E-Prescription' },
-    { n: '5', emoji: '✅', label: 'Complete Consultation' },
+    { n: '1', icon: Users, label: 'Review Patient History' },
+    { n: '2', icon: Stethoscope, label: 'Record Clinical Examination' },
+    { n: '3', icon: Brain, label: 'Review AI Suggestions' },
+    { n: '4', icon: Pill, label: 'Write E-Prescription' },
+    { n: '5', icon: CheckCircle2, label: 'Complete Consultation' },
   ];
 
   return (
@@ -219,9 +219,9 @@ export default function DoctorDashboard() {
             subtitle={`You have ${loading ? '…' : stats.todayQueue.length} confirmed appointment${stats.todayQueue.length !== 1 ? 's' : ''} in today's queue.`}
             loading={loading}
             stats={[
-              { label: "Today's Queue", value: stats.todayQueue.length,   icon: '📋' },
-              { label: 'All Confirmed',  value: stats.allConfirmed.length, icon: '✅' },
-              { label: 'Completed',      value: stats.completed.length,    icon: '✨' },
+              { label: "Today's Queue", value: stats.todayQueue.length,   icon: <ClipboardList size={18} /> },
+              { label: 'All Confirmed',  value: stats.allConfirmed.length, icon: <CheckCircle2 size={18} /> },
+              { label: 'Completed',      value: stats.completed.length,    icon: <Sparkles size={18} /> },
             ]}
           />
 
@@ -281,7 +281,9 @@ export default function DoctorDashboard() {
                   </div>
                 ) : displayAppts.length === 0 ? (
                   <div className="empty-state" style={{ padding: '40px 20px' }}>
-                    <div className="empty-icon">🎉</div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', width: 52, height: 52, borderRadius: '50%', background: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>
+                      <CheckCircle2 size={28} />
+                    </div>
                     <div className="empty-title">All caught up{activeTab === 'today' ? ' for today' : ''}!</div>
                     <div className="empty-sub">
                       {activeTab === 'today'
@@ -366,7 +368,7 @@ export default function DoctorDashboard() {
                     <div style={{ fontSize: 13.5, fontWeight: 800, color: 'var(--text-primary)' }}>Consultation Workflow</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                    {STEPS.map(({ n, emoji, label }, idx) => (
+                    {STEPS.map(({ n, icon: StepIcon, label }, idx) => (
                       <div key={n} style={{ display: 'flex', gap: 0, position: 'relative' }}>
                         {/* Vertical line */}
                         {idx < STEPS.length - 1 && (
@@ -382,7 +384,7 @@ export default function DoctorDashboard() {
                             fontSize: 12, fontWeight: 800, color: '#059669', flexShrink: 0,
                           }}>{n}</div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 5 }}>
-                            <span style={{ fontSize: 15 }}>{emoji}</span>
+                            <StepIcon size={16} color="#059669" />
                             <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</span>
                           </div>
                         </div>
