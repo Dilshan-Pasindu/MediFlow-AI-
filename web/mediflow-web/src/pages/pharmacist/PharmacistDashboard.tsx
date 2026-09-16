@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { CheckCircle, Loader, RefreshCw, AlertCircle, Pill } from 'lucide-react';
+import { CheckCircle, Loader, RefreshCw, AlertCircle, Pill, ShoppingCart, Calculator } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
-import { apiUpdateOrderStatus, getUser } from '../../services/api';
-import { usePharmacistPrescriptions, usePharmacistOrders } from '../../hooks';
+import { apiUpdateOrderStatus, apiCreateOrder, apiCalculateOrderPrice } from '../../services/api';
+import { usePharmacistPrescriptions, usePharmacistOrders, useMyPharmacy } from '../../hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Prescription } from '../../types/prescription';
 import type { Order } from '../../types/order';
@@ -19,32 +19,73 @@ const STATUS_STYLES: Record<string, { color: string; bg: string }> = {
 };
 
 export default function PharmacistDashboard() {
-  const user = getUser();
   const queryClient = useQueryClient();
   const { data: prescriptions = [], isLoading: rxLoading } = usePharmacistPrescriptions();
-  const { data: orders = [], isLoading: ordLoading, refetch: refetchOrders } = usePharmacistOrders();
+  const { data: orders = [], isLoading: ordLoading } = usePharmacistOrders();
+  const { data: myPharmacy } = useMyPharmacy();
   const loading = rxLoading || ordLoading;
+
   const [actionLoading, setActionLoading] = useState<Record<string | number, string | null>>({});
   const [activeTab, setActiveTab] = useState('orders');
   const [messages, setMessages] = useState<Record<string | number, { type: string; text: string } | null>>({});
 
-  const load = () => {
+  const pharmacyId = myPharmacy?.id;
+
+  const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['pharmacist'] });
   };
+
+  // ─── Status advancement ──────────────────────────────────────────────────
 
   async function handleStatusUpdate(orderId: number | string, newStatus: string) {
     setActionLoading(a => ({ ...a, [orderId]: newStatus }));
     try {
       await apiUpdateOrderStatus(orderId, newStatus);
       setMessages(m => ({ ...m, [orderId]: { type: 'success', text: `Order status updated to ${newStatus}` } }));
-      load();
-    } catch (err: any) {
-      setMessages(m => ({ ...m, [orderId]: { type: 'error', text: err?.message || 'Update failed' } }));
+      invalidate();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Update failed';
+      setMessages(m => ({ ...m, [orderId]: { type: 'error', text: msg } }));
     } finally { setActionLoading(a => ({ ...a, [orderId]: null })); }
   }
 
-  const activeOrders = orders.filter(o => !['Dispensed', 'Cancelled'].includes(o.status));
-  const completedOrders = orders.filter(o => o.status === 'Dispensed');
+  // ─── Convert prescription → order ───────────────────────────────────────
+
+  async function handleConvertToOrder(rx: Prescription) {
+    if (!pharmacyId) {
+      setMessages(m => ({ ...m, [`rx-${rx.id}`]: { type: 'error', text: 'Pharmacy not found. Please refresh.' } }));
+      return;
+    }
+    setActionLoading(a => ({ ...a, [`rx-${rx.id}`]: 'converting' }));
+    try {
+      await apiCreateOrder({ prescriptionId: Number(rx.id), pharmacyId, items: [] });
+      setMessages(m => ({ ...m, [`rx-${rx.id}`]: { type: 'success', text: 'Order created successfully!' } }));
+      // Refresh both prescription queue and orders list
+      queryClient.invalidateQueries({ queryKey: ['pharmacist', 'prescriptions'] });
+      queryClient.invalidateQueries({ queryKey: ['pharmacist', 'orders'] });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create order';
+      setMessages(m => ({ ...m, [`rx-${rx.id}`]: { type: 'error', text: msg } }));
+    } finally { setActionLoading(a => ({ ...a, [`rx-${rx.id}`]: null })); }
+  }
+
+  // ─── Calculate price ─────────────────────────────────────────────────────
+
+  async function handleCalculatePrice(orderId: number | string) {
+    if (!pharmacyId) return;
+    setActionLoading(a => ({ ...a, [`calc-${orderId}`]: 'calculating' }));
+    try {
+      await apiCalculateOrderPrice(orderId, pharmacyId);
+      setMessages(m => ({ ...m, [orderId]: { type: 'success', text: 'Prices updated from inventory.' } }));
+      invalidate();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Price calculation failed';
+      setMessages(m => ({ ...m, [orderId]: { type: 'error', text: msg } }));
+    } finally { setActionLoading(a => ({ ...a, [`calc-${orderId}`]: null })); }
+  }
+
+  const activeOrders    = orders.filter((o: Order) => !['Dispensed', 'Cancelled'].includes(o.status));
+  const completedOrders = orders.filter((o: Order) => o.status === 'Dispensed');
 
   return (
     <div className="app-shell">
@@ -53,7 +94,7 @@ export default function PharmacistDashboard() {
         <TopBar
           title="Pharmacist Dashboard"
           subtitle="Manage prescriptions and process medicine orders"
-          actions={<button className="btn btn-ghost btn-sm" onClick={load} id="refresh-pharma-btn"><RefreshCw size={14} /> Refresh</button>}
+          actions={<button className="btn btn-ghost btn-sm" onClick={invalidate} id="refresh-pharma-btn"><RefreshCw size={14} /> Refresh</button>}
         />
         <div className="page-body fade-in">
 
@@ -63,7 +104,7 @@ export default function PharmacistDashboard() {
             subtitle="Process prescriptions and manage medicine dispensing"
             loading={loading}
             stats={[
-              { label: 'New Prescriptions', value: prescriptions.filter(p => p.status === 'Active').length, icon: '📋' },
+              { label: 'New Prescriptions', value: prescriptions.filter((p: Prescription) => p.status === 'Active').length, icon: '📋' },
               { label: 'Active Orders',      value: activeOrders.length, icon: '⚗️', highlight: activeOrders.length > 0 },
               { label: 'Dispensed Today',    value: completedOrders.length, icon: '✅' },
             ]}
@@ -82,7 +123,7 @@ export default function PharmacistDashboard() {
             </button>
           </div>
 
-          {/* Orders Tab */}
+          {/* ── Active Orders Tab ──────────────────────────────────────────── */}
           {activeTab === 'orders' && (
             loading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -96,11 +137,12 @@ export default function PharmacistDashboard() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {activeOrders.map(order => {
+                {activeOrders.map((order: Order) => {
                   const st = STATUS_STYLES[order.status] || STATUS_STYLES.Pending;
                   const nextStatusIdx = ORDER_STATUS_FLOW.indexOf(order.status) + 1;
-                  const nextStatus = ORDER_STATUS_FLOW[nextStatusIdx];
-                  const isLoading = actionLoading[order.id];
+                  const nextStatus = ORDER_STATUS_FLOW[nextStatusIdx] as string | undefined;
+                  const isAdvancing = actionLoading[order.id];
+                  const isCalcing   = actionLoading[`calc-${order.id}`];
                   const msg = messages[order.id];
                   return (
                     <div key={order.id} className="card" id={`pharma-order-${order.id}`}>
@@ -108,19 +150,33 @@ export default function PharmacistDashboard() {
                         <div>
                           <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 15, fontWeight: 800 }}>Order #{order.id}</div>
                           <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                            Patient: {order.patientName} · Appt: <strong style={{ color: 'var(--med-teal)' }}>{order.appointmentNumber}</strong>
+                            Patient: {order.patientName} · Appt: <strong style={{ color: 'var(--med-teal)' }}>{order.appointmentNumber ?? '—'}</strong>
                           </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                           <span className="badge" style={{ color: st.color, background: st.bg }}>{order.status}</span>
+
+                          {/* Calculate Price */}
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => handleCalculatePrice(order.id)}
+                            disabled={!!isCalcing}
+                            id={`calc-price-order-${order.id}`}
+                            title="Recalculate prices from inventory"
+                          >
+                            {isCalcing ? <Loader size={12} className="spin" /> : <Calculator size={12} />}
+                            Price
+                          </button>
+
+                          {/* Advance Status */}
                           {nextStatus && (
                             <button
                               className="btn btn-primary btn-sm"
                               onClick={() => handleStatusUpdate(order.id, nextStatus)}
-                              disabled={!!isLoading}
+                              disabled={!!isAdvancing}
                               id={`advance-order-${order.id}`}
                             >
-                              {isLoading ? <Loader size={12} className="spin" /> : <CheckCircle size={12} />}
+                              {isAdvancing ? <Loader size={12} className="spin" /> : <CheckCircle size={12} />}
                               Mark as {nextStatus}
                             </button>
                           )}
@@ -156,7 +212,7 @@ export default function PharmacistDashboard() {
             )
           )}
 
-          {/* Prescriptions Tab */}
+          {/* ── Prescriptions Tab ─────────────────────────────────────────── */}
           {activeTab === 'prescriptions' && (
             loading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -165,32 +221,56 @@ export default function PharmacistDashboard() {
             ) : prescriptions.length === 0 ? (
               <div className="empty-state card">
                 <div className="empty-icon">💊</div>
-                <div className="empty-title">No prescriptions yet</div>
+                <div className="empty-title">No pending prescriptions</div>
+                <div className="empty-sub">All prescriptions have been processed into orders.</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {prescriptions.map(rx => (
-                  <div key={rx.id} className="rx-card" id={`rx-pharma-${rx.id}`}>
-                    <div className="rx-header">
-                      <div className="rx-id">Rx #{rx.id} — {rx.appointmentNumber}</div>
-                      <span className={`badge ${rx.status === 'Active' ? 'badge-green' : 'badge-blue'}`}>{rx.status}</span>
-                    </div>
-                    <div className="rx-body">
-                      <div className="info-row"><span className="info-row-label">Patient:</span>{rx.patientName}</div>
-                      <div className="info-row"><span className="info-row-label">Doctor:</span>{rx.doctorName}</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                        {(rx.items || []).map((item, i) => (
-                          <span key={i} className="badge badge-teal"><Pill size={10} /> {item.medicineName}</span>
-                        ))}
+                {prescriptions.map((rx: Prescription) => {
+                  const rxKey = `rx-${rx.id}`;
+                  const isConverting = actionLoading[rxKey];
+                  const msg = messages[rxKey];
+                  return (
+                    <div key={rx.id} className="rx-card" id={`rx-pharma-${rx.id}`}>
+                      <div className="rx-header">
+                        <div className="rx-id">Rx #{rx.id} — {rx.appointmentNumber ?? '—'}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className={`badge ${rx.status === 'Active' ? 'badge-green' : 'badge-blue'}`}>{rx.status}</span>
+                          {/* ── Convert to Order ── */}
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={() => handleConvertToOrder(rx)}
+                            disabled={!!isConverting}
+                            id={`convert-rx-${rx.id}`}
+                            title="Create a medicine order from this prescription"
+                          >
+                            {isConverting ? <Loader size={12} className="spin" /> : <ShoppingCart size={12} />}
+                            Convert to Order
+                          </button>
+                        </div>
+                      </div>
+                      <div className="rx-body">
+                        {msg && (
+                          <div style={{ marginBottom: 10, padding: '6px 10px', borderRadius: 'var(--r-md)', background: msg.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)', color: msg.type === 'success' ? 'var(--success)' : 'var(--danger)', fontSize: 12, fontWeight: 600, display: 'flex', gap: 6, alignItems: 'center' }}>
+                            {msg.type === 'success' ? <CheckCircle size={11} /> : <AlertCircle size={11} />} {msg.text}
+                          </div>
+                        )}
+                        <div className="info-row"><span className="info-row-label">Patient:</span>{rx.patientName}</div>
+                        <div className="info-row"><span className="info-row-label">Doctor:</span>{rx.doctorName}</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                          {(rx.items || []).map((item, i) => (
+                            <span key={i} className="badge badge-teal"><Pill size={10} /> {item.medicineName}</span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )
           )}
 
-          {/* Completed Tab */}
+          {/* ── Dispensed Tab ─────────────────────────────────────────────── */}
           {activeTab === 'completed' && (
             completedOrders.length === 0 ? (
               <div className="empty-state card">
@@ -199,7 +279,7 @@ export default function PharmacistDashboard() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {completedOrders.map(order => (
+                {completedOrders.map((order: Order) => (
                   <div key={order.id} className="card" id={`dispensed-order-${order.id}`}>
                     <div className="card-body" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
