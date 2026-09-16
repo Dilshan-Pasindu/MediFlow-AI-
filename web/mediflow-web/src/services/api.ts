@@ -154,6 +154,10 @@ export async function apiPayAppointment(id: number | string) {
   return apiFetch(`/appointments/${id}/pay`, { method: 'POST' });
 }
 
+export async function apiCompleteAppointment(id: number | string) {
+  return apiFetch(`/appointments/${id}/complete`, { method: 'PUT' });
+}
+
 export async function apiSubmitPayment(appointmentId: number | string, amount: number, paymentMethod = 'Card') {
   return apiFetch(`/appointments/${appointmentId}/payment`, {
     method: 'POST',

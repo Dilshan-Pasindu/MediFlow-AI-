@@ -91,9 +91,50 @@ export default function DoctorLeavePage() {
     
     const startDt = new Date(startDate);
     const endDt = new Date(endDate);
+    const now = new Date();
+
+    // Prevent scheduling leave in the past
+    if (startDt < now) {
+      setAlertMessage({ type: 'error', text: 'Start date and time cannot be in the past. Please select a future date.' });
+      return;
+    }
 
     if (startDt >= endDt) {
       setAlertMessage({ type: 'error', text: 'Start date and time must be before end date and time.' });
+      return;
+    }
+
+    // Minimum duration: 30 minutes
+    const durationMs = endDt.getTime() - startDt.getTime();
+    const thirtyMinMs = 30 * 60 * 1000;
+    if (durationMs < thirtyMinMs) {
+      setAlertMessage({ type: 'error', text: 'Leave duration must be at least 30 minutes.' });
+      return;
+    }
+
+    // Maximum duration: 90 days
+    const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+    if (durationMs > ninetyDaysMs) {
+      setAlertMessage({ type: 'error', text: 'Leave duration cannot exceed 90 days. For extended leave, please contact administration.' });
+      return;
+    }
+
+    // Check overlap with existing leaves
+    const overlapping = leaves.find(leave => {
+      const existingStart = new Date(leave.startDate);
+      const existingEnd = new Date(leave.endDate);
+      return startDt < existingEnd && endDt > existingStart;
+    });
+    if (overlapping) {
+      const overlapStart = new Date(overlapping.startDate).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const overlapEnd = new Date(overlapping.endDate).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      setAlertMessage({ type: 'error', text: `This leave overlaps with an existing leave (${overlapStart} — ${overlapEnd}). Please choose a non-overlapping time range.` });
+      return;
+    }
+
+    // Reason max length
+    if (reason.trim().length > 200) {
+      setAlertMessage({ type: 'error', text: 'Reason / Description must be 200 characters or less.' });
       return;
     }
 

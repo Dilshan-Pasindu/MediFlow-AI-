@@ -8,7 +8,7 @@ import {
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { useAppointment } from '../../hooks';
-import { apiGeneratePrescription } from '../../services/api';
+import { apiGeneratePrescription, apiCompleteAppointment } from '../../services/api';
 import type { 
   ExamForm, AIClinicalResult, AIDiagnosis, AgentThoughtStep, 
   AgentLabDraft, AgentMedicationDraft, ApprovedClinicalPlan 
@@ -230,6 +230,9 @@ export default function ConsultationPage() {
 
   const [exam, setExam] = useState<ExamForm>({ chiefComplaint: '', symptoms: '', vitalBP: '', vitalTemp: '', vitalPulse: '', vitalSPO2: '', examination: '', notes: '' });
 
+  // Validation state
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+
   useEffect(() => {
     if (appt) {
       if (appt.patientName) setManualPatientName(appt.patientName);
@@ -241,7 +244,65 @@ export default function ConsultationPage() {
   const activePatientName = manualPatientName || appt?.patientName || 'Walk-in Patient';
   const activeAllergies = manualAllergies || appt?.patientAllergies || '';
 
+  // ─── Validation Helpers ──────────────────────────────────────────────────
+
+  function validateReviewStep(): boolean {
+    const errors: Record<string, string> = {};
+    if (!manualPatientName.trim() && !appt?.patientName) {
+      errors.patientName = 'Patient name is required before proceeding to examination.';
+    }
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  function validateExamStep(): boolean {
+    const errors: Record<string, string> = {};
+    if (!exam.chiefComplaint.trim()) {
+      errors.chiefComplaint = 'Chief complaint is required before launching AI analysis.';
+    }
+    const hasAnyVital = exam.vitalBP.trim() || exam.vitalTemp.trim() || exam.vitalPulse.trim() || exam.vitalSPO2.trim();
+    if (!hasAnyVital) {
+      errors.vitals = 'Please record at least one vital sign (BP, Temperature, Pulse, or SpO2).';
+    }
+    // BP format: e.g. 120/80
+    if (exam.vitalBP.trim() && !/^\d{2,3}\/\d{2,3}$/.test(exam.vitalBP.trim())) {
+      errors.vitalBP = 'Blood pressure format should be systolic/diastolic (e.g. 120/80).';
+    }
+    // Temperature: numeric, optionally with decimal
+    if (exam.vitalTemp.trim()) {
+      const tempNum = parseFloat(exam.vitalTemp.replace(/[°cCfF\s]/g, ''));
+      if (isNaN(tempNum) || tempNum < 30 || tempNum > 45) {
+        errors.vitalTemp = 'Temperature should be between 30°C and 45°C.';
+      }
+    }
+    // Pulse: numeric, reasonable range
+    if (exam.vitalPulse.trim()) {
+      const pulseNum = parseInt(exam.vitalPulse.replace(/[^\d]/g, ''), 10);
+      if (isNaN(pulseNum) || pulseNum < 20 || pulseNum > 250) {
+        errors.vitalPulse = 'Pulse rate should be between 20 and 250 bpm.';
+      }
+    }
+    // SpO2: percentage between 0–100
+    if (exam.vitalSPO2.trim()) {
+      const spo2Num = parseInt(exam.vitalSPO2.replace(/[^\d]/g, ''), 10);
+      if (isNaN(spo2Num) || spo2Num < 0 || spo2Num > 100) {
+        errors.vitalSPO2 = 'SpO2 should be between 0% and 100%.';
+      }
+    }
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  }
+
+  function validateFinalizeStep(): string | null {
+    const approvedDiags = editableDiagnoses.filter(d => d.status === 'approved' || d.status === 'modified');
+    if (approvedDiags.length === 0) {
+      return 'Please approve at least one diagnosis before finalizing the clinical care plan.';
+    }
+    return null;
+  }
+
   async function runAIAnalysis() {
+    if (!validateExamStep()) return;
     setAiLoading(true);
     try {
       let result: AIClinicalResult;
@@ -356,6 +417,12 @@ export default function ConsultationPage() {
 
   // Finalize Care Plan
   async function finalizeClinicalCarePlan() {
+    const finalizeError = validateFinalizeStep();
+    if (finalizeError) {
+      setValidationErrors({ finalize: finalizeError });
+      return;
+    }
+    setValidationErrors({});
     const approvedDiagList = editableDiagnoses.filter(d => d.status === 'approved' || d.status === 'modified');
     const primaryDiag = approvedDiagList[0] || null;
     const diffList = approvedDiagList.slice(1);
@@ -404,6 +471,15 @@ export default function ConsultationPage() {
         });
       } catch (err) {
         console.error('Failed to auto-dispatch prescription:', err);
+      }
+    }
+
+    // Mark appointment as Completed in backend
+    if (id) {
+      try {
+        await apiCompleteAppointment(id);
+      } catch (err) {
+        console.error('Failed to mark appointment as completed:', err);
       }
     }
   }
@@ -535,10 +611,21 @@ export default function ConsultationPage() {
                       </div>
                     )}
 
+                    {validationErrors.patientName && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 13, fontWeight: 600, marginTop: 8 }} id="validation-error-patient-name">
+                        <AlertCircle size={16} /> {validationErrors.patientName}
+                      </div>
+                    )}
+
                     <button
                       className="btn btn-primary btn-lg"
                       style={{ width: '100%', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                      onClick={() => setStep('examine')}
+                      onClick={() => {
+                        if (validateReviewStep()) {
+                          setValidationErrors({});
+                          setStep('examine');
+                        }
+                      }}
                       id="start-examination-btn"
                     >
                       Proceed to Clinical Examination <Stethoscope size={18} />
@@ -614,8 +701,19 @@ export default function ConsultationPage() {
                       />
                     </div>
 
+                    {/* Validation Errors Display */}
+                    {Object.keys(validationErrors).length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', marginTop: 12 }} id="exam-validation-errors">
+                        {Object.entries(validationErrors).map(([key, msg]) => (
+                          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#DC2626', fontSize: 13, fontWeight: 600 }}>
+                            <AlertCircle size={15} /> {msg}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
                     <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                      <button className="btn btn-secondary" onClick={() => setStep('review')} id="back-to-review-btn">Back to Patient Info</button>
+                      <button className="btn btn-secondary" onClick={() => { setValidationErrors({}); setStep('review'); }} id="back-to-review-btn">Back to Patient Info</button>
                       <button
                         className="btn btn-primary btn-lg"
                         style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -1011,9 +1109,16 @@ export default function ConsultationPage() {
                     </div>
                   </div>
 
+                  {/* Finalize Validation Error */}
+                  {validationErrors.finalize && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 13, fontWeight: 600, marginTop: 10 }} id="finalize-validation-error">
+                      <AlertTriangle size={16} /> {validationErrors.finalize}
+                    </div>
+                  )}
+
                   {/* Navigation Actions */}
                   <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
-                    <button className="btn btn-secondary" onClick={() => setStep('examine')} id="back-to-examine-btn">
+                    <button className="btn btn-secondary" onClick={() => { setValidationErrors({}); setStep('examine'); }} id="back-to-examine-btn">
                       Back to Vitals & Exam
                     </button>
                     <button

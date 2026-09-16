@@ -102,6 +102,26 @@ export default function DoctorAppointmentsPage() {
 
   const hasActiveFilters = searchQuery.trim() !== '' || selectedStatus !== 'ALL' || selectedDate !== '';
 
+  const [consultError, setConsultError] = useState<string | null>(null);
+
+  const handleStartConsultation = (appt: ConsultationAppointment) => {
+    setConsultError(null);
+    const apptDate = new Date(appt.appointmentDateTime);
+    const now = new Date();
+    // Allow consultation if the appointment date is today or already passed
+    const apptDay = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (apptDay > today) {
+      setConsultError(`This appointment is scheduled for ${apptDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. You can only start consultations on or after the appointment date.`);
+      return;
+    }
+    if (appt.status !== 'Confirmed') {
+      setConsultError('Only confirmed appointments can start a consultation.');
+      return;
+    }
+    navigate(`/doctor/consultation/${appt.id}`);
+  };
+
   return (
     <div className="app-shell">
       <Sidebar />
@@ -360,6 +380,35 @@ export default function DoctorAppointmentsPage() {
               </div>
             )}
 
+            {/* Consultation Validation Error */}
+            {consultError && (
+              <div
+                style={{
+                  background: '#FFFBEB',
+                  border: '1px solid #FDE68A',
+                  borderRadius: 'var(--r-md)',
+                  padding: '14px 18px',
+                  color: '#92400E',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  marginBottom: 16,
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                }}
+                id="consult-validation-error"
+              >
+                <AlertCircle size={18} color="#D97706" />
+                {consultError}
+                <button
+                  onClick={() => setConsultError(null)}
+                  style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', padding: 4 }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
             {/* Loading Skeletons */}
             {isLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -565,7 +614,7 @@ export default function DoctorAppointmentsPage() {
                         {isConfirmed && (
                           <button
                             id={`start-consult-btn-${appt.id}`}
-                            onClick={() => navigate(`/doctor/consultation/${appt.id}`)}
+                            onClick={() => handleStartConsultation(appt)}
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -591,26 +640,57 @@ export default function DoctorAppointmentsPage() {
                         )}
 
                         {isCompleted && (
-                          <button
-                            id={`view-record-btn-${appt.id}`}
-                            onClick={() => navigate(`/doctor/consultation/${appt.id}`)}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: 6,
-                              background: 'var(--surface-2)',
-                              color: 'var(--text-primary)',
-                              border: '1px solid var(--border)',
-                              padding: '8px 14px',
-                              borderRadius: 'var(--r-md)',
-                              fontSize: 12.5,
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <FileText size={14} />
-                            View Record
-                          </button>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              id={`view-record-btn-${appt.id}`}
+                              onClick={() => navigate(`/doctor/consultation/${appt.id}`)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                background: 'var(--surface-2)',
+                                color: 'var(--text-primary)',
+                                border: '1px solid var(--border)',
+                                padding: '8px 14px',
+                                borderRadius: 'var(--r-md)',
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <FileText size={14} />
+                              View Record
+                            </button>
+                            <button
+                              id={`re-consult-btn-${appt.id}`}
+                              onClick={() => {
+                                if (window.confirm(
+                                  `This appointment has already been completed.\n\nAre you sure you want to re-consult patient "${appt.patientName || 'Patient'}"?\n\nThis will open a new consultation workspace for this appointment.`
+                                )) {
+                                  navigate(`/doctor/consultation/${appt.id}`);
+                                }
+                              }}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                background: '#FEF3C7',
+                                color: '#92400E',
+                                border: '1px solid #FDE68A',
+                                padding: '8px 14px',
+                                borderRadius: 'var(--r-md)',
+                                fontSize: 12.5,
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'var(--transition)',
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = '#FDE68A'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = '#FEF3C7'; }}
+                            >
+                              <RefreshCw size={14} />
+                              Re-Consult
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>

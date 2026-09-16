@@ -56,6 +56,43 @@ public class DoctorLeaveController : ControllerBase
             return BadRequest(new { message = "Start date and time must be before end date and time." });
         }
 
+        // 3. Prevent scheduling leave in the past
+        if (startDateUtc < DateTime.UtcNow)
+        {
+            return BadRequest(new { message = "Start date and time cannot be in the past." });
+        }
+
+        // 4. Minimum duration: 30 minutes
+        var duration = endDateUtc - startDateUtc;
+        if (duration.TotalMinutes < 30)
+        {
+            return BadRequest(new { message = "Leave duration must be at least 30 minutes." });
+        }
+
+        // 5. Maximum duration: 90 days
+        if (duration.TotalDays > 90)
+        {
+            return BadRequest(new { message = "Leave duration cannot exceed 90 days. For extended leave, please contact administration." });
+        }
+
+        // 6. Check overlap with existing leaves for this doctor
+        var overlappingLeave = await _context.DoctorLeaves
+            .Where(l => l.DoctorId == doctor.Id
+                && l.StartDate < endDateUtc
+                && l.EndDate > startDateUtc)
+            .FirstOrDefaultAsync();
+
+        if (overlappingLeave != null)
+        {
+            return BadRequest(new { message = $"This leave overlaps with an existing leave ({overlappingLeave.StartDate:yyyy-MM-dd HH:mm} — {overlappingLeave.EndDate:yyyy-MM-dd HH:mm}). Please choose a non-overlapping time range." });
+        }
+
+        // 7. Validate reason length
+        if (!string.IsNullOrEmpty(dto.Reason) && dto.Reason.Length > 200)
+        {
+            return BadRequest(new { message = "Reason must be 200 characters or less." });
+        }
+
         var leave = new DoctorLeave
         {
             DoctorId = doctor.Id,
@@ -65,7 +102,7 @@ public class DoctorLeaveController : ControllerBase
             CreatedAt = DateTime.UtcNow
         };
 
-        // 3. Add the leave to the database
+        // 8. Add the leave to the database
         _context.DoctorLeaves.Add(leave);
         await _context.SaveChangesAsync();
 

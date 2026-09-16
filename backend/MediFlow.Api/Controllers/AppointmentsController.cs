@@ -32,6 +32,21 @@ public class AppointmentsController : ControllerBase
         if (doctor == null)
             return NotFound(new { message = "Doctor not found." });
 
+        // Prevent booking appointments in the past
+        var appointmentDateUtc = DateTime.SpecifyKind(request.DateTime, DateTimeKind.Utc);
+        if (appointmentDateUtc < DateTime.UtcNow)
+            return BadRequest(new { message = "Cannot book an appointment in the past. Please select a future date and time." });
+
+        // Prevent duplicate booking: same patient, same doctor, same date
+        var existingAppointment = await _db.Appointments
+            .FirstOrDefaultAsync(a => a.PatientId == patient.Id
+                && a.DoctorId == request.DoctorId
+                && a.AppointmentDateTime.Date == appointmentDateUtc.Date
+                && a.Status != AppointmentStatus.Cancelled);
+
+        if (existingAppointment != null)
+            return BadRequest(new { message = $"You already have an appointment with this doctor on {appointmentDateUtc:yyyy-MM-dd}. Please choose a different date or cancel the existing appointment." });
+
         // Check if the doctor is on leave
         var overlappingLeave = await _db.DoctorLeaves
             .Where(l => l.DoctorId == request.DoctorId
@@ -169,6 +184,56 @@ public class AppointmentsController : ControllerBase
             return NotFound(new { message = "Appointment not found." });
 
         return Ok(appointment);
+    }
+
+    /// <summary>
+    /// Mark an appointment as Completed after the doctor finishes the consultation.
+    /// Only Doctors may call this endpoint, and only on Confirmed appointments.
+    /// </summary>
+    [HttpPut("{id}/complete")]
+    [Authorize(Roles = "Doctor")]
+    public async Task<IActionResult> CompleteAppointment(int id)
+    {
+        var appointment = await _db.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor)
+            .FirstOrDefaultAsync(a => a.Id == id);
+
+        if (appointment == null)
+            return NotFound(new { message = "Appointment not found." });
+
+        if (appointment.Status == AppointmentStatus.Completed)
+            return BadRequest(new { message = "This appointment has already been completed." });
+
+        if (appointment.Status != AppointmentStatus.Confirmed)
+            return BadRequest(new { message = $"Only confirmed appointments can be marked as completed. Current status: {appointment.Status}." });
+
+        appointment.Status = AppointmentStatus.Completed;
+        appointment.UpdatedAt = DateTime.UtcNow;
+
+        // Notify the patient that the consultation is complete
+        if (appointment.Patient != null && appointment.Patient.UserId > 0)
+        {
+            var doctorName = appointment.Doctor?.FullName ?? "Your doctor";
+            _db.Notifications.Add(new MediFlow.Api.Models.Notification
+            {
+                UserId = appointment.Patient.UserId,
+                Title = "Consultation Completed",
+                Message = $"Your consultation with {doctorName} has been completed successfully. Please check your prescriptions and follow-up instructions.",
+                Type = "success",
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            });
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            appointment.Id,
+            Status = appointment.Status.ToString(),
+            message = "Appointment marked as completed successfully."
+        });
     }
 
     // ── Helper ────────────────────────────────────────────────────────────────
