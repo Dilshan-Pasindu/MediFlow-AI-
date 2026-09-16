@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ChevronRight, Plus, FileText } from 'lucide-react';
+import { Clock, ChevronRight, Plus, FileText, Calendar } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { useMyAppointments } from '../hooks';
@@ -78,7 +78,7 @@ export default function AppointmentsPage() {
             </div>
           ) : displayAppts.length === 0 ? (
             <div className="empty-state card">
-              <div className="empty-icon">📅</div>
+              <Calendar size={36} style={{ color: 'var(--med-blue)', margin: '0 auto 12px' }} />
               <div className="empty-title">No {activeTab} appointments</div>
               <div className="empty-sub">You don't have any {activeTab} appointments.</div>
               {activeTab === 'upcoming' && (

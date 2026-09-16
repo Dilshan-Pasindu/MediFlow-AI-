@@ -3,7 +3,7 @@ import * as React from 'react';
 export interface PortalStatChip {
   label: string;
   value: number | string;
-  icon: string;
+  icon: React.ReactNode;
   highlight?: boolean;
 }
 
