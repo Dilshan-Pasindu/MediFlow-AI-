@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Search, Filter, Stethoscope, Clock, CheckCircle2,
-  AlertCircle, ChevronRight, RefreshCw, FileText, User, Tag,
+  AlertCircle, AlertTriangle, ChevronRight, RefreshCw, FileText, User, Tag,
   ArrowUpDown, ShieldAlert, X
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
@@ -121,6 +121,7 @@ export default function DoctorAppointmentsPage() {
     }
     navigate(`/doctor/consultation/${appt.id}`);
   };
+
 
   return (
     <div className="app-shell">
@@ -396,20 +397,24 @@ export default function DoctorAppointmentsPage() {
                   fontSize: 13.5,
                   fontWeight: 600,
                 }}
-                id="consult-validation-error"
+                id="consultation-validation-alert"
               >
-                <AlertCircle size={18} color="#D97706" />
-                {consultError}
+                <AlertTriangle size={18} color="#D97706" style={{ flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>{consultError}</div>
                 <button
                   onClick={() => setConsultError(null)}
-                  style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', padding: 4 }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#92400E', padding: 2 }}
                 >
                   <X size={16} />
                 </button>
+
               </div>
             )}
 
+
             {/* Loading Skeletons */}
+
+
             {isLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {[1, 2, 3, 4].map((n) => (
@@ -615,6 +620,7 @@ export default function DoctorAppointmentsPage() {
                           <button
                             id={`start-consult-btn-${appt.id}`}
                             onClick={() => handleStartConsultation(appt)}
+
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -691,6 +697,7 @@ export default function DoctorAppointmentsPage() {
                               Re-Consult
                             </button>
                           </div>
+
                         )}
                       </div>
                     </div>

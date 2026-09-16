@@ -877,8 +877,6 @@ h1, h2, h3, h4, h5, h6, .heading {
   color: var(--text-primary);
   transition: var(--transition-mac);
   outline: none;
-  -webkit-appearance: none;
-  box-shadow: var(--shadow-xs);
 }
 .form-input:focus {
   border-color: var(--med-blue);
@@ -933,7 +931,6 @@ h1, h2, h3, h4, h5, h6, .heading {
   transition: var(--transition-mac);
   cursor: pointer;
   -webkit-appearance: none;
-  box-shadow: var(--shadow-xs);
 }
 .form-select:focus {
   border-color: var(--med-blue);
@@ -1015,9 +1012,7 @@ h1, h2, h3, h4, h5, h6, .heading {
   font-size: 13.5px;
   color: var(--text-primary);
   outline: none;
-  transition: var(--transition-mac);
-  box-shadow: var(--shadow-xs);
-  -webkit-appearance: none;
+  transition: var(--transition);
 }
 .search-input:focus {
   border-color: var(--med-blue);

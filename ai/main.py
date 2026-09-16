@@ -111,12 +111,29 @@ async def check_medication_safety(payload: MedicationCheckInput):
 @app.post("/api/ai/inventory-forecast", response_model=InventoryForecastResult, tags=["Agents"])
 async def get_inventory_forecast(payload: InventoryForecastInput):
     """
-    Performs predictive inventory demand forecasting, identifies stockout horizons,
-    and constructs automated batch restock proposals.
+    Pharmacy & Inventory Intelligence Agent (Agent 4) — real-data pipeline.
+
+    Executes six controlled, deterministic tools in sequence:
+      1. getInventory()                  — real inventory + demand context from backend
+      2. getHistoricalOrders()           — dispensing transaction history
+      3. calculateDemand()               — validated demand metrics
+      4. forecastDemand()                — demand projection
+      5. predictStockout()               — stockout horizon + urgency classification
+      6. generateRestockRecommendation() — safety-checked, approval-ready proposals
+
+    Authentication to the backend is handled inside the tool layer via BACKEND_SERVICE_TOKEN
+    and BACKEND_URL environment variables — never from request data.
+
+    Output is proposals only. No inventory mutation or restock creation occurs here.
+    The PharmacyOwner must approve each proposal via the Owner Dashboard.
     """
     try:
         result = evaluate_inventory_intelligence(payload)
         return result
+    except (EnvironmentError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Inventory forecast pipeline failed: {str(exc)}")
 

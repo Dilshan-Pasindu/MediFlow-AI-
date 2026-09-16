@@ -47,6 +47,7 @@ public class AppointmentsController : ControllerBase
         if (existingAppointment != null)
             return BadRequest(new { message = $"You already have an appointment with this doctor on {appointmentDateUtc:yyyy-MM-dd}. Please choose a different date or cancel the existing appointment." });
 
+
         // Check if the doctor is on leave
         var overlappingLeave = await _db.DoctorLeaves
             .Where(l => l.DoctorId == request.DoctorId

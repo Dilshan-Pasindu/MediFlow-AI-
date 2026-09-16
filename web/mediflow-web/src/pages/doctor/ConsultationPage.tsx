@@ -9,6 +9,7 @@ import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { useAppointment } from '../../hooks';
 import { apiGeneratePrescription, apiCompleteAppointment } from '../../services/api';
+
 import type { 
   ExamForm, AIClinicalResult, AIDiagnosis, AgentThoughtStep, 
   AgentLabDraft, AgentMedicationDraft, ApprovedClinicalPlan 
@@ -233,6 +234,7 @@ export default function ConsultationPage() {
   // Validation state
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
+
   useEffect(() => {
     if (appt) {
       if (appt.patientName) setManualPatientName(appt.patientName);
@@ -260,17 +262,20 @@ export default function ConsultationPage() {
     if (!exam.chiefComplaint.trim()) {
       errors.chiefComplaint = 'Chief complaint is required before launching AI analysis.';
     }
+    if (!exam.symptoms.trim()) {
+      errors.symptoms = 'Presenting symptoms are required before launching AI analysis.';
+    }
     const hasAnyVital = exam.vitalBP.trim() || exam.vitalTemp.trim() || exam.vitalPulse.trim() || exam.vitalSPO2.trim();
     if (!hasAnyVital) {
       errors.vitals = 'Please record at least one vital sign (BP, Temperature, Pulse, or SpO2).';
     }
-    // BP format: e.g. 120/80
+    // BP validation format check (SYS/DIA) if provided
     if (exam.vitalBP.trim() && !/^\d{2,3}\/\d{2,3}$/.test(exam.vitalBP.trim())) {
-      errors.vitalBP = 'Blood pressure format should be systolic/diastolic (e.g. 120/80).';
+      errors.vitalBP = 'Blood pressure must be in SYS/DIA format (e.g., 120/80).';
     }
-    // Temperature: numeric, optionally with decimal
+    // Temp: numeric between 30–45°C
     if (exam.vitalTemp.trim()) {
-      const tempNum = parseFloat(exam.vitalTemp.replace(/[°cCfF\s]/g, ''));
+      const tempNum = parseFloat(exam.vitalTemp.replace(/[^\d.]/g, ''));
       if (isNaN(tempNum) || tempNum < 30 || tempNum > 45) {
         errors.vitalTemp = 'Temperature should be between 30°C and 45°C.';
       }
@@ -423,6 +428,7 @@ export default function ConsultationPage() {
       return;
     }
     setValidationErrors({});
+
     const approvedDiagList = editableDiagnoses.filter(d => d.status === 'approved' || d.status === 'modified');
     const primaryDiag = approvedDiagList[0] || null;
     const diffList = approvedDiagList.slice(1);
@@ -473,7 +479,6 @@ export default function ConsultationPage() {
         console.error('Failed to auto-dispatch prescription:', err);
       }
     }
-
     // Mark appointment as Completed in backend
     if (id) {
       try {
@@ -482,6 +487,7 @@ export default function ConsultationPage() {
         console.error('Failed to mark appointment as completed:', err);
       }
     }
+
   }
 
   if (loading) return (
@@ -626,6 +632,7 @@ export default function ConsultationPage() {
                           setStep('examine');
                         }
                       }}
+
                       id="start-examination-btn"
                     >
                       Proceed to Clinical Examination <Stethoscope size={18} />
@@ -714,6 +721,7 @@ export default function ConsultationPage() {
 
                     <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                       <button className="btn btn-secondary" onClick={() => { setValidationErrors({}); setStep('review'); }} id="back-to-review-btn">Back to Patient Info</button>
+
                       <button
                         className="btn btn-primary btn-lg"
                         style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -1119,6 +1127,7 @@ export default function ConsultationPage() {
                   {/* Navigation Actions */}
                   <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
                     <button className="btn btn-secondary" onClick={() => { setValidationErrors({}); setStep('examine'); }} id="back-to-examine-btn">
+
                       Back to Vitals & Exam
                     </button>
                     <button

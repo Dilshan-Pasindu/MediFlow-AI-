@@ -139,6 +139,8 @@ export default function DoctorLeavePage() {
     }
 
     setSubmitLoading(true);
+
+
     setAlertMessage(null);
     try {
       const res: any = await apiCreateDoctorLeave(doctorId as number, {
@@ -418,3 +420,5 @@ export default function DoctorLeavePage() {
     </div>
   );
 }
+
+
