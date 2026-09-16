@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import type { UserRole } from './types/auth';
 
+// Landing / Home
+const HomePage = React.lazy(() => import('./pages/HomePage'));
+
 // Auth
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 
@@ -127,7 +130,7 @@ function RootRedirect() {
   const { user, isAuthenticated } = useAuthStore();
 
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   return <Navigate to={getRoleHome(user.role)} replace />;
@@ -141,6 +144,7 @@ function App() {
       <React.Suspense fallback={<LoadingFallback />}>
         <Routes>
           {/* Public Routes */}
+          <Route path="/home" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<RootRedirect />} />
 
