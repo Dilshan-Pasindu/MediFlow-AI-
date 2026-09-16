@@ -1,142 +1,236 @@
 """
 MediFlow Pharmacy & Inventory Intelligence Agent — Agent 4
 ===========================================================
-Predictive demand forecasting, stockout horizon detection,
-and automated batch restock proposal generation for pharmacy inventory.
+Predictive demand forecasting, stockout horizon detection, and automated
+batch restock proposal generation for pharmacy inventory.
+
+Upgrade (v2): Replaced all hard-coded/simulated data with real backend data
+consumed through six controlled, deterministic tools (inventory_tools.py).
+
+Tool execution pipeline (one-directional; no circular calls):
+  Step 1 — getInventory()                  → real inventory + demand context
+  Step 2 — getHistoricalOrders()           → raw dispensing transaction history
+  Step 3 — calculateDemand()               → per-item demand metrics (validated)
+  Step 4 — forecastDemand()                → demand projection (deterministic)
+  Step 5 — predictStockout()               → days-until-stockout + urgency
+  Step 6 — generateRestockRecommendation() → validated, approval-ready proposals
+
+Approval gate: All output is proposals only.
+               The PharmacyOwner MUST approve each item via the existing
+               Owner Dashboard → AI Restock Analysis → "Approve & Send to Supplier" flow.
+               This agent never calls any restock creation or inventory mutation endpoint.
 """
 
-from typing import List, Dict, Optional
-import math
-from ai.schemas.agent_schemas import (
-    InventoryForecastInput,
-    InventoryForecastResult,
-    StockoutRiskItem,
-    RestockProposal,
-)
+import logging
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import List
 
-# Reference catalog with default typical burn rates and unit acquisition costs
-MEDICINE_BENCHMARKS = [
-    {"id": 1, "name": "Amoxicillin 500mg Capsule", "avg_daily_burn": 8.5, "unit_cost": 45.0, "reorder_pack": 100},
-    {"id": 2, "name": "Paracetamol 500mg Tablet", "avg_daily_burn": 24.0, "unit_cost": 5.0, "reorder_pack": 500},
-    {"id": 3, "name": "Omeprazole 20mg Capsule", "avg_daily_burn": 12.0, "unit_cost": 28.0, "reorder_pack": 150},
-    {"id": 4, "name": "Metformin 500mg Tablet", "avg_daily_burn": 15.5, "unit_cost": 12.0, "reorder_pack": 300},
-    {"id": 5, "name": "Amlodipine 5mg Tablet", "avg_daily_burn": 10.0, "unit_cost": 18.0, "reorder_pack": 200},
-    {"id": 6, "name": "Atorvastatin 20mg Tablet", "avg_daily_burn": 7.0, "unit_cost": 35.0, "reorder_pack": 150},
-    {"id": 7, "name": "Cetirizine 10mg Tablet", "avg_daily_burn": 9.0, "unit_cost": 8.0, "reorder_pack": 200},
-    {"id": 8, "name": "Azithromycin 500mg Tablet", "avg_daily_burn": 4.5, "unit_cost": 120.0, "reorder_pack": 60},
-    {"id": 9, "name": "Salbutamol Inhaler 100mcg", "avg_daily_burn": 2.0, "unit_cost": 650.0, "reorder_pack": 20},
-    {"id": 10, "name": "Ciprofloxacin 500mg Tablet", "avg_daily_burn": 5.0, "unit_cost": 55.0, "reorder_pack": 100},
-]
+# ── Path resolution for all run contexts ─────────────────────────────────────
+_current_dir = Path(__file__).resolve().parent
+_ai_dir = _current_dir.parent
+_workspace_root = _ai_dir.parent
+for _p in [str(_workspace_root), str(_ai_dir)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-# Simulated current on-hand levels for typical demonstration
-SIMULATED_PHARMACY_STOCK = {
-    1: {"stock": 18, "custom_burn": 9.2},    # ~2 days -> CRITICAL
-    2: {"stock": 140, "custom_burn": 28.0},  # ~5 days -> CRITICAL
-    3: {"stock": 32, "custom_burn": 11.5},   # ~2.7 days -> CRITICAL
-    4: {"stock": 110, "custom_burn": 14.0},  # ~7.8 days -> WARNING
-    5: {"stock": 95, "custom_burn": 9.5},    # ~10 days -> WARNING
-    6: {"stock": 250, "custom_burn": 6.8},   # ~36 days -> HEALTHY
-    7: {"stock": 310, "custom_burn": 8.5},   # ~36 days -> HEALTHY
-    8: {"stock": 12, "custom_burn": 4.0},    # ~3 days -> CRITICAL
-    9: {"stock": 8, "custom_burn": 1.8},     # ~4.4 days -> CRITICAL
-    10: {"stock": 180, "custom_burn": 5.2},  # ~34 days -> HEALTHY
-}
+# ── Load .env file if present (for local development) ────────────────────────
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=str(_ai_dir / ".env"))
+    load_dotenv(dotenv_path=str(_workspace_root / ".env"))
+except ImportError:
+    pass
 
-
-def calculate_stockout_horizon(current_stock: int, daily_burn_rate: float) -> int:
-    """Calculates integer days until stock reaches zero."""
-    if daily_burn_rate <= 0:
-        return 999
-    return max(0, math.floor(current_stock / daily_burn_rate))
-
-
-def calculate_reorder_quantity(daily_burn_rate: float, target_buffer_days: int = 30) -> int:
-    """Calculates recommended reorder batch using buffer coverage rounded to tens."""
-    ideal_qty = daily_burn_rate * target_buffer_days
-    return max(50, math.ceil(ideal_qty / 10.0) * 10)
-
-
-def evaluate_inventory_intelligence(payload: InventoryForecastInput) -> InventoryForecastResult:
-    """
-    Evaluates inventory status for a pharmacy, predicts stockout horizons,
-    and constructs batch restock proposals.
-    """
-    risk_items: List[StockoutRiskItem] = []
-    restock_proposals: List[RestockProposal] = []
-    total_projected_cost: float = 0.0
-
-    for item in MEDICINE_BENCHMARKS:
-        med_id = item["id"]
-        med_name = item["name"]
-        unit_cost = item["unit_cost"]
-
-        stock_info = SIMULATED_PHARMACY_STOCK.get(
-            med_id,
-            {"stock": 100, "custom_burn": item["avg_daily_burn"]}
-        )
-        current_stock = stock_info["stock"]
-        daily_burn = stock_info["custom_burn"]
-
-        days_left = calculate_stockout_horizon(current_stock, daily_burn)
-
-        if days_left <= 5:
-            urgency = "CRITICAL"
-        elif days_left <= 14:
-            urgency = "WARNING"
-        else:
-            urgency = "HEALTHY"
-
-        risk_items.append(
-            StockoutRiskItem(
-                medicine_id=med_id,
-                medicine_name=med_name,
-                current_stock=current_stock,
-                daily_burn_rate=round(daily_burn, 1),
-                days_until_stockout=days_left,
-                urgency=urgency,
-            )
-        )
-
-        # Generate restock proposals for items in CRITICAL or WARNING state
-        if urgency in ("CRITICAL", "WARNING"):
-            qty = calculate_reorder_quantity(daily_burn, target_buffer_days=30)
-            cost = qty * unit_cost
-            total_projected_cost += cost
-
-            priority = "HIGH" if urgency == "CRITICAL" else "NORMAL"
-            reason = (
-                f"Urgent stockout horizon: ~{days_left} days remaining at {daily_burn}/day burn. "
-                f"Recommending {qty} units for 30-day safety buffer."
-            )
-
-            restock_proposals.append(
-                RestockProposal(
-                    medicine_id=med_id,
-                    medicine_name=med_name,
-                    suggested_quantity=qty,
-                    reason=reason,
-                    estimated_unit_cost=unit_cost,
-                    priority=priority,
-                )
-            )
-
-    # Sort risk items with most urgent first
-    risk_items.sort(key=lambda x: x.days_until_stockout)
-    restock_proposals.sort(key=lambda x: (0 if x.priority == "HIGH" else 1, -x.suggested_quantity))
-
-    critical_count = sum(1 for r in risk_items if r.urgency == "CRITICAL")
-    warning_count = sum(1 for r in risk_items if r.urgency == "WARNING")
-
-    summary = (
-        f"Inventory audit for Pharmacy #{payload.pharmacy_id} complete. "
-        f"Identified {critical_count} critical stockout risks (<=5 days) and {warning_count} warnings (<=14 days). "
-        f"Generated {len(restock_proposals)} automated restock batches totaling estimated LKR {total_projected_cost:,.2f}."
+# ── Schema imports (supports both package and direct run contexts) ─────────────
+try:
+    from ai.schemas.agent_schemas import (
+        InventoryForecastInput,
+        InventoryForecastResult,
+        StockoutRiskItem,
+        RestockProposal,
+    )
+    from ai.agents.inventory_tools import (
+        getInventory,
+        getHistoricalOrders,
+        calculateDemand,
+        forecastDemand,
+        predictStockout,
+        generateRestockRecommendation,
+        SAFETY_DAYS,
+        CRITICAL_HORIZON_DAYS,
+        WARNING_HORIZON_DAYS,
+    )
+except ImportError:
+    from schemas.agent_schemas import (  # type: ignore[no-redef]
+        InventoryForecastInput,
+        InventoryForecastResult,
+        StockoutRiskItem,
+        RestockProposal,
+    )
+    from agents.inventory_tools import (  # type: ignore[no-redef]
+        getInventory,
+        getHistoricalOrders,
+        calculateDemand,
+        forecastDemand,
+        predictStockout,
+        generateRestockRecommendation,
+        SAFETY_DAYS,
+        CRITICAL_HORIZON_DAYS,
+        WARNING_HORIZON_DAYS,
     )
 
+logger = logging.getLogger(__name__)
+
+
+def evaluate_inventory_intelligence(
+    payload: InventoryForecastInput,
+) -> InventoryForecastResult:
+    """
+    Orchestrates the six Inventory Intelligence tools to produce a structured,
+    validated restock forecast for a pharmacy.
+
+    Arguments:
+        payload.pharmacy_id    — pharmacy to analyse (required)
+        payload.lookback_days  — demand history window in days (default: 30)
+
+    Returns:
+        InventoryForecastResult containing:
+          - risk_items              — all items with stockout horizon + urgency
+          - restock_recommendations — proposals for CRITICAL/WARNING/below-min items
+          - total_projected_cost    — estimated LKR total for all proposals
+          - summary                 — audit narrative with workflow step log
+          - workflow_audit          — structured dict of step timings and counts
+
+    Raises:
+        EnvironmentError — BACKEND_URL or BACKEND_SERVICE_TOKEN not configured
+        RuntimeError     — backend unreachable or returned unexpected HTTP error
+        ValueError       — pharmacy has no inventory items
+    """
+    lookback_days = payload.lookback_days or 30
+    pharmacy_id = payload.pharmacy_id
+
+    # Workflow audit tracking
+    audit: dict = {
+        "pharmacy_id": pharmacy_id,
+        "lookback_days": lookback_days,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "steps": [],
+        "safety_flags": [],
+    }
+
+    def _log_step(name: str, detail: str) -> None:
+        audit["steps"].append({
+            "tool": name,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "detail": detail,
+        })
+
+    # ── Step 1: getInventory ──────────────────────────────────────────────────
+    logger.info("[Agent4] Step 1 — getInventory(pharmacy_id=%d, lookback_days=%d)",
+                pharmacy_id, lookback_days)
+    inventory_context = getInventory(pharmacy_id, lookback_days)
+    _log_step("getInventory", f"Retrieved {len(inventory_context['items'])} items from backend.")
+
+    # ── Step 2: getHistoricalOrders ───────────────────────────────────────────
+    logger.info("[Agent4] Step 2 — getHistoricalOrders(pharmacy_id=%d, lookback_days=%d)",
+                pharmacy_id, lookback_days)
+    historical_orders = getHistoricalOrders(pharmacy_id, lookback_days)
+    _log_step("getHistoricalOrders",
+              f"{historical_orders['transaction_count']} transactions across "
+              f"{len(historical_orders['by_medicine'])} medicines.")
+
+    # ── Step 3: calculateDemand ───────────────────────────────────────────────
+    logger.info("[Agent4] Step 3 — calculateDemand()")
+    demand_items = calculateDemand(inventory_context)
+    high_conf = sum(1 for i in demand_items if i["has_demand_history"])
+    _log_step("calculateDemand",
+              f"{len(demand_items)} items; {high_conf} with high-confidence demand history.")
+
+    # ── Step 4: forecastDemand ────────────────────────────────────────────────
+    logger.info("[Agent4] Step 4 — forecastDemand(forecast_days=%d)", SAFETY_DAYS)
+    forecast_items = forecastDemand(demand_items, forecast_days=SAFETY_DAYS)
+    _log_step("forecastDemand",
+              f"{sum(1 for i in forecast_items if i['restock_gap'] > 0)} items with non-zero restock gap.")
+
+    # ── Step 5: predictStockout ───────────────────────────────────────────────
+    logger.info("[Agent4] Step 5 — predictStockout()")
+    stockout_items = predictStockout(forecast_items)
+    critical_count = sum(1 for i in stockout_items if i["urgency"] == "CRITICAL")
+    warning_count = sum(1 for i in stockout_items if i["urgency"] == "WARNING")
+    _log_step("predictStockout",
+              f"{critical_count} CRITICAL, {warning_count} WARNING, "
+              f"{len(stockout_items) - critical_count - warning_count} HEALTHY.")
+
+    # ── Step 6: generateRestockRecommendation ─────────────────────────────────
+    logger.info("[Agent4] Step 6 — generateRestockRecommendation()")
+    recommendation_result = generateRestockRecommendation(stockout_items)
+    audit["safety_flags"] = recommendation_result["safety_check_flags"]
+    _log_step("generateRestockRecommendation",
+              f"{recommendation_result['items_requiring_action']} proposals. "
+              f"Total cost: LKR {recommendation_result['total_projected_cost']:,.2f}. "
+              f"{len(audit['safety_flags'])} safety flag(s).")
+
+    audit["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+    # ── Map to StockoutRiskItem schema ────────────────────────────────────────
+    risk_items: List[StockoutRiskItem] = [
+        StockoutRiskItem(
+            medicine_id=item["medicine_id"],
+            medicine_name=item["medicine_name"],
+            current_stock=item["current_stock"],
+            daily_burn_rate=round(item["demand_rate_per_day"], 1),
+            days_until_stockout=item["days_until_stockout"],
+            urgency=item["urgency"],
+        )
+        for item in sorted(stockout_items, key=lambda x: x["days_until_stockout"])
+    ]
+
+    # ── Map to RestockProposal schema ─────────────────────────────────────────
+    restock_proposals: List[RestockProposal] = [
+        RestockProposal(
+            medicine_id=p["medicine_id"],
+            medicine_name=p["medicine_name"],
+            suggested_quantity=p["suggested_quantity"],
+            reason=p["reason"],
+            estimated_unit_cost=p["estimated_unit_cost"],
+            priority=p["priority"],
+        )
+        for p in recommendation_result["proposals"]
+    ]
+
+    # ── Build human-readable summary with approval gate reminder ──────────────
+    flag_note = ""
+    if audit["safety_flags"]:
+        flag_note = (
+            f" {len(audit['safety_flags'])} safety flag(s) raised — "
+            f"review before approving flagged proposals."
+        )
+
+    summary = (
+        f"Inventory audit for {inventory_context['pharmacy_name']} "
+        f"(Pharmacy #{pharmacy_id}) complete. "
+        f"Analysed {len(stockout_items)} medicines using {lookback_days}-day "
+        f"dispensing history ({historical_orders['transaction_count']} transactions). "
+        f"Identified {critical_count} critical stockout risk(s) (≤{CRITICAL_HORIZON_DAYS} days) "
+        f"and {warning_count} warning(s) (≤{WARNING_HORIZON_DAYS} days). "
+        f"Generated {len(restock_proposals)} restock proposal(s) totalling estimated "
+        f"LKR {recommendation_result['total_projected_cost']:,.2f}.{flag_note} "
+        f"[APPROVAL REQUIRED: Each proposal must be reviewed and approved by the "
+        f"Pharmacy Owner before any restock request is submitted to a supplier.]"
+    )
+
+    logger.info("[Agent4] Completed. %d proposals, LKR %s total. %s",
+                len(restock_proposals),
+                f"{recommendation_result['total_projected_cost']:,.2f}",
+                "Approval pending." if restock_proposals else "No action required.")
+
     return InventoryForecastResult(
-        pharmacy_id=payload.pharmacy_id,
+        pharmacy_id=pharmacy_id,
         risk_items=risk_items,
         restock_recommendations=restock_proposals,
-        total_projected_cost=round(total_projected_cost, 2),
+        total_projected_cost=recommendation_result["total_projected_cost"],
         summary=summary,
+        workflow_audit=audit,
     )
