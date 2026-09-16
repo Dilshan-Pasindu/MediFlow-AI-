@@ -46,6 +46,7 @@ public class PrescriptionsController : ControllerBase
         return new PrescriptionDto(
             Id: p.Id,
             AppointmentId: p.AppointmentId,
+            AppointmentNumber: p.Appointment?.AppointmentNumber ?? (p.AppointmentId.HasValue ? $"APT-{p.AppointmentId:D4}" : null),
             PatientId: p.PatientId,
             PatientName: patientName,
             PatientAge: patientAge,
