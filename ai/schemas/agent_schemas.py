@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -113,6 +113,23 @@ class MedicationCheckResult(BaseModel):
 
 
 # Pharmacy & Inventory Intelligence Schemas (Agent 4)
+
+
+class InventoryAgentItem(BaseModel):
+    """Typed representation of InventoryItemAgentContextDto for tool I/O documentation."""
+    medicine_id: int = Field(..., description="Medicine unique ID")
+    medicine_name: str = Field(..., description="Medicine name")
+    category: str = Field(..., description="Medicine category")
+    current_stock: int = Field(..., description="Current on-hand units")
+    min_stock_level: int = Field(..., description="Minimum stock threshold")
+    unit_price: float = Field(..., description="Unit price in LKR")
+    demand_rate_per_day: float = Field(..., description="Computed daily demand rate (units/day)")
+    total_dispensed_30d: int = Field(..., description="Total dispensed units in 30-day window")
+    has_demand_history: bool = Field(..., description="True if item has actual dispense transactions")
+    days_until_stockout: int = Field(..., description="Predicted days until stockout")
+    urgency: str = Field(..., description="CRITICAL | WARNING | HEALTHY")
+    needs_restock: bool = Field(..., description="True if the item requires a restock proposal")
+
 class StockoutRiskItem(BaseModel):
     medicine_id: int = Field(..., description="Medicine unique ID")
     medicine_name: str = Field(..., description="Medicine brand / generic name")
@@ -142,5 +159,9 @@ class InventoryForecastResult(BaseModel):
     restock_recommendations: List[RestockProposal] = Field(default_factory=list, description="Automated batch restock proposals")
     total_projected_cost: float = Field(..., description="Total estimated cost for recommended restock")
     summary: str = Field(..., description="Executive inventory health summary")
+    workflow_audit: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Structured agent tool execution audit trail (step names, timestamps, counts)"
+    )
 
 
