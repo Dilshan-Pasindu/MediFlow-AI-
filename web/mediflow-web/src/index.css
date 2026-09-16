@@ -878,6 +878,7 @@ h1, h2, h3, h4, h5, h6, .heading {
   transition: var(--transition-mac);
   outline: none;
   -webkit-appearance: none;
+  appearance: none;
   box-shadow: var(--shadow-xs);
 }
 .form-input:focus {
@@ -933,6 +934,7 @@ h1, h2, h3, h4, h5, h6, .heading {
   transition: var(--transition-mac);
   cursor: pointer;
   -webkit-appearance: none;
+  appearance: none;
   box-shadow: var(--shadow-xs);
 }
 .form-select:focus {
@@ -1018,6 +1020,7 @@ h1, h2, h3, h4, h5, h6, .heading {
   transition: var(--transition-mac);
   box-shadow: var(--shadow-xs);
   -webkit-appearance: none;
+  appearance: none;
 }
 .search-input:focus {
   border-color: var(--med-blue);
