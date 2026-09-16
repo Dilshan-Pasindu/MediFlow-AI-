@@ -15,6 +15,7 @@ public record PrescriptionItemDto(
 public record PrescriptionDto(
     int Id,
     int? AppointmentId,
+    string? AppointmentNumber,
     int? PatientId,
     string PatientName,
     string? PatientAge,
