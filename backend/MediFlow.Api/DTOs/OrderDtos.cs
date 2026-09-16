@@ -58,3 +58,10 @@ public record UpdateOrderStatusDto(
 public record CalculateOrderPriceDto(
     int PharmacyId
 );
+
+public class CreateOrderDto
+{
+    public int? PrescriptionId { get; set; }
+    public int PharmacyId { get; set; }
+    public List<CreateOrderItemDto> Items { get; set; } = new();
+}
