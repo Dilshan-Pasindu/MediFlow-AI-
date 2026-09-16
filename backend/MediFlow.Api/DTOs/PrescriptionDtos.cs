@@ -15,6 +15,7 @@ public record PrescriptionItemDto(
 public record PrescriptionDto(
     int Id,
     int? AppointmentId,
+    string? AppointmentNumber,
     int? PatientId,
     string PatientName,
     string? PatientAge,
@@ -68,3 +69,11 @@ public record CreatePrescriptionRequestDto(
     string? Instructions,
     List<CreatePrescriptionItemDto> Items
 );
+
+public class CreatePrescriptionDto
+{
+    public int PatientId { get; set; }
+    public int PharmacyId { get; set; }
+    public string? Notes { get; set; }
+    public List<CreatePrescriptionItemDto> Items { get; set; } = new();
+}
