@@ -16,6 +16,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         npgsqlOptions => npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // ─── Services ─────────────────────────────────────────────────────────────────
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<InventoryService>();
 
