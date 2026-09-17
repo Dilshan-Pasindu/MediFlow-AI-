@@ -47,38 +47,38 @@ const registerSchema = z.object({
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const DEMO_PERSONAS = [
-  { role: 'Patient',       label: 'Patient',     email: 'dilshan@gmail.com',        password: 'Test@123',   icon: '👤', color: '#2A7DE1' },
-  { role: 'Doctor',        label: 'Doctor',       email: 'nimal.perera@mediflow.lk', password: 'Doctor@123', icon: '🩺', color: '#059669' },
-  { role: 'Receptionist',  label: 'Receptionist', email: 'receptionist@mediflow.lk', password: 'Staff@123',  icon: '👩‍💼', color: '#7C3AED' },
-  { role: 'Pharmacist',    label: 'Pharmacist',   email: 'pharmacist@mediflow.lk',   password: 'Staff@123',  icon: '💊', color: '#D97706' },
-  { role: 'PharmacyOwner', label: 'Owner',        email: 'owner@mediflow.lk',        password: 'Staff@123',  icon: '🏥', color: '#DC2626' },
-  { role: 'Supplier',      label: 'Supplier',     email: 'supplier@mediflow.lk',     password: 'Staff@123',  icon: '🚚', color: '#0891B2' },
-  { role: 'Administrator', label: 'Admin',        email: 'admin@mediflow.lk',        password: 'Admin@123',  icon: '🛡️', color: '#475569' },
+  { role: 'Patient', label: 'Patient', email: 'dilshan@gmail.com', password: 'Test@123', icon: '👤', color: '#2A7DE1' },
+  { role: 'Doctor', label: 'Doctor', email: 'nimal.perera@mediflow.lk', password: 'Doctor@123', icon: '🩺', color: '#059669' },
+  { role: 'Receptionist', label: 'Receptionist', email: 'receptionist@mediflow.lk', password: 'Staff@123', icon: '👩‍💼', color: '#7C3AED' },
+  { role: 'Pharmacist', label: 'Pharmacist', email: 'pharmacist@mediflow.lk', password: 'Staff@123', icon: '💊', color: '#D97706' },
+  { role: 'PharmacyOwner', label: 'Owner', email: 'pharmacyowner@mediflow.lk', password: 'Staff@123', icon: '🏥', color: '#DC2626' },
+  { role: 'Supplier', label: 'Supplier', email: 'supplier@mediflow.lk', password: 'Staff@123', icon: '🚚', color: '#0891B2' },
+  { role: 'Administrator', label: 'Admin', email: 'admin@mediflow.lk', password: 'Admin@123', icon: '🛡️', color: '#475569' },
 ];
 
 const FEATURE_ROWS = [
-  { icon: Stethoscope, title: 'Smart Doctor Matching',  desc: 'AI finds the best specialist instantly', color: '#2A7DE1', bg: '#EBF4FF' },
-  { icon: Brain,       title: 'AI Clinical Support',    desc: 'Evidence-based decision support',        color: '#7C3AED', bg: '#F3EEFF' },
-  { icon: Pill,        title: 'Digital Prescriptions',  desc: 'Secure e-prescriptions & pharmacy sync', color: '#059669', bg: '#ECFDF5' },
-  { icon: Activity,    title: 'Real-time Monitoring',   desc: 'Track appointments & health metrics',    color: '#D97706', bg: '#FFFBEB' },
+  { icon: Stethoscope, title: 'Smart Doctor Matching', desc: 'AI finds the best specialist instantly', color: '#2A7DE1', bg: '#EBF4FF' },
+  { icon: Brain, title: 'AI Clinical Support', desc: 'Evidence-based decision support', color: '#7C3AED', bg: '#F3EEFF' },
+  { icon: Pill, title: 'Digital Prescriptions', desc: 'Secure e-prescriptions & pharmacy sync', color: '#059669', bg: '#ECFDF5' },
+  { icon: Activity, title: 'Real-time Monitoring', desc: 'Track appointments & health metrics', color: '#D97706', bg: '#FFFBEB' },
 ];
 
 const STATS = [
-  { icon: Users,  value: '10K+', label: 'Patients',  color: '#2A7DE1' },
+  { icon: Users, value: '10K+', label: 'Patients', color: '#2A7DE1' },
   { icon: Stethoscope, value: '500+', label: 'Doctors', color: '#059669' },
-  { icon: Star,   value: '4.9★', label: 'Rating',    color: '#D97706' },
-  { icon: Clock,  value: '24/7', label: 'Support',   color: '#7C3AED' },
+  { icon: Star, value: '4.9★', label: 'Rating', color: '#D97706' },
+  { icon: Clock, value: '24/7', label: 'Support', color: '#7C3AED' },
 ];
 
 function getRoleHome(role: string) {
   switch (role) {
-    case 'Doctor':        return '/doctor/dashboard';
-    case 'Receptionist':  return '/receptionist/dashboard';
-    case 'Pharmacist':    return '/pharmacist/dashboard';
+    case 'Doctor': return '/doctor/dashboard';
+    case 'Receptionist': return '/receptionist/dashboard';
+    case 'Pharmacist': return '/pharmacist/dashboard';
     case 'PharmacyOwner': return '/owner/dashboard';
-    case 'Supplier':      return '/supplier/dashboard';
+    case 'Supplier': return '/supplier/dashboard';
     case 'Administrator': return '/admin/dashboard';
-    default:              return '/dashboard';
+    default: return '/dashboard';
   }
 }
 
@@ -88,15 +88,15 @@ function EcgLine() {
     <svg viewBox="0 0 700 40" style={{ width: '100%', height: 40, display: 'block' }} preserveAspectRatio="none">
       <defs>
         <linearGradient id="ecgLightG" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%"   stopColor="rgba(42,125,225,0)" />
-          <stop offset="25%"  stopColor="#2A7DE1" stopOpacity="0.6" />
-          <stop offset="55%"  stopColor="#4FD1C5" stopOpacity="0.9" />
-          <stop offset="80%"  stopColor="#2A7DE1" stopOpacity="0.5" />
+          <stop offset="0%" stopColor="rgba(42,125,225,0)" />
+          <stop offset="25%" stopColor="#2A7DE1" stopOpacity="0.6" />
+          <stop offset="55%" stopColor="#4FD1C5" stopOpacity="0.9" />
+          <stop offset="80%" stopColor="#2A7DE1" stopOpacity="0.5" />
           <stop offset="100%" stopColor="rgba(79,209,197,0)" />
         </linearGradient>
         <filter id="ecgLightGlow">
           <feGaussianBlur stdDeviation="1.2" result="b" />
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
       <line x1="0" y1="20" x2="700" y2="20" stroke="rgba(42,125,225,0.12)" strokeWidth="1" strokeDasharray="4 7" />
@@ -113,17 +113,17 @@ function EcgLine() {
 // ─── Main ──────────────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const navigate = useNavigate();
-  const [tab, setTab]                   = useState('login');
+  const [tab, setTab] = useState('login');
   const [selectedPersona, setSelected] = useState('Patient');
-  const [showPass, setShowPass]         = useState(false);
-  const [showConf, setShowConf]         = useState(false);
-  const [loading, setLoading]           = useState(false);
-  const [error, setError]               = useState('');
-  const [rememberMe, setRememberMe]     = useState(true);
-  const [agreeTerms, setAgreeTerms]     = useState(false);
-  const [showTerms, setShowTerms]       = useState(false);
-  const [forgotEmail, setForgotEmail]   = useState('');
-  const [forgotSent, setForgotSent]     = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [showConf, setShowConf] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
   const [focusedField, setFocusedField] = useState('');
 
   const [form, setForm] = useState({
@@ -142,11 +142,11 @@ export default function LoginPage() {
     return s;
   }, [pCrit]);
 
-  const pLabel   = ({ 0: 'Weak', 1: 'Weak', 2: 'Fair', 3: 'Good', 4: 'Strong' } as Record<number, string>)[pScore];
-  const pColors  = { 0: '#EF4444', 1: '#EF4444', 2: '#F59E0B', 3: '#2A7DE1', 4: '#22C55E' } as Record<number, string>;
-  const pColor   = pColors[pScore];
-  const pMatch   = form.password && form.confirmPassword && form.password === form.confirmPassword;
-  const persona  = DEMO_PERSONAS.find(p => p.role === selectedPersona) || DEMO_PERSONAS[0];
+  const pLabel = ({ 0: 'Weak', 1: 'Weak', 2: 'Fair', 3: 'Good', 4: 'Strong' } as Record<number, string>)[pScore];
+  const pColors = { 0: '#EF4444', 1: '#EF4444', 2: '#F59E0B', 3: '#2A7DE1', 4: '#22C55E' } as Record<number, string>;
+  const pColor = pColors[pScore];
+  const pMatch = form.password && form.confirmPassword && form.password === form.confirmPassword;
+  const persona = DEMO_PERSONAS.find(p => p.role === selectedPersona) || DEMO_PERSONAS[0];
 
   const applyPersona = (p: typeof DEMO_PERSONAS[0]) => {
     setSelected(p.role);
@@ -184,36 +184,35 @@ export default function LoginPage() {
     setTimeout(() => { setLoading(false); setForgotSent(true); }, 800);
   };
 
-  // ── Google Auth Handlers & State ──────────────────────────────────────────
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleTargetRole, setGoogleTargetRole] = useState('Patient');
-  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
-  const [customGoogleName, setCustomGoogleName] = useState('');
-  const [showCustomGoogleInput, setShowCustomGoogleInput] = useState(false);
-  const [googleClientId, setGoogleClientId] = useState<string>(() => {
-    return (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || localStorage.getItem('mediflow_google_client_id') || '';
-  });
-  const [inputClientId, setInputClientId] = useState<string>(googleClientId);
+  // ── Google OAuth Flow (Loaded strictly from .env) ────────────────────────
+  const handleGoogleAuth = (role: string = 'Patient') => {
+    setError('');
+    const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
 
-  const triggerRealGooglePopup = (clientId: string, role: string) => {
-    if (!(window as any).google?.accounts?.oauth2) {
-      setError('Google Identity Services SDK is not ready yet. Please wait a moment.');
-      return false;
+    if (!googleClientId) {
+      setError('Google Sign-In is not configured. Please set VITE_GOOGLE_CLIENT_ID in your .env file.');
+      return;
     }
+
+    if (!(window as any).google?.accounts?.oauth2) {
+      setError('Google Identity Services is still loading. Please try again in a few seconds.');
+      return;
+    }
+
     try {
+      setLoading(true);
       const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
-        client_id: clientId.trim(),
+        client_id: googleClientId.trim(),
         scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid',
         callback: async (tokenResponse: any) => {
           if (tokenResponse?.access_token) {
-            setLoading(true);
             try {
               const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                 headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
               });
               const googleProfile = await userInfoRes.json();
               if (!googleProfile?.email) {
-                throw new Error('Unable to retrieve Google email address.');
+                throw new Error('Unable to retrieve email from Google profile.');
               }
               const res = await apiGoogleAuth({
                 email: googleProfile.email,
@@ -227,55 +226,21 @@ export default function LoginPage() {
             } finally {
               setLoading(false);
             }
+          } else {
+            setLoading(false);
           }
         },
         error_callback: (err: any) => {
+          setLoading(false);
           console.error('Google OAuth popup error:', err);
-          setError('Google sign-up window was closed or cancelled.');
+          setError('Google sign-up was closed or cancelled.');
         },
       });
       tokenClient.requestAccessToken({ prompt: 'select_account' });
-      return true;
     } catch (e: any) {
+      setLoading(false);
       console.warn('Failed to launch Google OAuth popup:', e);
       setError(e?.message || 'Failed to open Google OAuth window.');
-      return false;
-    }
-  };
-
-  const handleGoogleAuth = (role: string = 'Patient') => {
-    setError('');
-    const activeClientId = googleClientId || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || localStorage.getItem('mediflow_google_client_id');
-
-    if (activeClientId) {
-      const started = triggerRealGooglePopup(activeClientId, role);
-      if (started) return;
-    }
-
-    // If no client ID configured yet or popup needs configuration, open modal
-    setGoogleTargetRole(role);
-    setShowGoogleModal(true);
-  };
-
-  const executeGoogleAuth = async (email: string, fullName: string, role: string) => {
-    if (!email || !email.includes('@')) {
-      setError('Please provide a valid Google email address.');
-      return;
-    }
-    setShowGoogleModal(false);
-    setLoading(true);
-    setError('');
-    try {
-      const res = await apiGoogleAuth({
-        email: email.trim(),
-        fullName: (fullName || email.split('@')[0]).trim(),
-        role: role as any,
-      });
-      navigate(getRoleHome(res.role));
-    } catch (err: any) {
-      setError(err?.message || 'Google authentication failed.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -826,77 +791,6 @@ export default function LoginPage() {
           padding: 0 10px;
         }
 
-        /* Google Modal Account Picker */
-        .gmodal-list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          margin: 12px 0 14px;
-        }
-        .gmodal-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 10px 14px;
-          border-radius: 12px;
-          border: 1px solid #E2E8F0;
-          background: #FFFFFF;
-          cursor: pointer;
-          transition: all 0.16s ease;
-          text-align: left;
-          width: 100%;
-          font-family: inherit;
-        }
-        .gmodal-item:hover {
-          background: #F8FAFC;
-          border-color: #2A7DE1;
-          transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(42, 125, 225, 0.08);
-        }
-        .gmodal-avatar {
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 13.5px;
-          color: #FFFFFF;
-          flex-shrink: 0;
-        }
-        .gmodal-info {
-          flex: 1;
-          min-width: 0;
-        }
-        .gmodal-name {
-          font-size: 13.5px;
-          font-weight: 700;
-          color: #0F172A;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .gmodal-email {
-          font-size: 11.5px;
-          color: #64748B;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .gmodal-role-tag {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          background: #EFF6FF;
-          color: #2A7DE1;
-          border: 1px solid #BFDBFE;
-          border-radius: 6px;
-          font-size: 11px;
-          font-weight: 700;
-          padding: 2px 8px;
-        }
-
         /* ── RESPONSIVE ── */
 
         /* Large screens — wider left */
@@ -1186,8 +1080,8 @@ export default function LoginPage() {
                   <label className="lp-role-lbl">Account Type</label>
                   <div className="lp-role-grid">
                     {[
-                      { role: 'Patient',    icon: '👤', name: 'Patient',    desc: 'Book & Prescriptions' },
-                      { role: 'Doctor',     icon: '🩺', name: 'Doctor',     desc: 'Consultations & CDS' },
+                      { role: 'Patient', icon: '👤', name: 'Patient', desc: 'Book & Prescriptions' },
+                      { role: 'Doctor', icon: '🩺', name: 'Doctor', desc: 'Consultations & CDS' },
                       { role: 'Pharmacist', icon: '💊', name: 'Pharmacist', desc: 'Dispensing & Orders' },
                     ].map(r => (
                       <div key={r.role} id={`role-card-${r.role.toLowerCase()}`}
@@ -1269,7 +1163,7 @@ export default function LoginPage() {
                     {form.password && (
                       <div className="lp-str-wrap">
                         <div className="lp-str-track">
-                          {[1,2,3,4].map(n => (
+                          {[1, 2, 3, 4].map(n => (
                             <div key={n} className="lp-str-seg" style={{ background: pScore >= n ? pColor : undefined }} />
                           ))}
                         </div>
@@ -1391,167 +1285,6 @@ export default function LoginPage() {
               <button className="lp-submit" onClick={() => { setAgreeTerms(true); setShowTerms(false); }}>
                 <CheckCircle2 size={15} /> I Accept Terms
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── GOOGLE ACCOUNT PICKER MODAL ── */}
-      {showGoogleModal && (
-        <div className="lp-overlay" onClick={() => setShowGoogleModal(false)}>
-          <div className="lp-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
-            <div className="lp-modal-head">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <GoogleIcon size={22} />
-                <div className="lp-modal-title">Sign in with Google</div>
-              </div>
-              <button className="lp-modal-close" onClick={() => setShowGoogleModal(false)}>✕</button>
-            </div>
-            <div className="lp-modal-body">
-              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 12, marginBottom: 14 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>
-                  Connect Live Google OAuth (accounts.google.com)
-                </div>
-                <div style={{ fontSize: 11, color: '#64748B', marginBottom: 8, lineHeight: 1.4 }}>
-                  Enter your Google Cloud OAuth Client ID to launch the live Google popup directly:
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input
-                    type="text"
-                    placeholder="e.g. 123456789-abc.apps.googleusercontent.com"
-                    className="lp-inp"
-                    style={{ padding: '7px 10px', fontSize: 12, flex: 1 }}
-                    value={inputClientId}
-                    onChange={e => setInputClientId(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="lp-submit"
-                    style={{ width: 'auto', padding: '7px 12px', fontSize: 11.5, whiteSpace: 'nowrap' }}
-                    onClick={() => {
-                      if (!inputClientId.trim()) {
-                        setError('Please enter a Google Client ID');
-                        return;
-                      }
-                      localStorage.setItem('mediflow_google_client_id', inputClientId.trim());
-                      setGoogleClientId(inputClientId.trim());
-                      setShowGoogleModal(false);
-                      triggerRealGooglePopup(inputClientId.trim(), googleTargetRole);
-                    }}
-                  >
-                    Open Live Popup
-                  </button>
-                </div>
-              </div>
-
-              <div className="lp-divider" style={{ margin: '10px 0' }}>
-                <span>or quick sign-in</span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: 13, color: '#334155' }}>
-                  Choose account to continue to <strong>MediFlow AI</strong>
-                </span>
-                <span className="gmodal-role-tag">
-                  Role: {googleTargetRole}
-                </span>
-              </div>
-
-              <div className="gmodal-list">
-                <button
-                  type="button"
-                  className="gmodal-item"
-                  onClick={() => executeGoogleAuth('dilshan.pasindu@gmail.com', 'Dilshan Pasindu', googleTargetRole)}
-                  id="gmodal-acc-1"
-                >
-                  <div className="gmodal-avatar" style={{ background: 'linear-gradient(135deg, #2A7DE1, #4FD1C5)' }}>DP</div>
-                  <div className="gmodal-info">
-                    <div className="gmodal-name">Dilshan Pasindu</div>
-                    <div className="gmodal-email">dilshan.pasindu@gmail.com</div>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className="gmodal-item"
-                  onClick={() => executeGoogleAuth('nimal.perera@gmail.com', 'Dr. Nimal Perera', googleTargetRole)}
-                  id="gmodal-acc-2"
-                >
-                  <div className="gmodal-avatar" style={{ background: 'linear-gradient(135deg, #059669, #34D399)' }}>NP</div>
-                  <div className="gmodal-info">
-                    <div className="gmodal-name">Dr. Nimal Perera</div>
-                    <div className="gmodal-email">nimal.perera@gmail.com</div>
-                  </div>
-                </button>
-
-                {!showCustomGoogleInput ? (
-                  <button
-                    type="button"
-                    className="gmodal-item"
-                    onClick={() => setShowCustomGoogleInput(true)}
-                    id="gmodal-acc-custom-toggle"
-                    style={{ borderStyle: 'dashed', background: '#F8FAFC' }}
-                  >
-                    <div className="gmodal-avatar" style={{ background: '#94A3B8' }}>
-                      <Plus size={16} />
-                    </div>
-                    <div className="gmodal-info">
-                      <div className="gmodal-name">Use another Google account</div>
-                      <div className="gmodal-email">Enter a custom email address</div>
-                    </div>
-                  </button>
-                ) : (
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      executeGoogleAuth(customGoogleEmail, customGoogleName, googleTargetRole);
-                    }}
-                    style={{ background: '#F8FAFC', padding: 12, borderRadius: 12, border: '1px solid #CBD5E1' }}
-                  >
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 8 }}>Enter Google Account Info</div>
-                    <input
-                      type="text"
-                      placeholder="Your Full Name (e.g. Dilshan Pasindu)"
-                      className="lp-inp"
-                      style={{ paddingLeft: 12, marginBottom: 8 }}
-                      value={customGoogleName}
-                      onChange={(e) => setCustomGoogleName(e.target.value)}
-                      required
-                    />
-                    <input
-                      type="email"
-                      placeholder="Google Email (e.g. name@gmail.com)"
-                      className="lp-inp"
-                      style={{ paddingLeft: 12, marginBottom: 10 }}
-                      value={customGoogleEmail}
-                      onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                      required
-                    />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        type="button"
-                        className="lp-ghost"
-                        style={{ flex: 1, padding: 8 }}
-                        onClick={() => setShowCustomGoogleInput(false)}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="lp-submit"
-                        style={{ flex: 2, padding: 8 }}
-                        id="gmodal-custom-submit"
-                      >
-                        Continue with Google
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-
-              <div style={{ fontSize: 11, color: '#94A3B8', lineHeight: 1.5, marginTop: 10 }}>
-                To continue, Google will securely share your name, email address, and profile picture with MediFlow AI in compliance with medical data privacy guidelines.
-              </div>
             </div>
           </div>
         </div>
