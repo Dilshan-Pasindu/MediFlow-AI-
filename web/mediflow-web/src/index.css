@@ -125,7 +125,13 @@
 
 /* ─── Reset ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Helvetica Neue', Arial, sans-serif;
@@ -878,6 +884,7 @@ h1, h2, h3, h4, h5, h6, .heading {
   transition: var(--transition-mac);
   outline: none;
   -webkit-appearance: none;
+  -moz-appearance: none;
   appearance: none;
   box-shadow: var(--shadow-xs);
 }
@@ -934,6 +941,7 @@ h1, h2, h3, h4, h5, h6, .heading {
   transition: var(--transition-mac);
   cursor: pointer;
   -webkit-appearance: none;
+  -moz-appearance: none;
   appearance: none;
   box-shadow: var(--shadow-xs);
 }
@@ -1020,6 +1028,7 @@ h1, h2, h3, h4, h5, h6, .heading {
   transition: var(--transition-mac);
   box-shadow: var(--shadow-xs);
   -webkit-appearance: none;
+  -moz-appearance: none;
   appearance: none;
 }
 .search-input:focus {
@@ -1398,8 +1407,8 @@ h1, h2, h3, h4, h5, h6, .heading {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px) saturate(120%);
   -webkit-backdrop-filter: blur(6px) saturate(120%);
+  backdrop-filter: blur(6px) saturate(120%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1410,8 +1419,8 @@ h1, h2, h3, h4, h5, h6, .heading {
 
 .modal {
   background: rgba(255,255,255,0.95);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-radius: var(--r-xl);
   box-shadow: var(--shadow-xl), 0 0 0 1px rgba(0,0,0,0.08);
   max-width: 520px;
