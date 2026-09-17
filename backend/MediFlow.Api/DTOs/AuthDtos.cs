@@ -33,3 +33,11 @@ public record ResetPasswordRequest(
     string OtpCode,
     string NewPassword
 );
+
+public record GoogleAuthRequest(
+    string? IdToken,
+    string? Email,
+    string? FullName,
+    string? PhotoUrl,
+    string? Role = "Patient"
+);
