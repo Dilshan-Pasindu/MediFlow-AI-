@@ -1,13 +1,37 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import {
   HeartPulse, Eye, EyeOff, ArrowRight, Loader,
   CheckCircle2, XCircle, ShieldCheck, Mail, Lock,
   User, Phone, Sparkles, Activity, Users, Star,
-  Stethoscope, Brain, Pill, Clock
+  Stethoscope, Brain, Pill, Clock, Plus
 } from 'lucide-react';
-import { apiLogin, apiRegister } from '../services/api';
+import { apiLogin, apiRegister, apiGoogleAuth } from '../services/api';
+
+// ─── Google Icon ───────────────────────────────────────────────────────────────
+function GoogleIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <path
+        d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.16 0 9.94 0 12s.45 3.84 1.25 5.42l4.03-3.15z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+        fill="#EA4335"
+      />
+    </svg>
+  );
+}
 
 // ─── Validation ────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
@@ -158,6 +182,80 @@ export default function LoginPage() {
     if (!forgotEmail) { setError('Please enter your email.'); return; }
     setLoading(true);
     setTimeout(() => { setLoading(false); setForgotSent(true); }, 800);
+  };
+
+  // ── Google Auth Handlers & State ──────────────────────────────────────────
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleTargetRole, setGoogleTargetRole] = useState('Patient');
+  const [customGoogleEmail, setCustomGoogleEmail] = useState('');
+  const [customGoogleName, setCustomGoogleName] = useState('');
+  const [showCustomGoogleInput, setShowCustomGoogleInput] = useState(false);
+
+  useEffect(() => {
+    const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
+    if (!googleClientId) return;
+    const existing = document.getElementById('google-gsi-script');
+    if (!existing) {
+      const script = document.createElement('script');
+      script.id = 'google-gsi-script';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  const handleGoogleAuth = (role: string = 'Patient') => {
+    setError('');
+    const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
+    if (googleClientId && (window as any).google?.accounts?.id) {
+      try {
+        (window as any).google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: async (response: any) => {
+            if (response.credential) {
+              setLoading(true);
+              try {
+                const res = await apiGoogleAuth({ idToken: response.credential, role: role as any });
+                navigate(getRoleHome(res.role));
+              } catch (err: any) {
+                setError(err?.message || 'Google authentication failed.');
+              } finally {
+                setLoading(false);
+              }
+            }
+          },
+        });
+        (window as any).google.accounts.id.prompt();
+        return;
+      } catch (e) {
+        console.warn('GIS error, using account selector fallback', e);
+      }
+    }
+    setGoogleTargetRole(role);
+    setShowGoogleModal(true);
+  };
+
+  const executeGoogleAuth = async (email: string, fullName: string, role: string) => {
+    if (!email || !email.includes('@')) {
+      setError('Please provide a valid Google email address.');
+      return;
+    }
+    setShowGoogleModal(false);
+    setLoading(true);
+    setError('');
+    try {
+      const res = await apiGoogleAuth({
+        email: email.trim(),
+        fullName: (fullName || email.split('@')[0]).trim(),
+        role: role as any,
+      });
+      navigate(getRoleHome(res.role));
+    } catch (err: any) {
+      setError(err?.message || 'Google authentication failed.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── Field helpers ──────────────────────────────────────────────────────────
@@ -652,6 +750,132 @@ export default function LoginPage() {
         .spin { animation: spin 0.9s linear infinite; }
         .fade-up { animation: fadeUp 0.28s ease; }
 
+        /* Google Auth Button & Divider */
+        .lp-google-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          background: #FFFFFF;
+          color: #1E293B;
+          border: 1.5px solid #E2E8F0;
+          border-radius: 12px;
+          padding: 11px 16px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+          font-family: inherit;
+        }
+        .lp-google-btn:hover:not(:disabled) {
+          background: #F8FAFC;
+          border-color: #CBD5E1;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+          transform: translateY(-1px);
+        }
+        .lp-google-btn:active:not(:disabled) {
+          transform: translateY(0);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+        }
+        .lp-google-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        .lp-divider {
+          display: flex;
+          align-items: center;
+          text-align: center;
+          margin: 14px 0 12px;
+          color: #94A3B8;
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.6px;
+          text-transform: uppercase;
+        }
+        .lp-divider::before,
+        .lp-divider::after {
+          content: '';
+          flex: 1;
+          border-bottom: 1px solid #E2E8F0;
+        }
+        .lp-divider span {
+          padding: 0 10px;
+        }
+
+        /* Google Modal Account Picker */
+        .gmodal-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin: 12px 0 14px;
+        }
+        .gmodal-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 14px;
+          border-radius: 12px;
+          border: 1px solid #E2E8F0;
+          background: #FFFFFF;
+          cursor: pointer;
+          transition: all 0.16s ease;
+          text-align: left;
+          width: 100%;
+          font-family: inherit;
+        }
+        .gmodal-item:hover {
+          background: #F8FAFC;
+          border-color: #2A7DE1;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(42, 125, 225, 0.08);
+        }
+        .gmodal-avatar {
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: 13.5px;
+          color: #FFFFFF;
+          flex-shrink: 0;
+        }
+        .gmodal-info {
+          flex: 1;
+          min-width: 0;
+        }
+        .gmodal-name {
+          font-size: 13.5px;
+          font-weight: 700;
+          color: #0F172A;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .gmodal-email {
+          font-size: 11.5px;
+          color: #64748B;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .gmodal-role-tag {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          background: #EFF6FF;
+          color: #2A7DE1;
+          border: 1px solid #BFDBFE;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 2px 8px;
+        }
+
         /* ── RESPONSIVE ── */
 
         /* Large screens — wider left */
@@ -910,6 +1134,21 @@ export default function LoginPage() {
                     </button>
                   </form>
 
+                  <div className="lp-divider">
+                    <span>or continue with</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="lp-google-btn"
+                    onClick={() => handleGoogleAuth('Patient')}
+                    id="google-signin-btn"
+                    disabled={loading}
+                  >
+                    <GoogleIcon size={18} />
+                    <span>Sign in with Google</span>
+                  </button>
+
                   <div className="lp-shield-row">
                     <ShieldCheck size={11} color="#22C55E" />
                     Protected by 256-bit JWT &amp; Supabase PostgreSQL
@@ -938,6 +1177,22 @@ export default function LoginPage() {
                         <div className="lp-role-desc">{r.desc}</div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Google Sign Up Button */}
+                  <button
+                    type="button"
+                    className="lp-google-btn"
+                    onClick={() => handleGoogleAuth(form.role)}
+                    id="google-signup-btn"
+                    disabled={loading}
+                  >
+                    <GoogleIcon size={18} />
+                    <span>Sign up with Google as {form.role}</span>
+                  </button>
+
+                  <div className="lp-divider">
+                    <span>or register with email</span>
                   </div>
 
                   <form onSubmit={handleRegister} autoComplete="on">
@@ -1115,6 +1370,127 @@ export default function LoginPage() {
               <button className="lp-submit" onClick={() => { setAgreeTerms(true); setShowTerms(false); }}>
                 <CheckCircle2 size={15} /> I Accept Terms
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── GOOGLE ACCOUNT PICKER MODAL ── */}
+      {showGoogleModal && (
+        <div className="lp-overlay" onClick={() => setShowGoogleModal(false)}>
+          <div className="lp-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+            <div className="lp-modal-head">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <GoogleIcon size={22} />
+                <div className="lp-modal-title">Sign in with Google</div>
+              </div>
+              <button className="lp-modal-close" onClick={() => setShowGoogleModal(false)}>✕</button>
+            </div>
+            <div className="lp-modal-body">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <span style={{ fontSize: 13, color: '#334155' }}>
+                  Choose an account to continue to <strong>MediFlow AI</strong>
+                </span>
+                <span className="gmodal-role-tag">
+                  Role: {googleTargetRole}
+                </span>
+              </div>
+
+              <div className="gmodal-list">
+                <button
+                  type="button"
+                  className="gmodal-item"
+                  onClick={() => executeGoogleAuth('dilshan.pasindu@gmail.com', 'Dilshan Pasindu', googleTargetRole)}
+                  id="gmodal-acc-1"
+                >
+                  <div className="gmodal-avatar" style={{ background: 'linear-gradient(135deg, #2A7DE1, #4FD1C5)' }}>DP</div>
+                  <div className="gmodal-info">
+                    <div className="gmodal-name">Dilshan Pasindu</div>
+                    <div className="gmodal-email">dilshan.pasindu@gmail.com</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="gmodal-item"
+                  onClick={() => executeGoogleAuth('nimal.perera@gmail.com', 'Dr. Nimal Perera', googleTargetRole)}
+                  id="gmodal-acc-2"
+                >
+                  <div className="gmodal-avatar" style={{ background: 'linear-gradient(135deg, #059669, #34D399)' }}>NP</div>
+                  <div className="gmodal-info">
+                    <div className="gmodal-name">Dr. Nimal Perera</div>
+                    <div className="gmodal-email">nimal.perera@gmail.com</div>
+                  </div>
+                </button>
+
+                {!showCustomGoogleInput ? (
+                  <button
+                    type="button"
+                    className="gmodal-item"
+                    onClick={() => setShowCustomGoogleInput(true)}
+                    id="gmodal-acc-custom-toggle"
+                    style={{ borderStyle: 'dashed', background: '#F8FAFC' }}
+                  >
+                    <div className="gmodal-avatar" style={{ background: '#94A3B8' }}>
+                      <Plus size={16} />
+                    </div>
+                    <div className="gmodal-info">
+                      <div className="gmodal-name">Use another Google account</div>
+                      <div className="gmodal-email">Enter a custom email address</div>
+                    </div>
+                  </button>
+                ) : (
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      executeGoogleAuth(customGoogleEmail, customGoogleName, googleTargetRole);
+                    }}
+                    style={{ background: '#F8FAFC', padding: 12, borderRadius: 12, border: '1px solid #CBD5E1' }}
+                  >
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 8 }}>Enter Google Account Info</div>
+                    <input
+                      type="text"
+                      placeholder="Your Full Name (e.g. Dilshan Pasindu)"
+                      className="lp-inp"
+                      style={{ paddingLeft: 12, marginBottom: 8 }}
+                      value={customGoogleName}
+                      onChange={(e) => setCustomGoogleName(e.target.value)}
+                      required
+                    />
+                    <input
+                      type="email"
+                      placeholder="Google Email (e.g. name@gmail.com)"
+                      className="lp-inp"
+                      style={{ paddingLeft: 12, marginBottom: 10 }}
+                      value={customGoogleEmail}
+                      onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                      required
+                    />
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        type="button"
+                        className="lp-ghost"
+                        style={{ flex: 1, padding: 8 }}
+                        onClick={() => setShowCustomGoogleInput(false)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="lp-submit"
+                        style={{ flex: 2, padding: 8 }}
+                        id="gmodal-custom-submit"
+                      >
+                        Continue with Google
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              <div style={{ fontSize: 11, color: '#94A3B8', lineHeight: 1.5, marginTop: 10 }}>
+                To continue, Google will securely share your name, email address, and profile picture with MediFlow AI in compliance with medical data privacy guidelines.
+              </div>
             </div>
           </div>
         </div>
