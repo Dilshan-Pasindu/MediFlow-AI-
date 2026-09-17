@@ -190,48 +190,69 @@ export default function LoginPage() {
   const [customGoogleEmail, setCustomGoogleEmail] = useState('');
   const [customGoogleName, setCustomGoogleName] = useState('');
   const [showCustomGoogleInput, setShowCustomGoogleInput] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState<string>(() => {
+    return (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || localStorage.getItem('mediflow_google_client_id') || '';
+  });
+  const [inputClientId, setInputClientId] = useState<string>(googleClientId);
 
-  useEffect(() => {
-    const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
-    if (!googleClientId) return;
-    const existing = document.getElementById('google-gsi-script');
-    if (!existing) {
-      const script = document.createElement('script');
-      script.id = 'google-gsi-script';
-      script.src = 'https://accounts.google.com/gsi/client';
-      script.async = true;
-      script.defer = true;
-      document.body.appendChild(script);
+  const triggerRealGooglePopup = (clientId: string, role: string) => {
+    if (!(window as any).google?.accounts?.oauth2) {
+      setError('Google Identity Services SDK is not ready yet. Please wait a moment.');
+      return false;
     }
-  }, []);
+    try {
+      const tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
+        client_id: clientId.trim(),
+        scope: 'https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid',
+        callback: async (tokenResponse: any) => {
+          if (tokenResponse?.access_token) {
+            setLoading(true);
+            try {
+              const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+              });
+              const googleProfile = await userInfoRes.json();
+              if (!googleProfile?.email) {
+                throw new Error('Unable to retrieve Google email address.');
+              }
+              const res = await apiGoogleAuth({
+                email: googleProfile.email,
+                fullName: googleProfile.name || googleProfile.email.split('@')[0],
+                photoUrl: googleProfile.picture,
+                role: role as any,
+              });
+              navigate(getRoleHome(res.role));
+            } catch (err: any) {
+              setError(err?.message || 'Google authentication failed.');
+            } finally {
+              setLoading(false);
+            }
+          }
+        },
+        error_callback: (err: any) => {
+          console.error('Google OAuth popup error:', err);
+          setError('Google sign-up window was closed or cancelled.');
+        },
+      });
+      tokenClient.requestAccessToken({ prompt: 'select_account' });
+      return true;
+    } catch (e: any) {
+      console.warn('Failed to launch Google OAuth popup:', e);
+      setError(e?.message || 'Failed to open Google OAuth window.');
+      return false;
+    }
+  };
 
   const handleGoogleAuth = (role: string = 'Patient') => {
     setError('');
-    const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID;
-    if (googleClientId && (window as any).google?.accounts?.id) {
-      try {
-        (window as any).google.accounts.id.initialize({
-          client_id: googleClientId,
-          callback: async (response: any) => {
-            if (response.credential) {
-              setLoading(true);
-              try {
-                const res = await apiGoogleAuth({ idToken: response.credential, role: role as any });
-                navigate(getRoleHome(res.role));
-              } catch (err: any) {
-                setError(err?.message || 'Google authentication failed.');
-              } finally {
-                setLoading(false);
-              }
-            }
-          },
-        });
-        (window as any).google.accounts.id.prompt();
-        return;
-      } catch (e) {
-        console.warn('GIS error, using account selector fallback', e);
-      }
+    const activeClientId = googleClientId || (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || localStorage.getItem('mediflow_google_client_id');
+
+    if (activeClientId) {
+      const started = triggerRealGooglePopup(activeClientId, role);
+      if (started) return;
     }
+
+    // If no client ID configured yet or popup needs configuration, open modal
     setGoogleTargetRole(role);
     setShowGoogleModal(true);
   };
@@ -1387,9 +1408,49 @@ export default function LoginPage() {
               <button className="lp-modal-close" onClick={() => setShowGoogleModal(false)}>✕</button>
             </div>
             <div className="lp-modal-body">
+              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: '#1E293B', marginBottom: 4 }}>
+                  Connect Live Google OAuth (accounts.google.com)
+                </div>
+                <div style={{ fontSize: 11, color: '#64748B', marginBottom: 8, lineHeight: 1.4 }}>
+                  Enter your Google Cloud OAuth Client ID to launch the live Google popup directly:
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    type="text"
+                    placeholder="e.g. 123456789-abc.apps.googleusercontent.com"
+                    className="lp-inp"
+                    style={{ padding: '7px 10px', fontSize: 12, flex: 1 }}
+                    value={inputClientId}
+                    onChange={e => setInputClientId(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="lp-submit"
+                    style={{ width: 'auto', padding: '7px 12px', fontSize: 11.5, whiteSpace: 'nowrap' }}
+                    onClick={() => {
+                      if (!inputClientId.trim()) {
+                        setError('Please enter a Google Client ID');
+                        return;
+                      }
+                      localStorage.setItem('mediflow_google_client_id', inputClientId.trim());
+                      setGoogleClientId(inputClientId.trim());
+                      setShowGoogleModal(false);
+                      triggerRealGooglePopup(inputClientId.trim(), googleTargetRole);
+                    }}
+                  >
+                    Open Live Popup
+                  </button>
+                </div>
+              </div>
+
+              <div className="lp-divider" style={{ margin: '10px 0' }}>
+                <span>or quick sign-in</span>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <span style={{ fontSize: 13, color: '#334155' }}>
-                  Choose an account to continue to <strong>MediFlow AI</strong>
+                  Choose account to continue to <strong>MediFlow AI</strong>
                 </span>
                 <span className="gmodal-role-tag">
                   Role: {googleTargetRole}
