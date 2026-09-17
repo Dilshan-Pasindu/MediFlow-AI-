@@ -68,6 +68,15 @@ export async function apiRegister(fullName: string, email: string, password: str
   return data;
 }
 
+export async function apiGoogleAuth(googleData: { idToken?: string; email?: string; fullName?: string; photoUrl?: string; role?: UserRole }) {
+  const data = await apiFetch<AuthResponse>('/auth/google', {
+    method: 'POST',
+    body: JSON.stringify(googleData),
+  });
+  useAuthStore.getState().setAuth(data);
+  return data;
+}
+
 export function apiLogout() {
   useAuthStore.getState().logout();
 }

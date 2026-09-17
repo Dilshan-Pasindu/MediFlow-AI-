@@ -48,4 +48,25 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Login or Register with Google account. Returns a JWT token.
+    /// </summary>
+    [HttpPost("google")]
+    public async Task<ActionResult<AuthResponse>> Google([FromBody] GoogleAuthRequest request)
+    {
+        try
+        {
+            var result = await _authService.GoogleAuthAsync(request);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new { message = ex.Message });
+        }
+    }
 }

@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { AuthResponse, LoginRequest, RegisterRequest } from '../types/auth';
+import type { AuthResponse, LoginRequest, RegisterRequest, GoogleAuthRequest } from '../types/auth';
 
 export async function login(request: LoginRequest): Promise<AuthResponse> {
   const response = await apiClient.post<AuthResponse>('/auth/login', request);
@@ -8,6 +8,11 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
 
 export async function register(request: RegisterRequest): Promise<AuthResponse> {
   const response = await apiClient.post<AuthResponse>('/auth/register', request);
+  return response.data;
+}
+
+export async function googleAuth(request: GoogleAuthRequest): Promise<AuthResponse> {
+  const response = await apiClient.post<AuthResponse>('/auth/google', request);
   return response.data;
 }
 

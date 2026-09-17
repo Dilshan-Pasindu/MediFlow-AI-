@@ -46,3 +46,11 @@ export interface ResetPasswordRequest {
   otpCode: string;
   newPassword: string;
 }
+
+export interface GoogleAuthRequest {
+  idToken?: string;
+  email?: string;
+  fullName?: string;
+  photoUrl?: string;
+  role?: UserRole;
+}
