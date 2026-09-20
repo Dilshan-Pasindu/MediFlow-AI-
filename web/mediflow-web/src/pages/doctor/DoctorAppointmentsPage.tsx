@@ -2,13 +2,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Search, Filter, Stethoscope, Clock, CheckCircle2,
-<<<<<<< HEAD
-  AlertCircle, ChevronRight, RefreshCw, FileText, User, Tag,
-  ArrowUpDown, ShieldAlert, X
-=======
   AlertCircle, AlertTriangle, ChevronRight, RefreshCw, FileText, User, Tag,
   ArrowUpDown, ShieldAlert, X, Sparkles, ArrowRight
->>>>>>> c85339d (feat(web): add active consultation resume banner to doctor appointments schedule page)
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -502,10 +497,6 @@ export default function DoctorAppointmentsPage() {
                 </button>
               </div>
             )}
-<<<<<<< HEAD
-
-=======
->>>>>>> c85339d (feat(web): add active consultation resume banner to doctor appointments schedule page)
             {/* Loading Skeletons */}
             {isLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
