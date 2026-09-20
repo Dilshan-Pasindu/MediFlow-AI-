@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Stethoscope, Calendar, CheckCircle2, Clock, ChevronRight,
@@ -179,6 +179,35 @@ export default function DoctorDashboard() {
   const { data: appointments = [], isLoading: loading } = useDoctorAppointments();
   const [activeTab, setActiveTab] = useState<'today' | 'all'>('today');
 
+  const [activeConsultationSession, setActiveConsultationSession] = useState<{
+    appointmentId: string;
+    patientName: string;
+    step: string;
+    updatedAt: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const activeId = localStorage.getItem('mediflow_active_consultation_id');
+    if (activeId) {
+      const saved = sessionStorage.getItem(`mediflow_consultation_session_${activeId}`);
+      if (saved) {
+        try {
+          const session = JSON.parse(saved);
+          if (session && !session.isCompleted) {
+            setActiveConsultationSession({
+              appointmentId: String(activeId),
+              patientName: session.manualPatientName || session.autoFilledDraft?.patientName || 'Active Patient',
+              step: session.step || 'review',
+              updatedAt: session.updatedAt ? new Date(session.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, []);
+
   const today = new Date().toDateString();
 
   const stats = useMemo(() => {
@@ -224,6 +253,66 @@ export default function DoctorDashboard() {
               { label: 'Completed',      value: stats.completed.length,    icon: <Sparkles size={18} /> },
             ]}
           />
+
+          {/* Active Consultation Resume Alert Banner */}
+          {activeConsultationSession && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                color: '#FFFFFF',
+                borderRadius: 'var(--r-xl)',
+                padding: '18px 24px',
+                marginBottom: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 8px 25px rgba(5, 150, 105, 0.25)',
+                border: '1px solid #10B981'
+              }}
+              id="active-consultation-resume-banner"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Stethoscope size={24} color="#FFFFFF" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>Ongoing Consultation In Progress</span>
+                    <span style={{ fontSize: 11, background: '#10B981', color: '#FFFFFF', padding: '2px 10px', borderRadius: 12, textTransform: 'uppercase', fontWeight: 800 }}>
+                      State Auto-Saved
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.95, marginTop: 3 }}>
+                    Patient: <strong>{activeConsultationSession.patientName}</strong> (Appt #{activeConsultationSession.appointmentId}) • Stage: <span style={{ textTransform: 'capitalize', fontWeight: 700 }}>{activeConsultationSession.step}</span> {activeConsultationSession.updatedAt ? `• Last synced at ${activeConsultationSession.updatedAt}` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={() => navigate(`/doctor/consultation/${activeConsultationSession.appointmentId}`)}
+                  className="btn"
+                  style={{
+                    background: '#FFFFFF',
+                    color: '#047857',
+                    fontWeight: 800,
+                    fontSize: 13.5,
+                    padding: '10px 22px',
+                    borderRadius: 'var(--r-full)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    border: 'none'
+                  }}
+                  id="resume-active-consultation-btn"
+                >
+                  <Sparkles size={16} color="#059669" /> Resume Consultation <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── KPI Stats Row ───────────────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
