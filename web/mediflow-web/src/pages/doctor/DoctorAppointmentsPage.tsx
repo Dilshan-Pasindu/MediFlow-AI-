@@ -1,9 +1,14 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Search, Filter, Stethoscope, Clock, CheckCircle2,
+<<<<<<< HEAD
   AlertCircle, ChevronRight, RefreshCw, FileText, User, Tag,
   ArrowUpDown, ShieldAlert, X
+=======
+  AlertCircle, AlertTriangle, ChevronRight, RefreshCw, FileText, User, Tag,
+  ArrowUpDown, ShieldAlert, X, Sparkles, ArrowRight
+>>>>>>> c85339d (feat(web): add active consultation resume banner to doctor appointments schedule page)
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -40,6 +45,36 @@ function parseDateInfo(dateTimeStr: string) {
 export default function DoctorAppointmentsPage() {
   const navigate = useNavigate();
   const { data: appointments = [], isLoading, error, refetch, isRefetching } = useDoctorAppointments();
+
+  const [activeConsultationSession, setActiveConsultationSession] = useState<{
+    appointmentId: string;
+    patientName: string;
+    step: string;
+    updatedAt: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const activeId = localStorage.getItem('mediflow_active_consultation_id');
+    if (activeId) {
+      const sessionKey = `mediflow_consultation_session_${activeId}`;
+      const raw = sessionStorage.getItem(sessionKey) || localStorage.getItem(sessionKey);
+      if (raw) {
+        try {
+          const session = JSON.parse(raw);
+          if (session && !session.isCompleted) {
+            setActiveConsultationSession({
+              appointmentId: String(activeId),
+              patientName: session.manualPatientName || session.autoFilledDraft?.patientName || 'Active Patient',
+              step: session.step || 'review',
+              updatedAt: session.updatedAt ? new Date(session.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, []);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -132,6 +167,65 @@ export default function DoctorAppointmentsPage() {
         />
 
         <div className="page-body fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Active Consultation Resume Banner */}
+          {activeConsultationSession && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                color: '#FFFFFF',
+                borderRadius: 'var(--r-xl)',
+                padding: '18px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 8px 25px rgba(5, 150, 105, 0.25)',
+                border: '1px solid #10B981'
+              }}
+              id="active-consultation-resume-banner-appointments-page"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Stethoscope size={24} color="#FFFFFF" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>Ongoing Consultation In Progress</span>
+                    <span style={{ fontSize: 11, background: '#10B981', color: '#FFFFFF', padding: '2px 10px', borderRadius: 12, textTransform: 'uppercase', fontWeight: 800 }}>
+                      State Saved
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, opacity: 0.95, marginTop: 3 }}>
+                    Patient: <strong>{activeConsultationSession.patientName}</strong> (Appt #{activeConsultationSession.appointmentId}) • Stage: <span style={{ textTransform: 'capitalize', fontWeight: 700 }}>{activeConsultationSession.step}</span> {activeConsultationSession.updatedAt ? `• Last synced at ${activeConsultationSession.updatedAt}` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={() => navigate(`/doctor/consultation/${activeConsultationSession.appointmentId}`)}
+                  className="btn"
+                  style={{
+                    background: '#FFFFFF',
+                    color: '#047857',
+                    fontWeight: 800,
+                    fontSize: 13.5,
+                    padding: '10px 22px',
+                    borderRadius: 'var(--r-full)',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: 'pointer',
+                    border: 'none'
+                  }}
+                  id="resume-active-consultation-btn-appointments"
+                >
+                  <Sparkles size={16} color="#059669" /> Resume Active Consultation <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Header Banner & Stats */}
           <div
             style={{
@@ -408,7 +502,10 @@ export default function DoctorAppointmentsPage() {
                 </button>
               </div>
             )}
+<<<<<<< HEAD
 
+=======
+>>>>>>> c85339d (feat(web): add active consultation resume banner to doctor appointments schedule page)
             {/* Loading Skeletons */}
             {isLoading ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

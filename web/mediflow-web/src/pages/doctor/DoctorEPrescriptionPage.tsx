@@ -86,21 +86,73 @@ export default function DoctorEPrescriptionPage() {
   const [issueSuccess, setIssueSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [isAutoPopulatedFromSession, setIsAutoPopulatedFromSession] = useState<boolean>(false);
+  const apptIdFromUrl = searchParams.get('apptId');
+
   useEffect(() => {
+    const targetApptId = apptIdFromUrl || localStorage.getItem('mediflow_active_consultation_id');
+    
     apiGetDoctorAppointments()
       .then(res => {
         if (Array.isArray(res)) {
           setAppointments(res);
-          if (searchParams.get('apptId')) {
-            const found = res.find((a: any) => String(a.id) === searchParams.get('apptId'));
+          if (targetApptId) {
+            const found = res.find((a: any) => String(a.id) === targetApptId);
             if (found) {
+              setSelectedApptId(String(found.id));
               setSelectedPatientName(found.patientName);
             }
           }
         }
       })
       .catch(() => {});
-  }, [searchParams]);
+  }, [searchParams, apptIdFromUrl]);
+
+  // Load and auto-fill active consultation session draft
+  useEffect(() => {
+    const targetApptId = apptIdFromUrl || localStorage.getItem('mediflow_active_consultation_id');
+    if (!targetApptId) return;
+
+    const savedSession = sessionStorage.getItem(`mediflow_consultation_session_${targetApptId}`);
+    if (savedSession) {
+      try {
+        const session = JSON.parse(savedSession);
+        if (session && !session.isCompleted) {
+          setSelectedApptId(String(targetApptId));
+          if (session.manualPatientName || session.autoFilledDraft?.patientName) {
+            setSelectedPatientName(session.manualPatientName || session.autoFilledDraft.patientName);
+          }
+
+          const draft = session.autoFilledDraft;
+          if (draft) {
+            if (draft.diagnosis) setDiagnosis(draft.diagnosis);
+            
+            let instructionsText = draft.instructions || 'Take as directed by doctor.';
+            if (draft.labOrders && draft.labOrders.length > 0) {
+              const labSummary = "Diagnostic Workup & Lab Orders:\n" + draft.labOrders.map((l: any) => `• ${l.testName} [Urgency: ${l.urgency?.toUpperCase()}] - Indication: ${l.indication}`).join("\n");
+              instructionsText = instructionsText ? `${instructionsText}\n\n${labSummary}` : labSummary;
+            }
+            setGeneralInstructions(instructionsText);
+
+            if (draft.items && draft.items.length > 0) {
+              setItems(draft.items.map((item: any, idx: number) => ({
+                id: String(idx + 1),
+                medicineName: item.medicineName,
+                dosage: item.dosage,
+                frequency: item.frequency,
+                duration: item.duration,
+                quantity: item.quantity || 1,
+                instructions: item.instructions || 'Take as directed'
+              })));
+            }
+            setIsAutoPopulatedFromSession(true);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to parse saved consultation draft:', e);
+      }
+    }
+  }, [apptIdFromUrl]);
 
   const handleApptSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
@@ -110,6 +162,37 @@ export default function DoctorEPrescriptionPage() {
       setSelectedPatientName(appt.patientName);
     } else {
       setSelectedPatientName('');
+    }
+
+    if (val) {
+      const savedSession = sessionStorage.getItem(`mediflow_consultation_session_${val}`);
+      if (savedSession) {
+        try {
+          const session = JSON.parse(savedSession);
+          if (session && session.autoFilledDraft) {
+            const draft = session.autoFilledDraft;
+            if (draft.diagnosis) setDiagnosis(draft.diagnosis);
+            let instructionsText = draft.instructions || 'Take as directed by doctor.';
+            if (draft.labOrders && draft.labOrders.length > 0) {
+              const labSummary = "Diagnostic Workup & Lab Orders:\n" + draft.labOrders.map((l: any) => `• ${l.testName} [Urgency: ${l.urgency?.toUpperCase()}] - Indication: ${l.indication}`).join("\n");
+              instructionsText = instructionsText ? `${instructionsText}\n\n${labSummary}` : labSummary;
+            }
+            setGeneralInstructions(instructionsText);
+            if (draft.items && draft.items.length > 0) {
+              setItems(draft.items.map((item: any, idx: number) => ({
+                id: String(idx + 1),
+                medicineName: item.medicineName,
+                dosage: item.dosage,
+                frequency: item.frequency,
+                duration: item.duration,
+                quantity: item.quantity || 1,
+                instructions: item.instructions || 'Take as directed'
+              })));
+            }
+            setIsAutoPopulatedFromSession(true);
+          }
+        } catch (err) {}
+      }
     }
   };
 
@@ -238,6 +321,44 @@ export default function DoctorEPrescriptionPage() {
         />
 
         <div className="page-body fade-in" style={{ paddingBottom: 60 }}>
+
+          {/* Auto-fill notification banner from active AI consultation session */}
+          {isAutoPopulatedFromSession && selectedApptId && (
+            <div 
+              style={{
+                background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
+                border: '1.5px solid #10B981',
+                borderRadius: 'var(--r-lg)',
+                padding: '14px 20px',
+                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: '#065F46',
+                boxShadow: '0 2px 10px rgba(16,185,129,0.1)'
+              }}
+              id="eprescription-auto-fill-banner"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Sparkles size={20} color="#059669" />
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: 14 }}>
+                    ⚡ Auto-Populated from Active Consultation Workspace (Appointment #{selectedApptId})
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 500 }}>
+                    Approved AI medications, primary diagnosis, and diagnostic lab orders have been pre-filled.
+                  </div>
+                </div>
+              </div>
+              <button 
+                className="btn btn-sm" 
+                onClick={() => navigate(`/doctor/consultation/${selectedApptId}`)}
+                style={{ background: '#FFFFFF', borderColor: '#059669', color: '#065F46', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <ArrowLeft size={14} /> Return to Consultation
+              </button>
+            </div>
+          )}
 
           {/* Top Breadcrumb & Action bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>

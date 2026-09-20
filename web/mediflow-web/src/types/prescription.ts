@@ -66,4 +66,9 @@ export interface CreatePrescriptionDto {
     quantity: number;
     instructions?: string;
   }>;
+  labOrders?: Array<{
+    testName: string;
+    indication: string;
+    urgency: string;
+  }>;
 }
