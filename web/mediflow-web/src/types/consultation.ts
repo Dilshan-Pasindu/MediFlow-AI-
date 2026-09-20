@@ -115,3 +115,27 @@ export interface ClinicalAnalysisRequestDto {
   patientAge?: number;
   patientGender?: string;
 }
+
+export interface AutoFilledPrescriptionDraft {
+  patientName: string;
+  diagnosis: string;
+  fulfillmentSource: 'InHouse' | 'External';
+  recipients: 'Both' | 'PatientOnly';
+  instructions: string;
+  items: Array<{
+    medicineName: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    quantity: number;
+    instructions: string;
+  }>;
+  labOrders: Array<{
+    testName: string;
+    indication: string;
+    urgency: string;
+  }>;
+  isAutoFilled: boolean;
+  lastSyncedAt: string;
+}
+
