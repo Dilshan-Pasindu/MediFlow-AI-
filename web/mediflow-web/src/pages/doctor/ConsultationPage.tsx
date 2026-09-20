@@ -1,18 +1,18 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Brain, CheckCircle, X, Edit3, Stethoscope, AlertCircle, Loader, 
-  ArrowLeft, Plus, Trash2, Sparkles, ShieldAlert, Activity, UserPlus, 
+import {
+  Brain, CheckCircle, X, Edit3, Stethoscope, AlertCircle, Loader,
+  ArrowLeft, Plus, Trash2, Sparkles, ShieldAlert, Activity, UserPlus,
   ChevronDown, ChevronUp, FileText, Printer, CheckSquare, RefreshCw, AlertTriangle, Pill
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { useAppointment } from '../../hooks';
 import { apiGeneratePrescription, apiCompleteAppointment } from '../../services/api';
-import type { 
-  ExamForm, AIClinicalResult, AIDiagnosis, AgentThoughtStep, 
+import type {
+  ExamForm, AIClinicalResult, AIDiagnosis, AgentThoughtStep,
   AgentLabDraft, AgentMedicationDraft, ApprovedClinicalPlan,
-  AutoFilledPrescriptionDraft 
+  AutoFilledPrescriptionDraft
 } from '../../types/consultation';
 import { PrescriptionLivePreviewCard } from '../../components/doctor/PrescriptionLivePreviewCard';
 
@@ -234,7 +234,7 @@ export default function ConsultationPage() {
   const [editableMeds, setEditableMeds] = useState<AgentMedicationDraft[]>(
     () => initialSession?.editableMeds || []
   );
-  
+
   // Custom add entries
   const [newLabName, setNewLabName] = useState('');
   const [newMedName, setNewMedName] = useState('');
@@ -291,7 +291,7 @@ export default function ConsultationPage() {
   function calculateMedicineQuantity(frequency: string, duration: string): number {
     const daysMatch = (duration || '').match(/\d+/);
     const days = daysMatch ? parseInt(daysMatch[0], 10) : 7;
-    
+
     let dosePerDay = 1;
     const freqLower = (frequency || '').toLowerCase();
     if (freqLower.includes('tid') || freqLower.includes('thrice') || freqLower.includes('3 times')) {
@@ -536,6 +536,25 @@ export default function ConsultationPage() {
     setNewMedDosage('');
   }
 
+  function calculateMedicineQuantity(frequency: string, duration: string): number {
+    const daysMatch = (duration || '').match(/\d+/);
+    const days = daysMatch ? parseInt(daysMatch[0], 10) : 7;
+
+    let dosePerDay = 1;
+    const freqLower = (frequency || '').toLowerCase();
+    if (freqLower.includes('tid') || freqLower.includes('thrice') || freqLower.includes('3 times')) {
+      dosePerDay = 3;
+    } else if (freqLower.includes('bid') || freqLower.includes('twice') || freqLower.includes('2 times')) {
+      dosePerDay = 2;
+    } else if (freqLower.includes('qid') || freqLower.includes('4 times')) {
+      dosePerDay = 4;
+    } else if (freqLower.includes('qd') || freqLower.includes('once') || freqLower.includes('daily')) {
+      dosePerDay = 1;
+    }
+
+    return Math.max(1, dosePerDay * days);
+  }
+
   // Finalize Care Plan
   async function finalizeClinicalCarePlan() {
     const finalizeError = validateFinalizeStep();
@@ -549,7 +568,7 @@ export default function ConsultationPage() {
     const diffList = approvedDiagList.slice(1);
     const approvedLabList = editableLabs.filter(l => l.status === 'approved');
     const approvedMedList = editableMeds.filter(m => m.status === 'approved' || m.status === 'modified');
-    
+
     const overriddenAlerts = editableMeds
       .filter(m => m.safetyWarning && m.overrideJustification)
       .map(m => `${m.drugName}: ${m.overrideJustification}`);
@@ -614,11 +633,7 @@ export default function ConsultationPage() {
       }
     }
 
-<<<<<<< HEAD
     // Mark appointment as Completed in backend
-=======
-    // Mark appointment as Completed in backend & clear session storage
->>>>>>> 34f5892 (feat(web): implement synchronous lazy state initialization for seamless consultation state recovery)
     if (id) {
       sessionStorage.removeItem(`mediflow_consultation_session_${id}`);
       localStorage.removeItem('mediflow_active_consultation_id');
@@ -641,10 +656,10 @@ export default function ConsultationPage() {
   );
 
   const STEPS = [
-    { key: 'review',   label: 'Patient Review', icon: '👤' },
-    { key: 'examine',  label: 'Examination',    icon: '🩺' },
-    { key: 'ai',       label: 'AI Agent Co-Pilot', icon: '🧠' },
-    { key: 'done',     label: 'Clinical Plan Record', icon: '📋' },
+    { key: 'review', label: 'Patient Review', icon: '👤' },
+    { key: 'examine', label: 'Examination', icon: '🩺' },
+    { key: 'ai', label: 'AI Agent Co-Pilot', icon: '🧠' },
+    { key: 'done', label: 'Clinical Plan Record', icon: '📋' },
   ];
   const currentStepIdx = STEPS.findIndex(s => s.key === step);
 
@@ -816,10 +831,10 @@ export default function ConsultationPage() {
                     <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: 'var(--text-secondary)' }}>Vital Signs</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
                       {[
-                        { key: 'vitalBP',    label: 'Blood Pressure',  placeholder: '120/80' },
-                        { key: 'vitalTemp',  label: 'Temperature',     placeholder: '37.0 °C' },
-                        { key: 'vitalPulse', label: 'Pulse Rate',      placeholder: '72 bpm' },
-                        { key: 'vitalSPO2',  label: 'SpO2 (%)',        placeholder: '98%' },
+                        { key: 'vitalBP', label: 'Blood Pressure', placeholder: '120/80' },
+                        { key: 'vitalTemp', label: 'Temperature', placeholder: '37.0 °C' },
+                        { key: 'vitalPulse', label: 'Pulse Rate', placeholder: '72 bpm' },
+                        { key: 'vitalSPO2', label: 'SpO2 (%)', placeholder: '98%' },
                       ].map(({ key, label, placeholder }) => (
                         <div className="form-group" key={key}>
                           <label className="form-label">{label}</label>
@@ -877,7 +892,7 @@ export default function ConsultationPage() {
               {/* STEP: AI Agent Co-Pilot (Human-in-the-Loop Workspace) */}
               {step === 'ai' && aiResult && (
                 <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  
+
                   {/* Human-in-the-Loop Header Banner */}
                   <div className="approval-banner" style={{ background: 'linear-gradient(135deg, #1E1B4B, #312E81)', border: '1.5px solid #6366F1', padding: '18px 20px', borderRadius: 'var(--r-lg)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -1016,7 +1031,7 @@ export default function ConsultationPage() {
                                 </div>
                                 <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--med-blue)', marginRight: 6 }}>{diag.confidence}%</span>
-                                  
+
                                   {/* Doctor Actions */}
                                   <button
                                     className={`btn btn-sm ${isApproved ? 'btn-success' : 'btn-outline'}`}
@@ -1256,9 +1271,9 @@ export default function ConsultationPage() {
                   </div>
 
                   {/* Real-time E-Prescription Auto-Fill Preview */}
-                  <PrescriptionLivePreviewCard 
-                    draft={autoFilledDraft} 
-                    onNavigateToDraft={() => navigate(`/doctor/eprescription?apptId=${id}`)}
+                  <PrescriptionLivePreviewCard
+                    draft={autoFilledDraft}
+                    onNavigateToDraft={() => navigate(`/doctor/e-prescription?apptId=${id}&patientName=${encodeURIComponent(activePatientName)}`)}
                   />
 
                   {/* Finalize Validation Error */}
@@ -1275,7 +1290,7 @@ export default function ConsultationPage() {
                     </button>
                     <button
                       className="btn btn-secondary"
-                      onClick={() => navigate(`/doctor/eprescription?apptId=${id}`)}
+                      onClick={() => navigate(`/doctor/e-prescription?apptId=${id}&patientName=${encodeURIComponent(activePatientName)}`)}
                       id="send-to-eprescription-btn"
                       style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, borderColor: '#059669', color: '#047857' }}
                     >
@@ -1296,7 +1311,7 @@ export default function ConsultationPage() {
               {/* STEP: Final Approved Clinical Care Plan & Consultation Summary */}
               {step === 'done' && approvedPlan && (
                 <div className="card scale-in" style={{ padding: 28, background: 'var(--surface-1)' }}>
-                  
+
                   {/* Top Success Ribbon */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border)', paddingBottom: 18, marginBottom: 24 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1320,7 +1335,7 @@ export default function ConsultationPage() {
 
                   {/* Summary Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
-                    
+
                     {/* Primary & Differential Diagnoses */}
                     <div style={{ padding: 18, background: '#F0FDF4', borderRadius: 'var(--r-md)', border: '1.5px solid #86EFAC' }}>
                       <div style={{ fontWeight: 800, fontSize: 15, color: '#166534', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>

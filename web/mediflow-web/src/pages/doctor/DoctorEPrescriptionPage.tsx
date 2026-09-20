@@ -113,7 +113,7 @@ export default function DoctorEPrescriptionPage() {
     const targetApptId = apptIdFromUrl || localStorage.getItem('mediflow_active_consultation_id');
     if (!targetApptId) return;
 
-    const savedSession = sessionStorage.getItem(`mediflow_consultation_session_${targetApptId}`);
+    const savedSession = sessionStorage.getItem(`mediflow_consultation_session_${targetApptId}`) || localStorage.getItem(`mediflow_consultation_session_${targetApptId}`);
     if (savedSession) {
       try {
         const session = JSON.parse(savedSession);
