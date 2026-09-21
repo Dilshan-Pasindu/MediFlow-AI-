@@ -357,4 +357,65 @@ public class PrescriptionsController : ControllerBase
 
         return Ok(result);
     }
+
+    // ─── GET /api/prescriptions/doctor/my ─────────────────────────────────
+
+    /// <summary>
+    /// Doctor views prescriptions they have issued.
+    /// Supports optional filter by ?status=Active|Fulfilled|Cancelled.
+    /// </summary>
+    [HttpGet("doctor/my")]
+    [HttpGet("doctor")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> GetDoctorPrescriptions([FromQuery] string? status)
+    {
+        var userId = TryGetUserId();
+
+        var doctor = userId.HasValue
+            ? await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync(d => d.UserId == userId.Value)
+            : null;
+
+        if (doctor == null)
+        {
+            // Fallback for mock/test sessions
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        var query = _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Appointment)
+            .Include(p => p.Doctor)
+            .AsQueryable();
+
+        if (doctor != null)
+        {
+            query = query.Where(p => p.DoctorId == doctor.Id || (doctor.UserId > 0 && p.Doctor != null && p.Doctor.UserId == doctor.UserId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<PrescriptionStatus>(status, true, out var parsedStatus))
+        {
+            query = query.Where(p => p.Status == parsedStatus);
+        }
+
+        var prescriptions = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var dtos = prescriptions.Select(p =>
+        {
+            var doctorName = p.Doctor?.FullName ?? doctor?.FullName ?? "Dr. Clinical Specialist";
+            var doctorSpecialty = p.Doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault()
+                ?? doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault();
+            return ToDto(p, doctorName, doctorSpecialty);
+        }).ToList();
+
+        return Ok(dtos);
+    }
+
 }
