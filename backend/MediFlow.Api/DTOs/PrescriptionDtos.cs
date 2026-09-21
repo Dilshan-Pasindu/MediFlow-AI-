@@ -57,6 +57,12 @@ public record CreatePrescriptionItemDto(
     string? Instructions = null
 );
 
+public record PrescriptionLabOrderDto(
+    string TestName,
+    string Indication,
+    string Urgency
+);
+
 public record CreatePrescriptionRequestDto(
     int? AppointmentId,
     int? PatientId,
@@ -67,7 +73,8 @@ public record CreatePrescriptionRequestDto(
     string FulfillmentSource,   // "InHouse" | "External"
     string Recipients,          // "Both" | "PatientOnly"
     string? Instructions,
-    List<CreatePrescriptionItemDto> Items
+    List<CreatePrescriptionItemDto> Items,
+    List<PrescriptionLabOrderDto>? LabOrders = null
 );
 
 public class CreatePrescriptionDto

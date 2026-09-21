@@ -9,11 +9,45 @@ build/
 *.g.dart
 *.mocks.dart
 
-# Android & iOS build artifacts
+# Symbol processing & obfuscation
+app.*.symbols
+app.*.map.json
+
+# Android build artifacts
 android/.gradle/
 android/local.properties
+android/app/build/
+android/captures/
+android/.cxx/
+
+# iOS build artifacts
 ios/.generated/
 ios/Pods/
+ios/.symlinks/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Runner/GeneratedPluginRegistrant.*
+
+# macOS build artifacts
+macos/Flutter/ephemeral/
+macos/Flutter/Generated.xcconfig
+macos/Pods/
+macos/Runner/GeneratedPluginRegistrant.*
+
+# Linux & Windows build artifacts
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# IDE & Editor files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
 
 # Environment files & secrets
 .env

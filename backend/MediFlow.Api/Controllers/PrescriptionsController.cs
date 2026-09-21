@@ -138,6 +138,13 @@ public class PrescriptionsController : ControllerBase
         var recipients = Enum.TryParse<PrescriptionRecipients>(request.Recipients, true, out var rec)
             ? rec : PrescriptionRecipients.Both;
 
+        var instructions = request.Instructions ?? "";
+        if (request.LabOrders != null && request.LabOrders.Count > 0)
+        {
+            var labSummary = "Diagnostic Workup & Lab Orders:\n" + string.Join("\n", request.LabOrders.Select(l => $"• {l.TestName} [Urgency: {l.Urgency.ToUpper()}] - Indication: {l.Indication}"));
+            instructions = string.IsNullOrWhiteSpace(instructions) ? labSummary : $"{instructions}\n\n{labSummary}";
+        }
+
         // Build the Prescription entity
         var prescription = new Prescription
         {
@@ -150,7 +157,7 @@ public class PrescriptionsController : ControllerBase
             WalkInPatientGender = isWalkIn ? request.WalkInPatientDetails?.Gender : null,
             WalkInPatientPhone = isWalkIn ? request.WalkInPatientDetails?.Phone : null,
             Diagnosis = request.Diagnosis,
-            Instructions = request.Instructions,
+            Instructions = instructions,
             FulfillmentSource = fulfillmentSource,
             Recipients = recipients,
             Status = PrescriptionStatus.Active,

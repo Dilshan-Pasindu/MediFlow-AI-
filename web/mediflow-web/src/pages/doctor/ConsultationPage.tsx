@@ -1,18 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Brain, CheckCircle, X, Edit3, Stethoscope, AlertCircle, Loader, 
-  ArrowLeft, Plus, Trash2, Sparkles, ShieldAlert, Activity, UserPlus, 
-  ChevronDown, ChevronUp, FileText, Printer, CheckSquare, RefreshCw, AlertTriangle
+import {
+  Brain, CheckCircle, X, Edit3, Stethoscope, AlertCircle, Loader,
+  ArrowLeft, Plus, Trash2, Sparkles, ShieldAlert, Activity, UserPlus,
+  ChevronDown, ChevronUp, FileText, Printer, CheckSquare, RefreshCw, AlertTriangle, Pill
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { useAppointment } from '../../hooks';
 import { apiGeneratePrescription, apiCompleteAppointment } from '../../services/api';
-import type { 
-  ExamForm, AIClinicalResult, AIDiagnosis, AgentThoughtStep, 
-  AgentLabDraft, AgentMedicationDraft, ApprovedClinicalPlan 
+import type {
+  ExamForm, AIClinicalResult, AIDiagnosis, AgentThoughtStep,
+  AgentLabDraft, AgentMedicationDraft, ApprovedClinicalPlan,
+  AutoFilledPrescriptionDraft
 } from '../../types/consultation';
+import { PrescriptionLivePreviewCard } from '../../components/doctor/PrescriptionLivePreviewCard';
 
 // Fallback rule-based clinical CDS generator with ReAct agent simulation
 function fallbackClinicalCDS(exam: ExamForm, allergies?: string): AIClinicalResult {
@@ -202,15 +204,37 @@ export default function ConsultationPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { data: appt, isLoading: loading } = useAppointment(id);
-  const [step, setStep] = useState<ConsultationStep>('review');
+  // Synchronous session recovery helper for lazy useState initialization
+  const initialSession = useMemo(() => {
+    if (!id) return null;
+    const sessionKey = `mediflow_consultation_session_${id}`;
+    const raw = sessionStorage.getItem(sessionKey) || localStorage.getItem(sessionKey);
+    if (raw) {
+      try {
+        const session = JSON.parse(raw);
+        if (session && !session.isCompleted) return session;
+      } catch (err) {
+        console.error('Failed to parse saved consultation session:', err);
+      }
+    }
+    return null;
+  }, [id]);
+
+  const [step, setStep] = useState<ConsultationStep>(() => initialSession?.step || 'review');
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState<AIClinicalResult | null>(null);
+  const [aiResult, setAiResult] = useState<AIClinicalResult | null>(() => initialSession?.aiResult || null);
 
   // Human-in-the-Loop Editable States
-  const [editableDiagnoses, setEditableDiagnoses] = useState<(AIDiagnosis & { status: 'suggested' | 'approved' | 'modified' | 'discarded' })[]>([]);
-  const [editableLabs, setEditableLabs] = useState<AgentLabDraft[]>([]);
-  const [editableMeds, setEditableMeds] = useState<AgentMedicationDraft[]>([]);
-  
+  const [editableDiagnoses, setEditableDiagnoses] = useState<(AIDiagnosis & { status: 'suggested' | 'approved' | 'modified' | 'discarded' })[]>(
+    () => initialSession?.editableDiagnoses || []
+  );
+  const [editableLabs, setEditableLabs] = useState<AgentLabDraft[]>(
+    () => initialSession?.editableLabs || []
+  );
+  const [editableMeds, setEditableMeds] = useState<AgentMedicationDraft[]>(
+    () => initialSession?.editableMeds || []
+  );
+
   // Custom add entries
   const [newLabName, setNewLabName] = useState('');
   const [newMedName, setNewMedName] = useState('');
@@ -224,25 +248,122 @@ export default function ConsultationPage() {
   const [approvedPlan, setApprovedPlan] = useState<ApprovedClinicalPlan | null>(null);
 
   // Custom manual patient details if missing from backend
-  const [manualPatientName, setManualPatientName] = useState('');
-  const [manualAllergies, setManualAllergies] = useState('');
-  const [manualBloodGroup, setManualBloodGroup] = useState('O+');
+  const [manualPatientName, setManualPatientName] = useState(() => initialSession?.manualPatientName || '');
+  const [manualAllergies, setManualAllergies] = useState(() => initialSession?.manualAllergies || '');
+  const [manualBloodGroup, setManualBloodGroup] = useState(() => initialSession?.manualBloodGroup || 'O+');
 
-  const [exam, setExam] = useState<ExamForm>({ chiefComplaint: '', symptoms: '', vitalBP: '', vitalTemp: '', vitalPulse: '', vitalSPO2: '', examination: '', notes: '' });
+  const [exam, setExam] = useState<ExamForm>(() => initialSession?.exam || { chiefComplaint: '', symptoms: '', vitalBP: '', vitalTemp: '', vitalPulse: '', vitalSPO2: '', examination: '', notes: '' });
 
   // Validation state
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (appt) {
-      if (appt.patientName) setManualPatientName(appt.patientName);
-      if (appt.patientAllergies) setManualAllergies(appt.patientAllergies);
-      if (appt.patientBloodGroup) setManualBloodGroup(appt.patientBloodGroup);
+      if (appt.patientName && !manualPatientName) setManualPatientName(appt.patientName);
+      if (appt.patientAllergies && !manualAllergies) setManualAllergies(appt.patientAllergies);
+      if (appt.patientBloodGroup && !manualBloodGroup) setManualBloodGroup(appt.patientBloodGroup);
     }
   }, [appt]);
 
   const activePatientName = manualPatientName || appt?.patientName || 'Walk-in Patient';
   const activeAllergies = manualAllergies || appt?.patientAllergies || '';
+
+  // E-Prescription Auto-Fill Co-Pilot State
+  const [autoFilledDraft, setAutoFilledDraft] = useState<AutoFilledPrescriptionDraft>(() => initialSession?.autoFilledDraft || {
+    patientName: '',
+    diagnosis: '',
+    fulfillmentSource: 'InHouse',
+    recipients: 'Both',
+    instructions: 'Take as directed by doctor.',
+    items: [],
+    labOrders: [],
+    isAutoFilled: false,
+    lastSyncedAt: ''
+  });
+
+  // Track active appointment ID globally
+  useEffect(() => {
+    if (id) {
+      localStorage.setItem('mediflow_active_consultation_id', id);
+    }
+  }, [id]);
+
+  function calculateMedicineQuantity(frequency: string, duration: string): number {
+    const daysMatch = (duration || '').match(/\d+/);
+    const days = daysMatch ? parseInt(daysMatch[0], 10) : 7;
+
+    let dosePerDay = 1;
+    const freqLower = (frequency || '').toLowerCase();
+    if (freqLower.includes('tid') || freqLower.includes('thrice') || freqLower.includes('3 times')) {
+      dosePerDay = 3;
+    } else if (freqLower.includes('bid') || freqLower.includes('twice') || freqLower.includes('2 times')) {
+      dosePerDay = 2;
+    } else if (freqLower.includes('qid') || freqLower.includes('4 times')) {
+      dosePerDay = 4;
+    } else if (freqLower.includes('qd') || freqLower.includes('once') || freqLower.includes('daily')) {
+      dosePerDay = 1;
+    }
+
+    return Math.max(1, dosePerDay * days);
+  }
+
+  // Real-time synchronization when doctor approves/modifies AI recommendations
+  useEffect(() => {
+    const approvedDiag = editableDiagnoses.find(d => d.status === 'approved' || d.status === 'modified')?.diagnosis || '';
+    const approvedMeds = editableMeds
+      .filter(m => m.status === 'approved' || m.status === 'modified')
+      .map(m => ({
+        medicineName: m.drugName,
+        dosage: m.dosage,
+        frequency: m.frequency,
+        duration: m.duration,
+        quantity: calculateMedicineQuantity(m.frequency, m.duration),
+        instructions: m.instructions
+      }));
+
+    const approvedLabs = editableLabs
+      .filter(l => l.status === 'approved' || l.status === 'modified')
+      .map(l => ({
+        testName: l.testName,
+        indication: l.indication,
+        urgency: l.urgency || 'routine'
+      }));
+
+    setAutoFilledDraft({
+      patientName: activePatientName,
+      diagnosis: approvedDiag,
+      fulfillmentSource: 'InHouse',
+      recipients: 'Both',
+      instructions: 'Take as directed by doctor.',
+      items: approvedMeds,
+      labOrders: approvedLabs,
+      isAutoFilled: approvedMeds.length > 0 || approvedLabs.length > 0,
+      lastSyncedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    });
+  }, [editableDiagnoses, editableMeds, editableLabs, activePatientName]);
+
+  // Persist session state to sessionStorage and localStorage continuously
+  useEffect(() => {
+    if (!id || step === 'done') return;
+    const sessionKey = `mediflow_consultation_session_${id}`;
+    const sessionData = {
+      appointmentId: id,
+      step,
+      exam,
+      manualPatientName: manualPatientName || appt?.patientName || '',
+      manualAllergies: manualAllergies || appt?.patientAllergies || '',
+      manualBloodGroup: manualBloodGroup || appt?.patientBloodGroup || 'O+',
+      aiResult,
+      editableDiagnoses,
+      editableLabs,
+      editableMeds,
+      autoFilledDraft,
+      isCompleted: false,
+      updatedAt: new Date().toISOString()
+    };
+    sessionStorage.setItem(sessionKey, JSON.stringify(sessionData));
+    localStorage.setItem(sessionKey, JSON.stringify(sessionData));
+  }, [id, step, exam, manualPatientName, manualAllergies, manualBloodGroup, aiResult, editableDiagnoses, editableLabs, editableMeds, autoFilledDraft, appt]);
 
   // ─── Validation Helpers ──────────────────────────────────────────────────
 
@@ -415,6 +536,7 @@ export default function ConsultationPage() {
     setNewMedDosage('');
   }
 
+
   // Finalize Care Plan
   async function finalizeClinicalCarePlan() {
     const finalizeError = validateFinalizeStep();
@@ -428,7 +550,7 @@ export default function ConsultationPage() {
     const diffList = approvedDiagList.slice(1);
     const approvedLabList = editableLabs.filter(l => l.status === 'approved');
     const approvedMedList = editableMeds.filter(m => m.status === 'approved' || m.status === 'modified');
-    
+
     const overriddenAlerts = editableMeds
       .filter(m => m.safetyWarning && m.overrideJustification)
       .map(m => `${m.drugName}: ${m.overrideJustification}`);
@@ -449,8 +571,32 @@ export default function ConsultationPage() {
     setApprovedPlan(plan);
     setStep('done');
 
-    // Auto-generate prescription for InHouse dispatch
-    if (approvedMedList.length > 0) {
+    // Auto-generate prescription for InHouse dispatch with pre-filled items & lab orders
+    // Use freshly computed lists (not stale autoFilledDraft state)
+    const prescriptionItems = approvedMedList.map(med => ({
+      medicineName: med.drugName,
+      dosage: med.dosage,
+      frequency: med.frequency,
+      duration: med.duration,
+      quantity: calculateMedicineQuantity(med.frequency, med.duration),
+      instructions: med.instructions || 'Take as directed'
+    }));
+
+    const prescriptionLabs = approvedLabList.map(l => ({
+      testName: l.testName,
+      indication: l.indication,
+      urgency: l.urgency || 'routine'
+    }));
+
+    // Build instructions with lab orders included
+    let prescriptionInstructions = 'Take as directed by doctor.';
+    if (prescriptionLabs.length > 0) {
+      const labSummary = "Diagnostic Workup & Lab Orders:\n" + prescriptionLabs.map(l => `• ${l.testName} [Urgency: ${l.urgency.toUpperCase()}] - Indication: ${l.indication}`).join("\n");
+      prescriptionInstructions += "\n\n" + labSummary;
+    }
+
+    // Backend requires at least one medication item
+    if (prescriptionItems.length > 0) {
       try {
         await apiGeneratePrescription({
           appointmentId: id ? parseInt(id, 10) : undefined,
@@ -459,16 +605,11 @@ export default function ConsultationPage() {
           diagnosis: primaryDiag?.diagnosis || 'Clinical Assessment Completed',
           fulfillmentSource: 'InHouse',
           recipients: 'Both',
-          instructions: 'Take as directed by doctor',
-          items: approvedMedList.map(med => ({
-            medicineName: med.drugName,
-            dosage: med.dosage,
-            frequency: med.frequency,
-            duration: med.duration,
-            quantity: 1, 
-            instructions: med.instructions
-          }))
+          instructions: prescriptionInstructions,
+          items: prescriptionItems,
+          labOrders: prescriptionLabs
         });
+        console.log('Prescription auto-dispatched successfully');
       } catch (err) {
         console.error('Failed to auto-dispatch prescription:', err);
       }
@@ -476,6 +617,8 @@ export default function ConsultationPage() {
 
     // Mark appointment as Completed in backend
     if (id) {
+      sessionStorage.removeItem(`mediflow_consultation_session_${id}`);
+      localStorage.removeItem('mediflow_active_consultation_id');
       try {
         await apiCompleteAppointment(id);
       } catch (err) {
@@ -495,10 +638,10 @@ export default function ConsultationPage() {
   );
 
   const STEPS = [
-    { key: 'review',   label: 'Patient Review', icon: '👤' },
-    { key: 'examine',  label: 'Examination',    icon: '🩺' },
-    { key: 'ai',       label: 'AI Agent Co-Pilot', icon: '🧠' },
-    { key: 'done',     label: 'Clinical Plan Record', icon: '📋' },
+    { key: 'review', label: 'Patient Review', icon: '👤' },
+    { key: 'examine', label: 'Examination', icon: '🩺' },
+    { key: 'ai', label: 'AI Agent Co-Pilot', icon: '🧠' },
+    { key: 'done', label: 'Clinical Plan Record', icon: '📋' },
   ];
   const currentStepIdx = STEPS.findIndex(s => s.key === step);
 
@@ -670,10 +813,10 @@ export default function ConsultationPage() {
                     <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 10, color: 'var(--text-secondary)' }}>Vital Signs</div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
                       {[
-                        { key: 'vitalBP',    label: 'Blood Pressure',  placeholder: '120/80' },
-                        { key: 'vitalTemp',  label: 'Temperature',     placeholder: '37.0 °C' },
-                        { key: 'vitalPulse', label: 'Pulse Rate',      placeholder: '72 bpm' },
-                        { key: 'vitalSPO2',  label: 'SpO2 (%)',        placeholder: '98%' },
+                        { key: 'vitalBP', label: 'Blood Pressure', placeholder: '120/80' },
+                        { key: 'vitalTemp', label: 'Temperature', placeholder: '37.0 °C' },
+                        { key: 'vitalPulse', label: 'Pulse Rate', placeholder: '72 bpm' },
+                        { key: 'vitalSPO2', label: 'SpO2 (%)', placeholder: '98%' },
                       ].map(({ key, label, placeholder }) => (
                         <div className="form-group" key={key}>
                           <label className="form-label">{label}</label>
@@ -731,7 +874,7 @@ export default function ConsultationPage() {
               {/* STEP: AI Agent Co-Pilot (Human-in-the-Loop Workspace) */}
               {step === 'ai' && aiResult && (
                 <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  
+
                   {/* Human-in-the-Loop Header Banner */}
                   <div className="approval-banner" style={{ background: 'linear-gradient(135deg, #1E1B4B, #312E81)', border: '1.5px solid #6366F1', padding: '18px 20px', borderRadius: 'var(--r-lg)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -870,7 +1013,7 @@ export default function ConsultationPage() {
                                 </div>
                                 <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--med-blue)', marginRight: 6 }}>{diag.confidence}%</span>
-                                  
+
                                   {/* Doctor Actions */}
                                   <button
                                     className={`btn btn-sm ${isApproved ? 'btn-success' : 'btn-outline'}`}
@@ -1109,6 +1252,12 @@ export default function ConsultationPage() {
                     </div>
                   </div>
 
+                  {/* Real-time E-Prescription Auto-Fill Preview */}
+                  <PrescriptionLivePreviewCard
+                    draft={autoFilledDraft}
+                    onNavigateToDraft={() => navigate(`/doctor/e-prescription?apptId=${id}&patientName=${encodeURIComponent(activePatientName)}`)}
+                  />
+
                   {/* Finalize Validation Error */}
                   {validationErrors.finalize && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 13, fontWeight: 600, marginTop: 10 }} id="finalize-validation-error">
@@ -1117,9 +1266,17 @@ export default function ConsultationPage() {
                   )}
 
                   {/* Navigation Actions */}
-                  <div style={{ display: 'flex', gap: 12, marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
                     <button className="btn btn-secondary" onClick={() => { setValidationErrors({}); setStep('examine'); }} id="back-to-examine-btn">
                       Back to Vitals & Exam
+                    </button>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => navigate(`/doctor/e-prescription?apptId=${id}&patientName=${encodeURIComponent(activePatientName)}`)}
+                      id="send-to-eprescription-btn"
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, borderColor: '#059669', color: '#047857' }}
+                    >
+                      <Pill size={16} /> Open in E-Prescription Workspace
                     </button>
                     <button
                       className="btn btn-primary btn-lg"
@@ -1136,7 +1293,7 @@ export default function ConsultationPage() {
               {/* STEP: Final Approved Clinical Care Plan & Consultation Summary */}
               {step === 'done' && approvedPlan && (
                 <div className="card scale-in" style={{ padding: 28, background: 'var(--surface-1)' }}>
-                  
+
                   {/* Top Success Ribbon */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border)', paddingBottom: 18, marginBottom: 24 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -1160,7 +1317,7 @@ export default function ConsultationPage() {
 
                   {/* Summary Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
-                    
+
                     {/* Primary & Differential Diagnoses */}
                     <div style={{ padding: 18, background: '#F0FDF4', borderRadius: 'var(--r-md)', border: '1.5px solid #86EFAC' }}>
                       <div style={{ fontWeight: 800, fontSize: 15, color: '#166534', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
