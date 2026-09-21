@@ -418,4 +418,136 @@ public class PrescriptionsController : ControllerBase
         return Ok(dtos);
     }
 
+
+    // ─── PUT /api/prescriptions/{id} ──────────────────────────────────────
+
+    /// <summary>
+    /// Doctor edits their prescription details.
+    /// Updates diagnosis, instructions, fulfillment source, and medicine items.
+    /// </summary>
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> UpdatePrescription(int id, [FromBody] UpdatePrescriptionRequestDto request)
+    {
+        var userId = TryGetUserId();
+
+        var doctor = userId.HasValue
+            ? await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync(d => d.UserId == userId.Value)
+            : null;
+
+        if (doctor == null)
+        {
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        // Validate updated items
+        if (request.Items != null && request.Items.Count > 0)
+        {
+            foreach (var item in request.Items)
+            {
+                if (string.IsNullOrWhiteSpace(item.MedicineName))
+                    return BadRequest(new { message = "Medicine name is required for all prescription items." });
+                if (item.Quantity <= 0)
+                    return BadRequest(new { message = $"Quantity for '{item.MedicineName}' must be greater than zero." });
+            }
+        }
+
+        // Apply patient name & walk-in details updates
+        if (request.IsWalkIn.HasValue)
+            prescription.IsWalkIn = request.IsWalkIn.Value;
+
+        if (!string.IsNullOrWhiteSpace(request.PatientName))
+        {
+            prescription.WalkInPatientName = request.PatientName;
+            if (prescription.Patient != null)
+            {
+                prescription.Patient.FullName = request.PatientName;
+            }
+        }
+
+        if (request.WalkInPatientDetails != null)
+        {
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.FullName))
+            {
+                prescription.WalkInPatientName = request.WalkInPatientDetails.FullName;
+                if (prescription.Patient != null)
+                {
+                    prescription.Patient.FullName = request.WalkInPatientDetails.FullName;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Age))
+                prescription.WalkInPatientAge = request.WalkInPatientDetails.Age;
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Gender))
+                prescription.WalkInPatientGender = request.WalkInPatientDetails.Gender;
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Phone))
+                prescription.WalkInPatientPhone = request.WalkInPatientDetails.Phone;
+        }
+
+        // Apply updates
+        if (!string.IsNullOrWhiteSpace(request.Diagnosis))
+            prescription.Diagnosis = request.Diagnosis;
+
+        if (request.Instructions != null)
+            prescription.Instructions = request.Instructions;
+
+        if (!string.IsNullOrWhiteSpace(request.FulfillmentSource) &&
+            Enum.TryParse<FulfillmentSource>(request.FulfillmentSource, true, out var fs))
+            prescription.FulfillmentSource = fs;
+
+        // Replace items if provided
+        if (request.Items != null && request.Items.Count > 0)
+        {
+            _db.PrescriptionItems.RemoveRange(prescription.Items);
+            prescription.Items.Clear();
+
+            foreach (var item in request.Items)
+            {
+                prescription.Items.Add(new PrescriptionItem
+                {
+                    MedicineId = item.MedicineId,
+                    MedicineName = item.MedicineName,
+                    Dosage = item.Dosage,
+                    Frequency = item.Frequency,
+                    Duration = item.Duration,
+                    Quantity = item.Quantity,
+                    Instructions = item.Instructions
+                });
+            }
+        }
+
+        prescription.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        // Reload with full nav props for response
+        var updated = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                .ThenInclude(ds => ds.Specialty)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        var doctorName = updated?.Doctor?.FullName ?? doctor?.FullName ?? "Dr. Clinical Specialist";
+        var doctorSpecialty = updated?.Doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault()
+            ?? doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault();
+
+        return Ok(new
+        {
+            message = $"Prescription {id} updated successfully.",
+            prescription = ToDto(updated!, doctorName, doctorSpecialty)
+        });
+    }
+
 }
