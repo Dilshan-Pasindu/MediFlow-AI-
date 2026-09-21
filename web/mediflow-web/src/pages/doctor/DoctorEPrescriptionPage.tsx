@@ -9,7 +9,7 @@ import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import {
   getUser, apiGetDoctorAppointments, apiGeneratePrescription,
-  apiGetDoctorPrescriptions
+  apiGetDoctorPrescriptions, apiUpdatePrescription
 } from '../../services/api';
 import type { Prescription } from '../../types/prescription';
 import type { FulfillmentSource, RecipientTarget } from '../../types/prescription';
@@ -44,6 +44,7 @@ export default function DoctorEPrescriptionPage() {
   const [activeConsoleTab, setActiveConsoleTab] = useState<'create' | 'history'>('create');
   const [issuedPrescriptions, setIssuedPrescriptions] = useState<Prescription[]>([]);
   const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+  const [editingRxId, setEditingRxId] = useState<number | null>(null);
 
   // Mode: registered vs walk-in
   const [isWalkIn, setIsWalkIn] = useState<boolean>(searchParams.get('type') === 'walkin');
