@@ -550,4 +550,36 @@ public class PrescriptionsController : ControllerBase
         });
     }
 
+
+    // ─── DELETE /api/prescriptions/{id} ───────────────────────────────────
+
+    /// <summary>
+    /// Doctor deletes an issued prescription.
+    /// Unlinks any linked orders before purging from database.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> CancelPrescription(int id)
+    {
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Items)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        // Unlink associated orders to avoid foreign key constraint violations
+        var linkedOrders = await _db.Orders.Where(o => o.PrescriptionId == id).ToListAsync();
+        foreach (var order in linkedOrders)
+        {
+            order.PrescriptionId = null;
+        }
+
+        _db.PrescriptionItems.RemoveRange(prescription.Items);
+        _db.Prescriptions.Remove(prescription);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = $"Prescription {id} has been deleted successfully." });
+    }
+
 }
