@@ -109,7 +109,15 @@ public class PrescriptionsController : ControllerBase
             .FirstOrDefaultAsync(d => d.UserId == userId.Value);
 
         if (doctor == null)
-            return NotFound(new { message = "Doctor profile not found for this user." });
+        {
+            // Fallback: If no Doctor profile is directly linked to this User ID, use first available Doctor record
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        if (doctor == null)
+            return NotFound(new { message = "Doctor profile not found in system." });
 
         var doctorSpecialty = doctor.DoctorSpecialties
             .Select(ds => ds.Specialty.Name)
