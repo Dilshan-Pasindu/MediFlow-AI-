@@ -7,7 +7,11 @@ import {
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
-import { getUser, apiGetDoctorAppointments, apiGeneratePrescription } from '../../services/api';
+import {
+  getUser, apiGetDoctorAppointments, apiGeneratePrescription,
+  apiGetDoctorPrescriptions
+} from '../../services/api';
+import type { Prescription } from '../../types/prescription';
 import type { FulfillmentSource, RecipientTarget } from '../../types/prescription';
 
 interface PrescriptionLine {
@@ -35,6 +39,11 @@ export default function DoctorEPrescriptionPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const doctorUser = getUser();
+
+  // Navigation tab in console
+  const [activeConsoleTab, setActiveConsoleTab] = useState<'create' | 'history'>('create');
+  const [issuedPrescriptions, setIssuedPrescriptions] = useState<Prescription[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
 
   // Mode: registered vs walk-in
   const [isWalkIn, setIsWalkIn] = useState<boolean>(searchParams.get('type') === 'walkin');
@@ -321,6 +330,34 @@ export default function DoctorEPrescriptionPage() {
         />
 
         <div className="page-body fade-in" style={{ paddingBottom: 60 }}>
+
+          {/* Sub-Navigation Tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
+            <button
+              onClick={() => setActiveConsoleTab('create')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
+                borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer',
+                border: 'none',
+                background: activeConsoleTab === 'create' ? 'var(--med-teal)' : 'var(--surface-hover)',
+                color: activeConsoleTab === 'create' ? '#ffffff' : 'var(--text-secondary)'
+              }}
+            >
+              <Plus size={16} /> Issue New Prescription
+            </button>
+            <button
+              onClick={() => setActiveConsoleTab('history')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px',
+                borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer',
+                border: 'none',
+                background: activeConsoleTab === 'history' ? 'var(--med-teal)' : 'var(--surface-hover)',
+                color: activeConsoleTab === 'history' ? '#ffffff' : 'var(--text-secondary)'
+              }}
+            >
+              <FileText size={16} /> Issued Prescriptions History ({issuedPrescriptions.length})
+            </button>
+          </div>
 
           {/* Auto-fill notification banner from active AI consultation session */}
           {isAutoPopulatedFromSession && selectedApptId && (
