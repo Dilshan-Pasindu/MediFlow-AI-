@@ -352,12 +352,17 @@ public class InventoryController : ControllerBase
     /// Returns the pharmacy owned by the authenticated PharmacyOwner.
     /// </summary>
     [HttpGet("pharmacies/my")]
-    [Authorize(Roles = "PharmacyOwner")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Admin")]
     public async Task<IActionResult> GetMyPharmacy()
     {
-        var ownerId = GetUserId();
-        var pharmacy = await _db.Pharmacies.FirstOrDefaultAsync(p => p.OwnerId == ownerId);
-        if (pharmacy == null) return NotFound(new { message = "No pharmacy found for this owner." });
+        var userId = GetUserId();
+        var pharmacy = await _db.Pharmacies.FirstOrDefaultAsync(p => p.OwnerId == userId);
+        if (pharmacy == null)
+        {
+            // Fallback for Pharmacist staff to return default dispensary pharmacy
+            pharmacy = await _db.Pharmacies.FirstOrDefaultAsync();
+        }
+        if (pharmacy == null) return NotFound(new { message = "No pharmacy profile found in the system." });
         return Ok(new PharmacyDto(pharmacy.Id, pharmacy.Name, pharmacy.Location, pharmacy.ContactNumber, pharmacy.OwnerId));
     }
 
