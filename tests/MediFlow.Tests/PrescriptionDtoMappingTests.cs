@@ -19,5 +19,25 @@ namespace MediFlow.Tests
             Assert.Equal(2, dto.PharmacyId);
             Assert.Equal("Take after meals", dto.Notes);
         }
+    
+        [Fact]
+        public void UpdatePrescriptionRequestDto_InitializesWithCorrectValues()
+        {
+            var dto = new UpdatePrescriptionRequestDto(
+                PatientName: "Jane Doe",
+                IsWalkIn: false,
+                WalkInPatientDetails: null,
+                Diagnosis: "Acute Bronchitis",
+                FulfillmentSource: "InHouse",
+                Instructions: "Rest and hydration",
+                Items: null
+            );
+
+            Assert.Equal("Jane Doe", dto.PatientName);
+            Assert.Equal("Acute Bronchitis", dto.Diagnosis);
+            Assert.Equal("InHouse", dto.FulfillmentSource);
+            Assert.Equal("Rest and hydration", dto.Instructions);
+        }
+
     }
 }
