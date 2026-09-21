@@ -580,6 +580,23 @@ export default function DoctorEPrescriptionPage() {
                         }}
                       />
                     </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                        Patient Name
+                      </label>
+                      <input
+                        type="text"
+                        value={selectedPatientName}
+                        onChange={e => setSelectedPatientName(e.target.value)}
+                        placeholder="Or enter registered patient name manually"
+                        style={{
+                          width: '100%', padding: '10px 14px', borderRadius: 'var(--r-md)',
+                          border: '1px solid var(--border)', background: 'var(--surface)',
+                          fontSize: 13.5, color: 'var(--text-primary)', outline: 'none'
+                        }}
+                      />
+                    </div>
                   </div>
                 ) : (
                   /* Walk-in patient form */
