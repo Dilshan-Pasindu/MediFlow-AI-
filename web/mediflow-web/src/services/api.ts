@@ -296,6 +296,39 @@ export async function apiGetDoctorPrescriptions(status?: string): Promise<Prescr
   return apiFetch<Prescription[]>(`/prescriptions/doctor/my${qs}`);
 }
 
+export async function apiUpdatePrescription(
+  id: number | string,
+  data: {
+    patientName?: string;
+    isWalkIn?: boolean;
+    walkInPatientDetails?: {
+      fullName: string;
+      age?: string;
+      gender?: string;
+      phone?: string;
+    };
+    diagnosis?: string;
+    fulfillmentSource?: string;
+    instructions?: string;
+    items?: Array<{
+      medicineId?: number;
+      medicineName: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+      quantity: number;
+      instructions?: string;
+    }>;
+  }
+): Promise<{ message: string; prescription: Prescription }> {
+  return apiFetch(`/prescriptions/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function apiDeletePrescription(id: number | string): Promise<{ message: string }> {
+  return apiFetch(`/prescriptions/${id}`, { method: 'DELETE' });
+}
+
+
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
