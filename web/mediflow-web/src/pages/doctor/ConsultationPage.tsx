@@ -536,24 +536,6 @@ export default function ConsultationPage() {
     setNewMedDosage('');
   }
 
-  function calculateMedicineQuantity(frequency: string, duration: string): number {
-    const daysMatch = (duration || '').match(/\d+/);
-    const days = daysMatch ? parseInt(daysMatch[0], 10) : 7;
-
-    let dosePerDay = 1;
-    const freqLower = (frequency || '').toLowerCase();
-    if (freqLower.includes('tid') || freqLower.includes('thrice') || freqLower.includes('3 times')) {
-      dosePerDay = 3;
-    } else if (freqLower.includes('bid') || freqLower.includes('twice') || freqLower.includes('2 times')) {
-      dosePerDay = 2;
-    } else if (freqLower.includes('qid') || freqLower.includes('4 times')) {
-      dosePerDay = 4;
-    } else if (freqLower.includes('qd') || freqLower.includes('once') || freqLower.includes('daily')) {
-      dosePerDay = 1;
-    }
-
-    return Math.max(1, dosePerDay * days);
-  }
 
   // Finalize Care Plan
   async function finalizeClinicalCarePlan() {
