@@ -824,3 +824,5 @@ export async function apiMarkNotificationRead(id: number) {
 export async function apiMarkAllNotificationsRead() {
   return apiFetch('/notifications/read-all', { method: 'POST' });
 }
+
+

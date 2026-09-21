@@ -357,6 +357,7 @@ public class PrescriptionsController : ControllerBase
     /// Returns all prescriptions issued by the currently logged-in doctor.
     /// Supports optional status filter via ?status=Active|Fulfilled|Cancelled.
     /// </summary>
+    [HttpGet("doctor")]
     [HttpGet("doctor/my")]
     [Authorize(Roles = "Doctor,Admin")]
     public async Task<IActionResult> GetMyIssuedPrescriptions([FromQuery] string? status)
