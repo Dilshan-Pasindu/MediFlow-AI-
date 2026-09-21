@@ -348,6 +348,11 @@ export async function apiUpdateOrderStatus(id: number | string, status: string) 
   return apiFetch(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
 }
 
+export async function apiDeleteOrder(id: number | string): Promise<{ message: string }> {
+  return apiFetch(`/orders/${id}`, { method: 'DELETE' });
+}
+
+
 export async function apiCalculateOrderPrice(id: number | string, pharmacyId: number | string) {
   return apiFetch(`/orders/${id}/calculate-price`, { method: 'POST', body: JSON.stringify({ pharmacyId }) });
 }
