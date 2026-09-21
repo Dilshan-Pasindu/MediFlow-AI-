@@ -69,3 +69,20 @@ public record CreatePrescriptionRequestDto(
     string? Instructions,
     List<CreatePrescriptionItemDto> Items
 );
+
+// ─── Prescription Update DTO ───────────────────────────────────────────────────
+
+/// <summary>
+/// All fields are optional — only non-null fields will be applied.
+/// Items: if provided and non-empty, replaces all existing prescription items.
+/// </summary>
+public record UpdatePrescriptionRequestDto(
+    string? PatientName,
+    bool? IsWalkIn,
+    WalkInPatientDetailsDto? WalkInPatientDetails,
+    string? Diagnosis,
+    string? FulfillmentSource,
+    string? Instructions,
+    List<CreatePrescriptionItemDto>? Items
+);
+
