@@ -14,5 +14,14 @@ namespace MediFlow.Api.Extensions
 
             return errors.Count == 0;
         }
+
+        public static bool IsValid(this CreatePrescriptionRequestDto dto, out List<string> errors)
+        {
+            errors = new List<string>();
+            if (dto.PatientId.HasValue && dto.PatientId.Value <= 0) errors.Add("PatientId must be greater than zero.");
+            if (dto.Items == null || dto.Items.Count == 0) errors.Add("Prescription must contain at least one item.");
+
+            return errors.Count == 0;
+        }
     }
 }
