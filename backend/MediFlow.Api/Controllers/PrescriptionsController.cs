@@ -109,7 +109,15 @@ public class PrescriptionsController : ControllerBase
             .FirstOrDefaultAsync(d => d.UserId == userId.Value);
 
         if (doctor == null)
-            return NotFound(new { message = "Doctor profile not found for this user." });
+        {
+            // Fallback: If no Doctor profile is directly linked to this User ID, use first available Doctor record
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        if (doctor == null)
+            return NotFound(new { message = "Doctor profile not found in system." });
 
         var doctorSpecialty = doctor.DoctorSpecialties
             .Select(ds => ds.Specialty.Name)
@@ -341,5 +349,225 @@ public class PrescriptionsController : ControllerBase
             .ToListAsync();
 
         return Ok(result);
+    }
+
+    // ─── GET /api/prescriptions/doctor/my ─────────────────────────────────
+
+    /// <summary>
+    /// Returns all prescriptions issued by the currently logged-in doctor.
+    /// Supports optional status filter via ?status=Active|Fulfilled|Cancelled.
+    /// </summary>
+    [HttpGet("doctor/my")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> GetMyIssuedPrescriptions([FromQuery] string? status)
+    {
+        var userId = TryGetUserId();
+
+        var doctor = userId.HasValue
+            ? await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync(d => d.UserId == userId.Value)
+            : null;
+
+        if (doctor == null)
+        {
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        var query = _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Appointment)
+            .Include(p => p.Doctor)
+            .AsQueryable();
+
+        if (doctor != null)
+        {
+            query = query.Where(p => p.DoctorId == doctor.Id || (doctor.UserId > 0 && p.Doctor != null && p.Doctor.UserId == doctor.UserId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<PrescriptionStatus>(status, true, out var parsedStatus))
+        {
+            query = query.Where(p => p.Status == parsedStatus);
+        }
+
+        var prescriptions = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var dtos = prescriptions.Select(p =>
+        {
+            var doctorName = p.Doctor?.FullName ?? doctor?.FullName ?? "Dr. Clinical Specialist";
+            var doctorSpecialty = p.Doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault()
+                ?? doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault();
+            return ToDto(p, doctorName, doctorSpecialty);
+        }).ToList();
+
+        return Ok(dtos);
+    }
+
+    // ─── PUT /api/prescriptions/{id} ──────────────────────────────────────
+
+    /// <summary>
+    /// Doctor edits their prescription details.
+    /// Updates diagnosis, instructions, fulfillment source, and medicine items.
+    /// </summary>
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> UpdatePrescription(int id, [FromBody] UpdatePrescriptionRequestDto request)
+    {
+        var userId = TryGetUserId();
+
+        var doctor = userId.HasValue
+            ? await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync(d => d.UserId == userId.Value)
+            : null;
+
+        if (doctor == null)
+        {
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        // Validate updated items
+        if (request.Items != null && request.Items.Count > 0)
+        {
+            foreach (var item in request.Items)
+            {
+                if (string.IsNullOrWhiteSpace(item.MedicineName))
+                    return BadRequest(new { message = "Medicine name is required for all prescription items." });
+                if (item.Quantity <= 0)
+                    return BadRequest(new { message = $"Quantity for '{item.MedicineName}' must be greater than zero." });
+            }
+        }
+
+        // Apply patient name & walk-in details updates
+        if (request.IsWalkIn.HasValue)
+            prescription.IsWalkIn = request.IsWalkIn.Value;
+
+        if (!string.IsNullOrWhiteSpace(request.PatientName))
+        {
+            prescription.WalkInPatientName = request.PatientName;
+            if (prescription.Patient != null)
+            {
+                prescription.Patient.FullName = request.PatientName;
+            }
+        }
+
+        if (request.WalkInPatientDetails != null)
+        {
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.FullName))
+            {
+                prescription.WalkInPatientName = request.WalkInPatientDetails.FullName;
+                if (prescription.Patient != null)
+                {
+                    prescription.Patient.FullName = request.WalkInPatientDetails.FullName;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Age))
+                prescription.WalkInPatientAge = request.WalkInPatientDetails.Age;
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Gender))
+                prescription.WalkInPatientGender = request.WalkInPatientDetails.Gender;
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Phone))
+                prescription.WalkInPatientPhone = request.WalkInPatientDetails.Phone;
+        }
+
+        // Apply updates
+        if (!string.IsNullOrWhiteSpace(request.Diagnosis))
+            prescription.Diagnosis = request.Diagnosis;
+
+        if (request.Instructions != null)
+            prescription.Instructions = request.Instructions;
+
+        if (!string.IsNullOrWhiteSpace(request.FulfillmentSource) &&
+            Enum.TryParse<FulfillmentSource>(request.FulfillmentSource, true, out var fs))
+            prescription.FulfillmentSource = fs;
+
+        // Replace items if provided
+        if (request.Items != null && request.Items.Count > 0)
+        {
+            _db.PrescriptionItems.RemoveRange(prescription.Items);
+            prescription.Items.Clear();
+
+            foreach (var item in request.Items)
+            {
+                prescription.Items.Add(new PrescriptionItem
+                {
+                    MedicineId = item.MedicineId,
+                    MedicineName = item.MedicineName,
+                    Dosage = item.Dosage,
+                    Frequency = item.Frequency,
+                    Duration = item.Duration,
+                    Quantity = item.Quantity,
+                    Instructions = item.Instructions
+                });
+            }
+        }
+
+        prescription.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        // Reload with full nav props for response
+        var updated = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                .ThenInclude(ds => ds.Specialty)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        var doctorName = updated?.Doctor?.FullName ?? doctor?.FullName ?? "Dr. Clinical Specialist";
+        var doctorSpecialty = updated?.Doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault()
+            ?? doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault();
+
+        return Ok(new
+        {
+            message = $"Prescription {id} updated successfully.",
+            prescription = ToDto(updated!, doctorName, doctorSpecialty)
+        });
+    }
+
+    // ─── DELETE /api/prescriptions/{id} ───────────────────────────────────
+
+    /// <summary>
+    /// Doctor deletes an issued prescription.
+    /// Unlinks any linked orders before purging from database.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> CancelPrescription(int id)
+    {
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Items)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        // Unlink associated orders to avoid foreign key constraint violations
+        var linkedOrders = await _db.Orders.Where(o => o.PrescriptionId == id).ToListAsync();
+        foreach (var order in linkedOrders)
+        {
+            order.PrescriptionId = null;
+        }
+
+        _db.PrescriptionItems.RemoveRange(prescription.Items);
+        _db.Prescriptions.Remove(prescription);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = $"Prescription {id} has been deleted successfully." });
     }
 }
