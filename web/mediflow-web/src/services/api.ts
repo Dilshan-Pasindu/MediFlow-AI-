@@ -291,6 +291,12 @@ export async function apiGetPrescriptions(): Promise<Prescription[]> {
   return apiFetch<Prescription[]>('/pharmacist/prescriptions');
 }
 
+export async function apiGetDoctorPrescriptions(status?: string): Promise<Prescription[]> {
+  const qs = status ? `?status=${status}` : '';
+  return apiFetch<Prescription[]>(`/prescriptions/doctor/my${qs}`);
+}
+
+
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
 export async function apiCreateOrder(data: CreateOrderDto | Record<string, unknown>) {
