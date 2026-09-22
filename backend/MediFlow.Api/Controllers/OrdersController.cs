@@ -303,6 +303,44 @@ public class OrdersController : ControllerBase
         if (!validNext.Contains(newStatus))
             return BadRequest(new { message = $"Cannot transition from '{order.Status}' to '{newStatus}'." });
 
+        // ── HUMAN-IN-THE-LOOP SAFETY GATE ─────────────────────────────────────
+        // Advancing from Pending → Confirmed is the gate point.
+        // Any unacknowledged High-severity DrugInteractionLog on the linked
+        // prescription blocks progression until a pharmacist signs off.
+        if (order.Status == OrderStatus.Pending && newStatus == OrderStatus.Confirmed
+            && order.PrescriptionId.HasValue)
+        {
+            var blockers = await _db.DrugInteractionLogs
+                .Where(l =>
+                    l.PrescriptionId == order.PrescriptionId.Value &&
+                    l.SeverityLevel == "High" &&
+                    l.AcknowledgedAt == null)
+                .ToListAsync();
+
+            if (blockers.Count > 0)
+            {
+                // Surface Moderate/Low unacknowledged warnings as informational
+                var moderateWarnings = await _db.DrugInteractionLogs
+                    .Where(l =>
+                        l.PrescriptionId == order.PrescriptionId.Value &&
+                        l.SeverityLevel != "High" &&
+                        l.AcknowledgedAt == null)
+                    .Select(l => $"{l.WarningType}: {l.DrugA} ({l.SeverityLevel})")
+                    .ToListAsync();
+
+                return Conflict(new
+                {
+                    message = $"Cannot advance order {id}: {blockers.Count} unacknowledged " +
+                              $"High-severity drug interaction warning(s) require pharmacist " +
+                              "sign-off via POST /api/prescriptions/{prescriptionId}/acknowledge-warning " +
+                              "before this order may proceed.",
+                    blockedByLogIds = blockers.Select(b => b.Id).ToList(),
+                    additionalInformationalWarnings = moderateWarnings
+                });
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         order.Status = newStatus;
         order.UpdatedAt = DateTime.UtcNow;
 
