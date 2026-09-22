@@ -5,6 +5,7 @@ from ai.main import app
 from ai.schemas.agent_schemas import SymptomInput, MedicationCheckInput
 from ai.agents.specialist_recommender import recommend_specialist
 from ai.agents.medication_intelligence import (
+    check_allergy_contraindications,
     check_dosage_safety,
     find_alternative_medicines,
     generate_summary_with_gemini,
@@ -114,6 +115,99 @@ def test_medication_check_agent_allergy_and_alternative(client):
     assert data["safe_to_dispense"] is False
     assert len(data["allergy_warnings"]) >= 1
     assert any("Azithromycin" in a["alternative_drug"] for a in data["alternatives"])
+
+
+# ─── Targeted: Penicillin Allergy / Amoxicillin class-based detection ─────────
+
+def test_penicillin_allergy_unit_detects_amoxicillin():
+    """
+    UNIT TEST — checks that check_allergy_contraindications correctly identifies
+    Amoxicillin 500mg as contraindicated when the patient's allergy field contains
+    'Penicillin' (comma-delimited free-text, as stored by Patient.Allergies).
+
+    Requirements verified:
+    - Case-insensitive allergy parsing ('Penicillin' → 'penicillin')
+    - Drug-class lookup: penicillin → amoxicillin is in ALLERGY_CROSS_REFERENCE
+    - Warning text contains 'CRITICAL ALLERGY ALERT'
+    - No duplicate warnings for the same drug
+    """
+    warnings = check_allergy_contraindications(
+        allergies="Penicillin, Aspirin, Peanuts",
+        medications=["Amoxicillin 500mg"],
+    )
+    # Must detect at least one allergy conflict
+    assert len(warnings) >= 1, "Expected at least one allergy warning for Amoxicillin in a penicillin-allergic patient"
+    # Warning must be a CRITICAL ALLERGY ALERT
+    assert any("CRITICAL ALLERGY ALERT" in w for w in warnings), "Warning must be a CRITICAL ALLERGY ALERT"
+    # Amoxicillin (or amoxicillin) must be named in the warning
+    assert any("Amoxicillin" in w for w in warnings), "Warning must name the offending drug (Amoxicillin)"
+    # Penicillin class must be named as the allergen
+    assert any("Penicillin" in w or "penicillin" in w for w in warnings), (
+        "Warning must reference the allergen class (Penicillin)"
+    )
+    # No duplicate warnings for the same (drug, allergen) pair
+    assert len(warnings) == len(set(warnings)), "Duplicate warnings detected — deduplication failed"
+
+
+def test_penicillin_allergy_api_is_high_severity_and_returns_alternative(client):
+    """
+    INTEGRATION TEST — Full API path: POST /api/ai/medication-check
+    Patient allergies: 'Penicillin, Aspirin, Peanuts'
+    Prescription: 'Amoxicillin 500mg' (penicillin-class antibiotic)
+
+    Asserts:
+    1. safe_to_dispense is False (allergy conflict blocks dispensing)
+    2. allergy_warnings has >= 1 entry mentioning Amoxicillin
+    3. The conflict is treated as High severity (safety_score < 60)
+    4. alternatives list contains a sensible non-penicillin alternative (Azithromycin)
+    5. No duplicate warnings are returned
+    """
+    payload = {
+        "medications": ["Amoxicillin 500mg"],
+        "patient_allergies": "Penicillin, Aspirin, Peanuts",
+    }
+    response = client.post("/api/ai/medication-check", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+
+    # 1. Allergy must block dispensing
+    assert data["safe_to_dispense"] is False, "Allergy conflict must set safe_to_dispense = False"
+
+    # 2. Must have at least one allergy warning naming Amoxicillin
+    warnings = data["allergy_warnings"]
+    assert len(warnings) >= 1, "Expected at least 1 allergy warning"
+    assert any("Amoxicillin" in w for w in warnings), "Allergy warning must name Amoxicillin"
+
+    # 3. Allergy lowers safety score significantly (allergy = -40 pts per warning)
+    # One allergy warning → 100 - 40 = 60; two or more → lower. Use <= 60.
+    assert data["safety_score"] <= 60, f"Expected safety_score <= 60, got {data['safety_score']}"
+
+    # 4. Must provide a sensible non-penicillin alternative
+    alts = data["alternatives"]
+    assert len(alts) >= 1, "Expected at least one alternative for the flagged drug"
+    assert any(
+        "Azithromycin" in a["alternative_drug"] or "Erythromycin" in a["alternative_drug"]
+        for a in alts
+    ), "Alternative should be a macrolide (Azithromycin/Erythromycin)"
+
+    # 5. No duplicate warnings
+    assert len(warnings) == len(set(warnings)), "Duplicate allergy warnings returned"
+
+
+def test_no_false_positive_without_penicillin_allergy(client):
+    """
+    Negative test: a patient with no penicillin allergy should have NO warnings
+    and safe_to_dispense = True when prescribed Amoxicillin 500mg.
+    """
+    payload = {
+        "medications": ["Amoxicillin 500mg"],
+        "patient_allergies": "Peanuts, Latex",  # No penicillin allergy
+    }
+    response = client.post("/api/ai/medication-check", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["allergy_warnings"] == [], "No allergy warning expected for non-penicillin-allergic patient"
+    assert data["safe_to_dispense"] is True, "Should be safe to dispense with no relevant allergies"
 
 
 def test_medication_check_clean_prescription(client):
