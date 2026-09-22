@@ -261,19 +261,42 @@ def check_drug_interactions(medications: List[str]) -> List[DrugInteraction]:
 
 
 def check_allergy_contraindications(allergies: Optional[str], medications: List[str]) -> List[str]:
-    """Checks proposed medications against documented patient allergies."""
+    """
+    Checks proposed medications against documented patient allergies.
+
+    Allergy matching is:
+    - Case-insensitive (allergies field and drug names lowercased before comparison)
+    - Class-aware via ALLERGY_CROSS_REFERENCE (e.g. 'Penicillin' allergy catches Amoxicillin)
+    - Deduplication-safe: one warning per (drug, allergen_class) pair even if multiple
+      ALLERGY_CROSS_REFERENCE keys match the same prescribed drug.
+    """
     if not allergies or not allergies.strip():
         return []
 
     warnings: List[str] = []
-    allergies_lower = allergies.lower()
+    # Split on common delimiters so "Penicillin, Aspirin" → ["penicillin", "aspirin"]
+    allergy_tokens = [
+        token.strip().lower()
+        for part in allergies.replace(";", ",").split(",")
+        for token in [part.strip()]
+        if token
+    ]
     meds_clean = [m.lower().strip() for m in medications]
 
+    # Track (med, allergen_class) pairs to avoid duplicates when multiple cross-ref
+    # keys (e.g. 'penicillin' and 'amoxicillin') both flag the same prescribed drug.
+    seen_pairs: set = set()
+
     for allergen, forbidden_drugs in ALLERGY_CROSS_REFERENCE.items():
-        if allergen in allergies_lower:
-            for med in meds_clean:
-                for forbidden in forbidden_drugs:
-                    if forbidden in med:
+        # Match allergen key against any individual allergy token
+        if not any(allergen in token or token in allergen for token in allergy_tokens):
+            continue
+        for med in meds_clean:
+            for forbidden in forbidden_drugs:
+                if forbidden in med:
+                    pair = (med, allergen)
+                    if pair not in seen_pairs:
+                        seen_pairs.add(pair)
                         warnings.append(
                             f"CRITICAL ALLERGY ALERT: '{med.title()}' is contraindicated "
                             f"for patient with documented '{allergen.title()}' allergy."
