@@ -30,7 +30,6 @@ export interface Prescription {
   patientGender?: string;
   patientPhone?: string;
   isWalkIn?: boolean;
-  walkInPatientDetails?: WalkInPatientInfo;
   doctorId: number | string;
   doctorName: string;
   doctorSpecialty?: string;

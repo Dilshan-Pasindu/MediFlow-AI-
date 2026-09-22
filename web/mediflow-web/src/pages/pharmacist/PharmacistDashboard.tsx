@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { CheckCircle, Loader, RefreshCw, AlertCircle, Pill, ShoppingCart, Calculator, Trash2 } from 'lucide-react';
+import { CheckCircle, Loader, RefreshCw, AlertCircle, Pill, ShoppingCart, Calculator } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
-import { apiUpdateOrderStatus, apiCreateOrder, apiCalculateOrderPrice, apiDeleteOrder } from '../../services/api';
+import { apiUpdateOrderStatus, apiCreateOrder, apiCalculateOrderPrice } from '../../services/api';
 import { usePharmacistPrescriptions, usePharmacistOrders, useMyPharmacy } from '../../hooks';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Prescription } from '../../types/prescription';
@@ -47,21 +47,6 @@ export default function PharmacistDashboard() {
       const msg = err instanceof Error ? err.message : 'Update failed';
       setMessages(m => ({ ...m, [orderId]: { type: 'error', text: msg } }));
     } finally { setActionLoading(a => ({ ...a, [orderId]: null })); }
-  }
-
-  // ─── Delete order ─────────────────────────────────────────────────────────
-
-  async function handleDeleteOrder(orderId: number | string) {
-    if (!window.confirm(`Are you sure you want to delete / cancel Order #${orderId}?`)) return;
-    setActionLoading(a => ({ ...a, [`del-${orderId}`]: 'deleting' }));
-    try {
-      await apiDeleteOrder(orderId);
-      setMessages(m => ({ ...m, [orderId]: { type: 'success', text: `Order #${orderId} deleted successfully.` } }));
-      invalidate();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Delete order failed';
-      setMessages(m => ({ ...m, [orderId]: { type: 'error', text: msg } }));
-    } finally { setActionLoading(a => ({ ...a, [`del-${orderId}`]: null })); }
   }
 
   // ─── Convert prescription → order ───────────────────────────────────────
@@ -181,19 +166,6 @@ export default function PharmacistDashboard() {
                           >
                             {isCalcing ? <Loader size={12} className="spin" /> : <Calculator size={12} />}
                             Price
-                          </button>
-
-                          {/* Delete / Cancel Order */}
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => handleDeleteOrder(order.id)}
-                            disabled={!!actionLoading[`del-${order.id}`]}
-                            id={`delete-order-${order.id}`}
-                            title="Cancel / Delete Order"
-                            style={{ color: 'var(--danger)' }}
-                          >
-                            {actionLoading[`del-${order.id}`] ? <Loader size={12} className="spin" /> : <Trash2 size={12} />}
-                            Delete
                           </button>
 
                           {/* Advance Status */}

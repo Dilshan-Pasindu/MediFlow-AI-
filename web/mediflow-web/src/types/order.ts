@@ -17,7 +17,6 @@ export interface OrderItem {
 
 export interface Order {
   id: number;
-  prescriptionId?: number;
   patientId: number;
   patientName: string;
   pharmacyId: number;
@@ -27,10 +26,8 @@ export interface Order {
   status: OrderStatus;
   items: OrderItem[];
   totalAmount: number;
-  isPaid?: boolean;
   createdAt: string;
   updatedAt: string;
-  dispensedAt?: string;
 }
 
 export interface CreateOrderDto {
