@@ -1,13 +1,21 @@
 import { useState } from 'react';
 import {
   FileText, Pill, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck,
-  RefreshCw, ArrowRight, Loader2, ShoppingCart, Package, Clock, X
+  RefreshCw, ArrowRight, Loader2, ShoppingCart, Package, Clock, X,
+  AlertCircle, Check, Info
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
 import { usePharmacistPrescriptions, usePharmacistOrders, useMyPharmacy } from '../../hooks';
-import { apiRunMedicationCheck, apiCreateOrder, type MedicationCheckResult } from '../../services/api';
+import {
+  apiScreenInteractions,
+  apiAcknowledgeWarning,
+  apiGetPrescriptionInteractionLogs,
+  apiCreateOrder,
+  type ScreenInteractionsResponse,
+  type DrugInteractionLog
+} from '../../services/api';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Prescription } from '../../types/prescription';
 
@@ -17,35 +25,105 @@ export default function PharmacistPrescriptionsPage() {
   const { data: orders = [] } = usePharmacistOrders();
   const { data: myPharmacy } = useMyPharmacy();
 
-  const [aiChecks, setAiChecks] = useState<Record<number, MedicationCheckResult>>({});
+  const [aiChecks, setAiChecks] = useState<Record<number, ScreenInteractionsResponse>>({});
+  const [aiCheckErrors, setAiCheckErrors] = useState<Record<number, string>>({});
+  const [warningLogs, setWarningLogs] = useState<Record<number, DrugInteractionLog[]>>({});
+  const [overrideNotes, setOverrideNotes] = useState<Record<number, Record<number, string>>>({});
+  const [acknowledgedLogs, setAcknowledgedLogs] = useState<Record<number, Set<number>>>({});
+  const [acknowledging, setAcknowledging] = useState<Record<number, boolean>>({});
   const [checkingId, setCheckingId] = useState<number | null>(null);
+
   const [filterStatus, setFilterStatus] = useState<'QUEUE' | 'CONVERTED'>('QUEUE');
   const [converting, setConverting] = useState<Record<number, boolean>>({});
   const [convertMsg, setConvertMsg] = useState<Record<number, { ok: boolean; text: string } | null>>({});
 
-  // ─── AI Medication Check ─────────────────────────────────────────────────
+  // ─── AI Medication Check (Backend Screen Interactions Endpoint) ──────────────
 
   async function handleRunAICheck(rx: Prescription) {
     const rxId = Number(rx.id);
     setCheckingId(rxId);
+    setAiCheckErrors(prev => ({ ...prev, [rxId]: '' }));
+
     try {
-      const drugNames = (rx.items || []).map(i => i.medicineName);
-      const res = await apiRunMedicationCheck({
-        medications: drugNames.length > 0 ? drugNames : ['Amoxicillin 500mg'],
-        patient_allergies: 'Penicillin',
-      });
+      const res = await apiScreenInteractions(rxId, myPharmacy?.id);
       setAiChecks(prev => ({ ...prev, [rxId]: res }));
-    } catch (err) {
-      console.error(err);
+
+      // Fetch active interaction logs for this prescription
+      const logs = await apiGetPrescriptionInteractionLogs(rxId);
+      setWarningLogs(prev => ({ ...prev, [rxId]: logs }));
+
+      const ackedSet = new Set(logs.filter(l => l.isAcknowledged).map(l => l.id));
+      setAcknowledgedLogs(prev => ({ ...prev, [rxId]: ackedSet }));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'AI service unavailable. Manual pharmacist review required.';
+      setAiCheckErrors(prev => ({ ...prev, [rxId]: msg }));
     } finally {
       setCheckingId(null);
     }
   }
 
-  // ─── Convert Prescription → Order ──────────────────────────────────────
+  // ─── Pharmacist Warning Acknowledgment & HITL Override ─────────────────────
+
+  async function handleAcknowledge(rxId: number, logId: number, severity: string) {
+    const note = overrideNotes[rxId]?.[logId] || '';
+    if (severity === 'High' && !note.trim()) {
+      alert('A justification note is required to acknowledge High-severity warnings.');
+      return;
+    }
+
+    setAcknowledging(prev => ({ ...prev, [logId]: true }));
+    try {
+      await apiAcknowledgeWarning(rxId, logId, note);
+
+      // Update local state
+      setAcknowledgedLogs(prev => {
+        const current = new Set(prev[rxId] || []);
+        current.add(logId);
+        return { ...prev, [rxId]: current };
+      });
+
+      // Refetch logs to confirm status from backend
+      const logs = await apiGetPrescriptionInteractionLogs(rxId);
+      setWarningLogs(prev => ({ ...prev, [rxId]: logs }));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to acknowledge warning.';
+      alert(msg);
+    } finally {
+      setAcknowledging(prev => ({ ...prev, [logId]: false }));
+    }
+  }
+
+  function setOverrideNoteValue(rxId: number, logId: number, value: string) {
+    setOverrideNotes(prev => ({
+      ...prev,
+      [rxId]: {
+        ...(prev[rxId] || {}),
+        [logId]: value
+      }
+    }));
+  }
+
+  function hasUnacknowledgedHighWarning(rxId: number): boolean {
+    const logs = warningLogs[rxId] || [];
+    const ackedSet = acknowledgedLogs[rxId] || new Set();
+    return logs.some(l => l.severityLevel === 'High' && !l.isAcknowledged && !ackedSet.has(l.id));
+  }
+
+  // ─── Convert Prescription → Order ──────────────────────────────────────────
 
   async function handleConvertToOrder(rx: Prescription) {
     const rxId = Number(rx.id);
+
+    if (hasUnacknowledgedHighWarning(rxId)) {
+      setConvertMsg(m => ({
+        ...m,
+        [rxId]: {
+          ok: false,
+          text: 'Blocked: High-severity drug interaction detected. You must acknowledge all High-severity warnings with a justification note before converting to an order.'
+        }
+      }));
+      return;
+    }
 
     if (!myPharmacy?.id) {
       setConvertMsg(m => ({ ...m, [rxId]: { ok: false, text: 'Pharmacy profile not loaded. Please refresh.' } }));
@@ -137,8 +215,8 @@ export default function PharmacistPrescriptionsPage() {
               <div>
                 <div style={{ fontWeight: 800, fontSize: 13.5, color: '#0369A1' }}>Human-in-the-Loop Checkpoint — Pharmacist Clinical Validation</div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                  Run the AI safety check, then click <strong>Convert to Order</strong> to create a dispense order from the prescription.
-                  This moves it from the incoming queue to the active Orders workflow.
+                  Run the AI safety check to screen for drug-drug interactions, allergy contraindications, dosage warnings, and out-of-stock alternatives.
+                  High-severity warnings strictly require a written justification note to convert to order.
                 </div>
               </div>
             </div>
@@ -188,10 +266,23 @@ export default function PharmacistPrescriptionsPage() {
               {displayList.map(rx => {
                 const rxId = Number(rx.id);
                 const isConverted = convertedRxIds.has(rxId);
-                const aiResult = aiChecks[rxId];
+                const screenRes = aiChecks[rxId];
+                const aiError = aiCheckErrors[rxId];
+                const logs = warningLogs[rxId] || [];
+                const ackedSet = acknowledgedLogs[rxId] || new Set();
                 const isChecking = checkingId === rxId;
                 const isConverting = converting[rxId];
                 const msg = convertMsg[rxId];
+                const blockedByHigh = hasUnacknowledgedHighWarning(rxId);
+
+                const resultData = screenRes?.result;
+                const isSafe = resultData?.safeToDispense ?? resultData?.safe_to_dispense;
+                const score = resultData?.safetyScore ?? resultData?.safety_score ?? 100;
+                const interactions = resultData?.interactions || [];
+                const allergyWarnings = resultData?.allergyWarnings || resultData?.allergy_warnings || [];
+                const dosageWarnings = resultData?.dosageWarnings || resultData?.dosage_warnings || [];
+                const alternatives = resultData?.alternatives || [];
+                const summaryText = resultData?.summary;
 
                 return (
                   <div
@@ -200,6 +291,8 @@ export default function PharmacistPrescriptionsPage() {
                     style={{
                       border: isConverted
                         ? '1px solid #A7F3D0'
+                        : blockedByHigh
+                        ? '2px solid #EF4444'
                         : '1px solid rgba(14,165,233,0.3)',
                       background: isConverted ? 'rgba(5,150,105,0.02)' : undefined
                     }}
@@ -223,8 +316,8 @@ export default function PharmacistPrescriptionsPage() {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span className={`badge ${isConverted ? 'badge-green' : 'badge-amber'}`}>
-                          {isConverted ? '✓ Converted' : 'Active'}
+                        <span className={`badge ${isConverted ? 'badge-green' : blockedByHigh ? 'badge-red' : 'badge-amber'}`}>
+                          {isConverted ? '✓ Converted' : blockedByHigh ? '⚠️ Blocked (High Risk)' : 'Active'}
                         </span>
 
                         {/* Convert to Order Button */}
@@ -233,9 +326,19 @@ export default function PharmacistPrescriptionsPage() {
                             id={`convert-order-btn-${rxId}`}
                             className="btn btn-primary btn-sm"
                             onClick={() => handleConvertToOrder(rx)}
-                            disabled={isConverting || !myPharmacy?.id}
-                            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                            title={!myPharmacy?.id ? 'Pharmacy profile not loaded' : 'Convert this prescription into a dispense order'}
+                            disabled={isConverting || !myPharmacy?.id || blockedByHigh}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 6,
+                              opacity: blockedByHigh ? 0.65 : 1,
+                              cursor: blockedByHigh ? 'not-allowed' : 'pointer'
+                            }}
+                            title={
+                              blockedByHigh
+                                ? 'Blocked: Provide justification note for High-severity warning'
+                                : !myPharmacy?.id
+                                ? 'Pharmacy profile not loaded'
+                                : 'Convert this prescription into a dispense order'
+                            }
                           >
                             {isConverting
                               ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Converting…</>
@@ -255,7 +358,7 @@ export default function PharmacistPrescriptionsPage() {
                     {/* Conversion feedback message */}
                     {msg && (
                       <div style={{
-                        margin: '0 20px',
+                        margin: '0 20px 10px',
                         padding: '10px 14px',
                         borderRadius: 'var(--r-md)',
                         background: msg.ok ? '#ECFDF5' : '#FEF2F2',
@@ -299,52 +402,262 @@ export default function PharmacistPrescriptionsPage() {
                         ))}
                       </div>
 
-                      {/* AI Safety Check */}
+                      {/* AI Safety Check Trigger / Error Banner */}
                       {!isConverted && (
                         <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border-color)' }}>
-                          {!aiResult ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <button
-                                className="btn btn-ghost btn-sm"
-                                onClick={() => handleRunAICheck(rx)}
-                                disabled={isChecking}
-                                id={`ai-check-btn-${rxId}`}
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#0284C7', borderColor: '#0284C7' }}
-                              >
-                                <Sparkles size={13} />
-                                {isChecking ? 'Running AI Safety Screen…' : 'Run AI Safety & DDI Check (Recommended)'}
-                              </button>
-                              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
-                                — or convert directly if you've already verified
-                              </span>
-                              <ArrowRight size={13} style={{ color: 'var(--text-muted)' }} />
-                            </div>
-                          ) : (
-                            <div style={{
-                              padding: 12, borderRadius: 'var(--r-md)',
-                              background: aiResult.safe_to_dispense ? '#ECFDF5' : '#FEF2F2',
-                              border: `1px solid ${aiResult.safe_to_dispense ? '#10B981' : '#EF4444'}`
-                            }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  {aiResult.safe_to_dispense
-                                    ? <CheckCircle2 size={16} color="#059669" />
-                                    : <AlertTriangle size={16} color="#DC2626" />}
-                                  <strong style={{ fontSize: 13, color: aiResult.safe_to_dispense ? '#065F46' : '#991B1B' }}>
-                                    AI Safety: {aiResult.safe_to_dispense ? 'Verified Safe ✓' : 'Warnings Detected'}
-                                  </strong>
-                                </div>
-                                <span className="badge badge-teal" style={{ fontSize: 11 }}>Score: {aiResult.safety_score}/100</span>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleRunAICheck(rx)}
+                              disabled={isChecking}
+                              id={`ai-check-btn-${rxId}`}
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#0284C7', borderColor: '#0284C7' }}
+                            >
+                              <Sparkles size={13} />
+                              {isChecking ? 'Running AI Medication Check…' : screenRes ? 'Re-run AI Safety Check' : 'Run AI Safety Check'}
+                            </button>
+
+                            {screenRes && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span className={`badge ${isSafe ? 'badge-green' : 'badge-red'}`} style={{ fontSize: 12, fontWeight: 700 }}>
+                                  {isSafe ? '✓ Safe to Dispense' : '⚠️ Warnings Detected'}
+                                </span>
+                                <span className="badge badge-teal" style={{ fontSize: 12, fontWeight: 700 }}>
+                                  Safety Score: {score}/100
+                                </span>
                               </div>
-                              <div style={{ fontSize: 12, color: 'var(--text-primary)' }}>{aiResult.summary}</div>
-                              {aiResult.allergy_warnings.map((w, i) => (
-                                <div key={i} style={{ fontSize: 11.5, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>• {w}</div>
-                              ))}
-                              {aiResult.alternatives.map((alt, i) => (
-                                <div key={i} style={{ fontSize: 11.5, color: '#0369A1', fontWeight: 600, marginTop: 4 }}>
-                                  💡 Alternative: {alt.original_drug} → {alt.alternative_drug} ({alt.dosage_guidance})
+                            )}
+                          </div>
+
+                          {/* Error state if AI service unavailable */}
+                          {aiError && (
+                            <div style={{
+                              marginTop: 12, padding: '12px 16px', borderRadius: 'var(--r-md)',
+                              background: '#FFFBEB', border: '1px solid #FCD34D', color: '#92400E', fontSize: 12.5
+                            }}>
+                              <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                <AlertTriangle size={15} color="#D97706" />
+                                <span>AI Service Offline — Manual Review Required</span>
+                              </div>
+                              <div>{aiError}</div>
+                            </div>
+                          )}
+
+                          {/* Screen Results Display */}
+                          {screenRes && (
+                            <div style={{
+                              marginTop: 14, padding: 16, borderRadius: 'var(--r-md)',
+                              background: isSafe ? 'rgba(16,185,129,0.03)' : 'rgba(239,68,68,0.03)',
+                              border: `1px solid ${isSafe ? '#A7F3D0' : '#FECACA'}`
+                            }}>
+                              {/* Gemini Summary */}
+                              {summaryText && (
+                                <div style={{
+                                  padding: '10px 14px', borderRadius: 8, background: 'rgba(14,165,233,0.06)',
+                                  borderLeft: '4px solid #0EA5E9', fontSize: 12.5, fontWeight: 600, color: '#0369A1', marginBottom: 12
+                                }}>
+                                  🤖 <strong>AI Clinical Summary:</strong> {summaryText}
                                 </div>
-                              ))}
+                              )}
+
+                              {/* Drug Interactions */}
+                              {interactions.length > 0 && (
+                                <div style={{ marginBottom: 12 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#991B1B', textTransform: 'uppercase', marginBottom: 6 }}>
+                                    Drug-Drug Interactions ({interactions.length}):
+                                  </div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {interactions.map((item, idx) => {
+                                      const pair = item.drug_pair || item.drugPair || [];
+                                      const pairStr = pair.join(' ↔ ');
+                                      const isHigh = item.severity === 'High';
+                                      return (
+                                        <div key={idx} style={{
+                                          padding: '10px 12px', borderRadius: 6, background: '#FFF',
+                                          border: `1px solid ${isHigh ? '#FCA5A5' : '#FED7AA'}`, fontSize: 12
+                                        }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                            <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
+                                              💊 {pairStr || 'Drug Pair'}
+                                            </span>
+                                            <span className={`badge ${isHigh ? 'badge-red' : 'badge-amber'}`} style={{ fontSize: 10.5 }}>
+                                              {item.severity} Severity
+                                            </span>
+                                          </div>
+                                          <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>{item.description}</div>
+                                          {(item.recommendation || item.clinicalGuidance) && (
+                                            <div style={{ fontSize: 11.5, color: '#0369A1', fontWeight: 600 }}>
+                                              💡 Recommendation: {item.recommendation || item.clinicalGuidance}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Allergy Warnings */}
+                              {allergyWarnings.length > 0 && (
+                                <div style={{ marginBottom: 12 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#DC2626', textTransform: 'uppercase', marginBottom: 6 }}>
+                                    Allergy Contraindications ({allergyWarnings.length}):
+                                  </div>
+                                  {allergyWarnings.map((w, i) => (
+                                    <div key={i} style={{ padding: '8px 12px', borderRadius: 6, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
+                                      🚫 {w}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Dosage Warnings */}
+                              {dosageWarnings.length > 0 && (
+                                <div style={{ marginBottom: 12 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#D97706', textTransform: 'uppercase', marginBottom: 6 }}>
+                                    Dosage & Age Warnings ({dosageWarnings.length}):
+                                  </div>
+                                  {dosageWarnings.map((w, i) => (
+                                    <div key={i} style={{ padding: '8px 12px', borderRadius: 6, background: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
+                                      ⚖️ {w}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Alternatives */}
+                              {alternatives.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: '#059669', textTransform: 'uppercase', marginBottom: 6 }}>
+                                    Bioequivalent & In-Stock Alternatives ({alternatives.length}):
+                                  </div>
+                                  {alternatives.map((alt, i) => {
+                                    const orig = alt.original_drug || alt.originalDrug;
+                                    const repl = alt.alternative_drug || alt.alternativeDrug;
+                                    const guidance = alt.dosage_guidance || alt.dosageGuidance;
+                                    return (
+                                      <div key={i} style={{ padding: '8px 12px', borderRadius: 6, background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: 12, marginTop: 4 }}>
+                                        <strong>🔄 {orig}</strong> → <span style={{ textDecoration: 'underline' }}>{repl}</span>
+                                        {alt.reason && <div style={{ fontSize: 11.5, color: '#047857', marginTop: 2 }}>Reason: {alt.reason}</div>}
+                                        {guidance && <div style={{ fontSize: 11, color: '#065F46', fontWeight: 600, marginTop: 2 }}>Guidance: {guidance}</div>}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Pharmacist HITL Warning Override Section */}
+                          {logs.length > 0 && (
+                            <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px dashed #CBD5E1' }}>
+                              <div style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <ShieldCheck size={16} color="#0EA5E9" />
+                                <span>Pharmacist Clinical Warning Acknowledgments (HITL Gate)</span>
+                              </div>
+
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                {logs.map(log => {
+                                  const isAcked = log.isAcknowledged || ackedSet.has(log.id);
+                                  const isHigh = log.severityLevel === 'High';
+                                  const isAcking = acknowledging[log.id];
+                                  const noteValue = overrideNotes[rxId]?.[log.id] || '';
+
+                                  return (
+                                    <div
+                                      key={log.id}
+                                      style={{
+                                        padding: 12, borderRadius: 8,
+                                        background: isAcked ? '#F8FAFC' : isHigh ? '#FEF2F2' : '#FFFBEB',
+                                        border: `1px solid ${isAcked ? '#E2E8F0' : isHigh ? '#FCA5A5' : '#FDE68A'}`
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                          <span className={`badge ${isHigh ? 'badge-red' : 'badge-amber'}`} style={{ fontSize: 10.5 }}>
+                                            {log.severityLevel} Severity
+                                          </span>
+                                          <span style={{ fontSize: 12, fontWeight: 700 }}>
+                                            Log #{log.id} · {log.warningType}
+                                          </span>
+                                        </div>
+
+                                        {isAcked ? (
+                                          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#059669', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <CheckCircle2 size={13} /> Acknowledged
+                                          </span>
+                                        ) : (
+                                          <span style={{ fontSize: 11, fontWeight: 700, color: isHigh ? '#DC2626' : '#D97706' }}>
+                                            {isHigh ? '⚠️ Requires Written Justification' : 'Optional Acknowledgment'}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                                        {log.description}
+                                      </div>
+
+                                      {/* Acknowledged details */}
+                                      {isAcked && log.pharmacistOverrideNote && (
+                                        <div style={{ fontSize: 11.5, color: '#047857', background: '#ECFDF5', padding: '6px 10px', borderRadius: 4, marginTop: 4 }}>
+                                          <strong>Override Justification:</strong> {log.pharmacistOverrideNote}
+                                        </div>
+                                      )}
+
+                                      {/* Interactive Override Input for Unacknowledged Logs */}
+                                      {!isAcked && (
+                                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                          {isHigh && (
+                                            <textarea
+                                              placeholder="Enter mandatory clinical rationale for overriding this High-severity warning..."
+                                              value={noteValue}
+                                              onChange={e => setOverrideNoteValue(rxId, log.id, e.target.value)}
+                                              rows={2}
+                                              style={{
+                                                width: '100%', fontSize: 12, padding: '6px 10px',
+                                                borderRadius: 6, border: '1px solid #FCA5A5', outline: 'none'
+                                              }}
+                                            />
+                                          )}
+                                          {!isHigh && (
+                                            <input
+                                              type="text"
+                                              placeholder="Optional override note..."
+                                              value={noteValue}
+                                              onChange={e => setOverrideNoteValue(rxId, log.id, e.target.value)}
+                                              style={{
+                                                width: '100%', fontSize: 12, padding: '6px 10px',
+                                                borderRadius: 6, border: '1px solid #CBD5E1', outline: 'none'
+                                              }}
+                                            />
+                                          )}
+
+                                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                            <button
+                                              className="btn btn-sm"
+                                              onClick={() => handleAcknowledge(rxId, log.id, log.severityLevel)}
+                                              disabled={isAcking || (isHigh && !noteValue.trim())}
+                                              style={{
+                                                background: isHigh ? '#DC2626' : '#D97706',
+                                                color: '#FFF', border: 'none', borderRadius: 6,
+                                                padding: '4px 12px', fontSize: 11.5, fontWeight: 700,
+                                                opacity: isHigh && !noteValue.trim() ? 0.5 : 1,
+                                                cursor: isHigh && !noteValue.trim() ? 'not-allowed' : 'pointer',
+                                                display: 'flex', alignItems: 'center', gap: 4
+                                              }}
+                                            >
+                                              {isAcking
+                                                ? <><Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> Acknowledging…</>
+                                                : <><Check size={12} /> {isHigh ? 'Acknowledge & Override' : 'Acknowledge Warning'}</>
+                                              }
+                                            </button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>

@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import type { User, UserRole, AuthResponse } from '../types/auth';
 import type { ProfileForm } from '../types/profile';
 import type { Order, CreateOrderDto, RestockRequestDto } from '../types/order';
-import type { Prescription, CreatePrescriptionDto } from '../types/prescription';
+import type { Prescription, CreatePrescriptionDto, MedicationCheckResult, DrugInteraction, AlternativeDrug, ScreenInteractionsResponse, DrugInteractionLog } from '../types/prescription';
 import type { DoctorDetail, SpecialtyInfo, RankedDoctor } from '../types/doctor';
 import type { ConsultationAppointment, ExamForm, MedicineEntry, AIDiagnosis, DiagnosisDecision, ClinicalAnalysisRequestDto } from '../types/consultation';
 
@@ -678,23 +678,36 @@ export interface MedicationCheckPayload {
   pharmacy_id?: number;
 }
 
-export interface MedicationCheckResult {
-  safe_to_dispense: boolean;
-  safety_score: number;
-  interactions: Array<{
-    drug_pair: string[];
-    severity: string;
-    description: string;
-    recommendation: string;
-  }>;
-  allergy_warnings: string[];
-  alternatives: Array<{
-    original_drug: string;
-    alternative_drug: string;
-    reason: string;
-    dosage_guidance: string;
-  }>;
-  summary: string;
+export type { MedicationCheckResult, DrugInteraction, AlternativeDrug, ScreenInteractionsResponse, DrugInteractionLog };
+
+export async function apiScreenInteractions(
+  prescriptionId: number | string,
+  pharmacyId?: number
+): Promise<ScreenInteractionsResponse> {
+  const qs = pharmacyId ? `?pharmacyId=${pharmacyId}` : '';
+  return apiFetch<ScreenInteractionsResponse>(`/prescriptions/${prescriptionId}/screen-interactions${qs}`, {
+    method: 'POST',
+  });
+}
+
+export async function apiAcknowledgeWarning(
+  prescriptionId: number | string,
+  logId: number,
+  overrideNote?: string
+) {
+  return apiFetch<{ message: string; logId: number; warningType: string; severityLevel: string; acknowledgedAt: string }>(
+    `/prescriptions/${prescriptionId}/acknowledge-warning`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ logId, overrideNote }),
+    }
+  );
+}
+
+export async function apiGetPrescriptionInteractionLogs(
+  prescriptionId: number | string
+): Promise<DrugInteractionLog[]> {
+  return apiFetch<DrugInteractionLog[]>(`/prescriptions/${prescriptionId}/interaction-logs`);
 }
 
 export async function apiRunMedicationCheck(payload: MedicationCheckPayload): Promise<MedicationCheckResult> {

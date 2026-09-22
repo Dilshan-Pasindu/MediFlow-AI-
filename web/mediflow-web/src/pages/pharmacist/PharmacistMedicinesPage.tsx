@@ -165,9 +165,9 @@ export default function PharmacistMedicinesPage() {
                   <p style={{ fontSize: 13, color: 'var(--text-primary)', margin: '6px 0 10px' }}>{aiResult.summary}</p>
 
                   {/* Allergy Warnings */}
-                  {aiResult.allergy_warnings.length > 0 && (
+                  {(aiResult.allergy_warnings || aiResult.allergyWarnings || []).length > 0 && (
                     <div style={{ marginTop: 8 }}>
-                      {aiResult.allergy_warnings.map((w, i) => (
+                      {(aiResult.allergy_warnings || aiResult.allergyWarnings || []).map((w, i) => (
                         <div key={i} style={{ fontSize: 12.5, color: '#B91C1C', fontWeight: 600, display: 'flex', gap: 6, alignItems: 'center', marginTop: 4 }}>
                           <AlertTriangle size={14} /> {w}
                         </div>
@@ -176,16 +176,16 @@ export default function PharmacistMedicinesPage() {
                   )}
 
                   {/* DDI Interactions */}
-                  {aiResult.interactions.length > 0 && (
+                  {(aiResult.interactions || []).length > 0 && (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Detected Drug Interactions:</div>
                       {aiResult.interactions.map((inter, i) => (
                         <div key={i} style={{ marginTop: 6, padding: '8px 12px', background: 'white', borderRadius: 6, border: '1px solid rgba(0,0,0,0.06)' }}>
                           <div style={{ fontWeight: 700, fontSize: 13, color: inter.severity === 'High' ? '#DC2626' : '#D97706' }}>
-                            [{inter.severity} Risk] {inter.drug_pair.join(' + ')}
+                            [{inter.severity} Risk] {(inter.drug_pair || inter.drugPair || []).join(' + ')}
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{inter.description}</div>
-                          <div style={{ fontSize: 11.5, color: '#0369A1', marginTop: 4, fontWeight: 600 }}>💡 Rationale: {inter.recommendation}</div>
+                          <div style={{ fontSize: 11.5, color: '#0369A1', marginTop: 4, fontWeight: 600 }}>💡 Rationale: {inter.recommendation || inter.clinicalGuidance}</div>
                         </div>
                       ))}
                     </div>
