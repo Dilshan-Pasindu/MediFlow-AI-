@@ -13,5 +13,14 @@ namespace MediFlow.Api.Extensions
 
             return errors.Count == 0;
         }
+
+        public static bool IsValid(this CreateOrderRequestDto dto, out List<string> errors)
+        {
+            errors = new List<string>();
+            if (dto.PharmacyId <= 0) errors.Add("PharmacyId must be greater than zero.");
+            if (dto.Items == null || dto.Items.Count == 0) errors.Add("Order must contain at least one line item.");
+
+            return errors.Count == 0;
+        }
     }
 }
