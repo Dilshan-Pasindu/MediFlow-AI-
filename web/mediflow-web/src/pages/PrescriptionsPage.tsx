@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Download, Eye, ChevronRight, Pill, Printer, X } from 'lucide-react';
+import { FileText, Download, Eye, ChevronRight, Pill, Printer, X, Truck, CheckCircle, Clock } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { useMyPrescriptions } from '../hooks';
+import { useMyPrescriptions, useMyOrders } from '../hooks';
 import type { Prescription } from '../types/prescription';
+import type { Order } from '../types/order';
 import { downloadPrescriptionPdf, generatePrescriptionHtml } from '../utils/prescriptionPdfGenerator';
 
 export default function PrescriptionsPage() {
   const navigate = useNavigate();
   const { data: prescriptions = [], isLoading: loading } = useMyPrescriptions();
+  const { data: orders = [] } = useMyOrders();
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
   const [previewPrescription, setPreviewPrescription] = useState<Prescription | null>(null);
 
@@ -132,7 +134,100 @@ export default function PrescriptionsPage() {
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 18 }}>
+                    {/* ── Live Medicine Dispense Status ── */}
+                    {(() => {
+                      const linkedOrder = orders.find(o =>
+                        (o.prescriptionId && Number(o.prescriptionId) === Number(selectedPrescription.id)) ||
+                        (o.appointmentNumber && selectedPrescription.appointmentNumber && o.appointmentNumber === selectedPrescription.appointmentNumber)
+                      );
+                      const isDispensed = linkedOrder?.status === 'Dispensed' || selectedPrescription.status === 'Fulfilled';
+
+                      return (
+                        <div style={{
+                          marginTop: 18,
+                          padding: '14px 16px',
+                          background: isDispensed ? '#ECFDF5' : 'var(--bg-secondary)',
+                          borderRadius: 'var(--r-lg)',
+                          border: isDispensed ? '1.5px solid #10B981' : '1px solid var(--border)',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                            <div style={{
+                              fontSize: 11,
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                              letterSpacing: 0.5,
+                              color: isDispensed ? '#065F46' : 'var(--text-muted)'
+                            }}>
+                              Medicine Dispense Status
+                            </div>
+                            <span className={`badge ${
+                              linkedOrder?.status === 'Dispensed' ? 'badge-green' :
+                              linkedOrder?.status === 'Ready' ? 'badge-teal' :
+                              linkedOrder?.status === 'Preparing' ? 'badge-purple' :
+                              linkedOrder?.status === 'Confirmed' ? 'badge-blue' :
+                              selectedPrescription.status === 'Fulfilled' ? 'badge-green' : 'badge-amber'
+                            }`}>
+                              {linkedOrder?.status === 'Dispensed' ? '✓ Dispensed' :
+                               linkedOrder?.status === 'Ready' ? '📦 Ready' :
+                               linkedOrder?.status === 'Preparing' ? '⚗️ Preparing' :
+                               linkedOrder?.status === 'Confirmed' ? '✅ Confirmed' :
+                               linkedOrder?.status === 'Pending' ? '🕐 In Queue' :
+                               selectedPrescription.status === 'Fulfilled' ? '✓ Dispensed' : '⏳ Awaiting Dispense'}
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>
+                            {linkedOrder?.status === 'Dispensed' ? (
+                              <div>
+                                <div style={{ color: '#065F46', fontWeight: 700 }}>✓ Medications Dispensed</div>
+                                <div style={{ fontSize: 11.5, color: '#047857', marginTop: 2 }}>
+                                  Dispensed by <strong>{linkedOrder.pharmacyName || 'Pharmacy'}</strong>
+                                  {linkedOrder.dispensedAt && ` on ${new Date(linkedOrder.dispensedAt).toLocaleDateString()}`}
+                                </div>
+                              </div>
+                            ) : linkedOrder?.status === 'Ready' ? (
+                              <div>
+                                <div style={{ color: '#0f766e', fontWeight: 700 }}>📦 Ready for Collection</div>
+                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                                  Package prepared and waiting at {linkedOrder.pharmacyName || 'the pharmacy'}.
+                                </div>
+                              </div>
+                            ) : linkedOrder?.status === 'Preparing' ? (
+                              <div>
+                                <div style={{ color: '#6d28d9', fontWeight: 700 }}>⚗️ Pharmacist Preparing</div>
+                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                                  Medicines are being packed and labeled by the pharmacist.
+                                </div>
+                              </div>
+                            ) : linkedOrder?.status === 'Confirmed' ? (
+                              <div>
+                                <div style={{ color: '#0369a1', fontWeight: 700 }}>✅ Order Confirmed</div>
+                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                                  Prescription accepted by {linkedOrder.pharmacyName || 'pharmacy'}.
+                                </div>
+                              </div>
+                            ) : selectedPrescription.status === 'Fulfilled' ? (
+                              <div>
+                                <div style={{ color: '#065F46', fontWeight: 700 }}>✓ Prescription Fulfilled</div>
+                                <div style={{ fontSize: 11.5, color: '#047857', marginTop: 2 }}>
+                                  All prescribed medicines have been dispensed.
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Awaiting Pharmacy Action</div>
+                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                                  E-prescription is queued for pharmacist safety review and dispensing.
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
                       <button
                         className="btn btn-primary"
                         style={{ width: '100%' }}
@@ -151,9 +246,29 @@ export default function PrescriptionsPage() {
                         <Eye size={15} /> Preview Official Document
                       </button>
 
-                      <button className="btn btn-teal" style={{ width: '100%' }} onClick={() => navigate('/orders')} id="order-medicines-btn">
-                        <Pill size={15} /> Order Medicines
-                      </button>
+                      {/* ── Track Medicine Dispense Option (Replaces Order Medicines) ── */}
+                      {(() => {
+                        const linkedOrder = orders.find(o =>
+                          (o.prescriptionId && Number(o.prescriptionId) === Number(selectedPrescription.id)) ||
+                          (o.appointmentNumber && selectedPrescription.appointmentNumber && o.appointmentNumber === selectedPrescription.appointmentNumber)
+                        );
+                        return (
+                          <button
+                            className="btn btn-teal"
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                            onClick={() => {
+                              if (linkedOrder) {
+                                navigate(`/orders?orderId=${linkedOrder.id}`);
+                              } else {
+                                navigate(`/orders?prescriptionId=${selectedPrescription.id}`);
+                              }
+                            }}
+                            id="track-dispense-btn"
+                          >
+                            <Truck size={15} /> Track Medicine Dispense
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
