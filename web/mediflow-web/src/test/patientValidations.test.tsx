@@ -12,6 +12,7 @@ const {
   mockMutateBook,
   mockMutateProfile,
   mockSubmitSymptoms,
+  mockMyAppointments,
 } = vi.hoisted(() => ({
   mockDoctor: {
     id: 10,
@@ -39,6 +40,7 @@ const {
   mockMutateBook: vi.fn(),
   mockMutateProfile: vi.fn(),
   mockSubmitSymptoms: vi.fn(),
+  mockMyAppointments: [] as any[],
 }));
 
 vi.mock('../services/api', () => ({
@@ -69,12 +71,17 @@ vi.mock('../hooks', () => ({
     data: [{ id: 1, name: 'Cardiology' }],
     isLoading: false,
   }),
+  useMyAppointments: () => ({
+    data: mockMyAppointments,
+    isLoading: false,
+  }),
 }));
 
 describe('Patient Portal Validations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDoctor.isActive = true;
+    mockMyAppointments.length = 0;
   });
 
   describe('DoctorBookingPage Validations', () => {
@@ -137,6 +144,42 @@ describe('Patient Portal Validations', () => {
 
       const confirmBtn = screen.getByRole('button', { name: /confirm booking/i });
       expect(confirmBtn).toBeDisabled();
+    });
+
+    it('marks slot as Booked when the patient already has an appointment at that slot', async () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(10, 0, 0, 0);
+
+      mockMyAppointments.push({
+        id: 99,
+        doctorId: 10,
+        appointmentDateTime: tomorrow.toISOString(),
+        status: 'Confirmed',
+        appointmentNumber: 'APT-TEST-001',
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/doctors/10/book']}>
+          <Routes>
+            <Route path="/doctors/:id/book" element={<DoctorBookingPage />} />
+          </Routes>
+        </MemoryRouter>
+      );
+
+      const tomorrowKey = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+      const tomorrowBtn = document.getElementById(`date-btn-${tomorrowKey}`);
+      if (tomorrowBtn) {
+        fireEvent.click(tomorrowBtn);
+      }
+
+      // Slot 10:00 should be marked (Booked) and disabled
+      const slot10 = await screen.findByRole('button', { name: /10:00 \(booked\)/i });
+      expect(slot10).toBeDisabled();
+
+      // Future unbooked slot 10:30 should be available (enabled)
+      const slot1030 = screen.getByRole('button', { name: /^10:30$/i });
+      expect(slot1030).not.toBeDisabled();
     });
   });
 

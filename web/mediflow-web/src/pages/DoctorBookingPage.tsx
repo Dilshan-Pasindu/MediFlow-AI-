@@ -3,15 +3,21 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Star, Calendar, Clock, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { useDoctor, useBookAppointment } from '../hooks';
+import { useDoctor, useBookAppointment, useMyAppointments } from '../hooks';
+import type { ConsultationAppointment } from '../types/consultation';
 
 interface TimeSlot {
   time: string;
   available: boolean;
   isPast: boolean;
+  isBooked: boolean;
 }
 
-function generateTimeSlots(selectedDate: Date, doctorId?: number): TimeSlot[] {
+function generateTimeSlots(
+  selectedDate: Date,
+  doctorId?: number,
+  myAppointments: ConsultationAppointment[] = []
+): TimeSlot[] {
   const slots: TimeSlot[] = [];
   const now = new Date();
   const isToday = selectedDate.toDateString() === now.toDateString();
@@ -28,14 +34,33 @@ function generateTimeSlots(selectedDate: Date, doctorId?: number): TimeSlot[] {
 
       const isPast = isToday && slotDate.getTime() <= minAllowedTime;
 
-      // Deterministic availability based on doctor ID, date, and hour
-      const seed = Math.abs((selectedDate.getDate() * 17 + selectedDate.getMonth() * 31 + (doctorId || 1) * 7 + slotH * 3 + (slotM === 30 ? 1 : 0)) % 10);
-      const isAvailable = !isPast && seed > 2;
+      // Check if this patient already has a booking for this slot
+      const isBooked = myAppointments.some((appt) => {
+        if (!appt.appointmentDateTime) return false;
+        if (appt.status && appt.status.toLowerCase() === 'cancelled') return false;
+
+        const apptDate = new Date(appt.appointmentDateTime);
+        const isSameDay =
+          apptDate.getFullYear() === slotDate.getFullYear() &&
+          apptDate.getMonth() === slotDate.getMonth() &&
+          apptDate.getDate() === slotDate.getDate();
+
+        if (!isSameDay) return false;
+
+        return (
+          apptDate.getHours() === slotH &&
+          Math.abs(apptDate.getMinutes() - slotM) < 15
+        );
+      });
+
+      // A slot is available if it has not passed and is not already booked by this patient
+      const isAvailable = !isPast && !isBooked;
 
       slots.push({
         time,
         available: isAvailable,
         isPast,
+        isBooked,
       });
     }
   }
@@ -59,6 +84,7 @@ export default function DoctorBookingPage() {
   const navigate = useNavigate();
   const { data: doctor, isLoading: loading } = useDoctor(id);
   const bookAppointment = useBookAppointment();
+  const { data: myAppointments = [] } = useMyAppointments?.() || { data: [] };
 
   const todayStart = useMemo(() => {
     const d = new Date();
@@ -85,18 +111,32 @@ export default function DoctorBookingPage() {
   const [bookError, setBookError] = useState('');
 
   const timeSlots = useMemo(
-    () => generateTimeSlots(selectedDate, doctor?.id),
-    [selectedDate, doctor?.id]
+    () => generateTimeSlots(selectedDate, doctor?.id, myAppointments),
+    [selectedDate, doctor?.id, myAppointments]
   );
 
   const weekDays = useMemo(() => getDaysInWeek(weekStart), [weekStart]);
+
+  const existingApptOnDate = useMemo(() => {
+    return myAppointments.find((appt: ConsultationAppointment) => {
+      if (appt.status && appt.status.toLowerCase() === 'cancelled') return false;
+      if (doctor?.id && appt.doctorId && appt.doctorId !== doctor.id) return false;
+      if (!appt.appointmentDateTime) return false;
+      const apptDate = new Date(appt.appointmentDateTime);
+      return (
+        apptDate.getFullYear() === selectedDate.getFullYear() &&
+        apptDate.getMonth() === selectedDate.getMonth() &&
+        apptDate.getDate() === selectedDate.getDate()
+      );
+    });
+  }, [myAppointments, doctor?.id, selectedDate]);
 
   // If the currently selected time becomes invalid on a date switch, reset it
   function handleDateSelect(day: Date) {
     setSelectedDate(day);
     setBookError('');
     if (selectedTime) {
-      const updatedSlots = generateTimeSlots(day, doctor?.id);
+      const updatedSlots = generateTimeSlots(day, doctor?.id, myAppointments);
       const slot = updatedSlots.find(s => s.time === selectedTime);
       if (!slot || !slot.available) {
         setSelectedTime(null);
@@ -303,12 +343,13 @@ export default function DoctorBookingPage() {
                       const isDisabled = isPast || isTooFar || isDoctorInactive;
                       const isSelected = day.toDateString() === selectedDate.toDateString();
                       const isToday = day.toDateString() === new Date().toDateString();
+                      const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
 
                       return (
                         <button
                           key={idx}
                           onClick={() => !isDisabled && handleDateSelect(day)}
-                          id={`date-btn-${day.toISOString().slice(0,10)}`}
+                          id={`date-btn-${dateKey}`}
                           disabled={isDisabled}
                           style={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -343,8 +384,15 @@ export default function DoctorBookingPage() {
                   </div>
                 </div>
                 <div className="card-body">
+                  {existingApptOnDate && (
+                    <div style={{ marginBottom: 14, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 'var(--r-md)', fontSize: 13, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                      <span>You already have an appointment booked with this doctor on this day ({new Date(existingApptOnDate.appointmentDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}).</span>
+                    </div>
+                  )}
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                    {timeSlots.map(({ time, available, isPast }) => {
+                    {timeSlots.map(({ time, available, isPast, isBooked }) => {
                       const isSelected = selectedTime === time;
                       const isDisabled = !available || isDoctorInactive;
 
@@ -355,7 +403,15 @@ export default function DoctorBookingPage() {
                           onClick={() => !isDisabled && handleTimeSelect(time)}
                           id={`time-slot-${time}`}
                           disabled={isDisabled}
-                          title={isPast ? 'Slot has passed for today' : !available ? 'Slot is fully booked' : 'Click to select slot'}
+                          title={
+                            isPast
+                              ? 'Slot has passed for today'
+                              : isBooked
+                              ? 'You have already booked this slot'
+                              : !available
+                              ? 'Slot is unavailable'
+                              : 'Click to select slot'
+                          }
                           style={{
                             padding: '10px 8px', borderRadius: 'var(--r-md)', fontSize: 13, fontWeight: 700,
                             border: '1.5px solid',
@@ -363,12 +419,12 @@ export default function DoctorBookingPage() {
                             background: isSelected ? 'var(--gradient-primary)' : available ? 'var(--surface)' : 'var(--surface-3)',
                             color: isSelected ? 'white' : available ? 'var(--text-primary)' : 'var(--text-xmuted)',
                             cursor: isDisabled ? 'not-allowed' : 'pointer',
-                            opacity: isPast ? 0.35 : available ? 1 : 0.6,
+                            opacity: isPast ? 0.35 : isBooked ? 0.5 : available ? 1 : 0.6,
                             transition: 'var(--transition-spring)',
                             transform: isSelected ? 'scale(1.04)' : 'none',
                           }}
                         >
-                          {time} {isPast ? '(Past)' : ''}
+                          {time} {isPast ? '(Past)' : isBooked ? '(Booked)' : ''}
                         </button>
                       );
                     })}
