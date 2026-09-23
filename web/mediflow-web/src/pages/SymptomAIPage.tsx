@@ -18,16 +18,27 @@ export default function SymptomAIPage() {
   const [doctors, setDoctors] = useState<RankedDoctor[]>([]);
   const { data: specialties = [] } = useSpecialties();
 
+  const [analysisError, setAnalysisError] = useState('');
+
   async function handleAnalyze(e: React.FormEvent) {
     e.preventDefault();
-    if (!symptoms.trim()) return;
+    const trimmed = symptoms.trim();
+    if (!trimmed || trimmed.length < 10) {
+      setAnalysisError('Please provide a more detailed description of your symptoms (at least 10 characters) for an accurate recommendation.');
+      return;
+    }
+    if (symptoms.length > 1000) {
+      setAnalysisError('Symptoms description cannot exceed 1000 characters.');
+      return;
+    }
+    setAnalysisError('');
     setStep('analyzing');
     try {
       // Call the real backend specialist recommendation agent
       const severityStr = severity <= 3 ? 'Mild' : severity <= 6 ? 'Moderate' : 'Severe';
       const res = await apiSubmitSymptoms({
-        symptoms,
-        duration: duration || undefined,
+        symptoms: trimmed,
+        duration: duration.trim() || undefined,
         severity: severityStr,
       }) as {
         specialty: string;
@@ -60,8 +71,9 @@ export default function SymptomAIPage() {
         setDoctors(ranked || []);
       }
       setStep('result');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Symptom analysis failed:', err);
+      setAnalysisError(err?.message || 'Symptom analysis failed. Please try again.');
       setStep('input');
     }
   }
@@ -120,16 +132,28 @@ export default function SymptomAIPage() {
                   <div className="ai-panel-sub">Describe what you're experiencing in natural language. The AI will analyze and recommend the right specialist.</div>
 
                   <form onSubmit={handleAnalyze} id="symptom-form">
-                    <div className="ai-input-wrap" style={{ marginBottom: 14 }}>
+                    <div className="ai-input-wrap" style={{ marginBottom: 6 }}>
                       <textarea
                         className="ai-input"
                         id="symptom-input"
-                        placeholder="e.g. I have been experiencing stomach pain, bloating, and acid reflux for the past 3 days. The pain is worse after eating..."
+                        placeholder="e.g. I have been experiencing severe recurring chest pain and heart palpitations for the past 2 days. The pain gets worse with physical activity..."
                         value={symptoms}
-                        onChange={e => setSymptoms(e.target.value)}
+                        onChange={e => {
+                          if (e.target.value.length <= 1000) {
+                            setSymptoms(e.target.value);
+                            if (analysisError) setAnalysisError('');
+                          }
+                        }}
+                        maxLength={1000}
                         rows={4}
                         required
                       />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, fontSize: 11.5, color: 'rgba(255,255,255,0.7)' }}>
+                      <span>Minimum 10 characters required</span>
+                      <span style={{ color: symptoms.length < 10 ? '#FCA5A5' : '#86EFAC', fontWeight: 600 }}>
+                        {symptoms.length} / 1000
+                      </span>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
@@ -140,7 +164,8 @@ export default function SymptomAIPage() {
                           id="symptom-duration"
                           placeholder="e.g. 3 days, 1 week"
                           value={duration}
-                          onChange={e => setDuration(e.target.value)}
+                          onChange={e => e.target.value.length <= 50 && setDuration(e.target.value)}
+                          maxLength={50}
                           style={{ width: '100%', padding: '9px 12px', background: 'rgba(255,255,255,0.12)', border: '1.5px solid rgba(255,255,255,0.25)', borderRadius: 'var(--r-md)', fontSize: 13.5, color: 'white', outline: 'none', fontFamily: 'Inter, sans-serif' }}
                         />
                       </div>
@@ -159,7 +184,24 @@ export default function SymptomAIPage() {
                       </div>
                     </div>
 
-                    <button type="submit" className="ai-submit-btn" id="symptom-submit-btn" style={{ width: '100%', justifyContent: 'center', gap: 8, height: 46, fontSize: 15 }}>
+                    {analysisError && (
+                      <div style={{ padding: '10px 14px', background: 'rgba(220, 38, 38, 0.25)', border: '1px solid #F87171', borderRadius: 'var(--r-md)', color: '#FEE2E2', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                        <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                        <span>{analysisError}</span>
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="ai-submit-btn"
+                      id="symptom-submit-btn"
+                      disabled={symptoms.trim().length < 10}
+                      style={{
+                        width: '100%', justifyContent: 'center', gap: 8, height: 46, fontSize: 15,
+                        opacity: symptoms.trim().length < 10 ? 0.5 : 1,
+                        cursor: symptoms.trim().length < 10 ? 'not-allowed' : 'pointer',
+                      }}
+                    >
                       <Brain size={16} /> Analyze with AI <Send size={14} />
                     </button>
                   </form>
