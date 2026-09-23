@@ -35,14 +35,35 @@ public class AppointmentsController : ControllerBase
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
+        if (request.DoctorId <= 0)
+            return BadRequest(new { message = "A valid doctor ID is required." });
+
         var doctor = await _db.Doctors.FindAsync(request.DoctorId);
         if (doctor == null)
             return NotFound(new { message = "Doctor not found." });
 
+        if (!doctor.IsActive)
+            return BadRequest(new { message = "This doctor is currently not accepting new appointments." });
+
+        if (request.DateTime == default)
+            return BadRequest(new { message = "A valid appointment date and time is required." });
+
+        // Normalize to UTC
+        var appointmentDateUtc = request.DateTime.Kind == DateTimeKind.Utc
+            ? request.DateTime
+            : DateTime.SpecifyKind(request.DateTime, DateTimeKind.Utc);
+
         // Prevent booking appointments in the past
-        var appointmentDateUtc = DateTime.SpecifyKind(request.DateTime, DateTimeKind.Utc);
         if (appointmentDateUtc < DateTime.UtcNow)
             return BadRequest(new { message = "Cannot book an appointment in the past. Please select a future date and time." });
+
+        // Prevent booking appointments too far in advance (max 90 days)
+        if (appointmentDateUtc > DateTime.UtcNow.AddDays(90))
+            return BadRequest(new { message = "Appointments cannot be booked more than 90 days in advance." });
+
+        // Validate notes length
+        if (request.Notes != null && request.Notes.Length > 500)
+            return BadRequest(new { message = "Notes cannot exceed 500 characters." });
 
         // Prevent duplicate booking: same patient, same doctor, same date
         var existingAppointment = await _db.Appointments
@@ -54,11 +75,27 @@ public class AppointmentsController : ControllerBase
         if (existingAppointment != null)
             return BadRequest(new { message = $"You already have an appointment with this doctor on {appointmentDateUtc:yyyy-MM-dd}. Please choose a different date or cancel the existing appointment." });
 
+        // Prevent overlapping bookings for the same patient across all doctors within a 30-minute window
+        var windowStart = appointmentDateUtc.AddMinutes(-29);
+        var windowEnd = appointmentDateUtc.AddMinutes(29);
+        var conflictingPatientAppt = await _db.Appointments
+            .Include(a => a.Doctor)
+            .FirstOrDefaultAsync(a => a.PatientId == patient.Id
+                && a.AppointmentDateTime >= windowStart
+                && a.AppointmentDateTime <= windowEnd
+                && a.Status != AppointmentStatus.Cancelled);
+
+        if (conflictingPatientAppt != null)
+        {
+            var conflictDoctorName = conflictingPatientAppt.Doctor?.FullName ?? "another doctor";
+            return BadRequest(new { message = $"You already have an appointment scheduled around this time with {conflictDoctorName}." });
+        }
+
         // Check if the doctor is on leave
         var overlappingLeave = await _db.DoctorLeaves
             .Where(l => l.DoctorId == request.DoctorId
-                && l.StartDate <= request.DateTime
-                && l.EndDate >= request.DateTime)
+                && l.StartDate.Date <= appointmentDateUtc.Date
+                && l.EndDate.Date >= appointmentDateUtc.Date)
             .FirstOrDefaultAsync();
 
         if (overlappingLeave != null)

@@ -58,13 +58,73 @@ public class PatientController : ControllerBase
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
-        if (request.FullName != null) patient.FullName = request.FullName;
-        if (request.PhoneNumber != null) patient.PhoneNumber = request.PhoneNumber;
-        if (request.DateOfBirth != null) patient.DateOfBirth = request.DateOfBirth;
-        if (request.Gender != null) patient.Gender = request.Gender;
-        if (request.Address != null) patient.Address = request.Address;
-        if (request.BloodGroup != null) patient.BloodGroup = request.BloodGroup;
-        if (request.Allergies != null) patient.Allergies = request.Allergies;
+        if (request.FullName != null)
+        {
+            var trimmedName = request.FullName.Trim();
+            if (string.IsNullOrWhiteSpace(trimmedName) || trimmedName.Length < 2 || trimmedName.Length > 100)
+                return BadRequest(new { message = "Full name must be between 2 and 100 characters." });
+            patient.FullName = trimmedName;
+        }
+
+        if (request.PhoneNumber != null)
+        {
+            var trimmedPhone = request.PhoneNumber.Trim();
+            if (!string.IsNullOrEmpty(trimmedPhone))
+            {
+                if (!System.Text.RegularExpressions.Regex.IsMatch(trimmedPhone, @"^\+?[0-9\s\-()]{7,20}$"))
+                    return BadRequest(new { message = "Invalid phone number format." });
+            }
+            patient.PhoneNumber = trimmedPhone;
+        }
+
+        if (request.DateOfBirth != null)
+        {
+            var todayDate = DateOnly.FromDateTime(DateTime.UtcNow);
+            if (request.DateOfBirth.Value > todayDate)
+                return BadRequest(new { message = "Date of birth cannot be in the future." });
+            if (request.DateOfBirth.Value < new DateOnly(1900, 1, 1))
+                return BadRequest(new { message = "Date of birth must be after year 1900." });
+            patient.DateOfBirth = request.DateOfBirth;
+        }
+
+        if (request.Gender != null)
+        {
+            var trimmedGender = request.Gender.Trim();
+            if (!string.IsNullOrEmpty(trimmedGender))
+            {
+                var validGenders = new[] { "Male", "Female", "Other", "Prefer not to say" };
+                if (!validGenders.Any(g => string.Equals(g, trimmedGender, StringComparison.OrdinalIgnoreCase)))
+                    return BadRequest(new { message = "Invalid gender selected. Allowed values: Male, Female, Other, Prefer not to say." });
+            }
+            patient.Gender = trimmedGender;
+        }
+
+        if (request.BloodGroup != null)
+        {
+            var trimmedBlood = request.BloodGroup.Trim().ToUpperInvariant();
+            if (!string.IsNullOrEmpty(trimmedBlood))
+            {
+                var validBloodGroups = new[] { "A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-" };
+                if (!validBloodGroups.Contains(trimmedBlood))
+                    return BadRequest(new { message = "Invalid blood group selected. Allowed values: A+, A-, B+, B-, O+, O-, AB+, AB-." });
+            }
+            patient.BloodGroup = trimmedBlood;
+        }
+
+        if (request.Address != null)
+        {
+            if (request.Address.Length > 250)
+                return BadRequest(new { message = "Address cannot exceed 250 characters." });
+            patient.Address = request.Address.Trim();
+        }
+
+        if (request.Allergies != null)
+        {
+            if (request.Allergies.Length > 500)
+                return BadRequest(new { message = "Allergies cannot exceed 500 characters." });
+            patient.Allergies = request.Allergies.Trim();
+        }
+
         patient.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
@@ -128,13 +188,27 @@ public class PatientController : ControllerBase
         if (appointment == null)
             return NotFound(new { message = "Appointment not found." });
 
-        if (appointment.Status == AppointmentStatus.Completed || appointment.Status == AppointmentStatus.Cancelled)
+        if (appointment.Status == AppointmentStatus.Completed ||
+            appointment.Status == AppointmentStatus.InConsultation ||
+            appointment.Status == AppointmentStatus.Cancelled)
+        {
             return BadRequest(new { message = $"Cannot cancel an appointment that is already {appointment.Status}." });
+        }
+
+        if (appointment.AppointmentDateTime < DateTime.UtcNow)
+        {
+            return BadRequest(new { message = "Cannot cancel an appointment that has already passed." });
+        }
+
+        if (request?.Reason != null && request.Reason.Length > 250)
+        {
+            return BadRequest(new { message = "Cancellation reason cannot exceed 250 characters." });
+        }
 
         appointment.Status = AppointmentStatus.Cancelled;
         appointment.Notes = string.IsNullOrWhiteSpace(request?.Reason)
             ? appointment.Notes
-            : $"{appointment.Notes} [Cancelled: {request.Reason}]";
+            : $"{appointment.Notes} [Cancelled: {request.Reason.Trim()}]";
         appointment.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
@@ -152,6 +226,18 @@ public class PatientController : ControllerBase
         var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
+
+        if (string.IsNullOrWhiteSpace(request.Symptoms) || request.Symptoms.Trim().Length < 5)
+            return BadRequest(new { message = "Please provide a valid description of your symptoms (at least 5 characters)." });
+
+        if (request.Symptoms.Length > 2000)
+            return BadRequest(new { message = "Symptoms description cannot exceed 2000 characters." });
+
+        if (request.Duration != null && request.Duration.Length > 100)
+            return BadRequest(new { message = "Duration cannot exceed 100 characters." });
+
+        if (request.Severity != null && request.Severity.Length > 50)
+            return BadRequest(new { message = "Severity cannot exceed 50 characters." });
 
         // Simple keyword-based specialty recommendation engine
         var (specialty, confidence, altSpecialty, altConfidence, reason) = AnalyzeSymptoms(request.Symptoms);
