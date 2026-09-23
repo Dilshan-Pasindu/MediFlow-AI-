@@ -3,28 +3,55 @@ import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import NowConsultingCard from '../components/NowConsultingCard';
 import * as api from '../services/api';
 import { consultationHubService } from '../services/consultationHubService';
-import type { ConsultationEventPayload, CurrentConsultationResponse } from '../types/consultation';
+import type { ConsultationEventPayload, CurrentConsultationResponse, ConsultationAppointment } from '../types/consultation';
 
 // Mock dependencies
 vi.mock('../services/api', () => ({
   apiGetCurrentConsultation: vi.fn(),
 }));
 
-const { mockDoctors } = vi.hoisted(() => ({
-  mockDoctors: [
-    { id: 10, fullName: 'Dr. Sarah Connor', specialties: [{ id: 1, name: 'Cardiology' }] },
-    { id: 15, fullName: 'Dr. Leonard McCoy', specialties: [{ id: 2, name: 'General Medicine' }] },
-    { id: 20, fullName: 'Dr. Strange', specialties: [{ id: 3, name: 'Surgery' }] },
-    { id: 25, fullName: 'Dr. Silva', specialties: [{ id: 4, name: 'General Practice' }] },
-    { id: 30, fullName: 'Dr. Perera', specialties: [{ id: 5, name: 'Dermatology' }] },
-  ],
+const { mockMyAppointments } = vi.hoisted(() => ({
+  mockMyAppointments: [
+    {
+      id: 1,
+      appointmentNumber: 'APT-1001',
+      doctorId: 25,
+      doctorName: 'Dr. Silva',
+      specialtyName: 'General Practice',
+      status: 'Confirmed',
+      appointmentDateTime: '2026-09-25T10:00:00Z',
+      patientName: 'Test Patient',
+    },
+    {
+      id: 2,
+      appointmentNumber: 'APT-1002',
+      doctorId: 30,
+      doctorName: 'Dr. Perera',
+      specialtyName: 'Dermatology',
+      status: 'InConsultation',
+      appointmentDateTime: '2026-09-25T11:00:00Z',
+      patientName: 'Test Patient',
+    },
+    {
+      id: 3,
+      appointmentNumber: 'APT-1003',
+      doctorId: 99,
+      doctorName: 'Dr. Cancelled Doctor',
+      specialtyName: 'Dentistry',
+      status: 'Cancelled',
+      appointmentDateTime: '2026-09-20T09:00:00Z',
+      patientName: 'Test Patient',
+    },
+  ] as ConsultationAppointment[],
 }));
 
+const mockUseMyAppointments = vi.fn().mockReturnValue({
+  data: mockMyAppointments,
+  isLoading: false,
+});
+
 vi.mock('../hooks', () => ({
-  useDoctors: vi.fn().mockReturnValue({
-    data: mockDoctors,
-    isLoading: false,
-  }),
+  useMyAppointments: () => mockUseMyAppointments(),
 }));
 
 let startedCallbacks: Array<(data: ConsultationEventPayload) => void> = [];
@@ -61,26 +88,54 @@ vi.mock('../services/consultationHubService', () => ({
   },
 }));
 
-describe('NowConsultingCard Component with Doctor Selection', () => {
+describe('NowConsultingCard with Booked Doctors Restriction', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     startedCallbacks = [];
     endedCallbacks = [];
     reconnectedCallbacks = [];
+    mockUseMyAppointments.mockReturnValue({
+      data: mockMyAppointments,
+      isLoading: false,
+    });
   });
 
-  it('renders initial state prompting patient to select a doctor', async () => {
+  it('displays empty state when the patient has no booked appointments', async () => {
+    mockUseMyAppointments.mockReturnValue({
+      data: [],
+      isLoading: false,
+    });
+
     render(<NowConsultingCard />);
 
-    expect(screen.getByLabelText(/select doctor/i)).toBeInTheDocument();
-    expect(screen.getByText(/please select a doctor to view their live consultation status/i)).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByTitle('Real-time SignalR active')).toBeInTheDocument();
     });
-    expect(api.apiGetCurrentConsultation).not.toHaveBeenCalled();
+
+    expect(screen.getByText(/no booked doctor consultations/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/select doctor/i)).not.toBeInTheDocument();
   });
 
-  it('fetches and displays consultation when patient selects Dr. Silva', async () => {
+  it('shows only doctors from booked appointments (excludes unbooked and cancelled doctors)', async () => {
+    render(<NowConsultingCard />);
+
+    await waitFor(() => {
+      expect(screen.getByTitle('Real-time SignalR active')).toBeInTheDocument();
+    });
+
+    const select = screen.getByLabelText(/select doctor/i);
+    expect(select).toBeInTheDocument();
+
+    // Dr. Silva and Dr. Perera should be in options
+    expect(screen.getByRole('option', { name: /dr\. silva/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /dr\. perera/i })).toBeInTheDocument();
+
+    // Unbooked doctor (Dr. Strange) and cancelled doctor must NOT appear
+    expect(screen.queryByRole('option', { name: /dr\. strange/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /dr\. cancelled doctor/i })).not.toBeInTheDocument();
+  });
+
+  it('fetches and displays consultation when patient selects booked Dr. Silva', async () => {
     vi.mocked(api.apiGetCurrentConsultation).mockResolvedValue({
       hasActiveConsultation: true,
       appointmentId: 201,
@@ -147,7 +202,6 @@ describe('NowConsultingCard Component with Doctor Selection', () => {
   });
 
   it('switches consultation state immediately when changing doctor to Dr. Perera and isolates events', async () => {
-    // Initial: Dr. Silva has A023
     vi.mocked(api.apiGetCurrentConsultation).mockImplementation(async (docId) => {
       if (docId === 25) {
         return {
@@ -208,7 +262,7 @@ describe('NowConsultingCard Component with Doctor Selection', () => {
     expect(screen.queryByText('A999')).not.toBeInTheDocument();
   });
 
-  it('displays inactive message when selected doctor has no active consultation', async () => {
+  it('displays inactive message when selected booked doctor has no active consultation', async () => {
     vi.mocked(api.apiGetCurrentConsultation).mockResolvedValue({
       hasActiveConsultation: false,
       doctorId: 25,
@@ -243,7 +297,7 @@ describe('NowConsultingCard Component with Doctor Selection', () => {
     });
   });
 
-  it('re-fetches selected doctor consultation state when SignalR reconnects', async () => {
+  it('re-fetches selected booked doctor consultation state when SignalR reconnects', async () => {
     vi.mocked(api.apiGetCurrentConsultation).mockResolvedValue({
       hasActiveConsultation: false,
     } as CurrentConsultationResponse);

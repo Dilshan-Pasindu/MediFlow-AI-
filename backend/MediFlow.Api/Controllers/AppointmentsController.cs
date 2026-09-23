@@ -368,11 +368,7 @@ public class AppointmentsController : ControllerBase
             .Include(a => a.Patient)
             .Where(a => a.Status == AppointmentStatus.InConsultation);
 
-        if (doctorId.HasValue)
-        {
-            query = query.Where(a => a.DoctorId == doctorId.Value);
-        }
-        else if (User.Identity?.IsAuthenticated == true)
+        if (User.Identity?.IsAuthenticated == true)
         {
             try
             {
@@ -380,22 +376,49 @@ public class AppointmentsController : ControllerBase
                 var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
                 if (patient != null)
                 {
-                    // Find active consultation among doctors the patient has appointments with
-                    var patientDoctorIds = await _db.Appointments
-                        .Where(a => a.PatientId == patient.Id && a.Status != AppointmentStatus.Cancelled)
-                        .Select(a => a.DoctorId)
-                        .Distinct()
-                        .ToListAsync();
-
-                    if (patientDoctorIds.Count > 0)
+                    // If a patient queries a specific doctor, verify the patient has a booked appointment with that doctor
+                    if (doctorId.HasValue)
                     {
-                        query = query.Where(a => patientDoctorIds.Contains(a.DoctorId));
+                        var hasBooking = await _db.Appointments.AnyAsync(a => a.PatientId == patient.Id 
+                                                                           && a.DoctorId == doctorId.Value 
+                                                                           && a.Status != AppointmentStatus.Cancelled);
+                        if (!hasBooking)
+                        {
+                            return Ok(new
+                            {
+                                hasActiveConsultation = false,
+                                doctorId = doctorId,
+                                message = "You can only view consultation status for doctors you have booked an appointment with."
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // Find active consultation among doctors the patient has appointments with
+                        var patientDoctorIds = await _db.Appointments
+                            .Where(a => a.PatientId == patient.Id && a.Status != AppointmentStatus.Cancelled)
+                            .Select(a => a.DoctorId)
+                            .Distinct()
+                            .ToListAsync();
+
+                        if (patientDoctorIds.Count > 0)
+                        {
+                            query = query.Where(a => patientDoctorIds.Contains(a.DoctorId));
+                        }
+                        else
+                        {
+                            return Ok(new
+                            {
+                                hasActiveConsultation = false,
+                                message = "You do not have any booked appointments with our doctors."
+                            });
+                        }
                     }
                 }
                 else
                 {
                     var doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.UserId == userId);
-                    if (doctor != null)
+                    if (doctor != null && !doctorId.HasValue)
                     {
                         query = query.Where(a => a.DoctorId == doctor.Id);
                     }
@@ -405,6 +428,11 @@ public class AppointmentsController : ControllerBase
             {
                 // Fall back to general active consultation
             }
+        }
+
+        if (doctorId.HasValue)
+        {
+            query = query.Where(a => a.DoctorId == doctorId.Value);
         }
 
         var activeAppt = await query

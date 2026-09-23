@@ -1,15 +1,21 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Stethoscope, Radio, Clock, ChevronDown, UserCheck } from 'lucide-react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { Stethoscope, Radio, Clock, ChevronDown, UserCheck, Calendar } from 'lucide-react';
 import { apiGetCurrentConsultation } from '../services/api';
 import { consultationHubService } from '../services/consultationHubService';
-import { useDoctors } from '../hooks';
-import type { CurrentConsultationResponse, ConsultationEventPayload } from '../types/consultation';
-import type { DoctorDetail } from '../types/doctor';
+import { useMyAppointments } from '../hooks';
+import type { CurrentConsultationResponse, ConsultationEventPayload, ConsultationAppointment } from '../types/consultation';
+
+export interface BookedDoctorOption {
+  id: number;
+  fullName: string;
+  specialtyName?: string;
+}
 
 interface NowConsultingCardProps {
   doctorId?: number;
   doctorName?: string;
-  doctors?: DoctorDetail[];
+  bookedAppointments?: ConsultationAppointment[];
+  bookedDoctors?: BookedDoctorOption[];
   className?: string;
   style?: React.CSSProperties;
 }
@@ -17,20 +23,44 @@ interface NowConsultingCardProps {
 export default function NowConsultingCard({
   doctorId,
   doctorName,
-  doctors: propDoctors,
+  bookedAppointments: propBookedAppointments,
+  bookedDoctors: propBookedDoctors,
   className = '',
   style = {},
 }: NowConsultingCardProps) {
-  // Fetch available doctors from API hook
-  const { data: fetchedDoctors = [], isLoading: loadingDoctors } = useDoctors();
-  const availableDoctors = propDoctors && propDoctors.length > 0 ? propDoctors : fetchedDoctors;
+  // Fetch logged-in patient's appointments
+  const { data: myAppointments = [], isLoading: loadingAppointments } = useMyAppointments();
+
+  // Extract only the doctors associated with the patient's booked appointments
+  const availableBookedDoctors: BookedDoctorOption[] = useMemo(() => {
+    if (propBookedDoctors && propBookedDoctors.length > 0) {
+      return propBookedDoctors;
+    }
+
+    const sourceAppointments = propBookedAppointments || myAppointments;
+    const docMap = new Map<number, BookedDoctorOption>();
+
+    for (const appt of sourceAppointments) {
+      const dId = appt.doctorId;
+      // Valid booked appointments only (exclude Cancelled)
+      if (dId && appt.status !== 'Cancelled' && !docMap.has(dId)) {
+        docMap.set(dId, {
+          id: dId,
+          fullName: appt.doctorName || `Doctor #${dId}`,
+          specialtyName: appt.specialtyName,
+        });
+      }
+    }
+
+    return Array.from(docMap.values());
+  }, [propBookedDoctors, propBookedAppointments, myAppointments]);
 
   const [selectedDoctorId, setSelectedDoctorId] = useState<number | undefined>(doctorId);
   const [consultation, setConsultation] = useState<CurrentConsultationResponse | null>(null);
   const [loadingConsultation, setLoadingConsultation] = useState<boolean>(false);
   const [isConnected, setIsConnected] = useState<boolean>(false);
 
-  // Keep a ref to the current selected doctor ID to prevent stale closures in SignalR callbacks
+  // Ref to track current selected doctor ID without stale closures
   const selectedDoctorIdRef = useRef<number | undefined>(selectedDoctorId);
   selectedDoctorIdRef.current = selectedDoctorId;
 
@@ -44,12 +74,11 @@ export default function NowConsultingCard({
     }
   }, [doctorId]);
 
-  // Fetch consultation state for a specific doctor
+  // Fetch consultation state for a specific booked doctor
   const fetchConsultationForDoctor = useCallback(async (docId: number) => {
     setLoadingConsultation(true);
     try {
       const data = await apiGetCurrentConsultation(docId);
-      // Ensure the response matches the currently selected doctor
       if (selectedDoctorIdRef.current === docId) {
         setConsultation(data);
       }
@@ -176,13 +205,88 @@ export default function NowConsultingCard({
   const hasActive = consultation?.hasActiveConsultation === true;
 
   // Resolve doctor display name
-  const selectedDoc = availableDoctors.find((d) => d.id === selectedDoctorId);
+  const selectedDoc = availableBookedDoctors.find((d) => d.id === selectedDoctorId);
   const rawDoctorName = selectedDoc?.fullName || consultation?.doctorName || doctorName || '';
   const formattedDoctorName = rawDoctorName
     ? rawDoctorName.startsWith('Dr.')
       ? rawDoctorName
       : `Dr. ${rawDoctorName}`
     : '';
+
+  // ─── Empty State: Patient has no booked appointments ───────────────────────
+  if (!loadingAppointments && availableBookedDoctors.length === 0) {
+    return (
+      <div
+        id="now-consulting-banner"
+        className={`card ${className}`}
+        style={{
+          borderRadius: 'var(--r-xl)',
+          position: 'relative',
+          overflow: 'hidden',
+          border: '1px solid var(--border)',
+          background: 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 100%)',
+          boxShadow: 'var(--shadow-sm)',
+          ...style,
+        }}
+      >
+        <div style={{ height: 3, width: '100%', background: 'var(--border)' }} />
+        <div style={{ padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--text-muted)',
+                flexShrink: 0,
+              }}
+            >
+              <Calendar size={20} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    fontWeight: 800,
+                    letterSpacing: 0.6,
+                    textTransform: 'uppercase',
+                    color: 'var(--text-secondary)',
+                    background: 'var(--surface-3)',
+                    padding: '3px 10px',
+                    borderRadius: 99,
+                    border: '1px solid var(--border)',
+                  }}
+                >
+                  CONSULTATION STATUS
+                </span>
+                {isConnected && (
+                  <span
+                    title="Real-time SignalR active"
+                    style={{ fontSize: 10.5, fontWeight: 600, color: '#059669', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981' }} />
+                    Live
+                  </span>
+                )}
+              </div>
+              <div style={{ marginTop: 6, fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)' }}>
+                No Booked Doctor Consultations
+              </div>
+              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                You do not have any active booked appointments with our physicians. Live consultation tracking will become available once you book an appointment with a doctor.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -288,7 +392,7 @@ export default function NowConsultingCard({
                 )}
               </div>
 
-              {/* Doctor Selector Dropdown */}
+              {/* Booked Doctor Selector Dropdown */}
               <div style={{ marginTop: 12, marginBottom: 12 }}>
                 <label
                   htmlFor="now-consulting-doctor-select"
@@ -339,10 +443,10 @@ export default function NowConsultingCard({
                       e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
                     }}
                   >
-                    <option value="">-- Select a Doctor --</option>
-                    {availableDoctors.map((doc) => {
+                    <option value="">-- Select Doctor --</option>
+                    {availableBookedDoctors.map((doc) => {
                       const dName = doc.fullName.startsWith('Dr.') ? doc.fullName : `Dr. ${doc.fullName}`;
-                      const spec = doc.specialties?.[0]?.name ? ` • ${doc.specialties[0].name}` : '';
+                      const spec = doc.specialtyName ? ` • ${doc.specialtyName}` : '';
                       return (
                         <option key={doc.id} value={doc.id}>
                           {dName}{spec}
@@ -375,7 +479,7 @@ export default function NowConsultingCard({
                     Please select a doctor to view their live consultation status.
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                    Choose a consulting physician from the dropdown above to monitor their live appointment queue in real time.
+                    Choose one of your booked physicians from the dropdown above to monitor their live appointment queue in real time.
                   </div>
                 </div>
               ) : loadingConsultation ? (

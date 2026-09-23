@@ -97,6 +97,7 @@ export interface ConsultationAppointment {
   appointmentDateTime: string;
   notes?: string;
   status: string;
+  doctorId?: number;
   doctorName?: string;
   specialtyName?: string;
   fee?: number;
