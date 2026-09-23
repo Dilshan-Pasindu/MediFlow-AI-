@@ -1,32 +1,45 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Star, Filter, ChevronDown, SlidersHorizontal, MapPin, Clock, ArrowRight, X, Info, User } from 'lucide-react';
+import {
+  Search, Star, Filter, ChevronDown, SlidersHorizontal, MapPin, Clock, ArrowRight, X, Info, User,
+  Heart, Droplets, Brain, Microscope, Bone, Activity, Bandage, Eye, Ear, Wind,
+  Waves, Stethoscope, Scale, Ribbon, Shield, Syringe, Baby, Pill,
+  Building2, Sparkles,
+} from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { useDoctors, useSpecialties } from '../hooks';
 import { DoctorProfileModal } from '../components/DoctorProfileModal';
 import type { DoctorDetail } from '../types/doctor';
 
-const SPECIALTY_ICONS: Record<string, string> = {
-  'Cardiology': '❤️',
-  'Vascular Surgery': '🩸',
-  'Neurology': '🧠',
-  'Neurosurgery': '🔬',
-  'Orthopedics': '🦴',
-  'Physiatry': '🏃',
-  'Dermatology': '🩹',
-  'Ophthalmology': '👁️',
-  'ENT': '👂',
-  'Gastroenterology': '🫁',
-  'Nephrology': '💧',
-  'Pulmonology': '🫁',
-  'Endocrinology': '⚖️',
-  'Oncology': '🎗️',
-  'Allergy & Immunology': '🛡️',
-  'Hematology': '🩸',
-  'Pediatrics': '👶',
-  'General Medicine': '🩺',
+const SPECIALTY_ICON_MAP: Record<string, { Icon: React.ElementType; color: string; bg: string }> = {
+  'Cardiology':           { Icon: Heart,        color: '#EF4444', bg: 'rgba(239,68,68,0.1)'     },
+  'Vascular Surgery':     { Icon: Droplets,     color: '#EF4444', bg: 'rgba(239,68,68,0.1)'     },
+  'Neurology':            { Icon: Brain,        color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)'    },
+  'Neurosurgery':         { Icon: Microscope,   color: '#7C3AED', bg: 'rgba(124,58,237,0.1)'    },
+  'Orthopedics':          { Icon: Bone,         color: '#D97706', bg: 'rgba(217,119,6,0.1)'     },
+  'Physiatry':            { Icon: Activity,     color: '#10B981', bg: 'rgba(16,185,129,0.1)'    },
+  'Dermatology':          { Icon: Bandage,      color: '#F59E0B', bg: 'rgba(245,158,11,0.1)'    },
+  'Ophthalmology':        { Icon: Eye,          color: '#0EA5E9', bg: 'rgba(14,165,233,0.1)'    },
+  'ENT':                  { Icon: Ear,          color: '#6366F1', bg: 'rgba(99,102,241,0.1)'    },
+  'Gastroenterology':     { Icon: Wind,         color: '#059669', bg: 'rgba(5,150,105,0.1)'     },
+  'Nephrology':           { Icon: Waves,        color: '#0284C7', bg: 'rgba(2,132,199,0.1)'     },
+  'Pulmonology':          { Icon: Wind,         color: '#06B6D4', bg: 'rgba(6,182,212,0.1)'     },
+  'Endocrinology':        { Icon: Scale,        color: '#D97706', bg: 'rgba(217,119,6,0.1)'     },
+  'Oncology':             { Icon: Ribbon,       color: '#EC4899', bg: 'rgba(236,72,153,0.1)'    },
+  'Allergy & Immunology': { Icon: Shield,       color: '#2563EB', bg: 'rgba(37,99,235,0.1)'     },
+  'Hematology':           { Icon: Droplets,     color: '#DC2626', bg: 'rgba(220,38,38,0.1)'     },
+  'Pediatrics':           { Icon: Baby,         color: '#F97316', bg: 'rgba(249,115,22,0.1)'    },
+  'General Medicine':     { Icon: Stethoscope,  color: '#3B82F6', bg: 'rgba(59,130,246,0.1)'    },
 };
+
+function SpecialtyIcon({ name, size = 13 }: { name: string; size?: number }) {
+  const entry = SPECIALTY_ICON_MAP[name];
+  if (!entry) return <Stethoscope size={size} style={{ color: '#6B7280' }} />;
+  const { Icon, color } = entry;
+  return <Icon size={size} style={{ color }} />;
+}
+
 
 export default function FindDoctorPage() {
   const navigate = useNavigate();
@@ -55,8 +68,8 @@ export default function FindDoctorPage() {
           title="Find a Doctor"
           subtitle="Search and book appointments with top medical specialists"
           actions={
-            <button className="btn btn-primary btn-sm" onClick={() => navigate('/symptom-check')} id="ai-check-from-search-btn">
-              🧠 AI Symptom Check
+            <button className="btn btn-primary btn-sm" onClick={() => navigate('/symptom-check')} id="ai-check-from-search-btn" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Sparkles size={14} /> AI Symptom Check
             </button>
           }
         />
@@ -116,8 +129,10 @@ export default function FindDoctorPage() {
                 className={`filter-pill ${activeSpecialty === null ? 'active' : ''}`}
                 onClick={() => setActiveSpecialty(null)}
                 id="specialty-all"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
               >
-                🩺 All Specialties
+                <Stethoscope size={12} />
+                All Specialties
               </button>
               {specialties.map(spec => (
                 <button
@@ -125,8 +140,10 @@ export default function FindDoctorPage() {
                   className={`filter-pill ${activeSpecialty === spec.id ? 'active' : ''}`}
                   onClick={() => setActiveSpecialty(spec.id)}
                   id={`specialty-${spec.id}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
                 >
-                  {SPECIALTY_ICONS[spec.name] || '🏥'} {spec.name}
+                  <SpecialtyIcon name={spec.name} size={12} />
+                  {spec.name}
                 </button>
               ))}
             </div>
@@ -162,7 +179,9 @@ export default function FindDoctorPage() {
             </div>
           ) : sortedDoctors.length === 0 ? (
             <div className="empty-state card">
-              <div className="empty-icon">🔍</div>
+              <div className="empty-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Search size={36} style={{ color: 'var(--text-muted)' }} />
+              </div>
               <div className="empty-title">No doctors found</div>
               <div className="empty-sub">Try adjusting your search or filter criteria</div>
               <button className="btn btn-primary" onClick={() => { setSearchTerm(''); setActiveSpecialty(null); }} id="clear-all-filters-btn">
@@ -201,8 +220,9 @@ export default function FindDoctorPage() {
                     </div>
                   </div>
 
-                  <div className="doc-hospital" style={{ marginBottom: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
-                    🏥 {doc.hospitalClinic || `${doc.experienceYears} years clinical experience`}
+                  <div className="doc-hospital" style={{ marginBottom: 8, fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Building2 size={12} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    {doc.hospitalClinic || `${doc.experienceYears} years clinical experience`}
                   </div>
 
                   <div className="doc-meta">
