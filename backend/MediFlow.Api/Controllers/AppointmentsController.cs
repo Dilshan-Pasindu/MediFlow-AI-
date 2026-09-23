@@ -203,8 +203,10 @@ public class AppointmentsController : ControllerBase
             .Select(a => new
             {
                 a.Id,
+                a.DoctorId,
                 a.AppointmentNumber,
                 DoctorName = a.Doctor.FullName,
+                DoctorProfilePhoto = a.Doctor.ProfilePhoto,
                 DoctorBio = a.Doctor.Bio,
                 DoctorQualifications = a.Doctor.Qualifications,
                 SpecialtyName = a.Doctor.DoctorSpecialties
@@ -215,6 +217,11 @@ public class AppointmentsController : ControllerBase
                 a.Notes,
                 a.ConsultationStartedAt,
                 a.ConsultationEndedAt,
+                HasRated = _db.DoctorRatings.Any(r => r.AppointmentId == a.Id),
+                Rating = _db.DoctorRatings
+                    .Where(r => r.AppointmentId == a.Id)
+                    .Select(r => new { r.Stars, r.Comment })
+                    .FirstOrDefault(),
                 Payment = a.Payment != null ? new
                 {
                     a.Payment.Amount,
@@ -524,23 +531,39 @@ public class AppointmentsController : ControllerBase
         if (appointment.Status != AppointmentStatus.Completed)
             return BadRequest(new { message = "Ratings and feedback can only be submitted after consultation is completed." });
 
-        if (request.Stars < 1 || request.Stars > 5)
+        var effectiveStars = request.Stars > 0 ? request.Stars : request.Rating;
+        var effectiveComment = !string.IsNullOrWhiteSpace(request.Comment) ? request.Comment : request.Review;
+
+        if (effectiveStars < 1 || effectiveStars > 5)
             return BadRequest(new { message = "Rating must be between 1 and 5 stars." });
 
-        if (await _db.DoctorRatings.AnyAsync(r => r.AppointmentId == id))
-            return BadRequest(new { message = "You have already submitted a rating for this consultation." });
+        var existingRating = await _db.DoctorRatings.FirstOrDefaultAsync(r => r.AppointmentId == id);
+        DoctorRating rating;
+        string successMessage;
 
-        var rating = new DoctorRating
+        if (existingRating != null)
         {
-            DoctorId = appointment.DoctorId,
-            PatientId = patient.Id,
-            AppointmentId = appointment.Id,
-            Stars = request.Stars,
-            Comment = request.Comment?.Trim(),
-            CreatedAt = DateTime.UtcNow
-        };
+            existingRating.Stars = effectiveStars;
+            existingRating.Comment = effectiveComment?.Trim();
+            existingRating.CreatedAt = DateTime.UtcNow;
+            rating = existingRating;
+            successMessage = "Thank you! Your feedback has been updated successfully.";
+        }
+        else
+        {
+            rating = new DoctorRating
+            {
+                DoctorId = appointment.DoctorId,
+                PatientId = patient.Id,
+                AppointmentId = appointment.Id,
+                Stars = effectiveStars,
+                Comment = effectiveComment?.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.DoctorRatings.Add(rating);
+            successMessage = "Thank you! Your feedback has been submitted successfully.";
+        }
 
-        _db.DoctorRatings.Add(rating);
         await _db.SaveChangesAsync();
 
         var ratings = await _db.DoctorRatings.Where(r => r.DoctorId == appointment.DoctorId).ToListAsync();
@@ -553,7 +576,7 @@ public class AppointmentsController : ControllerBase
             rating.Comment,
             AverageRating = newAvg,
             ReviewCount = ratings.Count,
-            message = "Thank you! Your feedback has been submitted successfully."
+            message = successMessage
         });
     }
 
@@ -602,7 +625,10 @@ public record BookAppointmentRequest(
     string? Notes = null
 );
 
-public record RateAppointmentRequest(
-    int Stars,
-    string? Comment = null
-);
+public class RateAppointmentRequest
+{
+    public int Stars { get; set; }
+    public int Rating { get; set; }
+    public string? Comment { get; set; }
+    public string? Review { get; set; }
+}

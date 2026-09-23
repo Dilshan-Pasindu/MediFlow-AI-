@@ -75,6 +75,15 @@ vi.mock('../hooks', () => ({
     data: mockMyAppointments,
     isLoading: false,
   }),
+  useMyDoctorProfile: () => ({
+    data: null,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+  useUpdateMyDoctorProfile: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
 }));
 
 describe('Patient Portal Validations', () => {

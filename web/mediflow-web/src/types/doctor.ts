@@ -7,9 +7,17 @@ export interface DoctorReviewDto {
   id: number;
   appointmentId: number;
   patientName: string;
-  rating: number;
+  rating?: number;
+  stars?: number;
   review?: string;
+  comment?: string;
   createdAt: string;
+}
+
+export interface DoctorAvailabilityDto {
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
 }
 
 export interface DoctorDetail {
@@ -38,6 +46,7 @@ export interface DoctorDetail {
   age?: number;
   registrationNumber?: string;
   reviews?: DoctorReviewDto[];
+  availability?: DoctorAvailabilityDto[];
 }
 
 export interface RankedDoctor extends DoctorDetail {

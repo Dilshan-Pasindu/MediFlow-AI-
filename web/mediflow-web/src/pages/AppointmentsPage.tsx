@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   Clock, ChevronRight, Plus, FileText, Calendar,
   Star, MessageSquare, X, CheckCircle2, AlertCircle,
-  ThumbsUp
+  ThumbsUp, Info, User
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import NowConsultingCard from '../components/NowConsultingCard';
+import DoctorProfileModal from '../components/DoctorProfileModal';
 import { useMyAppointments, useRateAppointment } from '../hooks';
 
 const STATUS = {
@@ -26,6 +27,9 @@ export default function AppointmentsPage() {
   const { data: appointments = [], isLoading: loading, refetch } = useMyAppointments();
   const rateAppointmentMutation = useRateAppointment();
 
+  // Doctor Profile Modal State
+  const [profileDoctor, setProfileDoctor] = useState<any | null>(null);
+
   // Rating Modal State
   const [ratingModalAppt, setRatingModalAppt] = useState<any | null>(null);
   const [ratingScore, setRatingScore] = useState<number>(5);
@@ -42,8 +46,10 @@ export default function AppointmentsPage() {
   const handleOpenRatingModal = (appt: any, e: React.MouseEvent) => {
     e.stopPropagation();
     setRatingModalAppt(appt);
-    setRatingScore(5);
-    setReviewText('');
+    const existingStars = appt.rating?.stars ?? appt.rating?.Stars ?? 5;
+    const existingComment = appt.rating?.comment ?? appt.rating?.Comment ?? '';
+    setRatingScore(existingStars);
+    setReviewText(existingComment);
     setRatingSuccess(null);
     setRatingError(null);
   };

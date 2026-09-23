@@ -8,8 +8,7 @@ import {
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { getUser } from '../services/api';
-import { useProfile, useUpdateProfile } from '../hooks';
-import { useMyDoctorProfile, useUpdateMyDoctorProfile } from '../hooks/useDoctors';
+import { useProfile, useUpdateProfile, useMyDoctorProfile, useUpdateMyDoctorProfile } from '../hooks';
 import { useAuthStore } from '../stores/authStore';
 import type { ProfileForm } from '../types/profile';
 import type { DoctorProfileUpdatePayload } from '../types/doctor';

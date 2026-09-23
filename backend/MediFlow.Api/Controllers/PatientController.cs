@@ -155,6 +155,7 @@ public class PatientController : ControllerBase
                 a.DoctorId,
                 DoctorName = a.Doctor.FullName,
                 DoctorQualifications = a.Doctor.Qualifications,
+                DoctorProfilePhoto = a.Doctor.ProfilePhoto,
                 SpecialtyName = a.Doctor.DoctorSpecialties
                     .Select(ds => ds.Specialty.Name).FirstOrDefault() ?? "General Medicine",
                 a.AppointmentDateTime,
@@ -164,7 +165,12 @@ public class PatientController : ControllerBase
                 a.Notes,
                 a.CreatedAt,
                 a.ConsultationStartedAt,
-                a.ConsultationEndedAt
+                a.ConsultationEndedAt,
+                HasRated = _db.DoctorRatings.Any(r => r.AppointmentId == a.Id),
+                Rating = _db.DoctorRatings
+                    .Where(r => r.AppointmentId == a.Id)
+                    .Select(r => new { r.Stars, r.Comment })
+                    .FirstOrDefault()
             })
             .ToListAsync();
 

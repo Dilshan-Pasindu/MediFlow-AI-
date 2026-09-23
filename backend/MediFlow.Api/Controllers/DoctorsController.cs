@@ -151,7 +151,9 @@ public class DoctorsController : ControllerBase
                 {
                     r.Id,
                     r.Stars,
+                    Rating = r.Stars,
                     r.Comment,
+                    Review = r.Comment,
                     r.CreatedAt,
                     PatientName = r.Appointment.Patient != null ? r.Appointment.Patient.FullName : "Patient"
                 })
@@ -183,7 +185,9 @@ public class DoctorsController : ControllerBase
             {
                 r.Id,
                 r.Stars,
+                Rating = r.Stars,
                 r.Comment,
+                Review = r.Comment,
                 r.CreatedAt,
                 PatientName = r.Appointment.Patient != null ? r.Appointment.Patient.FullName : "Patient"
             })
