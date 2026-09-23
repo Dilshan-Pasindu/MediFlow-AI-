@@ -139,3 +139,26 @@ export interface AutoFilledPrescriptionDraft {
   lastSyncedAt: string;
 }
 
+export interface CurrentConsultationResponse {
+  hasActiveConsultation: boolean;
+  appointmentId?: number;
+  appointmentNumber?: string;
+  doctorId?: number;
+  doctorName?: string;
+  patientName?: string;
+  status?: string;
+  startedAt?: string;
+  message?: string;
+}
+
+export interface ConsultationEventPayload {
+  appointmentId: number;
+  appointmentNumber?: string;
+  doctorId: number;
+  doctorName?: string;
+  patientName?: string;
+  status: string;
+  startedAt?: string;
+  endedAt?: string;
+}
+

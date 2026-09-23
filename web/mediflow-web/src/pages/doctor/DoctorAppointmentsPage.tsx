@@ -9,11 +9,13 @@ import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { useDoctorAppointments } from '../../hooks';
 import type { ConsultationAppointment } from '../../types/consultation';
+import { apiStartConsultation, apiCompleteConsultation } from '../../services/api';
 
 // ─── Status Configuration ───────────────────────────────────────────────────
 
 const STATUS_MAP: Record<string, { color: string; bg: string; border: string; label: string; dot: string }> = {
   Confirmed:        { color: '#059669', bg: '#ECFDF5', border: '#A7F3D0', label: 'Confirmed',        dot: '#059669' },
+  InConsultation:   { color: '#DC2626', bg: '#FEF2F2', border: '#FCA5A5', label: 'In Consultation',  dot: '#DC2626' },
   Completed:        { color: '#6366F1', bg: '#EEF2FF', border: '#C7D2FE', label: 'Completed',        dot: '#6366F1' },
   Pending:          { color: '#D97706', bg: '#FFFBEB', border: '#FDE68A', label: 'Pending',          dot: '#F59E0B' },
   PaymentSubmitted: { color: '#0369A1', bg: '#F0F9FF', border: '#BAE6FD', label: 'Awaiting Verify', dot: '#0EA5E9' },
@@ -118,6 +120,7 @@ export default function DoctorAppointmentsPage() {
     return {
       total: appointments.length,
       today: todayAppts.length,
+      inConsultation: appointments.filter((a) => a.status === 'InConsultation').length,
       confirmed: appointments.filter((a) => a.status === 'Confirmed').length,
       completed: appointments.filter((a) => a.status === 'Completed').length,
       pending: appointments.filter((a) => a.status === 'Pending' || a.status === 'PaymentSubmitted').length,
@@ -134,7 +137,7 @@ export default function DoctorAppointmentsPage() {
 
   const [consultError, setConsultError] = useState<string | null>(null);
 
-  const handleStartConsultation = (appt: ConsultationAppointment) => {
+  const handleStartConsultation = async (appt: ConsultationAppointment) => {
     setConsultError(null);
     const apptDate = new Date(appt.appointmentDateTime);
     const now = new Date();
@@ -145,11 +148,30 @@ export default function DoctorAppointmentsPage() {
       setConsultError(`This appointment is scheduled for ${apptDate.toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}. You can only start consultations on or after the appointment date.`);
       return;
     }
-    if (appt.status !== 'Confirmed') {
+    if (appt.status !== 'Confirmed' && appt.status !== 'InConsultation') {
       setConsultError('Only confirmed appointments can start a consultation.');
       return;
     }
-    navigate(`/doctor/consultation/${appt.id}`);
+
+    try {
+      if (appt.status === 'Confirmed') {
+        await apiStartConsultation(appt.id);
+      }
+      navigate(`/doctor/consultation/${appt.id}`);
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to start consultation';
+      setConsultError(msg);
+    }
+  };
+
+  const handleCompleteConsultation = async (apptId: number) => {
+    try {
+      await apiCompleteConsultation(apptId);
+      refetch();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || 'Failed to complete consultation';
+      setConsultError(msg);
+    }
   };
 
   return (
@@ -258,6 +280,12 @@ export default function DoctorAppointmentsPage() {
                 <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800, color: '#FDE68A' }}>{stats.today}</div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#FDE68A', textTransform: 'uppercase', letterSpacing: 0.5 }}>Today</div>
               </div>
+              {stats.inConsultation > 0 && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.25)', backdropFilter: 'blur(8px)', padding: '12px 18px', borderRadius: 'var(--r-md)', minWidth: 100, textAlign: 'center', border: '1px solid rgba(254, 202, 202, 0.5)' }}>
+                  <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800, color: '#FECACA' }}>{stats.inConsultation}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#FECACA', textTransform: 'uppercase', letterSpacing: 0.5 }}>Consulting</div>
+                </div>
+              )}
               <div style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', padding: '12px 18px', borderRadius: 'var(--r-md)', minWidth: 100, textAlign: 'center', border: '1px solid rgba(255,255,255,0.2)' }}>
                 <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800, color: '#6EE7B7' }}>{stats.confirmed}</div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: '#6EE7B7', textTransform: 'uppercase', letterSpacing: 0.5 }}>Confirmed</div>
@@ -389,6 +417,7 @@ export default function DoctorAppointmentsPage() {
                 </span>
                 {[
                   { id: 'ALL', label: `All (${appointments.length})` },
+                  ...(stats.inConsultation > 0 ? [{ id: 'InConsultation', label: `In Consultation (${stats.inConsultation})` }] : []),
                   { id: 'Confirmed', label: `Confirmed (${stats.confirmed})` },
                   { id: 'Completed', label: `Completed (${stats.completed})` },
                   { id: 'Pending', label: `Pending (${stats.pending})` },
@@ -571,6 +600,7 @@ export default function DoctorAppointmentsPage() {
                   const st = getStatusStyle(appt.status);
                   const { day, month, weekday, time, formattedDate } = parseDateInfo(appt.appointmentDateTime);
                   const isConfirmed = appt.status === 'Confirmed';
+                  const isInConsultation = appt.status === 'InConsultation';
                   const isCompleted = appt.status === 'Completed';
 
                   return (
@@ -578,8 +608,8 @@ export default function DoctorAppointmentsPage() {
                       key={appt.id}
                       id={`doctor-appt-card-${appt.id}`}
                       style={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border)',
+                        background: isInConsultation ? '#FFF5F5' : 'var(--surface)',
+                        border: isInConsultation ? '1.5px solid #FCA5A5' : '1px solid var(--border)',
                         borderRadius: 'var(--r-lg)',
                         padding: '16px 20px',
                         display: 'flex',
@@ -587,16 +617,16 @@ export default function DoctorAppointmentsPage() {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         gap: 16,
-                        boxShadow: 'var(--shadow-sm)',
+                        boxShadow: isInConsultation ? '0 4px 14px rgba(220, 38, 38, 0.12)' : 'var(--shadow-sm)',
                         transition: 'var(--transition)',
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                        e.currentTarget.style.borderColor = isConfirmed ? '#059669' : 'var(--border-strong)';
+                        e.currentTarget.style.borderColor = isInConsultation ? '#EF4444' : isConfirmed ? '#059669' : 'var(--border-strong)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.boxShadow = isInConsultation ? '0 4px 14px rgba(220, 38, 38, 0.12)' : 'var(--shadow-sm)';
+                        e.currentTarget.style.borderColor = isInConsultation ? '#FCA5A5' : 'var(--border)';
                       }}
                     >
                       {/* Left Block: Date Badge & Patient Metadata */}
@@ -606,20 +636,24 @@ export default function DoctorAppointmentsPage() {
                           style={{
                             width: 60,
                             flexShrink: 0,
-                            background: isConfirmed ? 'linear-gradient(135deg,#ECFDF5,#D1FAE5)' : 'var(--surface-2)',
+                            background: isInConsultation
+                              ? 'linear-gradient(135deg,#FEE2E2,#FECACA)'
+                              : isConfirmed
+                              ? 'linear-gradient(135deg,#ECFDF5,#D1FAE5)'
+                              : 'var(--surface-2)',
                             borderRadius: 'var(--r-md)',
                             padding: '10px 6px',
                             textAlign: 'center',
-                            border: isConfirmed ? '1px solid #A7F3D0' : '1px solid var(--border)',
+                            border: isInConsultation ? '1px solid #FCA5A5' : isConfirmed ? '1px solid #A7F3D0' : '1px solid var(--border)',
                           }}
                         >
-                          <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800, color: isConfirmed ? '#065F46' : 'var(--text-primary)', lineHeight: 1 }}>
+                          <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800, color: isInConsultation ? '#991B1B' : isConfirmed ? '#065F46' : 'var(--text-primary)', lineHeight: 1 }}>
                             {day}
                           </div>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: isConfirmed ? '#059669' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: isInConsultation ? '#DC2626' : isConfirmed ? '#059669' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
                             {month}
                           </div>
-                          <div style={{ fontSize: 9.5, color: isConfirmed ? '#047857' : 'var(--text-muted)', marginTop: 2 }}>
+                          <div style={{ fontSize: 9.5, color: isInConsultation ? '#B91C1C' : isConfirmed ? '#047857' : 'var(--text-muted)', marginTop: 2 }}>
                             {weekday}
                           </div>
                         </div>
@@ -654,7 +688,7 @@ export default function DoctorAppointmentsPage() {
                           {/* Time & Specialty info */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 12.5, color: 'var(--text-secondary)' }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}>
-                              <Clock size={14} color="#059669" /> {time} ({formattedDate})
+                              <Clock size={14} color={isInConsultation ? '#DC2626' : '#059669'} /> {time} ({formattedDate})
                             </span>
                             {appt.specialtyName && (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -699,6 +733,59 @@ export default function DoctorAppointmentsPage() {
                         </div>
 
                         {/* CTA Actions */}
+                        {isInConsultation && (
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <button
+                              id={`continue-consult-btn-${appt.id}`}
+                              onClick={() => navigate(`/doctor/consultation/${appt.id}`)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                background: 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)',
+                                color: '#FFFFFF',
+                                border: 'none',
+                                padding: '9px 18px',
+                                borderRadius: 'var(--r-md)',
+                                fontSize: 13,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                boxShadow: '0 2px 8px rgba(220,38,38,0.25)',
+                                transition: 'var(--transition)',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+                            >
+                              <Stethoscope size={16} />
+                              Continue Consultation
+                              <ChevronRight size={15} />
+                            </button>
+                            <button
+                              id={`complete-consult-btn-${appt.id}`}
+                              onClick={() => handleCompleteConsultation(appt.id)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                background: '#FFFFFF',
+                                color: '#059669',
+                                border: '1px solid #A7F3D0',
+                                padding: '9px 14px',
+                                borderRadius: 'var(--r-md)',
+                                fontSize: 12.5,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'var(--transition)',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.background = '#ECFDF5')}
+                              onMouseLeave={(e) => (e.currentTarget.style.background = '#FFFFFF')}
+                            >
+                              <CheckCircle2 size={14} />
+                              Complete
+                            </button>
+                          </div>
+                        )}
+
                         {isConfirmed && (
                           <button
                             id={`start-consult-btn-${appt.id}`}

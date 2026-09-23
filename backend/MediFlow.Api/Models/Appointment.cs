@@ -19,6 +19,8 @@ public class Appointment
     
     public string? Notes { get; set; }
     public decimal? Fee { get; set; }           // Consultation fee at time of booking
+    public DateTime? ConsultationStartedAt { get; set; }
+    public DateTime? ConsultationEndedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -33,6 +35,7 @@ public enum AppointmentStatus
     Pending,            // Booked but payment not submitted
     PaymentSubmitted,   // Patient submitted payment, awaiting receptionist verification
     Confirmed,          // Receptionist verified payment, assigned appointment number
+    InConsultation,     // Doctor actively consulting the appointment
     Completed,          // Doctor completed the consultation
     Cancelled,          // Cancelled by patient, doctor, or receptionist
     NoShow              // Patient did not attend

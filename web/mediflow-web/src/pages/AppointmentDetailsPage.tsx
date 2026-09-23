@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CreditCard, CheckCircle, AlertCircle, Phone, Loader, Hash, XCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, CheckCircle, AlertCircle, Phone, Loader, Hash, XCircle, Stethoscope } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { apiGetAppointment, apiPayAppointment, apiPatientCancelAppointment } from '../services/api';
+import { consultationHubService } from '../services/consultationHubService';
 
 const STATUS_STEPS = [
   { key: 'Pending',          label: 'Booking Placed',       icon: '📋', desc: 'Appointment request submitted' },
   { key: 'PaymentSubmitted', label: 'Payment Submitted',    icon: '💳', desc: 'Awaiting receptionist verification' },
   { key: 'Confirmed',        label: 'Receptionist Verified', icon: '✅', desc: 'Payment verified & number generated' },
+  { key: 'InConsultation',   label: 'In Consultation',      icon: '🩺', desc: 'Doctor actively consulting appointment' },
   { key: 'Completed',        label: 'Consultation Done',    icon: '🎉', desc: 'Appointment completed' },
 ];
 
@@ -16,6 +18,7 @@ const STATUS_META = {
   Pending:          { color: '#B45309', bg: '#FFFBEB', label: 'Pending' },
   PaymentSubmitted: { color: '#0369A1', bg: '#EFF6FF', label: 'Payment Sent' },
   Confirmed:        { color: '#059669', bg: '#ECFDF5', label: 'Confirmed' },
+  InConsultation:   { color: '#DC2626', bg: '#FEF2F2', label: '🔴 In Consultation' },
   Completed:        { color: '#6366F1', bg: '#EEF2FF', label: 'Completed' },
   Cancelled:        { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled' },
 };
@@ -32,7 +35,33 @@ export default function AppointmentDetailsPage() {
   const [cancelError, setCancelError] = useState('');
   const [cancelled, setCancelled] = useState(false);
 
-  useEffect(() => { loadAppointment(); }, [id]);
+  useEffect(() => {
+    loadAppointment();
+
+    consultationHubService.startConnection().catch(console.warn);
+
+    const unsubStarted = consultationHubService.onConsultationStarted((payload) => {
+      if (String(payload.appointmentId) === String(id)) {
+        setAppt((prev: any) => prev ? { ...prev, status: 'InConsultation' } : prev);
+      }
+    });
+
+    const unsubEnded = consultationHubService.onConsultationEnded((payload) => {
+      if (String(payload.appointmentId) === String(id)) {
+        setAppt((prev: any) => prev ? { ...prev, status: 'Completed' } : prev);
+      }
+    });
+
+    const unsubReconnected = consultationHubService.onReconnected(() => {
+      loadAppointment();
+    });
+
+    return () => {
+      unsubStarted();
+      unsubEnded();
+      unsubReconnected();
+    };
+  }, [id]);
 
   async function loadAppointment() {
     try { setAppt(await apiGetAppointment(id || '')); }
@@ -169,6 +198,16 @@ export default function AppointmentDetailsPage() {
                       <div>
                         <div style={{ fontWeight: 700, color: '#065F46', marginBottom: 3 }}>Appointment Confirmed! ✅</div>
                         <div style={{ fontSize: 13, color: '#047857' }}>Your appointment has been verified and confirmed. Please arrive 10 minutes early. Appointment Number: <strong>{appt.appointmentNumber}</strong></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {appt.status === 'InConsultation' && (
+                    <div style={{ marginTop: 24, padding: '16px 18px', background: '#FEF2F2', border: '1.5px solid #F87171', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#DC2626', boxShadow: '0 0 10px #DC2626', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 800, color: '#B91C1C', marginBottom: 2 }}>🔴 Consultation in Progress!</div>
+                        <div style={{ fontSize: 13, color: '#7F1D1D' }}>The doctor is currently consulting this appointment right now.</div>
                       </div>
                     </div>
                   )}

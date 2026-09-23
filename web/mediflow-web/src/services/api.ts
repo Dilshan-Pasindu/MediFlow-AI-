@@ -5,7 +5,7 @@ import type { ProfileForm } from '../types/profile';
 import type { Order, CreateOrderDto, RestockRequestDto } from '../types/order';
 import type { Prescription, CreatePrescriptionDto, MedicationCheckResult, DrugInteraction, AlternativeDrug, ScreenInteractionsResponse, DrugInteractionLog } from '../types/prescription';
 import type { DoctorDetail, SpecialtyInfo, RankedDoctor } from '../types/doctor';
-import type { ConsultationAppointment, ExamForm, MedicineEntry, AIDiagnosis, DiagnosisDecision, ClinicalAnalysisRequestDto } from '../types/consultation';
+import type { ConsultationAppointment, ExamForm, MedicineEntry, AIDiagnosis, DiagnosisDecision, ClinicalAnalysisRequestDto, CurrentConsultationResponse } from '../types/consultation';
 
 // ─── Token & Session ──────────────────────────────────────────────────────────
 
@@ -163,8 +163,21 @@ export async function apiPayAppointment(id: number | string) {
   return apiFetch(`/appointments/${id}/pay`, { method: 'POST' });
 }
 
+export async function apiStartConsultation(id: number | string) {
+  return apiFetch(`/appointments/${id}/start-consultation`, { method: 'POST' });
+}
+
+export async function apiCompleteConsultation(id: number | string) {
+  return apiFetch(`/appointments/${id}/complete-consultation`, { method: 'POST' });
+}
+
 export async function apiCompleteAppointment(id: number | string) {
   return apiFetch(`/appointments/${id}/complete`, { method: 'PUT' });
+}
+
+export async function apiGetCurrentConsultation(doctorId?: number | string): Promise<CurrentConsultationResponse> {
+  const query = doctorId ? `?doctorId=${doctorId}` : '';
+  return apiFetch<CurrentConsultationResponse>(`/appointments/current-consultation${query}`);
 }
 
 export async function apiSubmitPayment(appointmentId: number | string, amount: number, paymentMethod = 'Card') {
@@ -216,24 +229,6 @@ export async function apiGetDoctorAppointments(): Promise<ConsultationAppointmen
   return apiFetch<ConsultationAppointment[]>('/doctors/appointments');
 }
 
-export async function apiStartConsultation(apptId: number | string) {
-  return apiFetch('/consultations', { method: 'POST', body: JSON.stringify({ appointmentId: apptId }) });
-}
-
-export async function apiUpdateConsultation(id: number | string, data: Partial<ExamForm> | Record<string, unknown>) {
-  return apiFetch(`/consultations/${id}`, { method: 'PUT', body: JSON.stringify(data) });
-}
-
-export async function apiGetConsultation(id: number | string) {
-  return apiFetch(`/consultations/${id}`);
-}
-
-export async function apiCompleteConsultation(appointmentId: number | string, diagnosis: string, prescriptionNotes: string, medicines: MedicineEntry[]) {
-  return apiFetch(`/doctor/consultations/${appointmentId}`, {
-    method: 'POST',
-    body: JSON.stringify({ diagnosis, prescriptionNotes, medicines }),
-  });
-}
 
 export async function apiRequestClinicalAnalysis(data: ClinicalAnalysisRequestDto | Record<string, unknown>) {
   return apiFetch('/clinical-analysis', { method: 'POST', body: JSON.stringify(data) });

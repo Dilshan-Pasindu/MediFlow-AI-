@@ -91,7 +91,9 @@ public class DoctorsController : ControllerBase
                 Status = a.Status.ToString(),
                 DoctorName = a.Doctor.FullName,
                 SpecialtyName = a.Doctor.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault() ?? "General Medicine",
-                Fee = a.Fee ?? a.Doctor.ConsultationFee
+                Fee = a.Fee ?? a.Doctor.ConsultationFee,
+                a.ConsultationStartedAt,
+                a.ConsultationEndedAt
             })
             .ToListAsync();
 

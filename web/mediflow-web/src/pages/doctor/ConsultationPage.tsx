@@ -8,7 +8,7 @@ import {
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { useAppointment } from '../../hooks';
-import { apiGeneratePrescription, apiCompleteAppointment } from '../../services/api';
+import { apiGeneratePrescription, apiCompleteAppointment, apiStartConsultation, apiCompleteConsultation } from '../../services/api';
 import type {
   ExamForm, AIClinicalResult, AIDiagnosis, AgentThoughtStep,
   AgentLabDraft, AgentMedicationDraft, ApprovedClinicalPlan,
@@ -262,8 +262,12 @@ export default function ConsultationPage() {
       if (appt.patientName && !manualPatientName) setManualPatientName(appt.patientName);
       if (appt.patientAllergies && !manualAllergies) setManualAllergies(appt.patientAllergies);
       if (appt.patientBloodGroup && !manualBloodGroup) setManualBloodGroup(appt.patientBloodGroup);
+
+      if (id && appt.status === 'Confirmed') {
+        apiStartConsultation(id).catch(console.warn);
+      }
     }
-  }, [appt]);
+  }, [appt, id]);
 
   const activePatientName = manualPatientName || appt?.patientName || 'Walk-in Patient';
   const activeAllergies = manualAllergies || appt?.patientAllergies || '';
@@ -620,7 +624,7 @@ export default function ConsultationPage() {
       sessionStorage.removeItem(`mediflow_consultation_session_${id}`);
       localStorage.removeItem('mediflow_active_consultation_id');
       try {
-        await apiCompleteAppointment(id);
+        await apiCompleteConsultation(id);
       } catch (err) {
         console.error('Failed to mark appointment as completed:', err);
       }
