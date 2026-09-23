@@ -215,10 +215,26 @@ public class DoctorsController : ControllerBase
             doctor = await _db.Doctors
                 .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
                 .Include(d => d.Ratings)
-                .FirstOrDefaultAsync(d => d.FullName == user.FullName);
+                .FirstOrDefaultAsync(d => d.FullName.ToLower() == user.FullName.ToLower());
             if (doctor != null)
             {
                 doctor.UserId = userId;
+                await _db.SaveChangesAsync();
+            }
+            else
+            {
+                doctor = new Doctor
+                {
+                    UserId = userId,
+                    FullName = user.FullName,
+                    Qualifications = "MBBS, MD",
+                    ConsultationFee = 2500,
+                    ExperienceYears = 5,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.Doctors.Add(doctor);
                 await _db.SaveChangesAsync();
             }
         }
@@ -248,9 +264,9 @@ public class DoctorsController : ControllerBase
             doctor.Certifications,
             doctor.Age,
             doctor.RegistrationNumber,
-            Specialties = doctor.DoctorSpecialties.Select(ds => new { ds.Specialty.Id, ds.Specialty.Name }),
-            AverageRating = doctor.Ratings.Count > 0 ? Math.Round(doctor.Ratings.Average(r => r.Stars), 1) : 0,
-            ReviewCount = doctor.Ratings.Count
+            Specialties = doctor.DoctorSpecialties?.Select(ds => new { ds.Specialty.Id, ds.Specialty.Name }) ?? Enumerable.Empty<object>(),
+            AverageRating = doctor.Ratings != null && doctor.Ratings.Count > 0 ? Math.Round(doctor.Ratings.Average(r => r.Stars), 1) : 0,
+            ReviewCount = doctor.Ratings?.Count ?? 0
         });
     }
 
@@ -267,10 +283,26 @@ public class DoctorsController : ControllerBase
 
         if (doctor == null && user != null)
         {
-            doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.FullName == user.FullName);
+            doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.FullName.ToLower() == user.FullName.ToLower());
             if (doctor != null)
             {
                 doctor.UserId = userId;
+                await _db.SaveChangesAsync();
+            }
+            else
+            {
+                doctor = new Doctor
+                {
+                    UserId = userId,
+                    FullName = !string.IsNullOrWhiteSpace(request.FullName) ? request.FullName.Trim() : user.FullName,
+                    Qualifications = !string.IsNullOrWhiteSpace(request.Qualifications) ? request.Qualifications.Trim() : "MBBS",
+                    ConsultationFee = request.ConsultationFee ?? 2500,
+                    ExperienceYears = request.ExperienceYears ?? 5,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _db.Doctors.Add(doctor);
                 await _db.SaveChangesAsync();
             }
         }
