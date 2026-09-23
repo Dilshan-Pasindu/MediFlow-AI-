@@ -5,6 +5,7 @@ import {
   apiGetPendingAppointments,
   apiGetAppointment,
   apiBookAppointment,
+  apiRateAppointment,
 } from '../services/api';
 
 export function useMyAppointments() {
@@ -47,6 +48,20 @@ export function useBookAppointment() {
       apiBookAppointment(doctorId, dateTime, notes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+  });
+}
+
+export function useRateAppointment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ appointmentId, rating, review }: { appointmentId: number | string; rating: number; review?: string }) =>
+      apiRateAppointment(appointmentId, { rating, review }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: ['doctors'] });
+      queryClient.invalidateQueries({ queryKey: ['doctor'] });
     },
   });
 }

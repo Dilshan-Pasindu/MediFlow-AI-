@@ -1,16 +1,69 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Star, Calendar, Clock, CreditCard, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Star, Calendar, Clock, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight, AlertTriangle, Info, ShieldCheck } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { useDoctor, useBookAppointment } from '../hooks';
-import type { DoctorDetail } from '../types/doctor';
+import { useDoctor, useBookAppointment, useMyAppointments } from '../hooks';
+import { DoctorProfileModal } from '../components/DoctorProfileModal';
+import type { ConsultationAppointment } from '../types/consultation';
 
-function generateTimeSlots(): { time: string; available: boolean }[] {
-  const slots: { time: string; available: boolean }[] = [];
+interface TimeSlot {
+  time: string;
+  available: boolean;
+  isPast: boolean;
+  isBooked: boolean;
+}
+
+function generateTimeSlots(
+  selectedDate: Date,
+  doctorId?: number,
+  myAppointments: ConsultationAppointment[] = []
+): TimeSlot[] {
+  const slots: TimeSlot[] = [];
+  const now = new Date();
+  const isToday = selectedDate.toDateString() === now.toDateString();
+  const minAllowedTime = now.getTime() + 15 * 60 * 1000; // 15-minute lead time buffer
+
   for (let h = 9; h <= 17; h++) {
-    slots.push({ time: `${h.toString().padStart(2, '0')}:00`, available: Math.random() > 0.4 });
-    if (h < 17) slots.push({ time: `${h.toString().padStart(2, '0')}:30`, available: Math.random() > 0.4 });
+    const times = [`${h.toString().padStart(2, '0')}:00`];
+    if (h < 17) times.push(`${h.toString().padStart(2, '0')}:30`);
+
+    for (const time of times) {
+      const [slotH, slotM] = time.split(':').map(Number);
+      const slotDate = new Date(selectedDate);
+      slotDate.setHours(slotH, slotM, 0, 0);
+
+      const isPast = isToday && slotDate.getTime() <= minAllowedTime;
+
+      // Check if this patient already has a booking for this slot
+      const isBooked = myAppointments.some((appt) => {
+        if (!appt.appointmentDateTime) return false;
+        if (appt.status && appt.status.toLowerCase() === 'cancelled') return false;
+
+        const apptDate = new Date(appt.appointmentDateTime);
+        const isSameDay =
+          apptDate.getFullYear() === slotDate.getFullYear() &&
+          apptDate.getMonth() === slotDate.getMonth() &&
+          apptDate.getDate() === slotDate.getDate();
+
+        if (!isSameDay) return false;
+
+        return (
+          apptDate.getHours() === slotH &&
+          Math.abs(apptDate.getMinutes() - slotM) < 15
+        );
+      });
+
+      // A slot is available if it has not passed and is not already booked by this patient
+      const isAvailable = !isPast && !isBooked;
+
+      slots.push({
+        time,
+        available: isAvailable,
+        isPast,
+        isBooked,
+      });
+    }
   }
   return slots;
 }
@@ -32,71 +85,191 @@ export default function DoctorBookingPage() {
   const navigate = useNavigate();
   const { data: doctor, isLoading: loading } = useDoctor(id);
   const bookAppointment = useBookAppointment();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const { data: myAppointments = [] } = useMyAppointments?.() || { data: [] };
+
+  const todayStart = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const maxBookingDate = useMemo(() => {
+    const d = new Date(todayStart);
+    d.setDate(d.getDate() + 60); // 60 days max booking window
+    return d;
+  }, [todayStart]);
+
+  const [selectedDate, setSelectedDate] = useState<Date>(todayStart);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
-  const [weekStart, setWeekStart] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d;
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [weekStart, setWeekStart] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay() + 1);
+    d.setHours(0, 0, 0, 0);
+    return d;
   });
   const [booked, setBooked] = useState(false);
   const [bookError, setBookError] = useState('');
 
-  const timeSlots = generateTimeSlots();
-  const weekDays = getDaysInWeek(weekStart);
+  const timeSlots = useMemo(
+    () => generateTimeSlots(selectedDate, doctor?.id, myAppointments),
+    [selectedDate, doctor?.id, myAppointments]
+  );
+
+  const weekDays = useMemo(() => getDaysInWeek(weekStart), [weekStart]);
+
+  const existingApptOnDate = useMemo(() => {
+    return myAppointments.find((appt: ConsultationAppointment) => {
+      if (appt.status && appt.status.toLowerCase() === 'cancelled') return false;
+      if (doctor?.id && appt.doctorId && appt.doctorId !== doctor.id) return false;
+      if (!appt.appointmentDateTime) return false;
+      const apptDate = new Date(appt.appointmentDateTime);
+      return (
+        apptDate.getFullYear() === selectedDate.getFullYear() &&
+        apptDate.getMonth() === selectedDate.getMonth() &&
+        apptDate.getDate() === selectedDate.getDate()
+      );
+    });
+  }, [myAppointments, doctor?.id, selectedDate]);
+
+  // If the currently selected time becomes invalid on a date switch, reset it
+  function handleDateSelect(day: Date) {
+    setSelectedDate(day);
+    setBookError('');
+    if (selectedTime) {
+      const updatedSlots = generateTimeSlots(day, doctor?.id, myAppointments);
+      const slot = updatedSlots.find(s => s.time === selectedTime);
+      if (!slot || !slot.available) {
+        setSelectedTime(null);
+      }
+    }
+  }
+
+  function handleTimeSelect(time: string) {
+    setSelectedTime(time);
+    setBookError('');
+  }
+
+  function handleNotesChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const value = e.target.value;
+    if (value.length <= 500) {
+      setNotes(value);
+      if (bookError.includes('Notes')) {
+        setBookError('');
+      }
+    }
+  }
 
   async function handleBook(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedTime) { setBookError('Please select a time slot.'); return; }
-    setBookError('');
+
+    if (!doctor) {
+      setBookError('Doctor information is still loading. Please wait a moment.');
+      return;
+    }
+
+    if (doctor.isActive === false) {
+      setBookError('This doctor is currently not accepting new appointments.');
+      return;
+    }
+
+    if (!selectedTime) {
+      setBookError('Please select an available consultation time slot.');
+      return;
+    }
+
+    const [h, m] = selectedTime.split(':').map(Number);
     const dt = new Date(selectedDate);
-    const [h, m] = selectedTime.split(':');
-    dt.setHours(Number(h), Number(m), 0, 0);
+    dt.setHours(h, m, 0, 0);
+
+    if (dt.getTime() <= Date.now()) {
+      setBookError('The selected time slot has already passed. Please select an upcoming slot.');
+      return;
+    }
+
+    if (notes.length > 500) {
+      setBookError('Notes cannot exceed 500 characters.');
+      return;
+    }
+
+    setBookError('');
+
     bookAppointment.mutate(
-      { doctorId: id || '', dateTime: dt.toISOString(), notes },
+      {
+        doctorId: Number(id) || doctor.id,
+        dateTime: dt.toISOString(),
+        notes: notes.trim() || undefined,
+      },
       {
         onSuccess: () => setBooked(true),
-        onError: (err: Error) => setBookError(err?.message || 'Booking failed. Please try again.'),
+        onError: (err: Error) => {
+          setBookError(err?.message || 'Booking failed. Please check your selection and try again.');
+        },
       }
     );
   }
 
-  function prevWeek() { const d = new Date(weekStart); d.setDate(d.getDate() - 7); setWeekStart(d); }
-  function nextWeek() { const d = new Date(weekStart); d.setDate(d.getDate() + 7); setWeekStart(d); }
+  function prevWeek() {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() - 7);
+    if (d.getTime() + 7 * 86400000 >= todayStart.getTime()) {
+      setWeekStart(d);
+    }
+  }
 
-  if (loading) return (
-    <div className="app-shell"><Sidebar />
-      <div className="main-content"><TopBar title="Book Appointment" />
-        <div className="page-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-          <Loader size={28} className="spin" style={{ color: 'var(--med-blue)' }} />
+  function nextWeek() {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + 7);
+    if (d.getTime() <= maxBookingDate.getTime()) {
+      setWeekStart(d);
+    }
+  }
+
+  const isDoctorInactive = doctor && doctor.isActive === false;
+
+  if (loading) {
+    return (
+      <div className="app-shell">
+        <Sidebar />
+        <div className="main-content">
+          <TopBar title="Book Appointment" />
+          <div className="page-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+            <Loader size={28} className="spin" style={{ color: 'var(--med-blue)' }} />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  if (booked) return (
-    <div className="app-shell"><Sidebar />
-      <div className="main-content"><TopBar title="Booking Confirmed" />
-        <div className="page-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-          <div className="card scale-in" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: 40 }}>
-            <div style={{ width: 72, height: 72, background: 'var(--gradient-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 24px rgba(3,105,161,0.3)' }}>
-              <CheckCircle size={32} color="white" />
-            </div>
-            <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Appointment Booked! 🎉</div>
-            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.7 }}>
-              Your appointment with <strong>{doctor?.fullName}</strong> on <strong>{selectedDate.toDateString()}</strong> at <strong>{selectedTime}</strong> has been requested.
-            </div>
-            <div style={{ fontSize: 13, color: '#B45309', background: '#FFFBEB', borderRadius: 'var(--r-md)', padding: '12px 16px', marginBottom: 24, border: '1px solid #FDE68A' }}>
-              ⏳ Next step: Complete your payment to get a confirmed appointment number.
-            </div>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-              <button className="btn btn-primary" onClick={() => navigate('/appointments')} id="view-bookings-btn">View My Appointments</button>
-              <button className="btn btn-secondary" onClick={() => navigate('/dashboard')} id="go-to-dashboard-btn">Dashboard</button>
+  if (booked) {
+    return (
+      <div className="app-shell">
+        <Sidebar />
+        <div className="main-content">
+          <TopBar title="Booking Confirmed" />
+          <div className="page-body" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+            <div className="card scale-in" style={{ maxWidth: 480, width: '100%', textAlign: 'center', padding: 40 }}>
+              <div style={{ width: 72, height: 72, background: 'var(--gradient-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 24px rgba(3,105,161,0.3)' }}>
+                <CheckCircle size={32} color="white" />
+              </div>
+              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Appointment Booked! 🎉</div>
+              <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.7 }}>
+                Your appointment with <strong>{doctor?.fullName}</strong> on <strong>{selectedDate.toDateString()}</strong> at <strong>{selectedTime}</strong> has been requested.
+              </div>
+              <div style={{ fontSize: 13, color: '#B45309', background: '#FFFBEB', borderRadius: 'var(--r-md)', padding: '12px 16px', marginBottom: 24, border: '1px solid #FDE68A' }}>
+                ⏳ Next step: Complete your payment to get a confirmed appointment number.
+              </div>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                <button className="btn btn-primary" onClick={() => navigate('/appointments')} id="view-bookings-btn">View My Appointments</button>
+                <button className="btn btn-secondary" onClick={() => navigate('/dashboard')} id="go-to-dashboard-btn">Dashboard</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -113,22 +286,44 @@ export default function DoctorBookingPage() {
             {/* Doctor Profile & Booking Form */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+              {/* Inactive Doctor Warning */}
+              {isDoctorInactive && (
+                <div style={{ padding: '14px 18px', background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <AlertTriangle size={20} color="#DC2626" style={{ flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#991B1B' }}>Doctor Unavailable for Booking</div>
+                    <div style={{ fontSize: 13, color: '#B91C1C' }}>Dr. {doctor?.fullName} is currently not accepting new appointments. Please choose another specialist.</div>
+                  </div>
+                </div>
+              )}
+
               {/* Doctor Info */}
               <div className="card">
                 <div style={{ background: 'var(--gradient-hero)', padding: '24px 28px', color: 'white', borderRadius: 'var(--r-lg) var(--r-lg) 0 0' }}>
                   <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
-                    <div style={{ width: 72, height: 72, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-xl)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>
-                      {doctor?.fullName ? doctor.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
-                    </div>
+                    {doctor?.profilePhoto ? (
+                      <img
+                        src={doctor.profilePhoto}
+                        alt={doctor.fullName}
+                        style={{ width: 72, height: 72, borderRadius: 'var(--r-xl)', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.4)', flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div style={{ width: 72, height: 72, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-xl)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>
+                        {doctor?.fullName ? doctor.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
+                      </div>
+                    )}
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800 }}>{doctor?.fullName}</div>
-                      <div style={{ fontSize: 14, opacity: 0.85, marginTop: 2 }}>{doctor?.specialties?.map((s: any) => s.name).join(', ')}</div>
+                      <div style={{ fontSize: 14, opacity: 0.85, marginTop: 2 }}>
+                        {doctor?.specialties?.map((s: any) => s.name).join(', ')}
+                        {doctor?.subSpecialty && <span> • {doctor.subSpecialty}</span>}
+                      </div>
                       <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 2 }}>{doctor?.qualifications}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
-                          <Star size={13} fill="gold" color="gold" /> <strong>{doctor?.averageRating?.toFixed(1) || '—'}</strong> ({doctor?.reviewCount || 0} reviews)
+                          <Star size={13} fill="gold" color="gold" /> <strong>{doctor?.averageRating ? doctor.averageRating.toFixed(1) : '5.0'}</strong> ({doctor?.reviewCount || doctor?.reviews?.length || 0} reviews)
                         </div>
-                        <div style={{ fontSize: 13, opacity: 0.85 }}>🏥 {doctor?.experienceYears} yrs exp</div>
+                        <div style={{ fontSize: 13, opacity: 0.85 }}>🏥 {doctor?.hospitalClinic || `${doctor?.experienceYears} yrs exp`}</div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -137,11 +332,20 @@ export default function DoctorBookingPage() {
                     </div>
                   </div>
                 </div>
-                {doctor?.bio && (
-                  <div className="card-body" style={{ borderTop: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{doctor.bio}</div>
+                <div className="card-body" style={{ borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: '#F8FAFC' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                    {doctor?.bio ? `${doctor.bio.slice(0, 90)}...` : 'Verified medical specialist on file.'}
                   </div>
-                )}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setShowProfileModal(true)}
+                    id="view-full-doctor-profile-btn"
+                    style={{ flexShrink: 0, marginLeft: 16 }}
+                  >
+                    <Info size={13} style={{ marginRight: 6 }} /> View Credentials & Reviews
+                  </button>
+                </div>
               </div>
 
               {/* Calendar */}
@@ -149,29 +353,34 @@ export default function DoctorBookingPage() {
                 <div className="card-header">
                   <div className="section-title" style={{ fontSize: 15 }}><Calendar size={16} style={{ marginRight: 6, color: 'var(--med-blue)' }} />Select Date</div>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="btn btn-ghost btn-sm btn-icon" onClick={prevWeek} id="prev-week-btn"><ChevronLeft size={15} /></button>
-                    <button className="btn btn-ghost btn-sm btn-icon" onClick={nextWeek} id="next-week-btn"><ChevronRight size={15} /></button>
+                    <button className="btn btn-ghost btn-sm btn-icon" onClick={prevWeek} id="prev-week-btn" disabled={weekStart <= todayStart}><ChevronLeft size={15} /></button>
+                    <button className="btn btn-ghost btn-sm btn-icon" onClick={nextWeek} id="next-week-btn" disabled={weekStart >= maxBookingDate}><ChevronRight size={15} /></button>
                   </div>
                 </div>
                 <div className="card-body">
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
                     {weekDays.map((day, idx) => {
-                      const isPast = day < new Date(new Date().setHours(0,0,0,0));
+                      const isPast = day < todayStart;
+                      const isTooFar = day > maxBookingDate;
+                      const isDisabled = isPast || isTooFar || isDoctorInactive;
                       const isSelected = day.toDateString() === selectedDate.toDateString();
                       const isToday = day.toDateString() === new Date().toDateString();
+                      const dateKey = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+
                       return (
                         <button
                           key={idx}
-                          onClick={() => !isPast && setSelectedDate(day)}
-                          id={`date-btn-${day.toISOString().slice(0,10)}`}
-                          disabled={isPast}
+                          onClick={() => !isDisabled && handleDateSelect(day)}
+                          id={`date-btn-${dateKey}`}
+                          disabled={isDisabled}
                           style={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center',
                             padding: '10px 4px', borderRadius: 'var(--r-md)', border: '1.5px solid',
                             borderColor: isSelected ? 'transparent' : isToday ? 'var(--med-blue)' : 'var(--border)',
                             background: isSelected ? 'var(--gradient-primary)' : isToday ? 'var(--med-blue-50)' : 'var(--surface)',
-                            color: isSelected ? 'white' : isPast ? 'var(--text-xmuted)' : 'var(--text-primary)',
-                            cursor: isPast ? 'not-allowed' : 'pointer',
+                            color: isSelected ? 'white' : isDisabled ? 'var(--text-xmuted)' : 'var(--text-primary)',
+                            cursor: isDisabled ? 'not-allowed' : 'pointer',
+                            opacity: isDisabled ? 0.45 : 1,
                             transition: 'var(--transition-spring)',
                             transform: isSelected ? 'scale(1.05)' : 'none',
                             boxShadow: isSelected ? '0 4px 12px rgba(3,105,161,0.25)' : 'none',
@@ -197,32 +406,62 @@ export default function DoctorBookingPage() {
                   </div>
                 </div>
                 <div className="card-body">
+                  {existingApptOnDate && (
+                    <div style={{ marginBottom: 14, padding: '10px 14px', background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: 'var(--r-md)', fontSize: 13, color: '#1E40AF', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                      <span>You already have an appointment booked with this doctor on this day ({new Date(existingApptOnDate.appointmentDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}).</span>
+                    </div>
+                  )}
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                    {timeSlots.map(({ time, available }) => (
-                      <button
-                        key={time}
-                        onClick={() => available && setSelectedTime(time)}
-                        id={`time-slot-${time}`}
-                        disabled={!available}
-                        style={{
-                          padding: '10px 8px', borderRadius: 'var(--r-md)', fontSize: 13, fontWeight: 700,
-                          border: '1.5px solid',
-                          borderColor: selectedTime === time ? 'transparent' : available ? 'var(--border-strong)' : 'var(--border)',
-                          background: selectedTime === time ? 'var(--gradient-primary)' : available ? 'var(--surface)' : 'var(--surface-3)',
-                          color: selectedTime === time ? 'white' : available ? 'var(--text-primary)' : 'var(--text-xmuted)',
-                          cursor: available ? 'pointer' : 'not-allowed',
-                          transition: 'var(--transition-spring)',
-                          transform: selectedTime === time ? 'scale(1.04)' : 'none',
-                        }}
-                      >
-                        {time}
-                      </button>
-                    ))}
+                    {timeSlots.map(({ time, available, isPast, isBooked }) => {
+                      const isSelected = selectedTime === time;
+                      const isDisabled = !available || isDoctorInactive;
+
+                      return (
+                        <button
+                          key={time}
+                          type="button"
+                          onClick={() => !isDisabled && handleTimeSelect(time)}
+                          id={`time-slot-${time}`}
+                          disabled={isDisabled}
+                          title={
+                            isPast
+                              ? 'Slot has passed for today'
+                              : isBooked
+                              ? 'You have already booked this slot'
+                              : !available
+                              ? 'Slot is unavailable'
+                              : 'Click to select slot'
+                          }
+                          style={{
+                            padding: '10px 8px', borderRadius: 'var(--r-md)', fontSize: 13, fontWeight: 700,
+                            border: '1.5px solid',
+                            borderColor: isSelected ? 'transparent' : available ? 'var(--border-strong)' : 'var(--border)',
+                            background: isSelected ? 'var(--gradient-primary)' : available ? 'var(--surface)' : 'var(--surface-3)',
+                            color: isSelected ? 'white' : available ? 'var(--text-primary)' : 'var(--text-xmuted)',
+                            cursor: isDisabled ? 'not-allowed' : 'pointer',
+                            opacity: isPast ? 0.35 : isBooked ? 0.5 : available ? 1 : 0.6,
+                            transition: 'var(--transition-spring)',
+                            transform: isSelected ? 'scale(1.04)' : 'none',
+                          }}
+                        >
+                          {time} {isPast ? '(Past)' : isBooked ? '(Booked)' : ''}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: 11.5, color: 'var(--text-muted)' }}>
+
+                  {timeSlots.every(s => !s.available) && (
+                    <div style={{ marginTop: 12, padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 'var(--r-md)', fontSize: 13, color: '#B45309' }}>
+                      ⚠️ No consultation slots are available for this date. Please select another day.
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 16, marginTop: 14, fontSize: 11.5, color: 'var(--text-muted)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><div style={{ width: 10, height: 10, background: 'var(--gradient-primary)', borderRadius: 2 }} /> Selected</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><div style={{ width: 10, height: 10, background: 'var(--surface)', border: '1px solid var(--border-strong)', borderRadius: 2 }} /> Available</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><div style={{ width: 10, height: 10, background: 'var(--surface-3)', borderRadius: 2 }} /> Booked</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}><div style={{ width: 10, height: 10, background: 'var(--surface-3)', borderRadius: 2 }} /> Booked / Past</div>
                   </div>
                 </div>
               </div>
@@ -247,7 +486,9 @@ export default function DoctorBookingPage() {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
                         <span style={{ color: 'var(--text-muted)' }}>Time</span>
-                        <span style={{ fontWeight: 600, color: selectedTime ? 'var(--text-primary)' : 'var(--text-muted)' }}>{selectedTime || '— Select a slot'}</span>
+                        <span style={{ fontWeight: 600, color: selectedTime ? 'var(--text-primary)' : 'var(--danger)' }}>
+                          {selectedTime || '— Select a slot'}
+                        </span>
                       </div>
                       <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15 }}>
@@ -257,24 +498,38 @@ export default function DoctorBookingPage() {
                     </div>
 
                     <div className="form-group">
-                      <label className="form-label">Notes for Doctor <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span></label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <label className="form-label" style={{ marginBottom: 0 }}>
+                          Notes for Doctor <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span>
+                        </label>
+                        <span style={{ fontSize: 11, color: notes.length >= 480 ? 'var(--danger)' : 'var(--text-muted)', fontWeight: notes.length >= 480 ? 700 : 400 }}>
+                          {notes.length} / 500
+                        </span>
+                      </div>
                       <textarea
                         className="form-textarea"
                         id="booking-notes"
-                        placeholder="Any specific concerns or information for the doctor..."
+                        placeholder="Any specific symptoms, medical history, or questions for the doctor..."
                         value={notes}
-                        onChange={e => setNotes(e.target.value)}
+                        onChange={handleNotesChange}
+                        maxLength={500}
                         rows={3}
+                        disabled={isDoctorInactive}
                       />
                     </div>
 
-                    {bookError && <div className="form-error"><AlertCircle size={14} />{bookError}</div>}
+                    {bookError && (
+                      <div className="form-error" style={{ marginBottom: 14 }}>
+                        <AlertCircle size={15} style={{ flexShrink: 0 }} />
+                        <span>{bookError}</span>
+                      </div>
+                    )}
 
                     <button
                       type="submit"
                       className="btn btn-primary btn-lg"
                       style={{ width: '100%' }}
-                      disabled={bookAppointment.isPending || !selectedTime}
+                      disabled={bookAppointment.isPending || !selectedTime || isDoctorInactive}
                       id="confirm-booking-btn"
                     >
                       {bookAppointment.isPending ? <><Loader size={16} className="spin" /> Booking...</> : <>Confirm Booking</>}
@@ -282,7 +537,7 @@ export default function DoctorBookingPage() {
 
                     <div className="ai-disclaimer" style={{ marginTop: 14 }}>
                       <AlertCircle size={12} style={{ flexShrink: 0 }} />
-                      <span>Payment will be required after booking to confirm your appointment.</span>
+                      <span>Payment will be required after booking to confirm your queue number.</span>
                     </div>
                   </form>
                 </div>
@@ -290,6 +545,14 @@ export default function DoctorBookingPage() {
             </div>
           </div>
         </div>
+
+        {/* Doctor Full Profile & Reviews Modal */}
+        <DoctorProfileModal
+          doctor={doctor || null}
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          showBookButton={false}
+        />
       </div>
     </div>
   );

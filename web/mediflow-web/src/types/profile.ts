@@ -5,4 +5,6 @@ export interface ProfileForm {
   bloodGroup: string;
   allergies: string;
   address: string;
+  dateOfBirth?: string;
+  gender?: string;
 }
