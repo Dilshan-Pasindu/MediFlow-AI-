@@ -101,6 +101,7 @@ export interface ConsultationAppointment {
   doctorName?: string;
   specialtyName?: string;
   fee?: number;
+  hasRated?: boolean;
 }
 
 export interface ClinicalAnalysisRequestDto {

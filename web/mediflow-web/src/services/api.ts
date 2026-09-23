@@ -4,7 +4,7 @@ import type { User, UserRole, AuthResponse } from '../types/auth';
 import type { ProfileForm } from '../types/profile';
 import type { Order, CreateOrderDto, RestockRequestDto } from '../types/order';
 import type { Prescription, CreatePrescriptionDto, MedicationCheckResult, DrugInteraction, AlternativeDrug, ScreenInteractionsResponse, DrugInteractionLog } from '../types/prescription';
-import type { DoctorDetail, SpecialtyInfo, RankedDoctor } from '../types/doctor';
+import type { DoctorDetail, SpecialtyInfo, RankedDoctor, DoctorReviewDto, DoctorProfileUpdatePayload } from '../types/doctor';
 import type { ConsultationAppointment, ExamForm, MedicineEntry, AIDiagnosis, DiagnosisDecision, ClinicalAnalysisRequestDto, CurrentConsultationResponse } from '../types/consultation';
 
 // ─── Token & Session ──────────────────────────────────────────────────────────
@@ -143,6 +143,32 @@ export async function apiGetDoctorAvailability(id: number | string) {
 
 export async function apiGetRankedDoctors(specialtyId?: number | string): Promise<RankedDoctor[]> {
   return apiFetch<RankedDoctor[]>(`/doctors/ranked?specialty=${specialtyId || ''}`);
+}
+
+export async function apiGetDoctorReviews(id: number | string): Promise<DoctorReviewDto[]> {
+  return apiFetch<DoctorReviewDto[]>(`/doctors/${id}/reviews`);
+}
+
+export async function apiGetMyDoctorProfile(): Promise<DoctorDetail> {
+  return apiFetch<DoctorDetail>('/doctors/me/profile');
+}
+
+export async function apiUpdateMyDoctorProfile(data: DoctorProfileUpdatePayload): Promise<{ message: string; doctor: DoctorDetail }> {
+  return apiFetch<{ message: string; doctor: DoctorDetail }>('/doctors/me/profile', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function apiRateAppointment(appointmentId: number | string, data: { rating: number; review?: string }) {
+  return apiFetch<{ message: string; ratingId: number }>(`/appointments/${appointmentId}/rate`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function apiGetAppointmentRating(appointmentId: number | string): Promise<{ hasRated: boolean; rating?: any }> {
+  return apiFetch<{ hasRated: boolean; rating?: any }>(`/appointments/${appointmentId}/rating`);
 }
 
 // ─── Appointments ─────────────────────────────────────────────────────────────

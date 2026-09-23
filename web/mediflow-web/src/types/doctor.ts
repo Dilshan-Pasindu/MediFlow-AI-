@@ -1,3 +1,17 @@
+export interface DoctorSpecialtyInfo {
+  id: number;
+  name: string;
+}
+
+export interface DoctorReviewDto {
+  id: number;
+  appointmentId: number;
+  patientName: string;
+  rating: number;
+  review?: string;
+  createdAt: string;
+}
+
 export interface DoctorDetail {
   id: number;
   userId: number;
@@ -10,11 +24,18 @@ export interface DoctorDetail {
   reviewCount: number;
   isActive: boolean;
   specialties: DoctorSpecialtyInfo[];
-}
-
-export interface DoctorSpecialtyInfo {
-  id: number;
-  name: string;
+  profilePhoto?: string;
+  subSpecialty?: string;
+  hospitalClinic?: string;
+  languages?: string;
+  location?: string;
+  mbbsUniversity?: string;
+  phdUniversity?: string;
+  otherQualifications?: string;
+  certifications?: string;
+  age?: number;
+  registrationNumber?: string;
+  reviews?: DoctorReviewDto[];
 }
 
 export interface RankedDoctor extends DoctorDetail {
@@ -26,4 +47,20 @@ export interface SpecialtyInfo {
   name: string;
   description?: string;
   iconName?: string;
+}
+
+export interface DoctorProfileUpdatePayload {
+  bio?: string;
+  subSpecialty?: string;
+  hospitalClinic?: string;
+  languages?: string;
+  location?: string;
+  mbbsUniversity?: string;
+  phdUniversity?: string;
+  otherQualifications?: string;
+  certifications?: string;
+  experienceYears?: number;
+  age?: number;
+  consultationFee?: number;
+  profilePhoto?: string;
 }
