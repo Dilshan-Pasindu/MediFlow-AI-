@@ -39,6 +39,7 @@ public class AppDbContext : DbContext
     public DbSet<PrescriptionItem> PrescriptionItems => Set<PrescriptionItem>();
     public DbSet<MedicineOrder> Orders => Set<MedicineOrder>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<DrugInteractionLog> DrugInteractionLogs => Set<DrugInteractionLog>();
 
     // ─────────────────────────────────────────────────────────────────────
     // MEMBER 4 — Pharmacy Inventory & Supplier Management
@@ -306,6 +307,25 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(oi => oi.MedicineId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── DrugInteractionLog ────────────────────────────────────────────
+        modelBuilder.Entity<DrugInteractionLog>(entity =>
+        {
+            entity.HasKey(d => d.Id);
+            entity.Property(d => d.DrugA).IsRequired().HasMaxLength(200);
+            entity.Property(d => d.DrugB).HasMaxLength(200);
+            entity.Property(d => d.SeverityLevel).IsRequired().HasMaxLength(20);
+            entity.Property(d => d.Description).IsRequired();
+            entity.Property(d => d.WarningType).HasConversion<string>();
+            entity.HasIndex(d => d.PrescriptionId);
+            entity.HasIndex(d => new { d.PrescriptionId, d.AcknowledgedAt });
+
+            // FK → Prescription (Cascade: logs deleted when prescription is deleted)
+            entity.HasOne(d => d.Prescription)
+                .WithMany()
+                .HasForeignKey(d => d.PrescriptionId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ════════════════════════════════════════════════════════════════

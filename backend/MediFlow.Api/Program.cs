@@ -20,6 +20,20 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<InventoryService>();
 
+// ─── AI Microservice HTTP Client (Member 3) ──────────────────────────────────────
+var aiBaseUrl = builder.Configuration["AiService:BaseUrl"]
+    ?? "http://localhost:8000";
+
+builder.Services.AddHttpClient("AiService", client =>
+{
+    client.BaseAddress = new Uri(aiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
+builder.Services.AddScoped<IAiServiceClient, AiServiceClient>();
+builder.Services.AddScoped<AiServiceClient>();
+
 // ─── JWT Authentication ───────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]
     ?? throw new InvalidOperationException("JWT Key is not configured.");

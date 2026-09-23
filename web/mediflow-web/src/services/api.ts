@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import type { User, UserRole, AuthResponse } from '../types/auth';
 import type { ProfileForm } from '../types/profile';
 import type { Order, CreateOrderDto, RestockRequestDto } from '../types/order';
-import type { Prescription, CreatePrescriptionDto } from '../types/prescription';
+import type { Prescription, CreatePrescriptionDto, MedicationCheckResult, DrugInteraction, AlternativeDrug, ScreenInteractionsResponse, DrugInteractionLog } from '../types/prescription';
 import type { DoctorDetail, SpecialtyInfo, RankedDoctor } from '../types/doctor';
 import type { ConsultationAppointment, ExamForm, MedicineEntry, AIDiagnosis, DiagnosisDecision, ClinicalAnalysisRequestDto } from '../types/consultation';
 
@@ -291,6 +291,43 @@ export async function apiGetPrescriptions(): Promise<Prescription[]> {
   return apiFetch<Prescription[]>('/pharmacist/prescriptions');
 }
 
+export async function apiGetDoctorPrescriptions(status?: string): Promise<Prescription[]> {
+  const qs = status ? `?status=${status}` : '';
+  return apiFetch<Prescription[]>(`/prescriptions/doctor/my${qs}`);
+}
+
+export async function apiUpdatePrescription(
+  id: number | string,
+  data: {
+    patientName?: string;
+    isWalkIn?: boolean;
+    walkInPatientDetails?: {
+      fullName: string;
+      age?: string;
+      gender?: string;
+      phone?: string;
+    };
+    diagnosis?: string;
+    fulfillmentSource?: string;
+    instructions?: string;
+    items?: Array<{
+      medicineId?: number;
+      medicineName: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+      quantity: number;
+      instructions?: string;
+    }>;
+  }
+): Promise<{ message: string; prescription: Prescription }> {
+  return apiFetch(`/prescriptions/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function apiDeletePrescription(id: number | string): Promise<{ message: string }> {
+  return apiFetch(`/prescriptions/${id}`, { method: 'DELETE' });
+}
+
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
 export async function apiCreateOrder(data: CreateOrderDto | Record<string, unknown>) {
@@ -307,6 +344,10 @@ export async function apiPayOrder(id: number | string) {
 
 export async function apiUpdateOrderStatus(id: number | string, status: string) {
   return apiFetch(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+}
+
+export async function apiDeleteOrder(id: number | string): Promise<{ message: string }> {
+  return apiFetch(`/orders/${id}`, { method: 'DELETE' });
 }
 
 export async function apiCalculateOrderPrice(id: number | string, pharmacyId: number | string) {
@@ -650,23 +691,36 @@ export interface MedicationCheckPayload {
   pharmacy_id?: number;
 }
 
-export interface MedicationCheckResult {
-  safe_to_dispense: boolean;
-  safety_score: number;
-  interactions: Array<{
-    drug_pair: string[];
-    severity: string;
-    description: string;
-    recommendation: string;
-  }>;
-  allergy_warnings: string[];
-  alternatives: Array<{
-    original_drug: string;
-    alternative_drug: string;
-    reason: string;
-    dosage_guidance: string;
-  }>;
-  summary: string;
+export type { MedicationCheckResult, DrugInteraction, AlternativeDrug, ScreenInteractionsResponse, DrugInteractionLog };
+
+export async function apiScreenInteractions(
+  prescriptionId: number | string,
+  pharmacyId?: number
+): Promise<ScreenInteractionsResponse> {
+  const qs = pharmacyId ? `?pharmacyId=${pharmacyId}` : '';
+  return apiFetch<ScreenInteractionsResponse>(`/prescriptions/${prescriptionId}/screen-interactions${qs}`, {
+    method: 'POST',
+  });
+}
+
+export async function apiAcknowledgeWarning(
+  prescriptionId: number | string,
+  logId: number,
+  overrideNote?: string
+) {
+  return apiFetch<{ message: string; logId: number; warningType: string; severityLevel: string; acknowledgedAt: string }>(
+    `/prescriptions/${prescriptionId}/acknowledge-warning`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ logId, overrideNote }),
+    }
+  );
+}
+
+export async function apiGetPrescriptionInteractionLogs(
+  prescriptionId: number | string
+): Promise<DrugInteractionLog[]> {
+  return apiFetch<DrugInteractionLog[]>(`/prescriptions/${prescriptionId}/interaction-logs`);
 }
 
 export async function apiRunMedicationCheck(payload: MedicationCheckPayload): Promise<MedicationCheckResult> {
@@ -796,3 +850,5 @@ export async function apiMarkNotificationRead(id: number) {
 export async function apiMarkAllNotificationsRead() {
   return apiFetch('/notifications/read-all', { method: 'POST' });
 }
+
+

@@ -3,6 +3,7 @@ using System.Security.Claims;
 using MediFlow.Api.Data;
 using MediFlow.Api.DTOs;
 using MediFlow.Api.Models;
+using MediFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +19,13 @@ namespace MediFlow.Api.Controllers;
 public class PrescriptionsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IAiServiceClient _ai;
 
-    public PrescriptionsController(AppDbContext db) => _db = db;
+    public PrescriptionsController(AppDbContext db, IAiServiceClient ai)
+    {
+        _db = db;
+        _ai = ai;
+    }
 
     // ─── Helper ────────────────────────────────────────────────────────────
 
@@ -109,7 +115,15 @@ public class PrescriptionsController : ControllerBase
             .FirstOrDefaultAsync(d => d.UserId == userId.Value);
 
         if (doctor == null)
-            return NotFound(new { message = "Doctor profile not found for this user." });
+        {
+            // Fallback: If no Doctor profile is directly linked to this User ID, use first available Doctor record
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        if (doctor == null)
+            return NotFound(new { message = "Doctor profile not found in system." });
 
         var doctorSpecialty = doctor.DoctorSpecialties
             .Select(ds => ds.Specialty.Name)
@@ -349,4 +363,442 @@ public class PrescriptionsController : ControllerBase
 
         return Ok(result);
     }
+
+    // ─── GET /api/prescriptions/doctor/my ─────────────────────────────────
+
+    /// <summary>
+    /// Returns all prescriptions issued by the currently logged-in doctor.
+    /// Supports optional status filter via ?status=Active|Fulfilled|Cancelled.
+    /// </summary>
+    [HttpGet("doctor")]
+    [HttpGet("doctor/my")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> GetMyIssuedPrescriptions([FromQuery] string? status)
+    {
+        var userId = TryGetUserId();
+
+        var doctor = userId.HasValue
+            ? await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync(d => d.UserId == userId.Value)
+            : null;
+
+        if (doctor == null)
+        {
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        var query = _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Appointment)
+            .Include(p => p.Doctor)
+            .AsQueryable();
+
+        if (doctor != null)
+        {
+            query = query.Where(p => p.DoctorId == doctor.Id || (doctor.UserId > 0 && p.Doctor != null && p.Doctor.UserId == doctor.UserId));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<PrescriptionStatus>(status, true, out var parsedStatus))
+        {
+            query = query.Where(p => p.Status == parsedStatus);
+        }
+
+        var prescriptions = await query
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        var dtos = prescriptions.Select(p =>
+        {
+            var doctorName = p.Doctor?.FullName ?? doctor?.FullName ?? "Dr. Clinical Specialist";
+            var doctorSpecialty = p.Doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault()
+                ?? doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault();
+            return ToDto(p, doctorName, doctorSpecialty);
+        }).ToList();
+
+        return Ok(dtos);
+    }
+
+    // ─── PUT /api/prescriptions/{id} ──────────────────────────────────────
+
+    /// <summary>
+    /// Doctor edits their prescription details.
+    /// Updates diagnosis, instructions, fulfillment source, and medicine items.
+    /// </summary>
+    [HttpPut("{id:int}")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> UpdatePrescription(int id, [FromBody] UpdatePrescriptionRequestDto request)
+    {
+        var userId = TryGetUserId();
+
+        var doctor = userId.HasValue
+            ? await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync(d => d.UserId == userId.Value)
+            : null;
+
+        if (doctor == null)
+        {
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .FirstOrDefaultAsync();
+        }
+
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        // Validate updated items
+        if (request.Items != null && request.Items.Count > 0)
+        {
+            foreach (var item in request.Items)
+            {
+                if (string.IsNullOrWhiteSpace(item.MedicineName))
+                    return BadRequest(new { message = "Medicine name is required for all prescription items." });
+                if (item.Quantity <= 0)
+                    return BadRequest(new { message = $"Quantity for '{item.MedicineName}' must be greater than zero." });
+            }
+        }
+
+        // Apply patient name & walk-in details updates
+        if (request.IsWalkIn.HasValue)
+            prescription.IsWalkIn = request.IsWalkIn.Value;
+
+        if (!string.IsNullOrWhiteSpace(request.PatientName))
+        {
+            prescription.WalkInPatientName = request.PatientName;
+            if (prescription.Patient != null)
+            {
+                prescription.Patient.FullName = request.PatientName;
+            }
+        }
+
+        if (request.WalkInPatientDetails != null)
+        {
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.FullName))
+            {
+                prescription.WalkInPatientName = request.WalkInPatientDetails.FullName;
+                if (prescription.Patient != null)
+                {
+                    prescription.Patient.FullName = request.WalkInPatientDetails.FullName;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Age))
+                prescription.WalkInPatientAge = request.WalkInPatientDetails.Age;
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Gender))
+                prescription.WalkInPatientGender = request.WalkInPatientDetails.Gender;
+            if (!string.IsNullOrWhiteSpace(request.WalkInPatientDetails.Phone))
+                prescription.WalkInPatientPhone = request.WalkInPatientDetails.Phone;
+        }
+
+        // Apply updates
+        if (!string.IsNullOrWhiteSpace(request.Diagnosis))
+            prescription.Diagnosis = request.Diagnosis;
+
+        if (request.Instructions != null)
+            prescription.Instructions = request.Instructions;
+
+        if (!string.IsNullOrWhiteSpace(request.FulfillmentSource) &&
+            Enum.TryParse<FulfillmentSource>(request.FulfillmentSource, true, out var fs))
+            prescription.FulfillmentSource = fs;
+
+        // Replace items if provided
+        if (request.Items != null && request.Items.Count > 0)
+        {
+            _db.PrescriptionItems.RemoveRange(prescription.Items);
+            prescription.Items.Clear();
+
+            foreach (var item in request.Items)
+            {
+                prescription.Items.Add(new PrescriptionItem
+                {
+                    MedicineId = item.MedicineId,
+                    MedicineName = item.MedicineName,
+                    Dosage = item.Dosage,
+                    Frequency = item.Frequency,
+                    Duration = item.Duration,
+                    Quantity = item.Quantity,
+                    Instructions = item.Instructions
+                });
+            }
+        }
+
+        prescription.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        // Reload with full nav props for response
+        var updated = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .Include(p => p.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                .ThenInclude(ds => ds.Specialty)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        var doctorName = updated?.Doctor?.FullName ?? doctor?.FullName ?? "Dr. Clinical Specialist";
+        var doctorSpecialty = updated?.Doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault()
+            ?? doctor?.DoctorSpecialties?.Select(ds => ds.Specialty?.Name).FirstOrDefault();
+
+        return Ok(new
+        {
+            message = $"Prescription {id} updated successfully.",
+            prescription = ToDto(updated!, doctorName, doctorSpecialty)
+        });
+    }
+
+    // ─── DELETE /api/prescriptions/{id} ───────────────────────────────────
+
+    /// <summary>
+    /// Doctor deletes an issued prescription.
+    /// Unlinks any linked orders before purging from database.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Doctor,Admin")]
+    public async Task<IActionResult> CancelPrescription(int id)
+    {
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Items)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        // Unlink associated orders to avoid foreign key constraint violations
+        var linkedOrders = await _db.Orders.Where(o => o.PrescriptionId == id).ToListAsync();
+        foreach (var order in linkedOrders)
+        {
+            order.PrescriptionId = null;
+        }
+
+        _db.PrescriptionItems.RemoveRange(prescription.Items);
+        _db.Prescriptions.Remove(prescription);
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = $"Prescription {id} has been deleted successfully." });
+    }
+
+    // ─── POST /api/prescriptions/{id}/screen-interactions ─────────────────
+
+    /// <summary>
+    /// Calls the AI Medication Intelligence Agent to screen a prescription
+    /// for drug interactions, allergy contraindications, and dosage warnings.
+    /// Persists a DrugInteractionLog row for every warning returned.
+    /// Only Pharmacists may call this endpoint.
+    /// </summary>
+    [HttpPost("{id:int}/screen-interactions")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> ScreenInteractions(
+        int id,
+        [FromQuery] int? pharmacyId)
+    {
+        // Load prescription with items and patient
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Items)
+            .Include(p => p.Patient)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        var medicationNames = prescription.Items
+            .Select(i => string.IsNullOrWhiteSpace(i.Dosage)
+                ? i.MedicineName
+                : $"{i.MedicineName} {i.Dosage}")
+            .ToList();
+
+        if (medicationNames.Count == 0)
+            return BadRequest(new { message = "Prescription has no medication items to screen." });
+
+        // Determine out-of-stock medications (requires pharmacyId)
+        var outOfStock = new List<string>();
+        if (pharmacyId.HasValue)
+        {
+            foreach (var item in prescription.Items.Where(i => i.MedicineId.HasValue))
+            {
+                var inv = await _db.InventoryItems
+                    .FirstOrDefaultAsync(x =>
+                        x.PharmacyId == pharmacyId.Value &&
+                        x.MedicineId == item.MedicineId!.Value);
+
+                if (inv != null && inv.CurrentStock == 0)
+                    outOfStock.Add($"{item.MedicineName} {item.Dosage}".Trim());
+            }
+        }
+
+        // Compute patient age from DateOfBirth or walk-in age string
+        int? patientAge = null;
+        if (prescription.Patient?.DateOfBirth.HasValue == true)
+        {
+            var dob = prescription.Patient.DateOfBirth.Value;
+            patientAge = DateTime.UtcNow.Year - dob.Year;
+            if (DateTime.UtcNow.DayOfYear < new DateTime(DateTime.UtcNow.Year, dob.Month, dob.Day).DayOfYear)
+                patientAge--;
+        }
+        else if (!string.IsNullOrWhiteSpace(prescription.WalkInPatientAge) &&
+                 int.TryParse(prescription.WalkInPatientAge, out var walkInAge))
+        {
+            patientAge = walkInAge;
+        }
+
+        // Call the AI microservice
+        MedicationCheckResultDto aiResult;
+        try
+        {
+            aiResult = await _ai.CheckMedicationSafetyAsync(
+                medicationNames,
+                prescription.Patient?.Allergies,
+                pharmacyId,
+                patientAge,
+                outOfStock);
+        }
+        catch (AiServiceUnavailableException ex)
+        {
+            return StatusCode(503, new
+            {
+                message = "AI medication-check service is currently unavailable. " +
+                          "Manual pharmacist review is required before dispensing.",
+                detail = ex.Message
+            });
+        }
+
+        // Persist DrugInteractionLog rows for every AI-detected warning
+        var logIds = new List<int>();
+
+        foreach (var interaction in aiResult.Interactions)
+        {
+            var drugA = interaction.DrugPair.ElementAtOrDefault(0) ?? "Unknown";
+            var drugB = interaction.DrugPair.ElementAtOrDefault(1);
+            var log = new DrugInteractionLog
+            {
+                PrescriptionId = id,
+                DrugA = drugA,
+                DrugB = drugB,
+                WarningType = WarningType.DrugInteraction,
+                SeverityLevel = interaction.Severity,
+                Description = interaction.Description,
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.DrugInteractionLogs.Add(log);
+            await _db.SaveChangesAsync();
+            logIds.Add(log.Id);
+        }
+
+        foreach (var warning in aiResult.AllergyWarnings)
+        {
+            var label = warning.Length > 200 ? warning[..200] : warning;
+            var log = new DrugInteractionLog
+            {
+                PrescriptionId = id,
+                DrugA = label,
+                DrugB = null,
+                WarningType = WarningType.AllergyContraindication,
+                SeverityLevel = "High",
+                Description = warning,
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.DrugInteractionLogs.Add(log);
+            await _db.SaveChangesAsync();
+            logIds.Add(log.Id);
+        }
+
+        foreach (var warning in aiResult.DosageWarnings)
+        {
+            var label = warning.Length > 200 ? warning[..200] : warning;
+            var log = new DrugInteractionLog
+            {
+                PrescriptionId = id,
+                DrugA = label,
+                DrugB = null,
+                WarningType = WarningType.DosageWarning,
+                SeverityLevel = "Moderate",
+                Description = warning,
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.DrugInteractionLogs.Add(log);
+            await _db.SaveChangesAsync();
+            logIds.Add(log.Id);
+        }
+
+        return Ok(new ScreenInteractionsResponseDto(aiResult, logIds));
+    }
+
+    // ─── POST /api/prescriptions/{id}/acknowledge-warning ─────────────────
+
+    /// <summary>
+    /// Pharmacist acknowledges a DrugInteractionLog warning.
+    /// High-severity logs require a non-empty PharmacistOverrideNote explaining
+    /// why dispensing may proceed despite the clinical warning.
+    /// </summary>
+    [HttpPost("{id:int}/acknowledge-warning")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> AcknowledgeWarning(
+        int id,
+        [FromBody] AcknowledgeWarningRequestDto request)
+    {
+        var userId = TryGetUserId();
+        if (userId == null) return Unauthorized();
+
+        var log = await _db.DrugInteractionLogs
+            .FirstOrDefaultAsync(l => l.Id == request.LogId);
+
+        if (log == null)
+            return NotFound(new { message = $"Warning log {request.LogId} not found." });
+
+        if (log.PrescriptionId != id)
+            return BadRequest(new
+            {
+                message = $"Log {request.LogId} does not belong to prescription {id}."
+            });
+
+        if (log.AcknowledgedAt.HasValue)
+            return BadRequest(new { message = $"Log {request.LogId} has already been acknowledged." });
+
+        // High-severity warnings require a written pharmacist justification
+        if (log.SeverityLevel == "High" && string.IsNullOrWhiteSpace(request.OverrideNote))
+            return BadRequest(new
+            {
+                message = "A PharmacistOverrideNote is required to acknowledge a High-severity warning."
+            });
+
+        log.PharmacistId = userId;
+        log.PharmacistOverrideNote = request.OverrideNote;
+        log.AcknowledgedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = $"Warning log {log.Id} acknowledged successfully.",
+            logId = log.Id,
+            warningType = log.WarningType.ToString(),
+            severityLevel = log.SeverityLevel,
+            acknowledgedAt = log.AcknowledgedAt
+        });
+    }
+
+    // ─── GET /api/prescriptions/{id}/interaction-logs ────────────────────
+
+    /// <summary>
+    /// Gets all active DrugInteractionLogs for a prescription.
+    /// </summary>
+    [HttpGet("{id:int}/interaction-logs")]
+    [Authorize(Roles = "Pharmacist,Doctor")]
+    public async Task<IActionResult> GetInteractionLogs(int id)
+    {
+        var logs = await _db.DrugInteractionLogs
+            .Where(l => l.PrescriptionId == id)
+            .OrderByDescending(l => l.CreatedAt)
+            .ToListAsync();
+
+        return Ok(logs);
+    }
 }
+

@@ -101,6 +101,8 @@ class MedicationCheckInput(BaseModel):
     patient_allergies: Optional[str] = Field(None, description="Documented patient allergies")
     pharmacy_id: Optional[int] = Field(None, description="Target pharmacy ID for stock validation")
     patient_conditions: Optional[List[str]] = Field(default_factory=list, description="Patient medical conditions")
+    patient_age: Optional[int] = Field(None, ge=0, le=120, description="Patient age in years (used for dosage safety checks)")
+    out_of_stock_medications: Optional[List[str]] = Field(default_factory=list, description="Medications currently out of stock at the pharmacy")
 
 
 class MedicationCheckResult(BaseModel):
@@ -108,8 +110,9 @@ class MedicationCheckResult(BaseModel):
     safety_score: int = Field(..., ge=0, le=100, description="Calculated safety confidence score 0-100")
     interactions: List[DrugInteraction] = Field(default_factory=list, description="Detected drug-drug interactions")
     allergy_warnings: List[str] = Field(default_factory=list, description="Allergy contraindication alerts")
+    dosage_warnings: List[str] = Field(default_factory=list, description="Age-related dosage safety alerts")
     alternatives: List[AlternativeDrug] = Field(default_factory=list, description="Suggested bioequivalent alternatives")
-    summary: str = Field(..., description="Clinical reasoning summary for pharmacist")
+    summary: str = Field(..., description="Clinical reasoning summary for pharmacist (AI-enhanced when Gemini is available)")
 
 
 # Pharmacy & Inventory Intelligence Schemas (Agent 4)

@@ -11,6 +11,67 @@ export default function PrescriptionsPage() {
   const { data: prescriptions = [], isLoading: loading } = useMyPrescriptions();
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
 
+  const handleDownloadPrescription = (rx: Prescription) => {
+    const content = `
+===================================================================
+                       MEDIFLOW AI E-PRESCRIPTION
+===================================================================
+Rx Number: Rx #${rx.id}
+Date Issued: ${new Date(rx.dateIssued).toLocaleDateString()}
+Appointment: ${rx.appointmentNumber || 'N/A'}
+Status: ${rx.status}
+
+-------------------------------------------------------------------
+PATIENT & CLINICAL DETAILS
+-------------------------------------------------------------------
+Patient Name: ${rx.patientName}
+Doctor: Dr. ${rx.doctorName}
+Diagnosis: ${rx.diagnosis || 'General Consultation'}
+
+-------------------------------------------------------------------
+PRESCRIBED MEDICATIONS
+-------------------------------------------------------------------
+${(rx.items || []).map((item, i) => `${i + 1}. ${item.medicineName}\n   Dosage: ${item.dosage} | Frequency: ${item.frequency} | Duration: ${item.duration} | Qty: ${item.quantity}\n   Instructions: ${item.instructions || 'As directed'}`).join('\n\n')}
+
+-------------------------------------------------------------------
+SPECIAL INSTRUCTIONS & NOTES
+-------------------------------------------------------------------
+${rx.instructions || 'Take medications as prescribed.'}
+
+===================================================================
+Authorized by Dr. ${rx.doctorName}
+MediFlow AI Integrated Healthcare System
+===================================================================
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Prescription Rx #${rx.id} - ${rx.patientName}</title>
+            <style>
+              body { font-family: 'Courier New', monospace; padding: 30px; white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #1e293b; }
+              @media print { body { padding: 0; } }
+            </style>
+          </head>
+          <body>${content}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => { printWindow.print(); }, 250);
+    } else {
+      const element = document.createElement('a');
+      const file = new Blob([content], { type: 'text/plain' });
+      element.href = URL.createObjectURL(file);
+      element.download = `Prescription_Rx${rx.id}_${rx.patientName.replace(/\s+/g, '_')}.txt`;
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    }
+  };
+
   return (
     <div className="app-shell">
       <Sidebar />
@@ -41,9 +102,19 @@ export default function PrescriptionsPage() {
                         <div className="rx-id">Rx #{rx.id}</div>
                         <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{rx.appointmentNumber}</div>
                       </div>
-                      <span className={`badge ${rx.status === 'Active' ? 'badge-green' : rx.status === 'Fulfilled' ? 'badge-blue' : 'badge-gray'}`}>
-                        {rx.status}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className={`badge ${rx.status === 'Active' ? 'badge-green' : rx.status === 'Fulfilled' ? 'badge-blue' : 'badge-gray'}`}>
+                          {rx.status}
+                        </span>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={(e) => { e.stopPropagation(); handleDownloadPrescription(rx); }}
+                          title="Download / Print"
+                          style={{ padding: '4px 8px' }}
+                        >
+                          <Download size={14} />
+                        </button>
+                      </div>
                     </div>
                     <div className="rx-body">
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -106,7 +177,12 @@ export default function PrescriptionsPage() {
                       </div>
                     )}
 
-                    <button className="btn btn-primary" style={{ width: '100%', marginTop: 18 }} id="download-rx-btn">
+                    <button
+                      className="btn btn-primary"
+                      style={{ width: '100%', marginTop: 18 }}
+                      id="download-rx-btn"
+                      onClick={() => handleDownloadPrescription(selectedPrescription)}
+                    >
                       <Download size={15} /> Download Prescription
                     </button>
                     <button className="btn btn-teal" style={{ width: '100%', marginTop: 8 }} onClick={() => navigate('/orders')} id="order-medicines-btn">
