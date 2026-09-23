@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Package, CheckCircle, Clock, Truck, AlertCircle, Star,
-  ShieldCheck, Pill, ArrowRight, Sparkles, Building2, Calendar
+  ShieldCheck, ArrowRight, Sparkles, Building2, Calendar
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -20,18 +20,16 @@ interface OrderStageMeta {
 const ORDER_STAGES: OrderStageMeta[] = [
   { key: 'Pending',   label: 'In Queue',  icon: Clock,       title: 'Order Queued',          desc: 'Prescription received in pharmacy dispensing queue' },
   { key: 'Confirmed', label: 'Verified',  icon: ShieldCheck, title: 'Pharmacist Confirmed',  desc: 'Clinical safety & stock verified by pharmacist' },
-  { key: 'Preparing', label: 'Preparing', icon: Pill,        title: 'Preparing Dosages',     desc: 'Medicines packaged and labeled with instructions' },
-  { key: 'Ready',     label: 'Ready',     icon: Package,     title: 'Ready for Collection',  desc: 'Package ready at pharmacy counter for handover' },
   { key: 'Dispensed', label: 'Dispensed', icon: CheckCircle, title: 'Dispensed to Patient',  desc: 'Medications handed over and recorded by pharmacist' },
 ];
 
-const ORDER_STEP_KEYS: OrderStatus[] = ['Pending', 'Confirmed', 'Preparing', 'Ready', 'Dispensed'];
+const ORDER_STEP_KEYS: OrderStatus[] = ['Pending', 'Confirmed', 'Dispensed'];
 
 const STATUS_STYLES: Record<string, { color: string; bg: string; label: string; icon: string }> = {
   Pending:   { color: '#B45309', bg: '#FFFBEB', label: 'In Queue', icon: '🕐' },
   Confirmed: { color: '#0369A1', bg: '#EFF6FF', label: 'Confirmed', icon: '✅' },
-  Preparing: { color: '#7C3AED', bg: '#EEF2FF', label: 'Preparing', icon: '⚗️' },
-  Ready:     { color: '#0D9488', bg: '#ECFDF5', label: 'Ready for Collection', icon: '📦' },
+  Preparing: { color: '#0369A1', bg: '#EFF6FF', label: 'Confirmed', icon: '✅' },
+  Ready:     { color: '#0369A1', bg: '#EFF6FF', label: 'Confirmed', icon: '✅' },
   Dispensed: { color: '#059669', bg: '#ECFDF5', label: 'Dispensed', icon: '✓' },
   Cancelled: { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled', icon: '✕' },
 };
@@ -211,34 +209,6 @@ export default function OrdersPage() {
                           </div>
                         </div>
                       </div>
-                    ) : selectedOrder.status === 'Ready' ? (
-                      <div style={{
-                        padding: '14px 16px',
-                        background: '#F0FDFA',
-                        border: '1.5px solid #0D9488',
-                        borderRadius: 'var(--r-lg)',
-                        marginBottom: 20,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                      }}>
-                        <div style={{
-                          width: 38, height: 38, borderRadius: '50%',
-                          background: '#0D9488', color: '#ffffff',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 18, flexShrink: 0
-                        }}>
-                          📦
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: 13.5, color: '#0F766E' }}>
-                            Ready for Collection
-                          </div>
-                          <div style={{ fontSize: 12, color: '#115E59', marginTop: 2 }}>
-                            Your package has been prepared and sealed at <strong>{selectedOrder.pharmacyName}</strong>.
-                          </div>
-                        </div>
-                      </div>
                     ) : null}
 
                     {/* Pharmacy & Doctor Info */}
@@ -254,9 +224,7 @@ export default function OrdersPage() {
                       <div className="info-row"><span className="info-row-label">📋 Status:</span>
                         <span className={`badge ${
                           selectedOrder.status === 'Dispensed' ? 'badge-green' :
-                          selectedOrder.status === 'Ready' ? 'badge-teal' :
-                          selectedOrder.status === 'Preparing' ? 'badge-purple' :
-                          selectedOrder.status === 'Confirmed' ? 'badge-blue' : 'badge-amber'
+                          ['Confirmed', 'Preparing', 'Ready'].includes(selectedOrder.status) ? 'badge-blue' : 'badge-amber'
                         }`}>
                           {STATUS_STYLES[selectedOrder.status]?.label || selectedOrder.status}
                         </span>
@@ -270,9 +238,16 @@ export default function OrdersPage() {
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 24, position: 'relative' }}>
                       {ORDER_STAGES.map((stage, idx) => {
-                        const currentIdx = ORDER_STEP_KEYS.indexOf(selectedOrder.status);
-                        const isCompleted = idx < currentIdx || selectedOrder.status === 'Dispensed';
-                        const isCurrent = idx === currentIdx && selectedOrder.status !== 'Dispensed';
+                        const isCompleted =
+                          stage.key === 'Pending' ? ['Confirmed', 'Preparing', 'Ready', 'Dispensed'].includes(selectedOrder.status) :
+                          stage.key === 'Confirmed' ? selectedOrder.status === 'Dispensed' :
+                          stage.key === 'Dispensed' ? selectedOrder.status === 'Dispensed' : false;
+
+                        const isCurrent =
+                          stage.key === 'Pending' ? selectedOrder.status === 'Pending' :
+                          stage.key === 'Confirmed' ? ['Confirmed', 'Preparing', 'Ready'].includes(selectedOrder.status) :
+                          false;
+
                         const StageIcon = stage.icon;
 
                         return (

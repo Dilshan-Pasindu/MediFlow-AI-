@@ -162,17 +162,12 @@ export default function PrescriptionsPage() {
                             </div>
                             <span className={`badge ${
                               linkedOrder?.status === 'Dispensed' ? 'badge-green' :
-                              linkedOrder?.status === 'Ready' ? 'badge-teal' :
-                              linkedOrder?.status === 'Preparing' ? 'badge-purple' :
-                              linkedOrder?.status === 'Confirmed' ? 'badge-blue' :
-                              selectedPrescription.status === 'Fulfilled' ? 'badge-green' : 'badge-amber'
+                              ['Confirmed', 'Preparing', 'Ready'].includes(linkedOrder?.status || '') ? 'badge-blue' :
+                              linkedOrder?.status === 'Pending' ? 'badge-amber' : 'badge-amber'
                             }`}>
                               {linkedOrder?.status === 'Dispensed' ? '✓ Dispensed' :
-                               linkedOrder?.status === 'Ready' ? '📦 Ready' :
-                               linkedOrder?.status === 'Preparing' ? '⚗️ Preparing' :
-                               linkedOrder?.status === 'Confirmed' ? '✅ Confirmed' :
-                               linkedOrder?.status === 'Pending' ? '🕐 In Queue' :
-                               selectedPrescription.status === 'Fulfilled' ? '✓ Dispensed' : '⏳ Awaiting Dispense'}
+                               ['Confirmed', 'Preparing', 'Ready'].includes(linkedOrder?.status || '') ? '✅ Confirmed' :
+                               linkedOrder?.status === 'Pending' ? '🕐 In Queue' : '⏳ Awaiting Dispense'}
                             </span>
                           </div>
 
@@ -181,36 +176,15 @@ export default function PrescriptionsPage() {
                               <div>
                                 <div style={{ color: '#065F46', fontWeight: 700 }}>✓ Medications Dispensed</div>
                                 <div style={{ fontSize: 11.5, color: '#047857', marginTop: 2 }}>
-                                  Dispensed by <strong>{linkedOrder.pharmacyName || 'Pharmacy'}</strong>
-                                  {linkedOrder.dispensedAt && ` on ${new Date(linkedOrder.dispensedAt).toLocaleDateString()}`}
+                                  Dispensed by <strong>{linkedOrder?.pharmacyName || 'Pharmacy'}</strong>
+                                  {linkedOrder?.dispensedAt && ` on ${new Date(linkedOrder.dispensedAt).toLocaleDateString()}`}
                                 </div>
                               </div>
-                            ) : linkedOrder?.status === 'Ready' ? (
+                            ) : ['Confirmed', 'Preparing', 'Ready'].includes(linkedOrder?.status || '') ? (
                               <div>
-                                <div style={{ color: '#0f766e', fontWeight: 700 }}>📦 Ready for Collection</div>
+                                <div style={{ color: '#0369a1', fontWeight: 700 }}>✅ Pharmacist Confirmed</div>
                                 <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
-                                  Package prepared and waiting at {linkedOrder.pharmacyName || 'the pharmacy'}.
-                                </div>
-                              </div>
-                            ) : linkedOrder?.status === 'Preparing' ? (
-                              <div>
-                                <div style={{ color: '#6d28d9', fontWeight: 700 }}>⚗️ Pharmacist Preparing</div>
-                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
-                                  Medicines are being packed and labeled by the pharmacist.
-                                </div>
-                              </div>
-                            ) : linkedOrder?.status === 'Confirmed' ? (
-                              <div>
-                                <div style={{ color: '#0369a1', fontWeight: 700 }}>✅ Order Confirmed</div>
-                                <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
-                                  Prescription accepted by {linkedOrder.pharmacyName || 'pharmacy'}.
-                                </div>
-                              </div>
-                            ) : selectedPrescription.status === 'Fulfilled' ? (
-                              <div>
-                                <div style={{ color: '#065F46', fontWeight: 700 }}>✓ Prescription Fulfilled</div>
-                                <div style={{ fontSize: 11.5, color: '#047857', marginTop: 2 }}>
-                                  All prescribed medicines have been dispensed.
+                                  Prescription verified by {linkedOrder?.pharmacyName || 'pharmacy'}.
                                 </div>
                               </div>
                             ) : (
