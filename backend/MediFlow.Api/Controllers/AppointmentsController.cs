@@ -499,6 +499,92 @@ public class AppointmentsController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Patient submits rating and review for a completed appointment.
+    /// </summary>
+    [HttpPost("{id:int}/rate")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> RateAppointment(int id, [FromBody] RateAppointmentRequest request)
+    {
+        var userId = GetUserId();
+        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (patient == null)
+            return NotFound(new { message = "Patient profile not found." });
+
+        var appointment = await _db.Appointments
+            .Include(a => a.Doctor)
+            .FirstOrDefaultAsync(a => a.Id == id);
+
+        if (appointment == null)
+            return NotFound(new { message = "Appointment not found." });
+
+        if (appointment.PatientId != patient.Id)
+            return Forbid();
+
+        if (appointment.Status != AppointmentStatus.Completed)
+            return BadRequest(new { message = "Ratings and feedback can only be submitted after consultation is completed." });
+
+        if (request.Stars < 1 || request.Stars > 5)
+            return BadRequest(new { message = "Rating must be between 1 and 5 stars." });
+
+        if (await _db.DoctorRatings.AnyAsync(r => r.AppointmentId == id))
+            return BadRequest(new { message = "You have already submitted a rating for this consultation." });
+
+        var rating = new DoctorRating
+        {
+            DoctorId = appointment.DoctorId,
+            PatientId = patient.Id,
+            AppointmentId = appointment.Id,
+            Stars = request.Stars,
+            Comment = request.Comment?.Trim(),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _db.DoctorRatings.Add(rating);
+        await _db.SaveChangesAsync();
+
+        var ratings = await _db.DoctorRatings.Where(r => r.DoctorId == appointment.DoctorId).ToListAsync();
+        var newAvg = ratings.Count > 0 ? Math.Round(ratings.Average(r => r.Stars), 1) : 0;
+
+        return Ok(new
+        {
+            rating.Id,
+            rating.Stars,
+            rating.Comment,
+            AverageRating = newAvg,
+            ReviewCount = ratings.Count,
+            message = "Thank you! Your feedback has been submitted successfully."
+        });
+    }
+
+    /// <summary>
+    /// Check if appointment already has a rating submitted by the patient.
+    /// </summary>
+    [HttpGet("{id:int}/rating")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> GetAppointmentRating(int id)
+    {
+        var userId = GetUserId();
+        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (patient == null)
+            return NotFound(new { message = "Patient profile not found." });
+
+        var rating = await _db.DoctorRatings
+            .FirstOrDefaultAsync(r => r.AppointmentId == id && r.PatientId == patient.Id);
+
+        if (rating == null)
+            return Ok(new { hasRated = false });
+
+        return Ok(new
+        {
+            hasRated = true,
+            rating.Id,
+            rating.Stars,
+            rating.Comment,
+            rating.CreatedAt
+        });
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private int GetUserId()
@@ -514,4 +600,9 @@ public record BookAppointmentRequest(
     int DoctorId,
     DateTime DateTime,
     string? Notes = null
+);
+
+public record RateAppointmentRequest(
+    int Stars,
+    string? Comment = null
 );
