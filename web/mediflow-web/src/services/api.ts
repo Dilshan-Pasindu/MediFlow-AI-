@@ -163,7 +163,7 @@ export async function apiUpdateMyDoctorProfile(data: DoctorProfileUpdatePayload)
 export async function apiRateAppointment(appointmentId: number | string, data: { rating: number; review?: string }) {
   return apiFetch<{ message: string; ratingId: number }>(`/appointments/${appointmentId}/rate`, {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: JSON.stringify({ Stars: data.rating, Comment: data.review ?? null }),
   });
 }
 

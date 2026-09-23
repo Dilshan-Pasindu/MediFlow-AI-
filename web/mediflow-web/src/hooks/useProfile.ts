@@ -2,11 +2,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiGetProfile, apiUpdateProfile } from '../services/api';
 import type { ProfileForm } from '../types/profile';
 
-export function useProfile() {
+export function useProfile(options?: { enabled?: boolean }) {
   return useQuery<ProfileForm>({
     queryKey: ['profile'],
     queryFn: apiGetProfile,
     staleTime: 1000 * 60 * 5,
+    enabled: options?.enabled ?? true,
   });
 }
 

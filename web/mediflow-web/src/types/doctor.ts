@@ -16,6 +16,8 @@ export interface DoctorDetail {
   id: number;
   userId: number;
   fullName: string;
+  email?: string;
+  phoneNumber?: string;
   qualifications: string;
   bio?: string;
   consultationFee: number;
@@ -50,7 +52,10 @@ export interface SpecialtyInfo {
 }
 
 export interface DoctorProfileUpdatePayload {
+  fullName?: string;
+  phoneNumber?: string;
   bio?: string;
+  qualifications?: string;
   subSpecialty?: string;
   hospitalClinic?: string;
   languages?: string;
@@ -63,4 +68,5 @@ export interface DoctorProfileUpdatePayload {
   age?: number;
   consultationFee?: number;
   profilePhoto?: string;
+  registrationNumber?: string;
 }
