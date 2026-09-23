@@ -77,10 +77,19 @@ public record CreatePrescriptionRequestDto(
     List<PrescriptionLabOrderDto>? LabOrders = null
 );
 
-public class CreatePrescriptionDto
-{
-    public int PatientId { get; set; }
-    public int PharmacyId { get; set; }
-    public string? Notes { get; set; }
-    public List<CreatePrescriptionItemDto> Items { get; set; } = new();
-}
+// ─── Prescription Update DTO ───────────────────────────────────────────────────
+
+/// <summary>
+/// All fields are optional — only non-null fields will be applied.
+/// Items: if provided and non-empty, replaces all existing prescription items.
+/// </summary>
+public record UpdatePrescriptionRequestDto(
+    string? PatientName,
+    bool? IsWalkIn,
+    WalkInPatientDetailsDto? WalkInPatientDetails,
+    string? Diagnosis,
+    string? FulfillmentSource,
+    string? Instructions,
+    List<CreatePrescriptionItemDto>? Items
+);
+

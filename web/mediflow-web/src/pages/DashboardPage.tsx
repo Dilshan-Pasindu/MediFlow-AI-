@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
+import NowConsultingCard from '../components/NowConsultingCard';
 import { getUser } from '../services/api';
 import { useMyAppointments, useMyPrescriptions } from '../hooks';
 
@@ -25,13 +26,14 @@ export default function DashboardPage() {
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const upcomingAppts = appointments.filter(a => ['Pending', 'PaymentSubmitted', 'Confirmed'].includes(a.status));
+  const upcomingAppts = appointments.filter(a => ['Pending', 'PaymentSubmitted', 'Confirmed', 'InConsultation'].includes(a.status));
   const completedAppts = appointments.filter(a => a.status === 'Completed');
 
   const statusStyles = {
     Pending:          { color: '#B45309', bg: '#FFFBEB' },
     PaymentSubmitted: { color: '#0369A1', bg: '#EFF6FF' },
     Confirmed:        { color: '#059669', bg: '#ECFDF5' },
+    InConsultation:   { color: '#DC2626', bg: '#FEF2F2' },
     Completed:        { color: '#6366F1', bg: '#EEF2FF' },
     Cancelled:        { color: '#DC2626', bg: '#FEF2F2' },
   };
@@ -86,6 +88,9 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* 🔴 Real-Time Now Consulting Banner */}
+          <NowConsultingCard style={{ marginBottom: 28 }} />
 
           {/* Stats */}
           <div className="stat-grid stagger" style={{ marginBottom: 28 }}>

@@ -7,6 +7,8 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Text.Json.Serialization;
 
+using MediFlow.Api.Hubs;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ─── Database ────────────────────────────────────────────────────────────────
@@ -15,10 +17,27 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection"),
         npgsqlOptions => npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
+// ─── SignalR ──────────────────────────────────────────────────────────────────
+builder.Services.AddSignalR();
+
 // ─── Services ─────────────────────────────────────────────────────────────────
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<InventoryService>();
+
+// ─── AI Microservice HTTP Client (Member 3) ──────────────────────────────────────
+var aiBaseUrl = builder.Configuration["AiService:BaseUrl"]
+    ?? "http://localhost:8000";
+
+builder.Services.AddHttpClient("AiService", client =>
+{
+    client.BaseAddress = new Uri(aiBaseUrl);
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
+builder.Services.AddScoped<IAiServiceClient, AiServiceClient>();
+builder.Services.AddScoped<AiServiceClient>();
 
 // ─── JWT Authentication ───────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -45,7 +64,10 @@ builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+        policy.SetIsOriginAllowed(_ => true)
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials());
 });
 
 // ─── Controllers & Serialization ──────────────────────────────────────────────
@@ -118,6 +140,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapControllers();
+app.MapHub<ConsultationHub>("/hubs/consultation");
 
 app.Run();
 

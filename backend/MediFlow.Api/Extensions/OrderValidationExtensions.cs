@@ -5,7 +5,7 @@ namespace MediFlow.Api.Extensions
 {
     public static class OrderValidationExtensions
     {
-        public static bool IsValid(this CreateOrderDto dto, out List<string> errors)
+        public static bool IsValid(this CreateOrderRequestDto dto, out List<string> errors)
         {
             errors = new List<string>();
             if (dto.PharmacyId <= 0) errors.Add("PharmacyId must be greater than zero.");

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Xunit;
 using MediFlow.Api.DTOs;
 
@@ -6,18 +7,24 @@ namespace MediFlow.Tests
     public class PrescriptionDtoMappingTests
     {
         [Fact]
-        public void CreatePrescriptionDto_MapsPropertiesCorrectly()
+        public void CreatePrescriptionRequestDto_MapsPropertiesCorrectly()
         {
-            var dto = new CreatePrescriptionDto
-            {
-                PatientId = 5,
-                PharmacyId = 2,
-                Notes = "Take after meals"
-            };
+            var dto = new CreatePrescriptionRequestDto(
+                AppointmentId: null,
+                PatientId: 5,
+                IsWalkIn: false,
+                WalkInPatientDetails: null,
+                PatientName: "John Doe",
+                Diagnosis: "Fever",
+                FulfillmentSource: "InHouse",
+                Recipients: "Both",
+                Instructions: "Take after meals",
+                Items: new List<CreatePrescriptionItemDto>()
+            );
 
             Assert.Equal(5, dto.PatientId);
-            Assert.Equal(2, dto.PharmacyId);
-            Assert.Equal("Take after meals", dto.Notes);
+            Assert.Equal("InHouse", dto.FulfillmentSource);
+            Assert.Equal("Take after meals", dto.Instructions);
         }
     }
 }

@@ -92,6 +92,7 @@ public class PatientController : ControllerBase
             {
                 a.Id,
                 a.AppointmentNumber,
+                a.DoctorId,
                 DoctorName = a.Doctor.FullName,
                 DoctorQualifications = a.Doctor.Qualifications,
                 SpecialtyName = a.Doctor.DoctorSpecialties
@@ -101,7 +102,9 @@ public class PatientController : ControllerBase
                 a.Fee,
                 PaymentStatus = a.Payment != null ? a.Payment.Status.ToString() : null,
                 a.Notes,
-                a.CreatedAt
+                a.CreatedAt,
+                a.ConsultationStartedAt,
+                a.ConsultationEndedAt
             })
             .ToListAsync();
 

@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Clock, ChevronRight, Plus, FileText, Calendar } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
+import NowConsultingCard from '../components/NowConsultingCard';
 import { useMyAppointments } from '../hooks';
 
 const STATUS = {
   Pending:          { color: '#B45309', bg: '#FFFBEB', label: 'Pending' },
   PaymentSubmitted: { color: '#0369A1', bg: '#EFF6FF', label: 'Payment Sent' },
   Confirmed:        { color: '#059669', bg: '#ECFDF5', label: 'Confirmed' },
+  InConsultation:   { color: '#DC2626', bg: '#FEF2F2', label: '🔴 In Consultation' },
   Completed:        { color: '#6366F1', bg: '#EEF2FF', label: 'Completed' },
   Cancelled:        { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled' },
   NoShow:           { color: '#64748B', bg: '#F1F5F9', label: 'No Show' },
@@ -19,7 +21,7 @@ export default function AppointmentsPage() {
   const [activeTab, setActiveTab] = useState('upcoming');
   const { data: appointments = [], isLoading: loading } = useMyAppointments();
 
-  const upcomingAppts = appointments.filter(a => ['Confirmed', 'PaymentSubmitted', 'Pending'].includes(a.status));
+  const upcomingAppts = appointments.filter(a => ['Confirmed', 'InConsultation', 'PaymentSubmitted', 'Pending'].includes(a.status));
   const pastAppts = appointments.filter(a => ['Completed', 'Cancelled', 'NoShow'].includes(a.status));
   const displayAppts = activeTab === 'upcoming' ? upcomingAppts : pastAppts;
 
@@ -37,6 +39,9 @@ export default function AppointmentsPage() {
           }
         />
         <div className="page-body fade-in">
+
+          {/* 🔴 Real-Time Now Consulting Banner */}
+          <NowConsultingCard style={{ marginBottom: 24 }} />
 
           {/* Stats row */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 28 }}>
@@ -93,7 +98,13 @@ export default function AppointmentsPage() {
                 const d = new Date(appt.appointmentDateTime);
                 const st = (STATUS as any)[appt.status] || STATUS.Pending;
                 return (
-                  <div key={appt.id} className="appt-card" onClick={() => navigate(`/appointments/${appt.id}`)} id={`appt-item-${appt.id}`}>
+                  <div
+                    key={appt.id}
+                    className="appt-card"
+                    onClick={() => navigate(`/appointments/${appt.id}`)}
+                    id={`appt-item-${appt.id}`}
+                    style={appt.status === 'InConsultation' ? { border: '1.5px solid #F87171', background: '#FEF2F2' } : {}}
+                  >
                     <div className="appt-date-block">
                       <div className="appt-day">{d.getDate()}</div>
                       <div className="appt-month">{d.toLocaleString('default', { month: 'short' })}</div>

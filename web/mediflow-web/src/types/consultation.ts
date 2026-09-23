@@ -97,6 +97,7 @@ export interface ConsultationAppointment {
   appointmentDateTime: string;
   notes?: string;
   status: string;
+  doctorId?: number;
   doctorName?: string;
   specialtyName?: string;
   fee?: number;
@@ -137,5 +138,28 @@ export interface AutoFilledPrescriptionDraft {
   }>;
   isAutoFilled: boolean;
   lastSyncedAt: string;
+}
+
+export interface CurrentConsultationResponse {
+  hasActiveConsultation: boolean;
+  appointmentId?: number;
+  appointmentNumber?: string;
+  doctorId?: number;
+  doctorName?: string;
+  patientName?: string;
+  status?: string;
+  startedAt?: string;
+  message?: string;
+}
+
+export interface ConsultationEventPayload {
+  appointmentId: number;
+  appointmentNumber?: string;
+  doctorId: number;
+  doctorName?: string;
+  patientName?: string;
+  status: string;
+  startedAt?: string;
+  endedAt?: string;
 }
 

@@ -1,7 +1,9 @@
 using MediFlow.Api.Data;
+using MediFlow.Api.Hubs;
 using MediFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Security.Claims;
@@ -14,8 +16,13 @@ namespace MediFlow.Api.Controllers;
 public class AppointmentsController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IHubContext<ConsultationHub, IConsultationClient> _hubContext;
 
-    public AppointmentsController(AppDbContext db) => _db = db;
+    public AppointmentsController(AppDbContext db, IHubContext<ConsultationHub, IConsultationClient> hubContext)
+    {
+        _db = db;
+        _hubContext = hubContext;
+    }
 
     /// <summary>
     /// Book a new appointment (Patient only).
@@ -169,6 +176,8 @@ public class AppointmentsController : ControllerBase
                 Status = a.Status.ToString(),
                 a.Fee,
                 a.Notes,
+                a.ConsultationStartedAt,
+                a.ConsultationEndedAt,
                 Payment = a.Payment != null ? new
                 {
                     a.Payment.Amount,
@@ -187,12 +196,103 @@ public class AppointmentsController : ControllerBase
     }
 
     /// <summary>
-    /// Mark an appointment as Completed after the doctor finishes the consultation.
-    /// Only Doctors may call this endpoint, and only on Confirmed appointments.
+    /// Start consultation for a confirmed appointment (Doctor only).
+    /// Updates status to InConsultation, records start time, and broadcasts ConsultationStarted via SignalR.
     /// </summary>
+    [HttpPost("{id}/start-consultation")]
+    [Authorize(Roles = "Doctor")]
+    public async Task<IActionResult> StartConsultation(int id)
+    {
+        var appointment = await _db.Appointments
+            .Include(a => a.Patient)
+            .Include(a => a.Doctor)
+            .FirstOrDefaultAsync(a => a.Id == id);
+
+        if (appointment == null)
+            return NotFound(new { message = "Appointment not found." });
+
+        if (appointment.Status == AppointmentStatus.Completed)
+            return BadRequest(new { message = "A completed appointment cannot be started again." });
+
+        if (appointment.Status == AppointmentStatus.Cancelled)
+            return BadRequest(new { message = "A cancelled appointment cannot enter consultation." });
+
+        if (appointment.Status == AppointmentStatus.Pending || appointment.Status == AppointmentStatus.PaymentSubmitted)
+            return BadRequest(new { message = $"Only confirmed appointments can enter consultation. Current status: {appointment.Status}." });
+
+        // If already in consultation, return current state
+        if (appointment.Status == AppointmentStatus.InConsultation)
+        {
+            return Ok(new
+            {
+                appointment.Id,
+                appointment.AppointmentNumber,
+                Status = appointment.Status.ToString(),
+                appointment.DoctorId,
+                DoctorName = appointment.Doctor?.FullName,
+                PatientName = appointment.Patient?.FullName,
+                StartedAt = appointment.ConsultationStartedAt,
+                message = "Appointment is already in consultation."
+            });
+        }
+
+        // Concurrency guard: verify the doctor doesn't already have another active consultation
+        var activeConsultation = await _db.Appointments
+            .FirstOrDefaultAsync(a => a.DoctorId == appointment.DoctorId 
+                                   && a.Status == AppointmentStatus.InConsultation 
+                                   && a.Id != appointment.Id);
+
+        if (activeConsultation != null)
+        {
+            return BadRequest(new
+            {
+                message = $"Doctor already has an active consultation in progress (Appointment #{activeConsultation.AppointmentNumber ?? activeConsultation.Id.ToString()}). Please complete the current consultation before starting a new one."
+            });
+        }
+
+        appointment.Status = AppointmentStatus.InConsultation;
+        appointment.ConsultationStartedAt = DateTime.UtcNow;
+        appointment.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        var payload = new ConsultationEventPayload
+        {
+            AppointmentId = appointment.Id,
+            AppointmentNumber = appointment.AppointmentNumber,
+            DoctorId = appointment.DoctorId,
+            DoctorName = appointment.Doctor?.FullName,
+            PatientName = appointment.Patient?.FullName,
+            Status = appointment.Status.ToString(),
+            StartedAt = appointment.ConsultationStartedAt
+        };
+
+        // Broadcast to doctor-specific channel and general channel
+        await _hubContext.Clients.Group($"doctor-{appointment.DoctorId}").ConsultationStarted(payload);
+        await _hubContext.Clients.All.ConsultationStarted(payload);
+
+        return Ok(new
+        {
+            appointment.Id,
+            appointment.AppointmentNumber,
+            Status = appointment.Status.ToString(),
+            appointment.DoctorId,
+            DoctorName = appointment.Doctor?.FullName,
+            PatientName = appointment.Patient?.FullName,
+            StartedAt = appointment.ConsultationStartedAt,
+            message = "Consultation started successfully."
+        });
+    }
+
+    /// <summary>
+    /// Mark an appointment as Completed after the doctor finishes the consultation.
+    /// Supports both POST /complete-consultation and PUT /complete.
+    /// Updates status to Completed, records end time, and broadcasts ConsultationEnded via SignalR.
+    /// </summary>
+    [HttpPost("{id}/complete-consultation")]
     [HttpPut("{id}/complete")]
     [Authorize(Roles = "Doctor")]
-    public async Task<IActionResult> CompleteAppointment(int id)
+    public async Task<IActionResult> CompleteConsultation(int id)
     {
         var appointment = await _db.Appointments
             .Include(a => a.Patient)
@@ -205,10 +305,11 @@ public class AppointmentsController : ControllerBase
         if (appointment.Status == AppointmentStatus.Completed)
             return BadRequest(new { message = "This appointment has already been completed." });
 
-        if (appointment.Status != AppointmentStatus.Confirmed)
-            return BadRequest(new { message = $"Only confirmed appointments can be marked as completed. Current status: {appointment.Status}." });
+        if (appointment.Status != AppointmentStatus.InConsultation && appointment.Status != AppointmentStatus.Confirmed)
+            return BadRequest(new { message = $"Appointment cannot be completed. Current status: {appointment.Status}." });
 
         appointment.Status = AppointmentStatus.Completed;
+        appointment.ConsultationEndedAt = DateTime.UtcNow;
         appointment.UpdatedAt = DateTime.UtcNow;
 
         // Notify the patient that the consultation is complete
@@ -228,11 +329,136 @@ public class AppointmentsController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        var payload = new ConsultationEventPayload
+        {
+            AppointmentId = appointment.Id,
+            AppointmentNumber = appointment.AppointmentNumber,
+            DoctorId = appointment.DoctorId,
+            DoctorName = appointment.Doctor?.FullName,
+            PatientName = appointment.Patient?.FullName,
+            Status = appointment.Status.ToString(),
+            StartedAt = appointment.ConsultationStartedAt,
+            EndedAt = appointment.ConsultationEndedAt
+        };
+
+        // Broadcast to doctor-specific channel and general channel
+        await _hubContext.Clients.Group($"doctor-{appointment.DoctorId}").ConsultationEnded(payload);
+        await _hubContext.Clients.All.ConsultationEnded(payload);
+
         return Ok(new
         {
             appointment.Id,
+            appointment.AppointmentNumber,
             Status = appointment.Status.ToString(),
-            message = "Appointment marked as completed successfully."
+            EndedAt = appointment.ConsultationEndedAt,
+            message = "Consultation completed successfully."
+        });
+    }
+
+    /// <summary>
+    /// Get the currently consulting appointment for a doctor or patient queue.
+    /// Can query by doctorId query parameter, or defaults to the caller's context.
+    /// </summary>
+    [HttpGet("current-consultation")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetCurrentConsultation([FromQuery] int? doctorId)
+    {
+        IQueryable<Appointment> query = _db.Appointments
+            .Include(a => a.Doctor)
+            .Include(a => a.Patient)
+            .Where(a => a.Status == AppointmentStatus.InConsultation);
+
+        if (User.Identity?.IsAuthenticated == true)
+        {
+            try
+            {
+                var userId = GetUserId();
+                var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+                if (patient != null)
+                {
+                    // If a patient queries a specific doctor, verify the patient has a booked appointment with that doctor
+                    if (doctorId.HasValue)
+                    {
+                        var hasBooking = await _db.Appointments.AnyAsync(a => a.PatientId == patient.Id 
+                                                                           && a.DoctorId == doctorId.Value 
+                                                                           && a.Status != AppointmentStatus.Cancelled);
+                        if (!hasBooking)
+                        {
+                            return Ok(new
+                            {
+                                hasActiveConsultation = false,
+                                doctorId = doctorId,
+                                message = "You can only view consultation status for doctors you have booked an appointment with."
+                            });
+                        }
+                    }
+                    else
+                    {
+                        // Find active consultation among doctors the patient has appointments with
+                        var patientDoctorIds = await _db.Appointments
+                            .Where(a => a.PatientId == patient.Id && a.Status != AppointmentStatus.Cancelled)
+                            .Select(a => a.DoctorId)
+                            .Distinct()
+                            .ToListAsync();
+
+                        if (patientDoctorIds.Count > 0)
+                        {
+                            query = query.Where(a => patientDoctorIds.Contains(a.DoctorId));
+                        }
+                        else
+                        {
+                            return Ok(new
+                            {
+                                hasActiveConsultation = false,
+                                message = "You do not have any booked appointments with our doctors."
+                            });
+                        }
+                    }
+                }
+                else
+                {
+                    var doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.UserId == userId);
+                    if (doctor != null && !doctorId.HasValue)
+                    {
+                        query = query.Where(a => a.DoctorId == doctor.Id);
+                    }
+                }
+            }
+            catch
+            {
+                // Fall back to general active consultation
+            }
+        }
+
+        if (doctorId.HasValue)
+        {
+            query = query.Where(a => a.DoctorId == doctorId.Value);
+        }
+
+        var activeAppt = await query
+            .OrderByDescending(a => a.ConsultationStartedAt ?? a.UpdatedAt)
+            .FirstOrDefaultAsync();
+
+        if (activeAppt == null)
+        {
+            return Ok(new
+            {
+                hasActiveConsultation = false,
+                doctorId = doctorId,
+                message = "No appointment is currently being consulted."
+            });
+        }
+
+        return Ok(new
+        {
+            hasActiveConsultation = true,
+            appointmentId = activeAppt.Id,
+            appointmentNumber = activeAppt.AppointmentNumber,
+            doctorId = activeAppt.DoctorId,
+            doctorName = activeAppt.Doctor?.FullName,
+            patientName = activeAppt.Patient?.FullName,
+            status = activeAppt.Status.ToString(),
+            startedAt = activeAppt.ConsultationStartedAt
         });
     }
 

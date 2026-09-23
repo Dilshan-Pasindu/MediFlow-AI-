@@ -3,9 +3,12 @@ using MediFlow.Api.Controllers;
 using MediFlow.Api.Data;
 using MediFlow.Api.DTOs;
 using MediFlow.Api.Models;
+using MediFlow.Api.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 
 namespace MediFlow.Tests;
@@ -13,6 +16,13 @@ namespace MediFlow.Tests;
 public class PrescriptionAndOrderTests : IDisposable
 {
     private readonly AppDbContext _db;
+
+    // A no-op IAiServiceClient mock — existing tests don't invoke AI methods
+    private static PrescriptionsController BuildPrescriptionsCtrl(AppDbContext db, ControllerContext ctx)
+    {
+        var ai = new Mock<IAiServiceClient>();
+        return new PrescriptionsController(db, ai.Object) { ControllerContext = ctx };
+    }
 
     public PrescriptionAndOrderTests()
     {
@@ -149,10 +159,7 @@ public class PrescriptionAndOrderTests : IDisposable
     public async Task CreatePrescription_ValidRegisteredPatient_SucceedsAndCreatesNotification()
     {
         // Arrange
-        var controller = new PrescriptionsController(_db)
-        {
-            ControllerContext = CreateContext(1, "Doctor")
-        };
+        var controller = BuildPrescriptionsCtrl(_db, CreateContext(1, "Doctor"));
 
         var request = new CreatePrescriptionRequestDto(
             AppointmentId: null,
@@ -194,10 +201,7 @@ public class PrescriptionAndOrderTests : IDisposable
     public async Task CreatePrescription_WalkInPatient_SucceedsWithWalkInDetails()
     {
         // Arrange
-        var controller = new PrescriptionsController(_db)
-        {
-            ControllerContext = CreateContext(1, "Doctor")
-        };
+        var controller = BuildPrescriptionsCtrl(_db, CreateContext(1, "Doctor"));
 
         var request = new CreatePrescriptionRequestDto(
             AppointmentId: null,
@@ -235,10 +239,7 @@ public class PrescriptionAndOrderTests : IDisposable
     public async Task CreatePrescription_NonPositiveQuantity_ReturnsBadRequest(int invalidQty)
     {
         // Arrange
-        var controller = new PrescriptionsController(_db)
-        {
-            ControllerContext = CreateContext(1, "Doctor")
-        };
+        var controller = BuildPrescriptionsCtrl(_db, CreateContext(1, "Doctor"));
 
         var request = new CreatePrescriptionRequestDto(
             AppointmentId: null,
@@ -268,10 +269,7 @@ public class PrescriptionAndOrderTests : IDisposable
     public async Task CreatePrescription_EmptyItems_ReturnsBadRequest()
     {
         // Arrange
-        var controller = new PrescriptionsController(_db)
-        {
-            ControllerContext = CreateContext(1, "Doctor")
-        };
+        var controller = BuildPrescriptionsCtrl(_db, CreateContext(1, "Doctor"));
 
         var request = new CreatePrescriptionRequestDto(
             AppointmentId: null,
@@ -317,10 +315,7 @@ public class PrescriptionAndOrderTests : IDisposable
         );
         await _db.SaveChangesAsync();
 
-        var controller = new PrescriptionsController(_db)
-        {
-            ControllerContext = CreateContext(2, "Patient") // Alice Brown (UserId = 2, PatientId = 1)
-        };
+        var controller = BuildPrescriptionsCtrl(_db, CreateContext(2, "Patient")); // Alice Brown (UserId = 2, PatientId = 1)
 
         // Act
         var result = await controller.GetMyPrescriptions();
@@ -347,10 +342,7 @@ public class PrescriptionAndOrderTests : IDisposable
         });
         await _db.SaveChangesAsync();
 
-        var controller = new PrescriptionsController(_db)
-        {
-            ControllerContext = CreateContext(2, "Patient") // Alice (PatientId = 1)
-        };
+        var controller = BuildPrescriptionsCtrl(_db, CreateContext(2, "Patient")); // Alice (PatientId = 1)
 
         // Act
         var result = await controller.GetPrescriptionById(50);

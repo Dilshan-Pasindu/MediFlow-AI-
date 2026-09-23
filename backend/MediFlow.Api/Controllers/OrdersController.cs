@@ -303,6 +303,44 @@ public class OrdersController : ControllerBase
         if (!validNext.Contains(newStatus))
             return BadRequest(new { message = $"Cannot transition from '{order.Status}' to '{newStatus}'." });
 
+        // ── HUMAN-IN-THE-LOOP SAFETY GATE ─────────────────────────────────────
+        // Advancing from Pending → Confirmed is the gate point.
+        // Any unacknowledged High-severity DrugInteractionLog on the linked
+        // prescription blocks progression until a pharmacist signs off.
+        if (order.Status == OrderStatus.Pending && newStatus == OrderStatus.Confirmed
+            && order.PrescriptionId.HasValue)
+        {
+            var blockers = await _db.DrugInteractionLogs
+                .Where(l =>
+                    l.PrescriptionId == order.PrescriptionId.Value &&
+                    l.SeverityLevel == "High" &&
+                    l.AcknowledgedAt == null)
+                .ToListAsync();
+
+            if (blockers.Count > 0)
+            {
+                // Surface Moderate/Low unacknowledged warnings as informational
+                var moderateWarnings = await _db.DrugInteractionLogs
+                    .Where(l =>
+                        l.PrescriptionId == order.PrescriptionId.Value &&
+                        l.SeverityLevel != "High" &&
+                        l.AcknowledgedAt == null)
+                    .Select(l => $"{l.WarningType}: {l.DrugA} ({l.SeverityLevel})")
+                    .ToListAsync();
+
+                return Conflict(new
+                {
+                    message = $"Cannot advance order {id}: {blockers.Count} unacknowledged " +
+                              $"High-severity drug interaction warning(s) require pharmacist " +
+                              "sign-off via POST /api/prescriptions/{prescriptionId}/acknowledge-warning " +
+                              "before this order may proceed.",
+                    blockedByLogIds = blockers.Select(b => b.Id).ToList(),
+                    additionalInformationalWarnings = moderateWarnings
+                });
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         order.Status = newStatus;
         order.UpdatedAt = DateTime.UtcNow;
 
@@ -390,4 +428,53 @@ public class OrdersController : ControllerBase
         var updated = await LoadOrderAsync(id);
         return Ok(ToOrderDto(updated!));
     }
+
+    // ─── DELETE /api/orders/{id} ───────────────────────────────────────────
+
+    /// <summary>
+    /// Pharmacist cancels an order. Sets Status = Cancelled.
+    /// Business rules:
+    ///   - Only Pending or Confirmed orders can be cancelled.
+    ///   - If the order originated from a prescription, that prescription's
+    ///     status is reverted back to Active so it re-enters the queue.
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> DeleteOrder(int id)
+    {
+        var userId = TryGetUserId();
+        if (userId == null) return Unauthorized();
+
+        var order = await _db.Orders
+            .Include(o => o.Prescription)
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+        if (order == null)
+            return NotFound(new { message = $"Order {id} not found." });
+
+        // Only cancellable from non-terminal, early states
+        if (order.Status is OrderStatus.Dispensed)
+            return BadRequest(new { message = $"Order {id} has already been dispensed and cannot be cancelled." });
+
+        if (order.Status is OrderStatus.Cancelled)
+            return BadRequest(new { message = $"Order {id} is already cancelled." });
+
+        if (order.Status is OrderStatus.Preparing or OrderStatus.Ready)
+            return BadRequest(new { message = $"Order {id} is in '{order.Status}' state. Only Pending or Confirmed orders can be cancelled." });
+
+        order.Status = OrderStatus.Cancelled;
+        order.UpdatedAt = DateTime.UtcNow;
+
+        // Revert linked prescription back to Active so it re-enters the dispensing queue
+        if (order.Prescription != null && order.Prescription.Status == PrescriptionStatus.Fulfilled)
+        {
+            order.Prescription.Status = PrescriptionStatus.Active;
+            order.Prescription.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = $"Order {id} has been cancelled. The linked prescription (if any) has been returned to the Active queue." });
+    }
 }
+
