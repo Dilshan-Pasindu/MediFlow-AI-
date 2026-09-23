@@ -88,7 +88,10 @@ describe('Patient Portal Validations', () => {
       );
 
       const confirmBtn = screen.getByRole('button', { name: /confirm booking/i });
-      fireEvent.click(confirmBtn);
+      expect(confirmBtn).toBeDisabled();
+
+      const form = document.getElementById('booking-form')!;
+      fireEvent.submit(form);
 
       expect(mockMutateBook).not.toHaveBeenCalled();
       expect(
