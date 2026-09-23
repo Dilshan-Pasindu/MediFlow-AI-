@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CreditCard, CheckCircle, AlertCircle, Phone, Loader, Hash, XCircle, Stethoscope } from 'lucide-react';
+import { ArrowLeft, CreditCard, CheckCircle, AlertCircle, Phone, Loader, Hash, XCircle, AlertTriangle, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { apiGetAppointment, apiPayAppointment, apiPatientCancelAppointment } from '../services/api';
@@ -23,6 +23,14 @@ const STATUS_META = {
   Cancelled:        { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled' },
 };
 
+const CANCEL_REASONS = [
+  'Schedule conflict / Change of plans',
+  'Feeling better / Consultation no longer needed',
+  'Booked an earlier appointment with another doctor',
+  'Personal or transportation difficulties',
+  'Other reason',
+];
+
 export default function AppointmentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -31,6 +39,11 @@ export default function AppointmentDetailsPage() {
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [payError, setPayError] = useState('');
+
+  // Cancellation state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedReason, setSelectedReason] = useState(CANCEL_REASONS[0]);
+  const [cancelNotes, setCancelNotes] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState('');
   const [cancelled, setCancelled] = useState(false);
@@ -64,32 +77,70 @@ export default function AppointmentDetailsPage() {
   }, [id]);
 
   async function loadAppointment() {
-    try { setAppt(await apiGetAppointment(id || '')); }
-    catch { navigate('/appointments'); }
-    finally { setLoading(false); }
+    try {
+      const data = await apiGetAppointment(id || '');
+      setAppt(data);
+      if (data.status === 'Cancelled') {
+        setCancelled(true);
+      }
+    } catch {
+      navigate('/appointments');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handlePay() {
-    setPaying(true); setPayError('');
+    if (!appt || appt.status !== 'Pending') return;
+    setPaying(true);
+    setPayError('');
     try {
       await apiPayAppointment(id || '');
       setPaid(true);
       setAppt((prev: any) => ({ ...prev, status: 'PaymentSubmitted' }));
     } catch (err: any) {
-      setPayError(err?.message || 'Payment failed. Please try again.');
-    } finally { setPaying(false); }
+      setPayError(err?.message || 'Payment processing failed. Please try again.');
+    } finally {
+      setPaying(false);
+    }
   }
 
-  async function handleCancel() {
-    if (!window.confirm('Are you sure you want to cancel this appointment? This action cannot be undone.')) return;
-    setCancelling(true); setCancelError('');
+  async function handleConfirmCancel() {
+    if (!appt) return;
+
+    if (new Date(appt.appointmentDateTime).getTime() <= Date.now()) {
+      setCancelError('Cannot cancel an appointment that has already passed.');
+      return;
+    }
+
+    if (['Completed', 'InConsultation', 'Cancelled'].includes(appt.status)) {
+      setCancelError(`Cannot cancel an appointment that is already ${appt.status}.`);
+      return;
+    }
+
+    const trimmedNotes = cancelNotes.trim();
+    if (trimmedNotes.length > 200) {
+      setCancelError('Reason details cannot exceed 200 characters.');
+      return;
+    }
+
+    const fullReason = selectedReason === 'Other reason'
+      ? (trimmedNotes || 'Other reason')
+      : trimmedNotes ? `${selectedReason} - ${trimmedNotes}` : selectedReason;
+
+    setCancelling(true);
+    setCancelError('');
+
     try {
-      await apiPatientCancelAppointment(id || '', 'Cancelled by patient');
+      await apiPatientCancelAppointment(id || '', fullReason);
       setCancelled(true);
+      setShowCancelModal(false);
       setAppt((prev: any) => ({ ...prev, status: 'Cancelled' }));
     } catch (err: any) {
-      setCancelError(err?.message || 'Failed to cancel. Please try again.');
-    } finally { setCancelling(false); }
+      setCancelError(err?.message || 'Failed to cancel appointment. Please try again.');
+    } finally {
+      setCancelling(false);
+    }
   }
 
   if (loading) {
@@ -112,8 +163,10 @@ export default function AppointmentDetailsPage() {
   if (!appt) return null;
 
   const d = new Date(appt.appointmentDateTime);
+  const isPast = d.getTime() <= Date.now();
   const st = (STATUS_META as any)[appt.status] || STATUS_META.Pending;
   const currentStepIdx = STATUS_STEPS.findIndex(s => s.key === appt.status);
+  const canCancel = !cancelled && ['Pending', 'PaymentSubmitted', 'Confirmed'].includes(appt?.status) && !isPast;
 
   return (
     <div className="app-shell">
@@ -140,7 +193,7 @@ export default function AppointmentDetailsPage() {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                       <div style={{ width: 64, height: 64, background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, fontFamily: 'Outfit, sans-serif' }}>
-                        {appt.doctorName?.replace('Dr.', '').trim().split(' ').map(n => n[0]).join('').slice(0, 2) || 'DR'}
+                        {appt.doctorName?.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'DR'}
                       </div>
                       <div>
                         <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 20, fontWeight: 800, marginBottom: 2 }}>{appt.doctorName}</div>
@@ -211,11 +264,21 @@ export default function AppointmentDetailsPage() {
                       </div>
                     </div>
                   )}
+
+                  {appt.status === 'Cancelled' && (
+                    <div style={{ marginTop: 24, padding: '16px 18px', background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <XCircle size={18} color="#DC2626" style={{ flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#991B1B', marginBottom: 2 }}>Appointment Cancelled</div>
+                        <div style={{ fontSize: 13, color: '#B91C1C' }}>This appointment has been cancelled and is no longer active.</div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Right Column — Timeline */}
+            {/* Right Column — Timeline & Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               <div className="card">
                 <div className="card-header">
@@ -249,18 +312,27 @@ export default function AppointmentDetailsPage() {
                     <button className="btn btn-secondary" style={{ justifyContent: 'flex-start', width: '100%' }} id="contact-support-btn">
                       <Phone size={14} /> Contact Support
                     </button>
+
                     {cancelError && <div className="form-error"><AlertCircle size={13} />{cancelError}</div>}
-                    {!cancelled && ['Pending', 'PaymentSubmitted', 'Confirmed'].includes(appt?.status) && (
+
+                    {canCancel && (
                       <button
                         className="btn btn-ghost"
                         style={{ justifyContent: 'flex-start', width: '100%', color: 'var(--danger)' }}
                         id="cancel-appointment-btn"
-                        onClick={handleCancel}
+                        onClick={() => setShowCancelModal(true)}
                         disabled={cancelling}
                       >
-                        {cancelling ? <><Loader size={13} className="spin" /> Cancelling...</> : <><XCircle size={14} /> Cancel Appointment</>}
+                        <XCircle size={14} /> Cancel Appointment
                       </button>
                     )}
+
+                    {!canCancel && !cancelled && isPast && (
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', padding: '6px 8px' }}>
+                        Past appointments cannot be cancelled.
+                      </div>
+                    )}
+
                     {cancelled && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600, padding: '8px 12px', background: '#FEF2F2', borderRadius: 'var(--r-md)' }}>
                         <XCircle size={14} /> Appointment Cancelled
@@ -273,6 +345,93 @@ export default function AppointmentDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Cancellation Modal Dialog */}
+      {showCancelModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, padding: 16,
+        }}>
+          <div className="card scale-in" style={{ maxWidth: 460, width: '100%', padding: 24, boxShadow: '0 20px 40px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertTriangle size={20} color="var(--danger)" />
+                <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 18, fontWeight: 800 }}>Cancel Appointment</div>
+              </div>
+              <button
+                className="btn btn-ghost btn-sm btn-icon"
+                onClick={() => { setShowCancelModal(false); setCancelError(''); }}
+                disabled={cancelling}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+              Are you sure you want to cancel your consultation with <strong>{appt.doctorName}</strong> on <strong>{d.toLocaleDateString()}</strong>? This action cannot be undone.
+            </p>
+
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label" style={{ fontSize: 12.5 }}>Please select a reason:</label>
+              <select
+                className="form-select"
+                id="cancellation-reason-select"
+                value={selectedReason}
+                onChange={e => setSelectedReason(e.target.value)}
+                disabled={cancelling}
+              >
+                {CANCEL_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label className="form-label" style={{ fontSize: 12.5, marginBottom: 0 }}>Additional Details (Optional):</label>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{cancelNotes.length} / 200</span>
+              </div>
+              <textarea
+                className="form-textarea"
+                id="cancellation-notes"
+                placeholder="Briefly explain the reason for cancellation..."
+                value={cancelNotes}
+                onChange={e => e.target.value.length <= 200 && setCancelNotes(e.target.value)}
+                maxLength={200}
+                rows={2}
+                disabled={cancelling}
+              />
+            </div>
+
+            {cancelError && (
+              <div className="form-error" style={{ marginBottom: 14 }}>
+                <AlertCircle size={14} /> {cancelError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => { setShowCancelModal(false); setCancelError(''); }}
+                disabled={cancelling}
+                id="cancel-modal-close-btn"
+              >
+                Keep Appointment
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleConfirmCancel}
+                disabled={cancelling}
+                id="confirm-cancel-appointment-btn"
+                style={{ background: 'var(--danger)', color: 'white' }}
+              >
+                {cancelling ? <><Loader size={14} className="spin" /> Cancelling...</> : 'Yes, Cancel Appointment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

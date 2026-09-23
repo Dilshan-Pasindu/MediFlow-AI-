@@ -53,7 +53,8 @@ export default function FindDoctorPage() {
                 className="search-input"
                 placeholder="Search by doctor name, specialty..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                maxLength={100}
+                onChange={e => e.target.value.length <= 100 && setSearchTerm(e.target.value)}
               />
               {searchTerm && (
                 <button
