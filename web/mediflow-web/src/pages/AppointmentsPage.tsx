@@ -180,7 +180,39 @@ export default function AppointmentsPage() {
                       <div className="appt-year">{d.getFullYear()}</div>
                     </div>
                     <div className="appt-info">
-                      <div className="appt-doctor">{appt.doctorName}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <div className="appt-doctor">{appt.doctorName}</div>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          style={{
+                            fontSize: 11,
+                            padding: '2px 8px',
+                            color: 'var(--med-blue)',
+                            background: 'var(--med-blue-50)',
+                            borderRadius: 6,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            border: '1px solid var(--med-blue-200)',
+                            fontWeight: 600,
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setProfileDoctor({
+                              id: appt.doctorId,
+                              fullName: appt.doctorName,
+                              specialtyName: appt.specialtyName,
+                              profilePhoto: appt.doctorProfilePhoto,
+                              fee: appt.fee,
+                            });
+                          }}
+                          id={`view-doc-profile-${appt.id}`}
+                          title="View Doctor Full Profile, Credentials & Reviews"
+                        >
+                          <Info size={11} /> Profile &amp; Reviews
+                        </button>
+                      </div>
                       {appt.specialtyName && <div className="appt-spec">{appt.specialtyName}</div>}
                       <div className="appt-time"><Clock size={11} /> {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                       {appt.appointmentNumber && <div className="appt-num">{appt.appointmentNumber}</div>}
@@ -196,9 +228,27 @@ export default function AppointmentsPage() {
                       {isCompleted && (
                         <div>
                           {hasRated ? (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                              <CheckCircle2 size={12} className="text-emerald-600" /> Rated
-                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              style={{
+                                fontSize: 11,
+                                padding: '3px 9px',
+                                background: '#ECFDF5',
+                                color: '#065F46',
+                                border: '1px solid #A7F3D0',
+                                borderRadius: 6,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                cursor: 'pointer',
+                              }}
+                              onClick={(e) => handleOpenRatingModal(appt, e)}
+                              id={`edit-rating-btn-${appt.id}`}
+                              title="Click to view or edit your submitted review"
+                            >
+                              <Star size={12} fill="#059669" color="#059669" /> Rated ({appt.rating?.stars || appt.rating?.Stars || 5}★) • Edit
+                            </button>
                           ) : (
                             <button
                               type="button"
@@ -218,7 +268,7 @@ export default function AppointmentsPage() {
                               onClick={(e) => handleOpenRatingModal(appt, e)}
                               id={`rate-appt-btn-${appt.id}`}
                             >
-                              <Star size={12} fill="#F59E0B" color="#F59E0B" /> Rate & Review
+                              <Star size={12} fill="#F59E0B" color="#F59E0B" /> Rate &amp; Review
                             </button>
                           )}
                         </div>
@@ -229,6 +279,14 @@ export default function AppointmentsPage() {
               })}
             </div>
           )}
+
+          {/* Pre-Booking / Post-Consultation Doctor Profile Modal */}
+          <DoctorProfileModal
+            doctor={profileDoctor}
+            isOpen={Boolean(profileDoctor)}
+            onClose={() => setProfileDoctor(null)}
+            showBookButton={true}
+          />
 
           {/* Post-Consultation Rating & Review Modal */}
           {ratingModalAppt && (
@@ -253,7 +311,9 @@ export default function AppointmentsPage() {
                     <Star size={24} fill="currentColor" />
                   </div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    Rate Your Consultation
+                    {ratingModalAppt.hasRated || ratedApptIds.has(ratingModalAppt.id)
+                      ? 'Update Consultation Review'
+                      : 'Rate Your Consultation'}
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
                     Dr. {ratingModalAppt.doctorName} • {ratingModalAppt.specialtyName || 'Specialist'}
@@ -338,7 +398,9 @@ export default function AppointmentsPage() {
                         className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-semibold shadow-md shadow-amber-500/20 transition disabled:opacity-50"
                         id="submit-rating-btn"
                       >
-                        {ratingSubmitting ? 'Submitting...' : 'Submit Review'}
+                        {ratingSubmitting
+                          ? 'Submitting...'
+                          : (ratingModalAppt.hasRated || ratedApptIds.has(ratingModalAppt.id) ? 'Update Review' : 'Submit Review')}
                       </button>
                     </div>
                   </form>

@@ -925,8 +925,8 @@ export default function ProfilePage() {
                                 <Star
                                   key={i}
                                   size={13}
-                                  fill={i < rev.rating ? '#F59E0B' : 'none'}
-                                  color={i < rev.rating ? '#F59E0B' : '#CBD5E1'}
+                                  fill={i < (rev.stars ?? rev.rating ?? 5) ? '#F59E0B' : 'none'}
+                                  color={i < (rev.stars ?? rev.rating ?? 5) ? '#F59E0B' : '#CBD5E1'}
                                 />
                               ))}
                             </div>

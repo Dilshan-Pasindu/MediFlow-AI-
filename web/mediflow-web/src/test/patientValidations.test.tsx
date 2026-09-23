@@ -56,6 +56,8 @@ vi.mock('../services/api', () => ({
 
 vi.mock('../hooks', () => ({
   useDoctor: () => ({ data: mockDoctor, isLoading: false }),
+  useDoctorReviews: () => ({ data: [], isLoading: false }),
+  useDoctorAvailability: () => ({ data: [], isLoading: false }),
   useBookAppointment: () => ({
     mutate: mockMutateBook,
     isPending: false,

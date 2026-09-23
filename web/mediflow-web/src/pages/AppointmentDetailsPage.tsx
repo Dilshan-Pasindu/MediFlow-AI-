@@ -1,9 +1,18 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CreditCard, CheckCircle, AlertCircle, Phone, Loader, Hash, XCircle, AlertTriangle, X } from 'lucide-react';
+import {
+  ArrowLeft, CreditCard, CheckCircle, AlertCircle, Phone,
+  Loader, Hash, XCircle, AlertTriangle, X, Star, MessageSquare, Info, CheckCircle2
+} from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetAppointment, apiPayAppointment, apiPatientCancelAppointment } from '../services/api';
+import DoctorProfileModal from '../components/DoctorProfileModal';
+import {
+  apiGetAppointment,
+  apiPayAppointment,
+  apiPatientCancelAppointment,
+  apiRateAppointment
+} from '../services/api';
 import { consultationHubService } from '../services/consultationHubService';
 
 const STATUS_STEPS = [
@@ -39,6 +48,17 @@ export default function AppointmentDetailsPage() {
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [payError, setPayError] = useState('');
+
+  // Doctor Profile modal state
+  const [showDoctorModal, setShowDoctorModal] = useState(false);
+
+  // Rating and review state
+  const [ratingScore, setRatingScore] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [isEditingRating, setIsEditingRating] = useState(false);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+  const [ratingSuccess, setRatingSuccess] = useState('');
+  const [ratingError, setRatingError] = useState('');
 
   // Cancellation state
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -83,10 +103,43 @@ export default function AppointmentDetailsPage() {
       if (data.status === 'Cancelled') {
         setCancelled(true);
       }
+      if (data.rating) {
+        setRatingScore(data.rating.stars || data.rating.Stars || 5);
+        setReviewComment(data.rating.comment || data.rating.Comment || '');
+      }
     } catch {
       navigate('/appointments');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleSaveRating(e: React.FormEvent) {
+    e.preventDefault();
+    if (!appt) return;
+    if (ratingScore < 1 || ratingScore > 5) {
+      setRatingError('Please select a star rating between 1 and 5.');
+      return;
+    }
+    setRatingSubmitting(true);
+    setRatingError('');
+    try {
+      await apiRateAppointment(appt.id, {
+        rating: ratingScore,
+        review: reviewComment.trim() || undefined,
+      });
+      setAppt((prev: any) => ({
+        ...prev,
+        hasRated: true,
+        rating: { stars: ratingScore, comment: reviewComment.trim() }
+      }));
+      setRatingSuccess('Thank you! Your consultation feedback has been recorded.');
+      setIsEditingRating(false);
+      setTimeout(() => setRatingSuccess(''), 4000);
+    } catch (err: any) {
+      setRatingError(err?.message || 'Failed to submit review.');
+    } finally {
+      setRatingSubmitting(false);
     }
   }
 
@@ -192,13 +245,42 @@ export default function AppointmentDetailsPage() {
                 <div style={{ background: 'var(--gradient-hero)', padding: '24px 28px', color: 'white', borderRadius: 'var(--r-lg) var(--r-lg) 0 0' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                      <div style={{ width: 64, height: 64, background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, fontFamily: 'Outfit, sans-serif' }}>
-                        {appt.doctorName?.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'DR'}
-                      </div>
+                      {appt.doctorProfilePhoto ? (
+                        <img
+                          src={appt.doctorProfilePhoto}
+                          alt={appt.doctorName}
+                          style={{ width: 64, height: 64, borderRadius: 'var(--r-lg)', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.35)' }}
+                        />
+                      ) : (
+                        <div style={{ width: 64, height: 64, background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-lg)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, fontFamily: 'Outfit, sans-serif' }}>
+                          {appt.doctorName?.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) || 'DR'}
+                        </div>
+                      )}
                       <div>
                         <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 20, fontWeight: 800, marginBottom: 2 }}>{appt.doctorName}</div>
                         <div style={{ fontSize: 13, opacity: 0.85 }}>{appt.specialtyName || 'Medical Specialist'}</div>
                         <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>{appt.doctorQualifications}</div>
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          style={{
+                            marginTop: 10,
+                            background: 'rgba(255,255,255,0.2)',
+                            color: 'white',
+                            border: '1px solid rgba(255,255,255,0.35)',
+                            borderRadius: 8,
+                            fontSize: 12,
+                            padding: '4px 12px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => setShowDoctorModal(true)}
+                          id="view-doctor-profile-details-btn"
+                        >
+                          <Info size={13} /> View Doctor Profile &amp; Reviews
+                        </button>
                       </div>
                     </div>
                     <span className="badge" style={{ background: 'rgba(255,255,255,0.2)', color: 'white', borderColor: 'rgba(255,255,255,0.35)' }}>
@@ -276,6 +358,145 @@ export default function AppointmentDetailsPage() {
                   )}
                 </div>
               </div>
+
+              {/* Consultation Rating & Feedback Section */}
+              {appt.status === 'Completed' && (
+                <div className="card" style={{ padding: '24px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: '#FEF3C7', color: '#D97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Star size={20} fill="#D97706" />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'Outfit, sans-serif' }}>
+                          Your Consultation Feedback
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          Verified patient rating and review for Dr. {appt.doctorName}
+                        </div>
+                      </div>
+                    </div>
+
+                    {appt.hasRated && !isEditingRating && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: 12, padding: '4px 12px' }}
+                        onClick={() => setIsEditingRating(true)}
+                        id="edit-consultation-rating-btn"
+                      >
+                        Edit Feedback
+                      </button>
+                    )}
+                  </div>
+
+                  {ratingSuccess && (
+                    <div style={{ padding: '12px 16px', background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 10, color: '#065F46', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <CheckCircle2 size={16} /> {ratingSuccess}
+                    </div>
+                  )}
+
+                  {appt.hasRated && !isEditingRating ? (
+                    <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 18, border: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            size={18}
+                            className={s <= (appt.rating?.stars || appt.rating?.Stars || 5) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'}
+                          />
+                        ))}
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#92400E', marginLeft: 6 }}>
+                          {(appt.rating?.stars || appt.rating?.Stars || 5)} / 5 Stars
+                        </span>
+                      </div>
+                      {(appt.rating?.comment || appt.rating?.Comment) ? (
+                        <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
+                          "{appt.rating.comment || appt.rating.Comment}"
+                        </p>
+                      ) : (
+                        <p style={{ fontSize: 12.5, color: 'var(--text-muted)', margin: 0 }}>
+                          No written comments provided with this rating.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <form onSubmit={handleSaveRating} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {ratingError && (
+                        <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, color: '#DC2626', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <AlertCircle size={14} /> {ratingError}
+                        </div>
+                      )}
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                          Rate Consultation Quality:
+                        </label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onClick={() => setRatingScore(s)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+                              id={`detail-star-${s}`}
+                            >
+                              <Star
+                                size={28}
+                                className={s <= ratingScore ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}
+                              />
+                            </button>
+                          ))}
+                          <span style={{ fontSize: 12, fontWeight: 700, color: '#B45309', marginLeft: 10 }}>
+                            {ratingScore === 5 && 'Outstanding (5/5)'}
+                            {ratingScore === 4 && 'Very Good (4/5)'}
+                            {ratingScore === 3 && 'Average (3/5)'}
+                            {ratingScore === 2 && 'Needs Improvement (2/5)'}
+                            {ratingScore === 1 && 'Unsatisfactory (1/5)'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                          Written Review (Optional):
+                        </label>
+                        <textarea
+                          rows={3}
+                          maxLength={500}
+                          value={reviewComment}
+                          onChange={(e) => setReviewComment(e.target.value)}
+                          placeholder="How was your consultation experience with the doctor? Mention communication, clarity of diagnosis, etc."
+                          className="form-textarea"
+                          style={{ width: '100%', fontSize: 13 }}
+                          id="detail-review-textarea"
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                        {isEditingRating && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => setIsEditingRating(false)}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          disabled={ratingSubmitting}
+                          className="btn btn-primary btn-sm"
+                          id="submit-detail-rating-btn"
+                          style={{ background: 'linear-gradient(135deg, #F59E0B, #D97706)', border: 'none' }}
+                        >
+                          {ratingSubmitting ? 'Saving...' : (appt.hasRated ? 'Save Updated Review' : 'Submit Rating & Review')}
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Right Column — Timeline & Actions */}
@@ -345,6 +566,22 @@ export default function AppointmentDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Doctor Profile & Reviews Modal */}
+      <DoctorProfileModal
+        doctor={{
+          id: appt.doctorId,
+          fullName: appt.doctorName,
+          specialtyName: appt.specialtyName,
+          profilePhoto: appt.doctorProfilePhoto,
+          consultationFee: appt.fee,
+          qualifications: appt.doctorQualifications,
+          bio: appt.doctorBio,
+        }}
+        isOpen={showDoctorModal}
+        onClose={() => setShowDoctorModal(false)}
+        showBookButton={false}
+      />
 
       {/* Cancellation Modal Dialog */}
       {showCancelModal && (

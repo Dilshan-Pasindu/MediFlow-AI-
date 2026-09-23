@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   X, Star, Award, Building, GraduationCap,
   Globe, Calendar, DollarSign, CheckCircle2,
   FileCheck, Shield, MessageSquare, Clock, ArrowRight,
-  Sparkles, Stethoscope, ChevronRight, Loader2
+  Sparkles, Stethoscope, Loader2
 } from 'lucide-react';
 import { useDoctor, useDoctorReviews } from '../hooks';
-import type { DoctorDetail, DoctorReviewDto } from '../types/doctor';
+import type { DoctorReviewDto } from '../types/doctor';
 
 interface DoctorProfileModalProps {
   doctor: any;
@@ -27,15 +28,11 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
 
   const doctorId = initialDoctor?.id ?? initialDoctor?.doctorId;
 
-  // Fetch full details and reviews when modal is opened with a doctor ID
-  const { data: fullDoctor, isLoading: loadingDoctor } = useDoctor(
-    isOpen && doctorId ? doctorId : undefined
-  );
+  const { data: fullDoctor } = useDoctor(isOpen && doctorId ? doctorId : undefined);
   const { data: reviewsData, isLoading: loadingReviews } = useDoctorReviews(
     isOpen && doctorId ? doctorId : undefined
   );
 
-  // Close on Escape key press
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -44,37 +41,39 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Reset tab when modal opens with a new doctor
+  useEffect(() => {
+    if (isOpen) setActiveTab('about');
+  }, [isOpen, doctorId]);
+
   useEffect(() => {
     if (isOpen) {
-      setActiveTab('about');
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
     }
-  }, [isOpen, doctorId]);
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
 
   if (!isOpen || !initialDoctor) return null;
 
   const doctor = fullDoctor || initialDoctor;
-
-  // Merge reviews from hook, fullDoctor, or initialDoctor
   const rawReviews: DoctorReviewDto[] = (reviewsData && reviewsData.length > 0)
     ? reviewsData
     : (doctor.reviews || []);
 
-  const effectiveDoctorId = doctor.id || doctorId || (doctor as any).doctorId;
+  const effectiveDoctorId = doctor.id || doctorId || doctor.doctorId;
 
   const handleBookNow = () => {
     onClose();
-    if (effectiveDoctorId) {
-      navigate(`/doctors/${effectiveDoctorId}/book`);
-    }
+    if (effectiveDoctorId) navigate(`/doctors/${effectiveDoctorId}/book`);
   };
 
-  const displayName = doctor.fullName || (doctor as any).doctorName || (doctor as any).name || 'Consultant Doctor';
-  const displaySpecialty = doctor.specialties?.[0]?.name || (doctor as any).specialtyName || (doctor as any).specialty || 'Specialist';
-  const displayQualifications = doctor.qualifications || (doctor as any).doctorQualifications || 'Consultant Specialist';
-  const displayPhoto = doctor.profilePhoto || (doctor as any).doctorProfilePhoto || (doctor as any).profilePhotoUrl;
-  const displayFee = doctor.consultationFee ?? (doctor as any).fee ?? 2500;
-  const displayBio = doctor.bio || (doctor as any).doctorBio;
+  const displayName = doctor.fullName || doctor.doctorName || doctor.name || 'Consultant Doctor';
+  const displaySpecialty = doctor.specialties?.[0]?.name || doctor.specialtyName || doctor.specialty || 'Specialist';
+  const displayQualifications = doctor.qualifications || doctor.doctorQualifications || 'Consultant Specialist';
+  const displayPhoto = doctor.profilePhoto || doctor.doctorProfilePhoto || doctor.profilePhotoUrl;
+  const displayFee = doctor.consultationFee ?? doctor.fee ?? 2500;
+  const displayBio = doctor.bio || doctor.doctorBio;
 
   const initials = displayName
     .replace('Dr.', '')
@@ -86,98 +85,165 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
     .slice(0, 2)
     .toUpperCase() || 'DR';
 
-  const avgRating = doctor.averageRating
-    ? Number(doctor.averageRating).toFixed(1)
-    : '5.0';
-
+  const avgRating = doctor.averageRating ? Number(doctor.averageRating).toFixed(1) : '5.0';
   const totalReviews = doctor.reviewCount || rawReviews.length;
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-md animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 99999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '12px',
+        background: 'rgba(15, 23, 42, 0.72)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        animation: 'docModalFade 0.2s ease',
+      }}
     >
+      <style>{`
+        @keyframes docModalFade { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes docModalSlide { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .doc-tab-btn {
+          padding: 11px 16px;
+          font-size: 12.5px;
+          font-weight: 700;
+          border: none;
+          border-bottom: 2.5px solid transparent;
+          background: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+          color: #64748B;
+          font-family: Inter, sans-serif;
+        }
+        .doc-tab-btn.active { border-bottom-color: #0EA5E9; color: #0369A1; }
+        .doc-tab-btn:not(.active):hover { color: #1E293B; background: rgba(0,0,0,0.03); }
+        .doc-rev-card { padding: 14px 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; }
+        .doc-rev-card:hover { background: #F1F5F9; }
+        .doc-cred-card { padding: 18px; border-radius: 14px; border: 1px solid #E2E8F0; background: #F8FAFC; }
+      `}</style>
+
+      {/* ─── Modal Container ─── */}
       <div
-        className="relative w-full max-w-3xl max-h-[92vh] flex flex-col bg-white rounded-3xl shadow-2xl border border-slate-100 text-slate-800 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxWidth: 760,
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          background: 'white',
+          borderRadius: 24,
+          boxShadow: '0 32px 80px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.1)',
+          overflow: 'hidden',
+          animation: 'docModalSlide 0.25s cubic-bezier(0.34, 1.4, 0.64, 1)',
+        }}
       >
-        {/* Top Header Banner */}
-        <div className="relative bg-gradient-to-r from-sky-700 via-blue-700 to-indigo-800 p-6 sm:p-8 text-white">
+        {/* ─── Header ─── */}
+        <div style={{
+          background: 'linear-gradient(140deg, #075985 0%, #0369A1 45%, #1D4ED8 100%)',
+          padding: '28px 28px 22px',
+          color: 'white',
+          position: 'relative',
+          flexShrink: 0,
+          overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: -40, left: 80, width: 130, height: 130, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+
+          {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full transition-all focus:outline-none"
-            aria-label="Close modal"
             id="close-doctor-modal-btn"
+            aria-label="Close"
+            style={{
+              position: 'absolute', top: 16, right: 16,
+              width: 34, height: 34, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.25)',
+              color: 'white', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
           >
-            <X className="w-5 h-5" />
+            <X size={16} />
           </button>
 
-          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
             {/* Avatar */}
-            <div className="relative shrink-0">
+            <div style={{ position: 'relative', flexShrink: 0 }}>
               {displayPhoto ? (
                 <img
                   src={displayPhoto}
                   alt={displayName}
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border-4 border-white/30 shadow-lg bg-white/10"
+                  style={{ width: 90, height: 90, borderRadius: 18, objectFit: 'cover', border: '3px solid rgba(255,255,255,0.35)', boxShadow: '0 8px 24px rgba(0,0,0,0.25)' }}
                 />
               ) : (
-                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl bg-white/20 border-4 border-white/30 shadow-lg flex items-center justify-center text-3xl font-black text-white font-sans">
+                <div style={{
+                  width: 90, height: 90, borderRadius: 18,
+                  background: 'rgba(255,255,255,0.18)',
+                  border: '3px solid rgba(255,255,255,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 30, fontWeight: 900, fontFamily: 'Outfit, sans-serif',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                }}>
                   {initials}
                 </div>
               )}
-              {doctor.isActive && (
-                <span
-                  className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-400 border-2 border-white rounded-full shadow"
-                  title="Available for bookings"
-                />
-              )}
+              <span style={{ position: 'absolute', bottom: 4, right: 4, width: 13, height: 13, borderRadius: '50%', background: '#34D399', border: '2.5px solid white', boxShadow: '0 0 8px rgba(52,211,153,0.7)' }} />
             </div>
 
-            {/* Doctor Info */}
-            <div className="flex-1 text-center sm:text-left min-w-0">
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/20 text-white tracking-wide uppercase">
+            {/* Details */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                <span style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', background: 'rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.95)', padding: '2px 10px', borderRadius: 99 }}>
                   {displaySpecialty}
                 </span>
                 {doctor.subSpecialty && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-sky-400/30 text-sky-100">
+                  <span style={{ fontSize: 10.5, fontWeight: 600, background: 'rgba(14,165,233,0.3)', color: '#BAE6FD', padding: '2px 10px', borderRadius: 99 }}>
                     {doctor.subSpecialty}
                   </span>
                 )}
                 {doctor.registrationNumber && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/25 text-emerald-200 flex items-center gap-1">
-                    <Shield className="w-3.5 h-3.5" /> SLMC #{doctor.registrationNumber}
+                  <span style={{ fontSize: 10.5, fontWeight: 700, background: 'rgba(52,211,153,0.25)', color: '#A7F3D0', padding: '2px 10px', borderRadius: 99, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <Shield size={10} /> SLMC #{doctor.registrationNumber}
                   </span>
                 )}
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">
+              <h2 style={{ margin: '0 0 3px', fontSize: 22, fontWeight: 900, fontFamily: 'Outfit, sans-serif', lineHeight: 1.15 }}>
                 {displayName}
               </h2>
-              <p className="text-white/80 text-xs sm:text-sm font-medium mb-3">
+              <p style={{ margin: '0 0 12px', fontSize: 12, color: 'rgba(255,255,255,0.72)', fontWeight: 500 }}>
                 {displayQualifications}
               </p>
 
-              {/* Badges Bar */}
-              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 text-xs font-semibold">
-                <div className="flex items-center gap-1.5 bg-amber-400/20 text-amber-200 px-3 py-1 rounded-xl">
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span className="font-extrabold text-white text-sm">{avgRating}</span>
-                  <span className="text-white/70 font-normal">({totalReviews} reviews)</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(251,191,36,0.2)', padding: '4px 12px', borderRadius: 10, fontSize: 12, fontWeight: 700 }}>
+                  <Star size={13} fill="#FCD34D" color="#FCD34D" />
+                  <span style={{ color: 'white', fontWeight: 900 }}>{avgRating}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 400, fontSize: 11 }}>({totalReviews} reviews)</span>
                 </div>
-
-                <div className="flex items-center gap-1 bg-white/10 text-white px-2.5 py-1 rounded-xl">
-                  <Clock className="w-3.5 h-3.5 text-sky-200" />
-                  <span>{doctor.experienceYears || 5}+ Yrs Exp</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.12)', color: 'white', padding: '4px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600 }}>
+                  <Clock size={12} color="#BAE6FD" />
+                  {doctor.experienceYears || 5}+ Yrs Experience
                 </div>
-
                 {doctor.hospitalClinic && (
-                  <div className="flex items-center gap-1 bg-white/10 text-white px-2.5 py-1 rounded-xl truncate max-w-xs">
-                    <Building className="w-3.5 h-3.5 text-sky-200 shrink-0" />
-                    <span className="truncate">{doctor.hospitalClinic}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.12)', color: 'white', padding: '4px 12px', borderRadius: 10, fontSize: 12, fontWeight: 600 }}>
+                    <Building size={12} color="#BAE6FD" />
+                    <span style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doctor.hospitalClinic}</span>
                   </div>
                 )}
               </div>
@@ -185,207 +251,155 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center border-b border-slate-200 bg-slate-50/80 px-6 gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('about')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === 'about'
-                ? 'border-sky-600 text-sky-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-            id="tab-doctor-about"
-          >
-            <Stethoscope className="w-4 h-4" />
-            About &amp; Credentials
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('schedule')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === 'schedule'
-                ? 'border-sky-600 text-sky-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-            id="tab-doctor-schedule"
-          >
-            <Calendar className="w-4 h-4" />
-            Schedule &amp; Fee
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('reviews')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
-              activeTab === 'reviews'
-                ? 'border-sky-600 text-sky-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-            id="tab-doctor-reviews"
-          >
-            <MessageSquare className="w-4 h-4" />
-            Patient Reviews ({rawReviews.length})
-          </button>
+        {/* ─── Tabs ─── */}
+        <div style={{ display: 'flex', borderBottom: '1.5px solid #E2E8F0', background: '#F8FAFC', paddingLeft: 12, paddingRight: 12, flexShrink: 0, overflowX: 'auto' }}>
+          {([
+            { key: 'about' as const, icon: <Stethoscope size={13} />, label: 'About & Credentials' },
+            { key: 'schedule' as const, icon: <Calendar size={13} />, label: 'Schedule & Fee' },
+            { key: 'reviews' as const, icon: <MessageSquare size={13} />, label: `Reviews (${rawReviews.length})` },
+          ]).map(tab => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`doc-tab-btn${activeTab === tab.key ? ' active' : ''}`}
+              id={`tab-doc-${tab.key}`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Tab Content Body */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+        {/* ─── Content ─── */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '22px 26px', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-          {/* TAB 1: ABOUT & CREDENTIALS */}
+          {/* ── About ── */}
           {activeTab === 'about' && (
-            <div className="space-y-6 animate-fade-in">
-              {/* Bio / Overview */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {displayBio ? (
-                <div className="bg-sky-50/60 border border-sky-100 rounded-2xl p-5 shadow-sm">
-                  <h3 className="text-xs font-bold text-sky-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-sky-600" /> Clinical Overview &amp; Expertise
-                  </h3>
-                  <p className="text-slate-700 text-sm leading-relaxed">
-                    {displayBio}
+                <div style={{ background: 'linear-gradient(135deg,#EFF6FF,#F0F9FF)', border: '1px solid #BAE6FD', borderRadius: 16, padding: '16px 20px' }}>
+                  <p style={{ margin: '0 0 6px', fontSize: 10.5, fontWeight: 800, color: '#0369A1', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Sparkles size={12} color="#0EA5E9" /> Clinical Overview
                   </p>
+                  <p style={{ margin: 0, fontSize: 13.5, color: '#334155', lineHeight: 1.7 }}>{displayBio}</p>
                 </div>
               ) : (
-                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-xs text-slate-500 italic">
-                  Specialist consultant offering clinical diagnostic consultations, diagnostic review, and tailored patient care management.
+                <div style={{ background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: 14, padding: '14px 18px', fontSize: 13, color: '#94A3B8', fontStyle: 'italic' }}>
+                  Specialist consultant offering clinical diagnostic consultations and tailored patient care management.
                 </div>
               )}
 
-              {/* Credentials Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Medical Education & Degrees */}
-                <div className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/60 space-y-3">
-                  <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                    <GraduationCap className="w-4 h-4 text-blue-600" />
-                    <span>Education &amp; Qualifications</span>
-                  </div>
-                  <ul className="space-y-2 text-xs text-slate-600">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div className="doc-cred-card">
+                  <p style={{ margin: '0 0 12px', fontSize: 12.5, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <GraduationCap size={15} color="#3B82F6" /> Education & Qualifications
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {doctor.mbbsUniversity && (
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 mt-0.5 shrink-0" />
-                        <span><strong>MBBS / Medical School:</strong> {doctor.mbbsUniversity}</span>
-                      </li>
+                      <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569' }}>
+                        <CheckCircle2 size={13} color="#3B82F6" style={{ marginTop: 1, flexShrink: 0 }} />
+                        <span><strong>MBBS:</strong> {doctor.mbbsUniversity}</span>
+                      </div>
                     )}
                     {doctor.phdUniversity && (
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 mt-0.5 shrink-0" />
-                        <span><strong>Postgraduate / Fellowship:</strong> {doctor.phdUniversity}</span>
-                      </li>
+                      <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569' }}>
+                        <CheckCircle2 size={13} color="#3B82F6" style={{ marginTop: 1, flexShrink: 0 }} />
+                        <span><strong>Postgrad:</strong> {doctor.phdUniversity}</span>
+                      </div>
                     )}
                     {doctor.otherQualifications && (
-                      <li className="flex items-start gap-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 mt-0.5 shrink-0" />
-                        <span><strong>Advanced Fellowships:</strong> {doctor.otherQualifications}</span>
-                      </li>
+                      <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569' }}>
+                        <CheckCircle2 size={13} color="#3B82F6" style={{ marginTop: 1, flexShrink: 0 }} />
+                        <span><strong>Fellowships:</strong> {doctor.otherQualifications}</span>
+                      </div>
                     )}
                     {!doctor.mbbsUniversity && !doctor.phdUniversity && !doctor.otherQualifications && (
-                      <li className="text-slate-400 italic">Credentials verified by MediFlow Medical Board.</li>
+                      <p style={{ margin: 0, fontSize: 12, color: '#94A3B8', fontStyle: 'italic' }}>Credentials verified by MediFlow Medical Board.</p>
                     )}
-                  </ul>
+                  </div>
                 </div>
 
-                {/* Practice & Location */}
-                <div className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/60 space-y-3">
-                  <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                    <Award className="w-4 h-4 text-indigo-600" />
-                    <span>Practice &amp; Certifications</span>
-                  </div>
-                  <ul className="space-y-2 text-xs text-slate-600">
+                <div className="doc-cred-card">
+                  <p style={{ margin: '0 0 12px', fontSize: 12.5, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <Award size={15} color="#6366F1" /> Practice & Affiliations
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {doctor.certifications && (
-                      <li className="flex items-start gap-2">
-                        <FileCheck className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
+                      <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569' }}>
+                        <FileCheck size={13} color="#6366F1" style={{ marginTop: 1, flexShrink: 0 }} />
                         <span><strong>Certifications:</strong> {doctor.certifications}</span>
-                      </li>
+                      </div>
                     )}
                     {doctor.hospitalClinic && (
-                      <li className="flex items-start gap-2">
-                        <Building className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                        <span><strong>Primary Hospital:</strong> {doctor.hospitalClinic}</span>
-                      </li>
+                      <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569' }}>
+                        <Building size={13} color="#6366F1" style={{ marginTop: 1, flexShrink: 0 }} />
+                        <span><strong>Hospital:</strong> {doctor.hospitalClinic}</span>
+                      </div>
                     )}
                     {doctor.location && (
-                      <li className="flex items-start gap-2">
-                        <Globe className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
+                      <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569' }}>
+                        <Globe size={13} color="#6366F1" style={{ marginTop: 1, flexShrink: 0 }} />
                         <span><strong>Location:</strong> {doctor.location}</span>
-                      </li>
+                      </div>
                     )}
                     {doctor.languages && (
-                      <li className="flex items-start gap-2">
-                        <Globe className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
+                      <div style={{ display: 'flex', gap: 8, fontSize: 12, color: '#475569' }}>
+                        <Globe size={13} color="#6366F1" style={{ marginTop: 1, flexShrink: 0 }} />
                         <span><strong>Languages:</strong> {doctor.languages}</span>
-                      </li>
+                      </div>
                     )}
-                    {doctor.age && (
-                      <li className="flex items-start gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-indigo-600 mt-0.5 shrink-0" />
-                        <span><strong>Age:</strong> {doctor.age} years</span>
-                      </li>
+                    {!doctor.certifications && !doctor.hospitalClinic && !doctor.location && !doctor.languages && (
+                      <p style={{ margin: 0, fontSize: 12, color: '#94A3B8', fontStyle: 'italic' }}>Practice details not yet provided.</p>
                     )}
-                  </ul>
+                  </div>
                 </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: SCHEDULE & FEE */}
+          {/* ── Schedule & Fee ── */}
           {activeTab === 'schedule' && (
-            <div className="space-y-6 animate-fade-in">
-              {/* Fee Card */}
-              <div className="flex flex-col sm:flex-row items-center justify-between p-5 bg-emerald-50 border border-emerald-200 rounded-2xl gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-sm">
-                    <DollarSign className="w-6 h-6" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 22px', background: 'linear-gradient(135deg,#ECFDF5,#F0FDF4)', border: '1px solid #86EFAC', borderRadius: 18, flexWrap: 'wrap', gap: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ width: 50, height: 50, borderRadius: 15, background: 'linear-gradient(135deg,#059669,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(5,150,105,0.3)' }}>
+                    <DollarSign size={22} color="white" />
                   </div>
                   <div>
-                    <p className="text-xs text-emerald-800 font-bold uppercase tracking-wider">Consultation Fee</p>
-                    <p className="text-2xl font-black text-emerald-950 font-sans">
-                      LKR {displayFee.toLocaleString()}
+                    <p style={{ margin: '0 0 2px', fontSize: 10.5, fontWeight: 800, color: '#065F46', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Consultation Fee</p>
+                    <p style={{ margin: 0, fontSize: 26, fontWeight: 900, color: '#064E3B', fontFamily: 'Outfit, sans-serif' }}>
+                      LKR {Number(displayFee).toLocaleString()}
                     </p>
                   </div>
                 </div>
-                <div className="text-xs text-emerald-800 text-center sm:text-right max-w-xs space-y-1">
-                  <div className="font-semibold">✓ In-person clinical examination</div>
-                  <div>✓ Digital e-prescription &amp; diagnostic plan</div>
+                <div style={{ fontSize: 12, color: '#065F46', lineHeight: 1.8 }}>
+                  <div style={{ fontWeight: 600 }}>✓ In-person clinical examination</div>
+                  <div>✓ Digital e-prescription issued</div>
                 </div>
               </div>
 
-              {/* Weekly Availability Schedule */}
-              <div className="p-5 rounded-2xl border border-slate-200/80 bg-slate-50/60 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-sky-600" /> Weekly Consultation Hours
-                  </h4>
-                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
-                    Regular Practice
-                  </span>
-                </div>
-
+              <div className="doc-cred-card">
+                <p style={{ margin: '0 0 12px', fontSize: 12.5, fontWeight: 700, color: '#1E293B', display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <Calendar size={15} color="#0EA5E9" /> Weekly Consultation Hours
+                  <span style={{ marginLeft: 'auto', fontSize: 10.5, fontWeight: 700, background: '#DCFCE7', color: '#166534', padding: '2px 10px', borderRadius: 99 }}>Active Schedule</span>
+                </p>
                 {doctor.availability && doctor.availability.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {doctor.availability.map((av, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-center justify-between p-3 bg-white border border-slate-200/80 rounded-xl text-xs"
-                      >
-                        <span className="font-bold text-slate-700">{av.dayOfWeek}</span>
-                        <span className="font-semibold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg">
-                          {av.startTime.slice(0, 5)} - {av.endTime.slice(0, 5)}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    {doctor.availability.map((av: any, idx: number) => (
+                      <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 13px', background: 'white', border: '1px solid #E2E8F0', borderRadius: 10, fontSize: 12 }}>
+                        <span style={{ fontWeight: 700, color: '#334155' }}>{av.dayOfWeek}</span>
+                        <span style={{ fontWeight: 600, color: '#0369A1', background: '#EFF6FF', padding: '3px 10px', borderRadius: 8 }}>
+                          {av.startTime.slice(0, 5)} – {av.endTime.slice(0, 5)}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {['Monday', 'Wednesday', 'Friday', 'Saturday'].map((day) => (
-                      <div
-                        key={day}
-                        className="flex items-center justify-between p-3 bg-white border border-slate-200/80 rounded-xl"
-                      >
-                        <span className="font-bold text-slate-700">{day}</span>
-                        <span className="font-semibold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg">
-                          09:00 - 13:00
-                        </span>
+                      <div key={day} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 13px', background: 'white', border: '1px solid #E2E8F0', borderRadius: 10, fontSize: 12 }}>
+                        <span style={{ fontWeight: 700, color: '#334155' }}>{day}</span>
+                        <span style={{ fontWeight: 600, color: '#0369A1', background: '#EFF6FF', padding: '3px 10px', borderRadius: 8 }}>09:00 – 13:00</span>
                       </div>
                     ))}
                   </div>
@@ -394,89 +408,58 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
             </div>
           )}
 
-          {/* TAB 3: PATIENT REVIEWS */}
+          {/* ── Reviews ── */}
           {activeTab === 'reviews' && (
-            <div className="space-y-6 animate-fade-in">
-              {/* Rating Summary Bar */}
-              <div className="flex flex-col sm:flex-row items-center justify-between p-5 bg-amber-50/60 border border-amber-200/80 rounded-2xl gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="text-center sm:text-left">
-                    <div className="text-3xl font-black text-amber-950 font-sans">{avgRating}</div>
-                    <div className="flex items-center gap-1 text-amber-500 my-1 justify-center sm:justify-start">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star
-                          key={i}
-                          size={15}
-                          className={
-                            i < Math.round(Number(avgRating))
-                              ? 'fill-amber-400 text-amber-400'
-                              : 'text-slate-300'
-                          }
-                        />
-                      ))}
-                    </div>
-                    <div className="text-[11px] text-amber-800 font-medium">Overall Patient Rating</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 22px', background: 'linear-gradient(135deg,#FFFBEB,#FEF9C3)', border: '1px solid #FDE68A', borderRadius: 18, flexWrap: 'wrap', gap: 14 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 38, fontWeight: 900, color: '#92400E', fontFamily: 'Outfit, sans-serif', lineHeight: 1 }}>{avgRating}</div>
+                  <div style={{ display: 'flex', gap: 3, justifyContent: 'center', marginTop: 4 }}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star key={i} size={14} fill={i < Math.round(Number(avgRating)) ? '#F59E0B' : 'none'} color={i < Math.round(Number(avgRating)) ? '#F59E0B' : '#D1D5DB'} />
+                    ))}
                   </div>
+                  <div style={{ fontSize: 11, color: '#B45309', marginTop: 4, fontWeight: 600 }}>Overall Rating</div>
                 </div>
-
-                <div className="text-xs text-amber-900 bg-white/70 px-4 py-2.5 rounded-xl border border-amber-200 font-medium text-center sm:text-right">
-                  <strong>{rawReviews.length}</strong> verified reviews submitted by real patients following completed consultations.
+                <div style={{ fontSize: 12, color: '#92400E', background: 'rgba(255,255,255,0.8)', padding: '10px 16px', borderRadius: 12, border: '1px solid #FDE68A', fontWeight: 500, textAlign: 'right' }}>
+                  <strong style={{ fontSize: 18, fontWeight: 900, display: 'block' }}>{rawReviews.length}</strong>
+                  verified patient reviews
                 </div>
               </div>
 
-              {/* Reviews List */}
               {loadingReviews ? (
-                <div className="p-8 text-center text-slate-400 flex items-center justify-center gap-2">
-                  <Loader2 className="w-5 h-5 spin text-sky-600" />
-                  <span>Loading verified reviews...</span>
+                <div style={{ padding: '40px', textAlign: 'center', color: '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <Loader2 size={20} color="#0EA5E9" />
+                  <span>Loading reviews...</span>
                 </div>
               ) : rawReviews.length > 0 ? (
-                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 300, overflowY: 'auto' }}>
                   {rawReviews.map((rev) => {
-                    const stars = rev.stars ?? rev.rating ?? 5;
-                    const comment = rev.comment ?? rev.review ?? '';
-                    const patientInitials = (rev.patientName || 'Patient')
-                      .split(' ')
-                      .map((n) => n[0])
-                      .join('')
-                      .slice(0, 2)
-                      .toUpperCase();
-
+                    const stars = rev.stars ?? (rev as any).rating ?? 5;
+                    const comment = rev.comment ?? (rev as any).review ?? '';
+                    const patientInitials = (rev.patientName || 'P').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase();
                     return (
-                      <div
-                        key={rev.id}
-                        className="p-4 bg-slate-50 border border-slate-200/70 rounded-2xl space-y-2 transition-all hover:bg-slate-100/60"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-sky-100 text-sky-700 font-bold text-xs flex items-center justify-center">
+                      <div key={rev.id} className="doc-rev-card">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: comment ? 10 : 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#E0F2FE', color: '#0369A1', fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                               {patientInitials}
                             </div>
                             <div>
-                              <span className="font-bold text-slate-800 text-xs block">{rev.patientName || 'Verified Patient'}</span>
-                              <span className="text-[10px] text-slate-400 block">
+                              <span style={{ fontWeight: 700, color: '#1E293B', fontSize: 12, display: 'block' }}>{rev.patientName || 'Verified Patient'}</span>
+                              <span style={{ fontSize: 11, color: '#94A3B8' }}>
                                 {rev.createdAt ? new Date(rev.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : 'Verified Visit'}
                               </span>
                             </div>
                           </div>
-
-                          <div className="flex items-center gap-1">
+                          <div style={{ display: 'flex', gap: 2 }}>
                             {Array.from({ length: 5 }).map((_, i) => (
-                              <Star
-                                key={i}
-                                size={13}
-                                className={
-                                  i < stars
-                                    ? 'fill-amber-400 text-amber-400'
-                                    : 'text-slate-300'
-                                }
-                              />
+                              <Star key={i} size={13} fill={i < stars ? '#F59E0B' : 'none'} color={i < stars ? '#F59E0B' : '#D1D5DB'} />
                             ))}
                           </div>
                         </div>
-
                         {comment && (
-                          <p className="text-slate-700 text-xs leading-relaxed italic pl-9">
+                          <p style={{ margin: 0, fontSize: 12.5, color: '#475569', fontStyle: 'italic', lineHeight: 1.6, paddingLeft: 44 }}>
                             "{comment}"
                           </p>
                         )}
@@ -485,29 +468,27 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
                   })}
                 </div>
               ) : (
-                <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-xs text-slate-500 space-y-2">
-                  <MessageSquare className="w-8 h-8 text-slate-300 mx-auto" />
-                  <p className="font-semibold text-slate-700">No written patient reviews yet.</p>
-                  <p className="text-slate-400">Patients can submit verified ratings and written feedback after their consultation completes.</p>
+                <div style={{ padding: '40px 24px', textAlign: 'center', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+                  <MessageSquare size={36} color="#CBD5E1" />
+                  <p style={{ margin: 0, fontWeight: 700, color: '#475569', fontSize: 14 }}>No patient reviews yet</p>
+                  <p style={{ margin: 0, fontSize: 12, color: '#94A3B8' }}>Reviews appear after consultations are completed</p>
                 </div>
               )}
             </div>
           )}
-
         </div>
 
-        {/* Modal Footer Actions */}
-        <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="text-xs text-slate-500 hidden sm:block">
-            {doctor.hospitalClinic ? `${doctor.hospitalClinic} • ` : ''}SLMC Registered Specialist
+        {/* ─── Footer ─── */}
+        <div style={{ padding: '14px 26px', background: '#F8FAFC', borderTop: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexShrink: 0 }}>
+          <div style={{ fontSize: 11, color: '#94A3B8' }}>
+            {doctor.hospitalClinic ? `${doctor.hospitalClinic} · ` : ''}SLMC Registered Specialist
           </div>
-
-          <div className="flex items-center justify-end gap-2.5 w-full sm:w-auto">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-bold transition"
               id="close-profile-modal-btn"
+              style={{ padding: '8px 18px', borderRadius: 12, border: '1px solid #CBD5E1', color: '#475569', background: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
             >
               Close
             </button>
@@ -515,19 +496,25 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
               <button
                 type="button"
                 onClick={handleBookNow}
-                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white text-xs font-bold shadow-md shadow-sky-500/20 transition flex items-center justify-center gap-2"
                 id="book-consultation-modal-btn"
+                style={{
+                  padding: '8px 20px', borderRadius: 12, border: 'none',
+                  background: 'linear-gradient(135deg, #0369A1, #1D4ED8)',
+                  color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  boxShadow: '0 4px 14px rgba(3,105,161,0.35)',
+                }}
               >
-                <Calendar className="w-4 h-4" />
-                Book Consultation Now
-                <ArrowRight className="w-3.5 h-3.5" />
+                <Calendar size={14} />
+                Book Consultation
+                <ArrowRight size={12} />
               </button>
             )}
           </div>
         </div>
-
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

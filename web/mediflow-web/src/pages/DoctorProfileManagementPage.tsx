@@ -424,7 +424,7 @@ export const DoctorProfileManagementPage: React.FC = () => {
                               <Star
                                 key={i}
                                 className={`w-3.5 h-3.5 ${
-                                  i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
+                                  i < (rev.stars ?? rev.rating ?? 5) ? 'fill-amber-400 text-amber-400' : 'text-slate-300'
                                 }`}
                               />
                             ))}

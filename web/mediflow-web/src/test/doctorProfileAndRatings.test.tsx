@@ -14,6 +14,11 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
+vi.mock('../hooks', () => ({
+  useDoctor: () => ({ data: undefined, isLoading: false }),
+  useDoctorReviews: () => ({ data: [], isLoading: false }),
+}));
+
 const sampleDoctor: DoctorDetail = {
   id: 101,
   userId: 201,
@@ -86,10 +91,14 @@ describe('DoctorProfileModal Component', () => {
     expect(screen.getByText(/Fellowship in Interventional Cardiology \(Singapore\)/i)).toBeInTheDocument();
 
     // Affiliation & Fee
-    expect(screen.getByText('National Hospital of Sri Lanka')).toBeInTheDocument();
+    expect(screen.getAllByText('National Hospital of Sri Lanka')[0]).toBeInTheDocument();
+
+    // Schedule & Fee tab
+    fireEvent.click(screen.getByRole('button', { name: /Schedule & Fee/i }));
     expect(screen.getByText(/LKR 3,500/i)).toBeInTheDocument();
 
-    // Patient Reviews
+    // Patient Reviews tab
+    fireEvent.click(screen.getByRole('button', { name: /Patient Reviews/i }));
     expect(screen.getByText('Kavinda Perera')).toBeInTheDocument();
     expect(screen.getByText(/"Exceptional physician\. Explained my cardiac condition with clarity\."/i)).toBeInTheDocument();
     expect(screen.getByText('Dilini Silva')).toBeInTheDocument();
@@ -127,5 +136,33 @@ describe('DoctorProfileModal Component', () => {
     );
 
     expect(container.firstChild).toBeNull();
+  });
+
+  it('gracefully handles appointment-style doctor object with doctorName and specialtyName', () => {
+    const partialDoctor = {
+      doctorId: 88,
+      doctorName: 'Dr. Samantha Fernando',
+      specialtyName: 'Dermatology',
+      doctorBio: 'Expert in dermatological conditions.',
+      fee: 2800,
+    };
+
+    render(
+      <MemoryRouter>
+        <DoctorProfileModal
+          doctor={partialDoctor}
+          isOpen={true}
+          onClose={vi.fn()}
+          showBookButton={true}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Dr. Samantha Fernando')).toBeInTheDocument();
+    expect(screen.getByText('Dermatology')).toBeInTheDocument();
+    expect(screen.getByText('Expert in dermatological conditions.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Schedule & Fee/i }));
+    expect(screen.getByText(/LKR 2,800/i)).toBeInTheDocument();
   });
 });
