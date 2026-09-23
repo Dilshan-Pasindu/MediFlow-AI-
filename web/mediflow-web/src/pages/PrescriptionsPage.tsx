@@ -1,75 +1,20 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Download, Eye, ChevronRight, Pill } from 'lucide-react';
+import { FileText, Download, Eye, ChevronRight, Pill, Printer, X } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { useMyPrescriptions } from '../hooks';
 import type { Prescription } from '../types/prescription';
+import { downloadPrescriptionPdf, generatePrescriptionHtml } from '../utils/prescriptionPdfGenerator';
 
 export default function PrescriptionsPage() {
   const navigate = useNavigate();
   const { data: prescriptions = [], isLoading: loading } = useMyPrescriptions();
   const [selectedPrescription, setSelectedPrescription] = useState<Prescription | null>(null);
+  const [previewPrescription, setPreviewPrescription] = useState<Prescription | null>(null);
 
   const handleDownloadPrescription = (rx: Prescription) => {
-    const content = `
-===================================================================
-                       MEDIFLOW AI E-PRESCRIPTION
-===================================================================
-Rx Number: Rx #${rx.id}
-Date Issued: ${new Date(rx.dateIssued).toLocaleDateString()}
-Appointment: ${rx.appointmentNumber || 'N/A'}
-Status: ${rx.status}
-
--------------------------------------------------------------------
-PATIENT & CLINICAL DETAILS
--------------------------------------------------------------------
-Patient Name: ${rx.patientName}
-Doctor: Dr. ${rx.doctorName}
-Diagnosis: ${rx.diagnosis || 'General Consultation'}
-
--------------------------------------------------------------------
-PRESCRIBED MEDICATIONS
--------------------------------------------------------------------
-${(rx.items || []).map((item, i) => `${i + 1}. ${item.medicineName}\n   Dosage: ${item.dosage} | Frequency: ${item.frequency} | Duration: ${item.duration} | Qty: ${item.quantity}\n   Instructions: ${item.instructions || 'As directed'}`).join('\n\n')}
-
--------------------------------------------------------------------
-SPECIAL INSTRUCTIONS & NOTES
--------------------------------------------------------------------
-${rx.instructions || 'Take medications as prescribed.'}
-
-===================================================================
-Authorized by Dr. ${rx.doctorName}
-MediFlow AI Integrated Healthcare System
-===================================================================
-    `;
-
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Prescription Rx #${rx.id} - ${rx.patientName}</title>
-            <style>
-              body { font-family: 'Courier New', monospace; padding: 30px; white-space: pre-wrap; font-size: 14px; line-height: 1.5; color: #1e293b; }
-              @media print { body { padding: 0; } }
-            </style>
-          </head>
-          <body>${content}</body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => { printWindow.print(); }, 250);
-    } else {
-      const element = document.createElement('a');
-      const file = new Blob([content], { type: 'text/plain' });
-      element.href = URL.createObjectURL(file);
-      element.download = `Prescription_Rx${rx.id}_${rx.patientName.replace(/\s+/g, '_')}.txt`;
-      document.body.appendChild(element);
-      element.click();
-      document.body.removeChild(element);
-    }
+    downloadPrescriptionPdf(rx);
   };
 
   return (
@@ -108,9 +53,19 @@ MediFlow AI Integrated Healthcare System
                         </span>
                         <button
                           className="btn btn-ghost btn-sm"
+                          onClick={(e) => { e.stopPropagation(); setPreviewPrescription(rx); }}
+                          title="Preview Official Document"
+                          style={{ padding: '4px 8px', color: 'var(--med-teal)' }}
+                          id={`preview-rx-${rx.id}`}
+                        >
+                          <Eye size={14} />
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
                           onClick={(e) => { e.stopPropagation(); handleDownloadPrescription(rx); }}
-                          title="Download / Print"
+                          title="Save as PDF / Print"
                           style={{ padding: '4px 8px' }}
+                          id={`download-rx-${rx.id}`}
                         >
                           <Download size={14} />
                         </button>
@@ -177,20 +132,135 @@ MediFlow AI Integrated Healthcare System
                       </div>
                     )}
 
-                    <button
-                      className="btn btn-primary"
-                      style={{ width: '100%', marginTop: 18 }}
-                      id="download-rx-btn"
-                      onClick={() => handleDownloadPrescription(selectedPrescription)}
-                    >
-                      <Download size={15} /> Download Prescription
-                    </button>
-                    <button className="btn btn-teal" style={{ width: '100%', marginTop: 8 }} onClick={() => navigate('/orders')} id="order-medicines-btn">
-                      <Pill size={15} /> Order Medicines
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 18 }}>
+                      <button
+                        className="btn btn-primary"
+                        style={{ width: '100%' }}
+                        id="download-rx-btn"
+                        onClick={() => handleDownloadPrescription(selectedPrescription)}
+                      >
+                        <Download size={15} /> Download / Save PDF
+                      </button>
+
+                      <button
+                        className="btn btn-outline"
+                        style={{ width: '100%', borderColor: 'var(--med-teal)', color: 'var(--med-teal)' }}
+                        id="preview-rx-btn"
+                        onClick={() => setPreviewPrescription(selectedPrescription)}
+                      >
+                        <Eye size={15} /> Preview Official Document
+                      </button>
+
+                      <button className="btn btn-teal" style={{ width: '100%' }} onClick={() => navigate('/orders')} id="order-medicines-btn">
+                        <Pill size={15} /> Order Medicines
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── High-Fidelity Prescription PDF Preview Modal ── */}
+          {previewPrescription && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 9999,
+                background: 'rgba(15, 23, 42, 0.75)',
+                backdropFilter: 'blur(8px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px 16px',
+              }}
+              onClick={() => setPreviewPrescription(null)}
+            >
+              <div
+                className="scale-in"
+                style={{
+                  background: '#ffffff',
+                  width: '100%',
+                  maxWidth: '920px',
+                  height: '92vh',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div
+                  style={{
+                    padding: '14px 20px',
+                    background: '#0f172a',
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8, background: '#0d9488',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <FileText size={18} color="#ffffff" />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 14 }}>Official Prescription Document Preview</div>
+                      <div style={{ fontSize: 11.5, color: '#94a3b8' }}>
+                        Rx #{previewPrescription.id} • {previewPrescription.patientName} • Dr. {previewPrescription.doctorName}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      style={{ background: '#0d9488', borderColor: '#0d9488', display: 'flex', alignItems: 'center', gap: 6 }}
+                      onClick={() => handleDownloadPrescription(previewPrescription)}
+                      id="modal-print-btn"
+                    >
+                      <Printer size={14} /> Save as PDF / Print
+                    </button>
+                    <button
+                      onClick={() => setPreviewPrescription(null)}
+                      style={{
+                        background: 'rgba(255,255,255,0.1)',
+                        border: 'none',
+                        color: '#cbd5e1',
+                        borderRadius: '6px',
+                        padding: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      id="modal-close-btn"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Iframe Content */}
+                <div style={{ flex: 1, background: '#f1f5f9', overflow: 'hidden' }}>
+                  <iframe
+                    title="Prescription PDF Preview"
+                    srcDoc={generatePrescriptionHtml(previewPrescription)}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: 'none',
+                    }}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
