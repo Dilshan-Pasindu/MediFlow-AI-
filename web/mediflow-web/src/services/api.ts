@@ -291,6 +291,43 @@ export async function apiGetPrescriptions(): Promise<Prescription[]> {
   return apiFetch<Prescription[]>('/pharmacist/prescriptions');
 }
 
+export async function apiGetDoctorPrescriptions(status?: string): Promise<Prescription[]> {
+  const qs = status ? `?status=${status}` : '';
+  return apiFetch<Prescription[]>(`/prescriptions/doctor/my${qs}`);
+}
+
+export async function apiUpdatePrescription(
+  id: number | string,
+  data: {
+    patientName?: string;
+    isWalkIn?: boolean;
+    walkInPatientDetails?: {
+      fullName: string;
+      age?: string;
+      gender?: string;
+      phone?: string;
+    };
+    diagnosis?: string;
+    fulfillmentSource?: string;
+    instructions?: string;
+    items?: Array<{
+      medicineId?: number;
+      medicineName: string;
+      dosage: string;
+      frequency: string;
+      duration: string;
+      quantity: number;
+      instructions?: string;
+    }>;
+  }
+): Promise<{ message: string; prescription: Prescription }> {
+  return apiFetch(`/prescriptions/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function apiDeletePrescription(id: number | string): Promise<{ message: string }> {
+  return apiFetch(`/prescriptions/${id}`, { method: 'DELETE' });
+}
+
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
 export async function apiCreateOrder(data: CreateOrderDto | Record<string, unknown>) {
@@ -307,6 +344,10 @@ export async function apiPayOrder(id: number | string) {
 
 export async function apiUpdateOrderStatus(id: number | string, status: string) {
   return apiFetch(`/orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
+}
+
+export async function apiDeleteOrder(id: number | string): Promise<{ message: string }> {
+  return apiFetch(`/orders/${id}`, { method: 'DELETE' });
 }
 
 export async function apiCalculateOrderPrice(id: number | string, pharmacyId: number | string) {
@@ -809,3 +850,5 @@ export async function apiMarkNotificationRead(id: number) {
 export async function apiMarkAllNotificationsRead() {
   return apiFetch('/notifications/read-all', { method: 'POST' });
 }
+
+

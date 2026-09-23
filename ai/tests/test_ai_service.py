@@ -483,7 +483,8 @@ def test_inventory_forecast_agent(client):
                     "daysUntilStockOut": 25.0, "expiringBatches": [],
                 },
             ],
-        },    }
+        },
+    }
 
     mock_post_resp = MagicMock()
     mock_post_resp.status_code = 200
@@ -527,3 +528,4 @@ def test_inventory_forecast_agent(client):
         "forecastDemand", "predictStockout", "generateRestockRecommendation"
     ]:
         assert expected_tool in tool_names, f"Tool '{expected_tool}' missing from audit steps"
+
