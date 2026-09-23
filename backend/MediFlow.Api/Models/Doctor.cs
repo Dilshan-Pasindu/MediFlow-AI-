@@ -13,6 +13,19 @@ public class Doctor
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // Extended profile fields
+    public string? ProfilePhoto { get; set; }
+    public string? SubSpecialty { get; set; }
+    public string? HospitalClinic { get; set; }
+    public string? Languages { get; set; }
+    public string? Location { get; set; }
+    public string? MbbsUniversity { get; set; }
+    public string? PhdUniversity { get; set; }
+    public string? OtherQualifications { get; set; }
+    public string? Certifications { get; set; }
+    public int? Age { get; set; }
+    public string? RegistrationNumber { get; set; }
+
     // Navigation properties
     public ICollection<DoctorSpecialty> DoctorSpecialties { get; set; } = new List<DoctorSpecialty>();
     public ICollection<DoctorAvailability> Availabilities { get; set; } = new List<DoctorAvailability>();

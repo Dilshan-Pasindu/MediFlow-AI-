@@ -1,14 +1,31 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Star, Filter, ChevronDown, SlidersHorizontal, MapPin, Clock, ArrowRight, X } from 'lucide-react';
+import { Search, Star, Filter, ChevronDown, SlidersHorizontal, MapPin, Clock, ArrowRight, X, Info, User } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { useDoctors, useSpecialties } from '../hooks';
+import { DoctorProfileModal } from '../components/DoctorProfileModal';
+import type { DoctorDetail } from '../types/doctor';
 
-const SPECIALTY_ICONS = {
-  'Cardiology': '❤️', 'Neurology': '🧠', 'Dermatology': '🩹', 'Gastroenterology': '🫁',
-  'Orthopedics': '🦴', 'Pediatrics': '👶', 'Psychiatry': '💭', 'General Medicine': '🩺',
-  'Gynecology': '🌸', 'Ophthalmology': '👁️', 'ENT': '👂', 'Oncology': '🔬',
+const SPECIALTY_ICONS: Record<string, string> = {
+  'Cardiology': '❤️',
+  'Vascular Surgery': '🩸',
+  'Neurology': '🧠',
+  'Neurosurgery': '🔬',
+  'Orthopedics': '🦴',
+  'Physiatry': '🏃',
+  'Dermatology': '🩹',
+  'Ophthalmology': '👁️',
+  'ENT': '👂',
+  'Gastroenterology': '🫁',
+  'Nephrology': '💧',
+  'Pulmonology': '🫁',
+  'Endocrinology': '⚖️',
+  'Oncology': '🎗️',
+  'Allergy & Immunology': '🛡️',
+  'Hematology': '🩸',
+  'Pediatrics': '👶',
+  'General Medicine': '🩺',
 };
 
 export default function FindDoctorPage() {
@@ -16,6 +33,8 @@ export default function FindDoctorPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSpecialty, setActiveSpecialty] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState('rating');
+  const [selectedDoctor, setSelectedDoctor] = useState<DoctorDetail | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: specialties = [] } = useSpecialties();
   const { data: doctors = [], isLoading: loading } = useDoctors(activeSpecialty || undefined, searchTerm || undefined);
@@ -53,7 +72,8 @@ export default function FindDoctorPage() {
                 className="search-input"
                 placeholder="Search by doctor name, specialty..."
                 value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                maxLength={100}
+                onChange={e => e.target.value.length <= 100 && setSearchTerm(e.target.value)}
               />
               {searchTerm && (
                 <button
@@ -155,35 +175,59 @@ export default function FindDoctorPage() {
                 <div
                   key={doc.id}
                   className="doctor-card fade-in"
-                  onClick={() => navigate(`/doctors/${doc.id}/book`)}
                   id={`doctor-card-${doc.id}`}
                 >
                   <div className="doctor-card-top-bar" />
-                  <div className="doctor-header">
-                    <div className="doc-avatar">
-                      {doc.fullName ? doc.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
-                    </div>
-                    <div>
+                  <div className="doctor-header" style={{ cursor: 'pointer' }} onClick={() => { setSelectedDoctor(doc); setIsModalOpen(true); }}>
+                    {doc.profilePhoto ? (
+                      <img
+                        src={doc.profilePhoto}
+                        alt={doc.fullName}
+                        className="doc-avatar"
+                        style={{ objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div className="doc-avatar">
+                        {doc.fullName ? doc.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
+                      </div>
+                    )}
+                    <div style={{ flex: 1 }}>
                       <div className="doc-name">{doc.fullName}</div>
-                      <div className="doc-spec">{doc.specialties?.map((s: any) => s.name).join(', ') || 'General Medicine'}</div>
+                      <div className="doc-spec">
+                        {doc.specialties?.map((s: any) => s.name).join(', ') || 'General Medicine'}
+                        {doc.subSpecialty && <span style={{ fontSize: 11, opacity: 0.85 }}> • {doc.subSpecialty}</span>}
+                      </div>
                       <div className="doc-quals">{doc.qualifications}</div>
                     </div>
                   </div>
 
-                  <div className="doc-hospital" style={{ marginBottom: 12 }}>
-                    🏥 {doc.experienceYears} years experience
+                  <div className="doc-hospital" style={{ marginBottom: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+                    🏥 {doc.hospitalClinic || `${doc.experienceYears} years clinical experience`}
                   </div>
 
                   <div className="doc-meta">
                     <div className="doc-meta-item">
                       <Star size={13} className="star" fill="currentColor" />
-                      <strong>{doc.averageRating?.toFixed(1) || '—'}</strong>
-                      <span style={{ color: 'var(--text-muted)' }}>({doc.reviewCount || 0})</span>
+                      <strong>{doc.averageRating ? doc.averageRating.toFixed(1) : '5.0'}</strong>
+                      <span style={{ color: 'var(--text-muted)' }}>({doc.reviewCount || doc.reviews?.length || 0})</span>
                     </div>
                     <div className="doc-meta-item">
                       <span className={`avail-dot ${!doc.isActive ? 'busy' : ''}`} />
                       {doc.isActive ? 'Available' : 'Unavailable'}
                     </div>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: 11, padding: '2px 8px', color: 'var(--primary)', marginLeft: 'auto' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedDoctor(doc);
+                        setIsModalOpen(true);
+                      }}
+                      id={`view-profile-btn-${doc.id}`}
+                    >
+                      <Info size={12} style={{ marginRight: 4 }} /> View Profile
+                    </button>
                   </div>
 
                   <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 14, borderTop: '1px solid var(--border)' }}>
@@ -191,7 +235,11 @@ export default function FindDoctorPage() {
                       <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 1 }}>Consultation Fee</div>
                       <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'Outfit, sans-serif' }}>Rs. {doc.consultationFee?.toLocaleString()}</div>
                     </div>
-                    <button className="btn btn-primary btn-sm" id={`book-btn-${doc.id}`}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      id={`book-btn-${doc.id}`}
+                      onClick={() => navigate(`/doctors/${doc.id}/book`)}
+                    >
                       Book Now <ArrowRight size={13} />
                     </button>
                   </div>
@@ -199,6 +247,14 @@ export default function FindDoctorPage() {
               ))}
             </div>
           )}
+
+          {/* Pre-Booking Doctor Profile Modal */}
+          <DoctorProfileModal
+            doctor={selectedDoctor}
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            showBookButton={true}
+          />
         </div>
       </div>
     </div>

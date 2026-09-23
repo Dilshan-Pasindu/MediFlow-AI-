@@ -31,9 +31,21 @@ export interface Doctor {
   rating: number;
   reviewCount: number;
   profileImageUrl?: string;
+  profilePhoto?: string;
   isAvailableToday?: boolean;
   specialties?: string[];
   doctorSpecialties?: DoctorSpecialty[];
+  qualifications?: string;
+  subSpecialty?: string;
+  hospitalClinic?: string;
+  languages?: string;
+  location?: string;
+  mbbsUniversity?: string;
+  phdUniversity?: string;
+  otherQualifications?: string;
+  certifications?: string;
+  age?: number;
+  registrationNumber?: string;
 }
 
 export interface Appointment {
@@ -48,10 +60,26 @@ export interface Appointment {
   createdAt: string;
   updatedAt: string;
   doctor?: Doctor;
+  hasRated?: boolean;
 }
 
 export interface BookAppointmentRequest {
   doctorId: number;
   appointmentDateTime: string;
   notes?: string;
+}
+
+export interface RateAppointmentPayload {
+  rating: number;
+  review?: string;
+}
+
+export interface AppointmentRatingDto {
+  id: number;
+  appointmentId: number;
+  doctorId: number;
+  patientId: number;
+  rating: number;
+  review?: string;
+  createdAt: string;
 }

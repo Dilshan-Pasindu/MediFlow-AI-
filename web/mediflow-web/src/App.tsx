@@ -27,6 +27,7 @@ const ConsultationPage = React.lazy(() => import('./pages/doctor/ConsultationPag
 const DoctorEPrescriptionPage = React.lazy(() => import('./pages/doctor/DoctorEPrescriptionPage'));
 const DoctorLeavePage = React.lazy(() => import('./pages/doctor/DoctorLeavePage'));
 const DoctorHistoryPage = React.lazy(() => import('./pages/doctor/DoctorHistoryPage'));
+const DoctorProfileManagementPage = React.lazy(() => import('./pages/DoctorProfileManagementPage'));
 
 // Receptionist
 const ReceptionistDashboard = React.lazy(() => import('./pages/receptionist/ReceptionistDashboard'));
@@ -166,6 +167,7 @@ function App() {
           <Route path="/doctor/e-prescription" element={<ProtectedRoute roles={['Doctor']}><DoctorEPrescriptionPage /></ProtectedRoute>} />
           <Route path="/doctor/leaves" element={<ProtectedRoute roles={['Doctor']}><DoctorLeavePage /></ProtectedRoute>} />
           <Route path="/doctor/history" element={<ProtectedRoute roles={['Doctor']}><DoctorHistoryPage /></ProtectedRoute>} />
+          <Route path="/doctor/profile" element={<ProtectedRoute roles={['Doctor']}><Navigate to="/profile" replace /></ProtectedRoute>} />
 
           {/* Receptionist Portal */}
           <Route path="/receptionist/dashboard" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistDashboard /></ProtectedRoute>} />

@@ -14,11 +14,26 @@ class SymptomInput(BaseModel):
     severity: Optional[str] = Field("moderate", description="Self-reported severity: mild, moderate, severe")
 
 
+class SystemCheckItem(BaseModel):
+    name: str = Field(..., description="Check name")
+    status: str = Field("PASSED", description="PASSED, WARNING, or FAILED")
+    detail: str = Field(..., description="Details of check execution")
+
+
+class SystemCheckerResult(BaseModel):
+    status: str = Field("PASSED", description="Overall check status: PASSED, WARNING, or FAILED")
+    checks: List[SystemCheckItem] = Field(default_factory=list, description="List of system checks")
+    checked_at: Optional[str] = Field(None, description="Timestamp of check execution")
+
+
 class SpecialistRecommendation(BaseModel):
     recommended_specialty: str = Field(..., description="Recommended medical specialty department")
     confidence_score: float = Field(..., ge=0.0, le=1.0, description="Confidence score from 0.0 to 1.0")
     rationale: str = Field(..., description="Clinical reasoning explaining the recommendation")
     suggested_actions: List[str] = Field(default_factory=list, description="Next steps for the patient")
+    alternative_specialty: Optional[str] = Field(None, description="Secondary candidate specialty")
+    alternative_confidence: Optional[float] = Field(None, description="Secondary candidate confidence score")
+    system_checker: Optional[SystemCheckerResult] = Field(None, description="System verification and safety audit")
 
 
 # Clinical Decision Support Schemas

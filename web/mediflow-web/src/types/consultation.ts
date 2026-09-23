@@ -99,8 +99,16 @@ export interface ConsultationAppointment {
   status: string;
   doctorId?: number;
   doctorName?: string;
+  doctorProfilePhoto?: string | null;
   specialtyName?: string;
   fee?: number;
+  hasRated?: boolean;
+  rating?: {
+    stars?: number;
+    Stars?: number;
+    comment?: string;
+    Comment?: string;
+  } | null;
 }
 
 export interface ClinicalAnalysisRequestDto {

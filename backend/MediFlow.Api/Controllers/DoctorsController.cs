@@ -45,6 +45,17 @@ public class DoctorsController : ControllerBase
             d.ExperienceYears,
             d.ConsultationFee,
             d.IsActive,
+            d.ProfilePhoto,
+            d.SubSpecialty,
+            d.HospitalClinic,
+            d.Languages,
+            d.Location,
+            d.MbbsUniversity,
+            d.PhdUniversity,
+            d.OtherQualifications,
+            d.Certifications,
+            d.Age,
+            d.RegistrationNumber,
             Specialties = d.DoctorSpecialties.Select(ds => new { ds.Specialty.Id, ds.Specialty.Name }),
             AverageRating = d.Ratings.Count > 0 ? Math.Round(d.Ratings.Average(r => r.Stars), 1) : 0,
             ReviewCount = d.Ratings.Count,
@@ -101,7 +112,7 @@ public class DoctorsController : ControllerBase
     }
 
     /// <summary>
-    /// Get a single doctor by ID (public).
+    /// Get a single doctor by ID with complete profile and verified reviews (public).
     /// </summary>
     [HttpGet("{id}")]
     [AllowAnonymous]
@@ -110,7 +121,7 @@ public class DoctorsController : ControllerBase
         var doctor = await _db.Doctors
             .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
             .Include(d => d.Availabilities)
-            .Include(d => d.Ratings)
+            .Include(d => d.Ratings).ThenInclude(r => r.Appointment).ThenInclude(a => a.Patient)
             .Where(d => d.Id == id)
             .Select(d => new
             {
@@ -121,10 +132,31 @@ public class DoctorsController : ControllerBase
                 d.ExperienceYears,
                 d.ConsultationFee,
                 d.IsActive,
+                d.ProfilePhoto,
+                d.SubSpecialty,
+                d.HospitalClinic,
+                d.Languages,
+                d.Location,
+                d.MbbsUniversity,
+                d.PhdUniversity,
+                d.OtherQualifications,
+                d.Certifications,
+                d.Age,
+                d.RegistrationNumber,
                 Specialties = d.DoctorSpecialties.Select(ds => new { ds.Specialty.Id, ds.Specialty.Name }),
                 AverageRating = d.Ratings.Count > 0 ? Math.Round(d.Ratings.Average(r => r.Stars), 1) : 0,
                 ReviewCount = d.Ratings.Count,
-                Availability = d.Availabilities.Select(a => new { a.DayOfWeek, a.StartTime, a.EndTime })
+                Availability = d.Availabilities.Select(a => new { a.DayOfWeek, a.StartTime, a.EndTime }),
+                Reviews = d.Ratings.OrderByDescending(r => r.CreatedAt).Take(20).Select(r => new
+                {
+                    r.Id,
+                    r.Stars,
+                    Rating = r.Stars,
+                    r.Comment,
+                    Review = r.Comment,
+                    r.CreatedAt,
+                    PatientName = r.Appointment.Patient != null ? r.Appointment.Patient.FullName : "Patient"
+                })
             })
             .FirstOrDefaultAsync();
 
@@ -132,6 +164,170 @@ public class DoctorsController : ControllerBase
             return NotFound(new { message = "Doctor not found." });
 
         return Ok(doctor);
+    }
+
+    /// <summary>
+    /// Get reviews for a specific doctor (public).
+    /// </summary>
+    [HttpGet("{id}/reviews")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetDoctorReviews(int id)
+    {
+        var doctorExists = await _db.Doctors.AnyAsync(d => d.Id == id);
+        if (!doctorExists)
+            return NotFound(new { message = "Doctor not found." });
+
+        var reviews = await _db.DoctorRatings
+            .Include(r => r.Appointment).ThenInclude(a => a.Patient)
+            .Where(r => r.DoctorId == id)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new
+            {
+                r.Id,
+                r.Stars,
+                Rating = r.Stars,
+                r.Comment,
+                Review = r.Comment,
+                r.CreatedAt,
+                PatientName = r.Appointment.Patient != null ? r.Appointment.Patient.FullName : "Patient"
+            })
+            .ToListAsync();
+
+        return Ok(reviews);
+    }
+
+    /// <summary>
+    /// Get profile of the currently logged-in doctor.
+    /// </summary>
+    [HttpGet("me/profile")]
+    [Authorize(Roles = "Doctor")]
+    public async Task<IActionResult> GetMyProfile()
+    {
+        var userId = GetUserId();
+        var user = await _db.Users.FindAsync(userId);
+        var doctor = await _db.Doctors
+            .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+            .Include(d => d.Ratings)
+            .FirstOrDefaultAsync(d => d.UserId == userId);
+
+        if (doctor == null && user != null)
+        {
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .Include(d => d.Ratings)
+                .FirstOrDefaultAsync(d => d.FullName == user.FullName);
+            if (doctor != null)
+            {
+                doctor.UserId = userId;
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        if (doctor == null)
+            return NotFound(new { message = "Doctor profile not found for this account." });
+
+        return Ok(new
+        {
+            doctor.Id,
+            doctor.FullName,
+            Email = user?.Email ?? "",
+            PhoneNumber = user?.PhoneNumber ?? "",
+            doctor.Bio,
+            doctor.Qualifications,
+            doctor.ExperienceYears,
+            doctor.ConsultationFee,
+            doctor.IsActive,
+            doctor.ProfilePhoto,
+            doctor.SubSpecialty,
+            doctor.HospitalClinic,
+            doctor.Languages,
+            doctor.Location,
+            doctor.MbbsUniversity,
+            doctor.PhdUniversity,
+            doctor.OtherQualifications,
+            doctor.Certifications,
+            doctor.Age,
+            doctor.RegistrationNumber,
+            Specialties = doctor.DoctorSpecialties.Select(ds => new { ds.Specialty.Id, ds.Specialty.Name }),
+            AverageRating = doctor.Ratings.Count > 0 ? Math.Round(doctor.Ratings.Average(r => r.Stars), 1) : 0,
+            ReviewCount = doctor.Ratings.Count
+        });
+    }
+
+    /// <summary>
+    /// Update profile for the currently logged-in doctor.
+    /// </summary>
+    [HttpPut("me/profile")]
+    [Authorize(Roles = "Doctor")]
+    public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateDoctorProfileRequest request)
+    {
+        var userId = GetUserId();
+        var user = await _db.Users.FindAsync(userId);
+        var doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.UserId == userId);
+
+        if (doctor == null && user != null)
+        {
+            doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.FullName == user.FullName);
+            if (doctor != null)
+            {
+                doctor.UserId = userId;
+                await _db.SaveChangesAsync();
+            }
+        }
+
+        if (doctor == null)
+            return NotFound(new { message = "Doctor profile not found for this account." });
+
+        if (request.ExperienceYears.HasValue && request.ExperienceYears.Value < 0)
+            return BadRequest(new { message = "Experience years cannot be negative." });
+
+        if (request.ConsultationFee.HasValue && request.ConsultationFee.Value < 0)
+            return BadRequest(new { message = "Consultation fee cannot be negative." });
+
+        if (request.Age.HasValue && (request.Age.Value < 20 || request.Age.Value > 100))
+            return BadRequest(new { message = "Age must be between 20 and 100." });
+
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+        {
+            var trimmedName = request.FullName.Trim();
+            doctor.FullName = trimmedName;
+            if (user != null)
+            {
+                user.FullName = trimmedName;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        if (request.PhoneNumber != null)
+        {
+            var trimmedPhone = request.PhoneNumber.Trim();
+            if (user != null)
+            {
+                user.PhoneNumber = trimmedPhone;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        if (request.Bio != null) doctor.Bio = request.Bio.Trim();
+        if (request.Qualifications != null) doctor.Qualifications = request.Qualifications.Trim();
+        if (request.ExperienceYears.HasValue) doctor.ExperienceYears = request.ExperienceYears.Value;
+        if (request.ConsultationFee.HasValue) doctor.ConsultationFee = request.ConsultationFee.Value;
+        if (request.ProfilePhoto != null) doctor.ProfilePhoto = request.ProfilePhoto.Trim();
+        if (request.SubSpecialty != null) doctor.SubSpecialty = request.SubSpecialty.Trim();
+        if (request.HospitalClinic != null) doctor.HospitalClinic = request.HospitalClinic.Trim();
+        if (request.Languages != null) doctor.Languages = request.Languages.Trim();
+        if (request.Location != null) doctor.Location = request.Location.Trim();
+        if (request.MbbsUniversity != null) doctor.MbbsUniversity = request.MbbsUniversity.Trim();
+        if (request.PhdUniversity != null) doctor.PhdUniversity = request.PhdUniversity.Trim();
+        if (request.OtherQualifications != null) doctor.OtherQualifications = request.OtherQualifications.Trim();
+        if (request.Certifications != null) doctor.Certifications = request.Certifications.Trim();
+        if (request.Age.HasValue) doctor.Age = request.Age.Value;
+        if (request.RegistrationNumber != null) doctor.RegistrationNumber = request.RegistrationNumber.Trim();
+        doctor.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = "Profile updated successfully.", doctor.Id });
     }
 
     /// <summary>
@@ -147,6 +343,7 @@ public class DoctorsController : ControllerBase
                 s.Id,
                 s.Name,
                 s.Description,
+                s.Icon,
                 DoctorCount = s.DoctorSpecialties.Count
             })
             .ToListAsync();
@@ -184,6 +381,17 @@ public class DoctorsController : ControllerBase
             d.ExperienceYears,
             d.ConsultationFee,
             d.IsActive,
+            d.ProfilePhoto,
+            d.SubSpecialty,
+            d.HospitalClinic,
+            d.Languages,
+            d.Location,
+            d.MbbsUniversity,
+            d.PhdUniversity,
+            d.OtherQualifications,
+            d.Certifications,
+            d.Age,
+            d.RegistrationNumber,
             Specialties = d.DoctorSpecialties.Select(ds => new { ds.Specialty.Id, ds.Specialty.Name }),
             AverageRating = d.Ratings.Count > 0 ? Math.Round(d.Ratings.Average(r => r.Stars), 1) : 0.0,
             ReviewCount = d.Ratings.Count,
@@ -201,6 +409,17 @@ public class DoctorsController : ControllerBase
                 d.ExperienceYears,
                 d.ConsultationFee,
                 d.IsActive,
+                d.ProfilePhoto,
+                d.SubSpecialty,
+                d.HospitalClinic,
+                d.Languages,
+                d.Location,
+                d.MbbsUniversity,
+                d.PhdUniversity,
+                d.OtherQualifications,
+                d.Certifications,
+                d.Age,
+                d.RegistrationNumber,
                 d.Specialties,
                 d.AverageRating,
                 d.ReviewCount,
@@ -222,3 +441,23 @@ public class DoctorsController : ControllerBase
         return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : 0;
     }
 }
+
+public record UpdateDoctorProfileRequest(
+    string? FullName,
+    string? PhoneNumber,
+    string? Bio,
+    string? Qualifications,
+    int? ExperienceYears,
+    decimal? ConsultationFee,
+    string? ProfilePhoto,
+    string? SubSpecialty,
+    string? HospitalClinic,
+    string? Languages,
+    string? Location,
+    string? MbbsUniversity,
+    string? PhdUniversity,
+    string? OtherQualifications,
+    string? Certifications,
+    int? Age,
+    string? RegistrationNumber
+);

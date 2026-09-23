@@ -35,14 +35,35 @@ public class AppointmentsController : ControllerBase
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
+        if (request.DoctorId <= 0)
+            return BadRequest(new { message = "A valid doctor ID is required." });
+
         var doctor = await _db.Doctors.FindAsync(request.DoctorId);
         if (doctor == null)
             return NotFound(new { message = "Doctor not found." });
 
+        if (!doctor.IsActive)
+            return BadRequest(new { message = "This doctor is currently not accepting new appointments." });
+
+        if (request.DateTime == default)
+            return BadRequest(new { message = "A valid appointment date and time is required." });
+
+        // Normalize to UTC
+        var appointmentDateUtc = request.DateTime.Kind == DateTimeKind.Utc
+            ? request.DateTime
+            : DateTime.SpecifyKind(request.DateTime, DateTimeKind.Utc);
+
         // Prevent booking appointments in the past
-        var appointmentDateUtc = DateTime.SpecifyKind(request.DateTime, DateTimeKind.Utc);
         if (appointmentDateUtc < DateTime.UtcNow)
             return BadRequest(new { message = "Cannot book an appointment in the past. Please select a future date and time." });
+
+        // Prevent booking appointments too far in advance (max 90 days)
+        if (appointmentDateUtc > DateTime.UtcNow.AddDays(90))
+            return BadRequest(new { message = "Appointments cannot be booked more than 90 days in advance." });
+
+        // Validate notes length
+        if (request.Notes != null && request.Notes.Length > 500)
+            return BadRequest(new { message = "Notes cannot exceed 500 characters." });
 
         // Prevent duplicate booking: same patient, same doctor, same date
         var existingAppointment = await _db.Appointments
@@ -54,11 +75,27 @@ public class AppointmentsController : ControllerBase
         if (existingAppointment != null)
             return BadRequest(new { message = $"You already have an appointment with this doctor on {appointmentDateUtc:yyyy-MM-dd}. Please choose a different date or cancel the existing appointment." });
 
+        // Prevent overlapping bookings for the same patient across all doctors within a 30-minute window
+        var windowStart = appointmentDateUtc.AddMinutes(-29);
+        var windowEnd = appointmentDateUtc.AddMinutes(29);
+        var conflictingPatientAppt = await _db.Appointments
+            .Include(a => a.Doctor)
+            .FirstOrDefaultAsync(a => a.PatientId == patient.Id
+                && a.AppointmentDateTime >= windowStart
+                && a.AppointmentDateTime <= windowEnd
+                && a.Status != AppointmentStatus.Cancelled);
+
+        if (conflictingPatientAppt != null)
+        {
+            var conflictDoctorName = conflictingPatientAppt.Doctor?.FullName ?? "another doctor";
+            return BadRequest(new { message = $"You already have an appointment scheduled around this time with {conflictDoctorName}." });
+        }
+
         // Check if the doctor is on leave
         var overlappingLeave = await _db.DoctorLeaves
             .Where(l => l.DoctorId == request.DoctorId
-                && l.StartDate <= request.DateTime
-                && l.EndDate >= request.DateTime)
+                && l.StartDate.Date <= appointmentDateUtc.Date
+                && l.EndDate.Date >= appointmentDateUtc.Date)
             .FirstOrDefaultAsync();
 
         if (overlappingLeave != null)
@@ -166,8 +203,10 @@ public class AppointmentsController : ControllerBase
             .Select(a => new
             {
                 a.Id,
+                a.DoctorId,
                 a.AppointmentNumber,
                 DoctorName = a.Doctor.FullName,
+                DoctorProfilePhoto = a.Doctor.ProfilePhoto,
                 DoctorBio = a.Doctor.Bio,
                 DoctorQualifications = a.Doctor.Qualifications,
                 SpecialtyName = a.Doctor.DoctorSpecialties
@@ -178,6 +217,11 @@ public class AppointmentsController : ControllerBase
                 a.Notes,
                 a.ConsultationStartedAt,
                 a.ConsultationEndedAt,
+                HasRated = _db.DoctorRatings.Any(r => r.AppointmentId == a.Id),
+                Rating = _db.DoctorRatings
+                    .Where(r => r.AppointmentId == a.Id)
+                    .Select(r => new { r.Stars, r.Comment })
+                    .FirstOrDefault(),
                 Payment = a.Payment != null ? new
                 {
                     a.Payment.Amount,
@@ -462,6 +506,108 @@ public class AppointmentsController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Patient submits rating and review for a completed appointment.
+    /// </summary>
+    [HttpPost("{id:int}/rate")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> RateAppointment(int id, [FromBody] RateAppointmentRequest request)
+    {
+        var userId = GetUserId();
+        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (patient == null)
+            return NotFound(new { message = "Patient profile not found." });
+
+        var appointment = await _db.Appointments
+            .Include(a => a.Doctor)
+            .FirstOrDefaultAsync(a => a.Id == id);
+
+        if (appointment == null)
+            return NotFound(new { message = "Appointment not found." });
+
+        if (appointment.PatientId != patient.Id)
+            return Forbid();
+
+        if (appointment.Status != AppointmentStatus.Completed)
+            return BadRequest(new { message = "Ratings and feedback can only be submitted after consultation is completed." });
+
+        var effectiveStars = request.Stars > 0 ? request.Stars : request.Rating;
+        var effectiveComment = !string.IsNullOrWhiteSpace(request.Comment) ? request.Comment : request.Review;
+
+        if (effectiveStars < 1 || effectiveStars > 5)
+            return BadRequest(new { message = "Rating must be between 1 and 5 stars." });
+
+        var existingRating = await _db.DoctorRatings.FirstOrDefaultAsync(r => r.AppointmentId == id);
+        DoctorRating rating;
+        string successMessage;
+
+        if (existingRating != null)
+        {
+            existingRating.Stars = effectiveStars;
+            existingRating.Comment = effectiveComment?.Trim();
+            existingRating.CreatedAt = DateTime.UtcNow;
+            rating = existingRating;
+            successMessage = "Thank you! Your feedback has been updated successfully.";
+        }
+        else
+        {
+            rating = new DoctorRating
+            {
+                DoctorId = appointment.DoctorId,
+                PatientId = patient.Id,
+                AppointmentId = appointment.Id,
+                Stars = effectiveStars,
+                Comment = effectiveComment?.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.DoctorRatings.Add(rating);
+            successMessage = "Thank you! Your feedback has been submitted successfully.";
+        }
+
+        await _db.SaveChangesAsync();
+
+        var ratings = await _db.DoctorRatings.Where(r => r.DoctorId == appointment.DoctorId).ToListAsync();
+        var newAvg = ratings.Count > 0 ? Math.Round(ratings.Average(r => r.Stars), 1) : 0;
+
+        return Ok(new
+        {
+            rating.Id,
+            rating.Stars,
+            rating.Comment,
+            AverageRating = newAvg,
+            ReviewCount = ratings.Count,
+            message = successMessage
+        });
+    }
+
+    /// <summary>
+    /// Check if appointment already has a rating submitted by the patient.
+    /// </summary>
+    [HttpGet("{id:int}/rating")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> GetAppointmentRating(int id)
+    {
+        var userId = GetUserId();
+        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (patient == null)
+            return NotFound(new { message = "Patient profile not found." });
+
+        var rating = await _db.DoctorRatings
+            .FirstOrDefaultAsync(r => r.AppointmentId == id && r.PatientId == patient.Id);
+
+        if (rating == null)
+            return Ok(new { hasRated = false });
+
+        return Ok(new
+        {
+            hasRated = true,
+            rating.Id,
+            rating.Stars,
+            rating.Comment,
+            rating.CreatedAt
+        });
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
 
     private int GetUserId()
@@ -478,3 +624,11 @@ public record BookAppointmentRequest(
     DateTime DateTime,
     string? Notes = null
 );
+
+public class RateAppointmentRequest
+{
+    public int Stars { get; set; }
+    public int Rating { get; set; }
+    public string? Comment { get; set; }
+    public string? Review { get; set; }
+}
