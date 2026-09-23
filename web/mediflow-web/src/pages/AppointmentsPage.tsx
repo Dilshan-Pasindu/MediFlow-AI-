@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Clock, ChevronRight, Plus, FileText, Calendar,
@@ -289,74 +290,144 @@ export default function AppointmentsPage() {
           />
 
           {/* Post-Consultation Rating & Review Modal */}
-          {ratingModalAppt && (
+          {ratingModalAppt && typeof document !== 'undefined' && createPortal(
             <div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 99999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 16,
+                background: 'rgba(15, 23, 42, 0.72)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              }}
               onClick={handleCloseRatingModal}
             >
               <div
-                className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 text-slate-800"
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  maxWidth: 460,
+                  background: 'white',
+                  borderRadius: 20,
+                  boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
+                  border: '1px solid #E2E8F0',
+                  padding: '24px 26px',
+                  color: '#1E293B',
+                }}
                 onClick={(e) => e.stopPropagation()}
               >
                 <button
                   onClick={handleCloseRatingModal}
-                  className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100"
+                  style={{
+                    position: 'absolute',
+                    top: 16,
+                    right: 16,
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    border: '1px solid #E2E8F0',
+                    background: '#F8FAFC',
+                    color: '#64748B',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
                   aria-label="Close"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
 
-                <div className="text-center mb-5">
-                  <div className="w-12 h-12 bg-amber-50 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-amber-200 shadow-sm">
+                <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                  <div style={{
+                    width: 48,
+                    height: 48,
+                    background: '#FEF3C7',
+                    color: '#D97706',
+                    borderRadius: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 12px',
+                    border: '1px solid #FDE68A',
+                  }}>
                     <Star size={24} fill="currentColor" />
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900">
+                  <h3 style={{ fontSize: 18, fontWeight: 800, margin: '0 0 4px', color: '#0F172A', fontFamily: 'Outfit, sans-serif' }}>
                     {ratingModalAppt.hasRated || ratedApptIds.has(ratingModalAppt.id)
                       ? 'Update Consultation Review'
                       : 'Rate Your Consultation'}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-1">
+                  <p style={{ fontSize: 12, color: '#64748B', margin: 0 }}>
                     Dr. {ratingModalAppt.doctorName} • {ratingModalAppt.specialtyName || 'Specialist'}
                   </p>
                 </div>
 
                 {ratingSuccess ? (
-                  <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-center text-sm font-medium space-y-1">
-                    <CheckCircle2 size={24} className="text-emerald-600 mx-auto mb-1" />
+                  <div style={{
+                    padding: '16px',
+                    background: '#ECFDF5',
+                    border: '1.5px solid #A7F3D0',
+                    color: '#065F46',
+                    borderRadius: 14,
+                    textAlign: 'center',
+                    fontSize: 13,
+                    fontWeight: 600,
+                  }}>
+                    <CheckCircle2 size={24} color="#059669" style={{ margin: '0 auto 6px', display: 'block' }} />
                     <div>{ratingSuccess}</div>
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmitRating} className="space-y-4">
+                  <form onSubmit={handleSubmitRating} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                     {ratingError && (
-                      <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
-                        <AlertCircle size={14} className="shrink-0" />
+                      <div style={{
+                        padding: '10px 14px',
+                        background: '#FEF2F2',
+                        border: '1px solid #FECACA',
+                        color: '#DC2626',
+                        borderRadius: 10,
+                        fontSize: 12,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}>
+                        <AlertCircle size={14} style={{ flexShrink: 0 }} />
                         <span>{ratingError}</span>
                       </div>
                     )}
 
                     {/* Star Rating Selector */}
-                    <div className="flex flex-col items-center justify-center py-2">
-                      <div className="flex items-center gap-2 mb-1">
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '8px 0' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                         {[1, 2, 3, 4, 5].map((star) => (
                           <button
                             key={star}
                             type="button"
                             onClick={() => setRatingScore(star)}
-                            className="p-1 transition-transform hover:scale-110 focus:outline-none"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              padding: 4,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
                             id={`star-btn-${star}`}
                           >
                             <Star
                               size={32}
-                              className={
-                                star <= ratingScore
-                                  ? 'fill-amber-400 text-amber-400'
-                                  : 'text-slate-200 hover:text-amber-200'
-                              }
+                              fill={star <= ratingScore ? '#F59E0B' : 'none'}
+                              color={star <= ratingScore ? '#F59E0B' : '#CBD5E1'}
                             />
                           </button>
                         ))}
                       </div>
-                      <span className="text-xs font-semibold text-slate-600">
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>
                         {ratingScore === 5 && 'Outstanding Care (5/5)'}
                         {ratingScore === 4 && 'Very Good Consultation (4/5)'}
                         {ratingScore === 3 && 'Average Experience (3/5)'}
@@ -367,8 +438,8 @@ export default function AppointmentsPage() {
 
                     {/* Review Comments */}
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">
-                        Written Review <span className="text-slate-400 font-normal">(Optional)</span>
+                      <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                        Written Review <span style={{ color: '#94A3B8', fontWeight: 400 }}>(Optional)</span>
                       </label>
                       <textarea
                         rows={3}
@@ -376,27 +447,47 @@ export default function AppointmentsPage() {
                         value={reviewText}
                         onChange={(e) => setReviewText(e.target.value)}
                         placeholder="Share your experience regarding the doctor's communication, diagnosis explanation, and care quality..."
-                        className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                        className="form-textarea"
                         id="review-comment-textarea"
+                        style={{ width: '100%', fontSize: 12.5 }}
                       />
-                      <span className="text-[10px] text-slate-400 block text-right mt-0.5">
+                      <span style={{ fontSize: 10.5, color: '#94A3B8', display: 'block', textAlign: 'right', marginTop: 4 }}>
                         {reviewText.length}/500
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-end gap-2 pt-2">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
                       <button
                         type="button"
                         onClick={handleCloseRatingModal}
-                        className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 10,
+                          border: '1px solid #CBD5E1',
+                          background: 'white',
+                          color: '#475569',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={ratingSubmitting}
-                        className="px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-semibold shadow-md shadow-amber-500/20 transition disabled:opacity-50"
                         id="submit-rating-btn"
+                        style={{
+                          padding: '8px 20px',
+                          borderRadius: 10,
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #D97706, #B45309)',
+                          color: 'white',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          cursor: ratingSubmitting ? 'not-allowed' : 'pointer',
+                          boxShadow: '0 4px 12px rgba(217,119,6,0.3)',
+                        }}
                       >
                         {ratingSubmitting
                           ? 'Submitting...'
@@ -406,7 +497,8 @@ export default function AppointmentsPage() {
                   </form>
                 )}
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
         </div>

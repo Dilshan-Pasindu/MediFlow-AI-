@@ -256,7 +256,7 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
           {([
             { key: 'about' as const, icon: <Stethoscope size={13} />, label: 'About & Credentials' },
             { key: 'schedule' as const, icon: <Calendar size={13} />, label: 'Schedule & Fee' },
-            { key: 'reviews' as const, icon: <MessageSquare size={13} />, label: `Reviews (${rawReviews.length})` },
+            { key: 'reviews' as const, icon: <MessageSquare size={13} />, label: `Patient Reviews (${rawReviews.length})` },
           ]).map(tab => (
             <button
               key={tab.key}
@@ -506,7 +506,7 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
                 }}
               >
                 <Calendar size={14} />
-                Book Consultation
+                Book Consultation Now
                 <ArrowRight size={12} />
               </button>
             )}
