@@ -1,5 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiGetDoctors, apiGetDoctor, apiGetSpecialties, apiGetDoctorAvailability } from '../services/api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  apiGetDoctors,
+  apiGetDoctor,
+  apiGetSpecialties,
+  apiGetDoctorAvailability,
+  apiGetDoctorReviews,
+  apiGetMyDoctorProfile,
+  apiUpdateMyDoctorProfile,
+} from '../services/api';
+import type { DoctorProfileUpdatePayload } from '../types/doctor';
 
 export function useDoctors(specialtyId?: number | string, search?: string) {
   return useQuery({
@@ -30,5 +39,31 @@ export function useDoctorAvailability(id: number | string | undefined) {
     queryKey: ['doctor', id, 'availability'],
     queryFn: () => (id ? apiGetDoctorAvailability(id) : Promise.reject('No doctor ID')),
     enabled: Boolean(id),
+  });
+}
+
+export function useDoctorReviews(id: number | string | undefined) {
+  return useQuery({
+    queryKey: ['doctor', id, 'reviews'],
+    queryFn: () => (id ? apiGetDoctorReviews(id) : Promise.reject('No doctor ID')),
+    enabled: Boolean(id),
+  });
+}
+
+export function useMyDoctorProfile() {
+  return useQuery({
+    queryKey: ['myDoctorProfile'],
+    queryFn: apiGetMyDoctorProfile,
+  });
+}
+
+export function useUpdateMyDoctorProfile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: DoctorProfileUpdatePayload) => apiUpdateMyDoctorProfile(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myDoctorProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['doctors'] });
+    },
   });
 }

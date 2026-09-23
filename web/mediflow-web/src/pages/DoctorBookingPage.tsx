@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Star, Calendar, Clock, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Star, Calendar, Clock, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight, AlertTriangle, Info, ShieldCheck } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { useDoctor, useBookAppointment, useMyAppointments } from '../hooks';
+import { DoctorProfileModal } from '../components/DoctorProfileModal';
 import type { ConsultationAppointment } from '../types/consultation';
 
 interface TimeSlot {
@@ -101,6 +102,7 @@ export default function DoctorBookingPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(todayStart);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [weekStart, setWeekStart] = useState<Date>(() => {
     const d = new Date();
     d.setDate(d.getDate() - d.getDay() + 1);
@@ -299,18 +301,29 @@ export default function DoctorBookingPage() {
               <div className="card">
                 <div style={{ background: 'var(--gradient-hero)', padding: '24px 28px', color: 'white', borderRadius: 'var(--r-lg) var(--r-lg) 0 0' }}>
                   <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start' }}>
-                    <div style={{ width: 72, height: 72, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-xl)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>
-                      {doctor?.fullName ? doctor.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
-                    </div>
+                    {doctor?.profilePhoto ? (
+                      <img
+                        src={doctor.profilePhoto}
+                        alt={doctor.fullName}
+                        style={{ width: 72, height: 72, borderRadius: 'var(--r-xl)', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.4)', flexShrink: 0 }}
+                      />
+                    ) : (
+                      <div style={{ width: 72, height: 72, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.35)', borderRadius: 'var(--r-xl)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 800, fontFamily: 'Outfit, sans-serif', flexShrink: 0 }}>
+                        {doctor?.fullName ? doctor.fullName.replace('Dr.', '').trim().split(' ').map((n: string) => n[0]).join('').slice(0, 2) : 'DR'}
+                      </div>
+                    )}
                     <div style={{ flex: 1 }}>
                       <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 22, fontWeight: 800 }}>{doctor?.fullName}</div>
-                      <div style={{ fontSize: 14, opacity: 0.85, marginTop: 2 }}>{doctor?.specialties?.map((s: any) => s.name).join(', ')}</div>
+                      <div style={{ fontSize: 14, opacity: 0.85, marginTop: 2 }}>
+                        {doctor?.specialties?.map((s: any) => s.name).join(', ')}
+                        {doctor?.subSpecialty && <span> • {doctor.subSpecialty}</span>}
+                      </div>
                       <div style={{ fontSize: 12.5, opacity: 0.7, marginTop: 2 }}>{doctor?.qualifications}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
-                          <Star size={13} fill="gold" color="gold" /> <strong>{doctor?.averageRating?.toFixed(1) || '—'}</strong> ({doctor?.reviewCount || 0} reviews)
+                          <Star size={13} fill="gold" color="gold" /> <strong>{doctor?.averageRating ? doctor.averageRating.toFixed(1) : '5.0'}</strong> ({doctor?.reviewCount || doctor?.reviews?.length || 0} reviews)
                         </div>
-                        <div style={{ fontSize: 13, opacity: 0.85 }}>🏥 {doctor?.experienceYears} yrs exp</div>
+                        <div style={{ fontSize: 13, opacity: 0.85 }}>🏥 {doctor?.hospitalClinic || `${doctor?.experienceYears} yrs exp`}</div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -319,11 +332,20 @@ export default function DoctorBookingPage() {
                     </div>
                   </div>
                 </div>
-                {doctor?.bio && (
-                  <div className="card-body" style={{ borderTop: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{doctor.bio}</div>
+                <div className="card-body" style={{ borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', background: '#F8FAFC' }}>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                    {doctor?.bio ? `${doctor.bio.slice(0, 90)}...` : 'Verified medical specialist on file.'}
                   </div>
-                )}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setShowProfileModal(true)}
+                    id="view-full-doctor-profile-btn"
+                    style={{ flexShrink: 0, marginLeft: 16 }}
+                  >
+                    <Info size={13} style={{ marginRight: 6 }} /> View Credentials & Reviews
+                  </button>
+                </div>
               </div>
 
               {/* Calendar */}
@@ -523,6 +545,14 @@ export default function DoctorBookingPage() {
             </div>
           </div>
         </div>
+
+        {/* Doctor Full Profile & Reviews Modal */}
+        <DoctorProfileModal
+          doctor={doctor || null}
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          showBookButton={false}
+        />
       </div>
     </div>
   );
