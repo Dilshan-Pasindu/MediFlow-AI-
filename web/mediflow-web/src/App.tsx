@@ -167,7 +167,7 @@ function App() {
           <Route path="/doctor/e-prescription" element={<ProtectedRoute roles={['Doctor']}><DoctorEPrescriptionPage /></ProtectedRoute>} />
           <Route path="/doctor/leaves" element={<ProtectedRoute roles={['Doctor']}><DoctorLeavePage /></ProtectedRoute>} />
           <Route path="/doctor/history" element={<ProtectedRoute roles={['Doctor']}><DoctorHistoryPage /></ProtectedRoute>} />
-          <Route path="/doctor/profile" element={<ProtectedRoute roles={['Doctor']}><DoctorProfileManagementPage /></ProtectedRoute>} />
+          <Route path="/doctor/profile" element={<ProtectedRoute roles={['Doctor']}><Navigate to="/profile" replace /></ProtectedRoute>} />
 
           {/* Receptionist Portal */}
           <Route path="/receptionist/dashboard" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistDashboard /></ProtectedRoute>} />

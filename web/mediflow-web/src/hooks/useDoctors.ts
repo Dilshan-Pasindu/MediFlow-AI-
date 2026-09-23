@@ -50,10 +50,11 @@ export function useDoctorReviews(id: number | string | undefined) {
   });
 }
 
-export function useMyDoctorProfile() {
+export function useMyDoctorProfile(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['myDoctorProfile'],
     queryFn: apiGetMyDoctorProfile,
+    enabled: options?.enabled ?? true,
   });
 }
 

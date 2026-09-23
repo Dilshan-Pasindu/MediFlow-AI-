@@ -200,10 +200,24 @@ public class DoctorsController : ControllerBase
     public async Task<IActionResult> GetMyProfile()
     {
         var userId = GetUserId();
+        var user = await _db.Users.FindAsync(userId);
         var doctor = await _db.Doctors
             .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
             .Include(d => d.Ratings)
             .FirstOrDefaultAsync(d => d.UserId == userId);
+
+        if (doctor == null && user != null)
+        {
+            doctor = await _db.Doctors
+                .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                .Include(d => d.Ratings)
+                .FirstOrDefaultAsync(d => d.FullName == user.FullName);
+            if (doctor != null)
+            {
+                doctor.UserId = userId;
+                await _db.SaveChangesAsync();
+            }
+        }
 
         if (doctor == null)
             return NotFound(new { message = "Doctor profile not found for this account." });
@@ -212,6 +226,8 @@ public class DoctorsController : ControllerBase
         {
             doctor.Id,
             doctor.FullName,
+            Email = user?.Email ?? "",
+            PhoneNumber = user?.PhoneNumber ?? "",
             doctor.Bio,
             doctor.Qualifications,
             doctor.ExperienceYears,
@@ -242,7 +258,19 @@ public class DoctorsController : ControllerBase
     public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateDoctorProfileRequest request)
     {
         var userId = GetUserId();
+        var user = await _db.Users.FindAsync(userId);
         var doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.UserId == userId);
+
+        if (doctor == null && user != null)
+        {
+            doctor = await _db.Doctors.FirstOrDefaultAsync(d => d.FullName == user.FullName);
+            if (doctor != null)
+            {
+                doctor.UserId = userId;
+                await _db.SaveChangesAsync();
+            }
+        }
+
         if (doctor == null)
             return NotFound(new { message = "Doctor profile not found for this account." });
 
@@ -255,8 +283,29 @@ public class DoctorsController : ControllerBase
         if (request.Age.HasValue && (request.Age.Value < 20 || request.Age.Value > 100))
             return BadRequest(new { message = "Age must be between 20 and 100." });
 
-        if (!string.IsNullOrWhiteSpace(request.Bio)) doctor.Bio = request.Bio.Trim();
-        if (!string.IsNullOrWhiteSpace(request.Qualifications)) doctor.Qualifications = request.Qualifications.Trim();
+        if (!string.IsNullOrWhiteSpace(request.FullName))
+        {
+            var trimmedName = request.FullName.Trim();
+            doctor.FullName = trimmedName;
+            if (user != null)
+            {
+                user.FullName = trimmedName;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        if (request.PhoneNumber != null)
+        {
+            var trimmedPhone = request.PhoneNumber.Trim();
+            if (user != null)
+            {
+                user.PhoneNumber = trimmedPhone;
+                user.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        if (request.Bio != null) doctor.Bio = request.Bio.Trim();
+        if (request.Qualifications != null) doctor.Qualifications = request.Qualifications.Trim();
         if (request.ExperienceYears.HasValue) doctor.ExperienceYears = request.ExperienceYears.Value;
         if (request.ConsultationFee.HasValue) doctor.ConsultationFee = request.ConsultationFee.Value;
         if (request.ProfilePhoto != null) doctor.ProfilePhoto = request.ProfilePhoto.Trim();
@@ -390,6 +439,8 @@ public class DoctorsController : ControllerBase
 }
 
 public record UpdateDoctorProfileRequest(
+    string? FullName,
+    string? PhoneNumber,
     string? Bio,
     string? Qualifications,
     int? ExperienceYears,
