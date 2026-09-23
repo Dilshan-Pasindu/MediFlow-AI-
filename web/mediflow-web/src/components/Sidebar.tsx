@@ -46,7 +46,8 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       { to: '/doctor/history',        icon: ClipboardList,   label: 'Patient History' },
     ]},
     { section: 'Account', items: [
-      { to: '/profile', icon: User, label: 'My Profile' },
+      { to: '/doctor/profile', icon: User, label: 'Doctor Profile' },
+      { to: '/profile', icon: User, label: 'User Account' },
     ]},
   ],
   Receptionist: [
