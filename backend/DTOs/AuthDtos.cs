@@ -41,3 +41,20 @@ public record GoogleAuthRequest(
     string? PhotoUrl,
     string? Role = "Patient"
 );
+
+public record SupabaseSyncRequest(
+    string? FullName = null,
+    string? PhoneNumber = null,
+    string? Role = null
+);
+
+public record UserProfileDto(
+    int UserId,
+    string? SupabaseId,
+    string FullName,
+    string Email,
+    string Role,
+    string PhoneNumber,
+    int? PatientId = null,
+    int? DoctorId = null
+);

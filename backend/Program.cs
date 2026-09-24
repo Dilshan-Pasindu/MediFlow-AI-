@@ -9,12 +9,23 @@ using System.Text.Json.Serialization;
 
 using MediFlow.Api.Hubs;
 
+// Load .env file into environment if present
+LoadDotEnv(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
+LoadDotEnv(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"));
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddEnvironmentVariables();
 
 // ─── Database ────────────────────────────────────────────────────────────────
+var rawConn = builder.Configuration["DATABASE_URL"]
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? "Host=localhost;Port=5432;Database=MedFlow-AI;Username=postgres;Password=postgres";
+
+var connectionString = ParsePostgreSqlConnectionString(rawConn);
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
+        connectionString,
         npgsqlOptions => npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // ─── SignalR ──────────────────────────────────────────────────────────────────
@@ -24,6 +35,7 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<InventoryService>();
+builder.Services.AddScoped<ISupabaseUserResolver, SupabaseUserResolver>();
 
 // ─── AI Microservice HTTP Client (Member 3) ──────────────────────────────────────
 var aiBaseUrl = builder.Configuration["AiService:BaseUrl"]
@@ -39,22 +51,60 @@ builder.Services.AddHttpClient("AiService", client =>
 builder.Services.AddScoped<IAiServiceClient, AiServiceClient>();
 builder.Services.AddScoped<AiServiceClient>();
 
-// ─── JWT Authentication ───────────────────────────────────────────────────────
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("JWT Key is not configured.");
+// ─── Supabase & JWT Authentication ───────────────────────────────────────────
+var signingKeys = new List<SecurityKey>();
+
+var supabaseJwtSecret = builder.Configuration["SUPABASE_JWT_SECRET"]
+    ?? builder.Configuration["Supabase:JwtSecret"];
+
+if (!string.IsNullOrWhiteSpace(supabaseJwtSecret))
+{
+    signingKeys.Add(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(supabaseJwtSecret)));
+}
+
+var internalJwtKey = builder.Configuration["Jwt:Key"]
+    ?? "MediFlowAI_SuperSecretKey_2026_ForDevelopment_Only_32chars!";
+
+signingKeys.Add(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(internalJwtKey)));
+
+var validIssuers = new List<string>();
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Issuer"]))
+    validIssuers.Add(builder.Configuration["Jwt:Issuer"]!);
+
+var supabaseUrl = builder.Configuration["SUPABASE_URL"] ?? builder.Configuration["Supabase:Url"];
+if (!string.IsNullOrWhiteSpace(supabaseUrl))
+{
+    var trimmedUrl = supabaseUrl.TrimEnd('/');
+    validIssuers.Add($"{trimmedUrl}/auth/v1");
+    validIssuers.Add(trimmedUrl);
+}
+
+var validAudiences = new List<string> { "authenticated" };
+if (!string.IsNullOrWhiteSpace(builder.Configuration["Jwt:Audience"]))
+    validAudiences.Add(builder.Configuration["Jwt:Audience"]!);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
+            ValidateIssuer = validIssuers.Count > 0,
+            ValidIssuers = validIssuers.Count > 0 ? validIssuers : null,
             ValidateAudience = true,
+            ValidAudiences = validAudiences,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+            IssuerSigningKeys = signingKeys
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var resolver = context.HttpContext.RequestServices.GetRequiredService<ISupabaseUserResolver>();
+                await resolver.ResolveAndPopulateClaimsAsync(context.Principal, db);
+            }
         };
     });
 
@@ -143,5 +193,58 @@ app.MapControllers();
 app.MapHub<ConsultationHub>("/hubs/consultation");
 
 app.Run();
+
+static string ParsePostgreSqlConnectionString(string raw)
+{
+    if (!string.IsNullOrWhiteSpace(raw) && (raw.StartsWith("postgres://") || raw.StartsWith("postgresql://")))
+    {
+        try
+        {
+            var uri = new Uri(raw);
+            var userInfo = uri.UserInfo.Split(':');
+            var npgsql = new Npgsql.NpgsqlConnectionStringBuilder
+            {
+                Host = uri.Host,
+                Port = uri.Port > 0 ? uri.Port : 5432,
+                Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "postgres",
+                Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "",
+                Database = uri.AbsolutePath.TrimStart('/'),
+                SslMode = Npgsql.SslMode.Prefer
+            };
+            return npgsql.ConnectionString;
+        }
+        catch
+        {
+            return raw;
+        }
+    }
+    return raw;
+}
+
+static void LoadDotEnv(string filePath)
+{
+    try
+    {
+        if (!File.Exists(filePath)) return;
+        foreach (var line in File.ReadAllLines(filePath))
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
+            var idx = trimmed.IndexOf('=');
+            if (idx <= 0) continue;
+            var rawKey = trimmed[..idx].Trim();
+            var val = trimmed[(idx + 1)..].Trim().Trim('"', '\'');
+            Environment.SetEnvironmentVariable(rawKey, val);
+            if (rawKey.Contains("__"))
+            {
+                Environment.SetEnvironmentVariable(rawKey.Replace("__", ":"), val);
+            }
+        }
+    }
+    catch
+    {
+        // Ignore file read exceptions
+    }
+}
 
 public partial class Program { }
