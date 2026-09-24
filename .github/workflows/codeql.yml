@@ -56,8 +56,8 @@ jobs:
       - name: Build C# Solution
         if: matrix.language == 'csharp'
         run: |
-          dotnet restore backend/MediFlow.Api/MediFlow.Api.csproj
-          dotnet build backend/MediFlow.Api/MediFlow.Api.csproj -c Release --no-restore
+          dotnet restore backend/MediFlow.Api.csproj
+          dotnet build backend/MediFlow.Api.csproj -c Release --no-restore
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
@@ -82,7 +82,7 @@ jobs:
 
       - name: Check Vulnerable NuGet Packages
         run: |
-          dotnet list backend/MediFlow.Api/MediFlow.Api.csproj package --vulnerable || true
+          dotnet list backend/MediFlow.Api.csproj package --vulnerable || true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -90,6 +90,6 @@ jobs:
           node-version: 22
 
       - name: Check Vulnerable NPM Packages
-        working-directory: web/mediflow-web
+        working-directory: frontend
         run: |
           npm audit --audit-level=high || echo "NPM audit completed with warnings."
