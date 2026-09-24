@@ -62,9 +62,11 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(u => u.Id);
             entity.HasIndex(u => u.Email).IsUnique();
+            entity.HasIndex(u => u.SupabaseId).IsUnique();
+            entity.Property(u => u.SupabaseId).HasMaxLength(128);
             entity.Property(u => u.Email).IsRequired().HasMaxLength(255);
             entity.Property(u => u.FullName).IsRequired().HasMaxLength(150);
-            entity.Property(u => u.PasswordHash).IsRequired();
+            entity.Property(u => u.PasswordHash).IsRequired(false);
             entity.Property(u => u.Role).HasConversion<string>();
         });
 
@@ -74,6 +76,8 @@ public class AppDbContext : DbContext
             entity.HasKey(p => p.Id);
             entity.Property(p => p.FullName).IsRequired().HasMaxLength(150);
             entity.Property(p => p.Email).IsRequired().HasMaxLength(255);
+            entity.Property(p => p.SupabaseId).HasMaxLength(128);
+            entity.HasIndex(p => p.SupabaseId);
         });
 
         // ── Doctor ────────────────────────────────────────────────────────
