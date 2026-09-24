@@ -47,11 +47,11 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 **Goal:** Establish enterprise-ready backend architecture, data persistence, authentication, and containerized dev environments.
 
 #### Tasks:
-1. **Database Schema & Migrations (`backend/MediFlow.Api/Data`)**:
+1. **Database Schema & Migrations (`backend/Data`)**:
    - Define master `AppDbContext` with Fluent API mappings for 20+ entities.
    - Configure composite indexes on `(DoctorId, SlotTime)`, `(InventoryId, ExpiryDate)`, and `(UserId, Role)`.
    - Implement `DatabaseSeeder.cs` provisioning initial admin, doctors, pharmacists, medicines, and sample clinic rooms.
-2. **Authentication & Global Authorization (`backend/MediFlow.Api/Services/AuthService.cs`)**:
+2. **Authentication & Global Authorization (`backend/Services/AuthService.cs`)**:
    - Implement JWT Bearer token generation with 15-minute access tokens and 7-day cryptographically secure refresh tokens.
    - Implement BCrypt password hashing (work factor 11).
    - Configure Claims-based role policies (`RequireRole("Patient")`, `RequireRole("Doctor")`, `RequireRole("Receptionist")`, `RequireRole("Admin")`).
@@ -68,7 +68,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 **Goal:** Implement the complete patient journey from symptom intake to specialist recommendation, doctor booking, and queue tracking.
 
 #### Tasks:
-1. **Backend Endpoints (`backend/MediFlow.Api/Controllers`)**:
+1. **Backend Endpoints (`backend/Controllers`)**:
    - `POST /api/patients/symptoms`: Ingest symptoms and forward to internal AI agent.
    - `GET /api/doctors`: Doctor discovery with multi-parameter filtering (specialty, rating, fee, availability).
    - `POST /api/appointments`: Draft appointment creation with `PENDING_PAYMENT` state.
@@ -79,7 +79,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
    - Construct clinical NLP entity extractor mapping patient complaints to medical specialties.
    - Implement multi-factor doctor ranking algorithm combining rating, distance, availability, and fee.
    - Add safe fallback to General Practice when symptom confidence is below 60%.
-3. **Frontend Patient UI (`web/mediflow-web/src/pages/patient`)**:
+3. **Frontend Patient UI (`frontend/src/pages/patient`)**:
    - Symptom consultation page with interactive pain scale, duration selectors, and anatomical body map.
    - Recommendation results view displaying recommended specialty badges, doctor cards, and reasoning text.
    - Appointment booking modal with slot selection and payment submission.
@@ -91,13 +91,13 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 **Goal:** Equip clinic staff with operational tools to verify payments, issue sequenced tokens, and manage patient flow.
 
 #### Tasks:
-1. **Backend Endpoints (`backend/MediFlow.Api/Controllers/ReceptionistController.cs`)**:
+1. **Backend Endpoints (`backend/Controllers/ReceptionistController.cs`)**:
    - `GET /api/receptionist/appointments/pending`: Query bookings requiring payment verification.
    - `POST /api/receptionist/appointments/{id}/verify`: Verify payment and assign daily sequence token (`APP-YYYY-XXXX`).
    - `POST /api/receptionist/appointments/walk-in`: Fast-track registration and scheduling for walk-in patients.
    - `PATCH /api/receptionist/appointments/{id}/reschedule`: Update appointment slot with notification hook.
    - `PATCH /api/receptionist/appointments/{id}/cancel`: Cancel booking with mandatory reason auditing.
-2. **Frontend Receptionist UI (`web/mediflow-web/src/pages/receptionist`)**:
+2. **Frontend Receptionist UI (`frontend/src/pages/receptionist`)**:
    - Live verification workspace with split-screen slip preview and one-click **Verify & Issue Token** action.
    - Interactive clinic queue monitor showing room occupancy, doctor active states, and patient waiting lists.
    - Walk-in booking modal enabling rapid patient registration and immediate slot allocation.
@@ -108,13 +108,13 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 **Goal:** Deliver enterprise administrative controls, audit compliance, and real-time AI telemetry.
 
 #### Tasks:
-1. **Backend Endpoints (`backend/MediFlow.Api/Controllers/AdminController.cs`)**:
+1. **Backend Endpoints (`backend/Controllers/AdminController.cs`)**:
    - `GET /api/admin/dashboard/stats`: System KPIs (total users, daily appointments, revenue, active agents).
    - `GET /api/admin/users`: Paginated user directory with role filtering, status toggles, and credential resets.
    - `POST /api/admin/specialties`: Provision and manage clinic specialties and consultation room bindings.
    - `GET /api/admin/audit-logs`: Query security audit logs with timestamp, user, and action filters.
    - `GET /api/admin/agent-telemetry`: Monitor AI response latency, fallback rates, and error logs.
-2. **Frontend Admin UI (`web/mediflow-web/src/pages/admin`)**:
+2. **Frontend Admin UI (`frontend/src/pages/admin`)**:
    - Executive dashboard featuring KPI stat cards, appointment volume charts, and system status pills.
    - User management table with inline role assignment, activation toggles, and search filters.
    - Specialty configuration manager with modal forms for adding new medical departments.
@@ -126,7 +126,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 **Goal:** Enable doctors to conduct consultations, examine EHRs, leverage AI diagnostic support, and initiate e-prescriptions.
 
 #### Tasks:
-1. **Backend Endpoints (`backend/MediFlow.Api/Controllers/ConsultationsController.cs`)**:
+1. **Backend Endpoints (`backend/Controllers/ConsultationsController.cs`)**:
    - `GET /api/doctors/appointments`: Retrieve verified patient queue filtered by the authenticated doctor's ID.
    - `POST /api/consultations`: Start consultation session and bind clinical records.
    - `POST /api/consultations/{id}/vitals`: Capture physiological vitals (BP, HR, Temp, SpO2, Blood Glucose).
@@ -135,7 +135,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 2. **Clinical Decision Support Agent (`ai/agents/clinical_decision_support.py`)**:
    - Synthesize patient vitals, symptoms, and medical history to generate differential diagnoses with ICD-10 codes.
    - Detect physiological warning thresholds (e.g. hypertensive crisis, acute infection signals).
-3. **Frontend Doctor UI (`web/mediflow-web/src/pages/doctor`)**:
+3. **Frontend Doctor UI (`frontend/src/pages/doctor`)**:
    - Consultation room interface with patient EHR summary, vitals recording form, and clinical note editor.
    - CDSS suggestion drawer presenting differential diagnoses with confidence scores and literature citations.
    - Doctor decision review buttons (`Accept`, `Modify`, `Reject`) ensuring strict Human-in-the-Loop oversight.
@@ -146,7 +146,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 **Goal:** Enable pharmacists to receive digital prescriptions, run automated drug interaction checks, calculate billing, and manage dispensing.
 
 #### Tasks:
-1. **Backend Endpoints (`backend/MediFlow.Api/Controllers/PrescriptionsController.cs` & `OrdersController.cs`)**:
+1. **Backend Endpoints (`backend/Controllers/PrescriptionsController.cs` & `OrdersController.cs`)**:
    - `POST /api/prescriptions`: Doctor issues and digitally signs official e-prescription.
    - `GET /api/pharmacist/prescriptions/inbox`: Query unfulfilled e-prescriptions.
    - `POST /api/prescriptions/{id}/screen-interactions`: Run Medication Intelligence Agent on prescribed items.
@@ -156,7 +156,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
    - Cross-check prescribed drug combinations for Drug-Drug Interactions (Major, Moderate, Minor).
    - Verify patient allergy contraindications and flags abnormal pediatric/geriatric dosage limits.
    - Recommend bioequivalent generic alternatives when a prescribed brand is unavailable.
-3. **Frontend Pharmacist UI (`web/mediflow-web/src/pages/pharmacist`)**:
+3. **Frontend Pharmacist UI (`frontend/src/pages/pharmacist`)**:
    - Incoming digital prescription feed with real-time badges.
    - Interaction analysis panel highlighting warnings in red/yellow with pharmacological explanations.
    - Automated billing breakdown calculating subtotal, taxes, and final payable amount.
@@ -168,7 +168,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 **Goal:** Deliver inventory oversight, real-world multi-batch expiration date tracking, predictive demand forecasting, and supplier fulfillment.
 
 #### Tasks:
-1. **Backend Endpoints (`backend/MediFlow.Api/Controllers/InventoryController.cs` & `SuppliersController.cs`)**:
+1. **Backend Endpoints (`backend/Controllers/InventoryController.cs` & `SuppliersController.cs`)**:
    - `GET /api/inventory`: Inventory catalog with stock levels, category filters, and reorder levels.
    - `POST /api/inventory/{id}/batches`: Add new batch with `BatchNumber`, `Quantity`, and `ExpiryDate`.
    - `PUT /api/inventory/{id}/batches/{batchId}/expiry`: Update batch expiry date via date picker.
@@ -178,7 +178,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 2. **Pharmacy & Inventory Intelligence Agent (`ai/agents/inventory_intelligence.py`)**:
    - Calculate historical dispensing consumption rates and seasonal velocity trends.
    - Compute dynamic safety stock thresholds and recommend optimal restock batch quantities.
-3. **Frontend Portals (`web/mediflow-web/src/pages/pharmacyowner` & `supplier`)**:
+3. **Frontend Portals (`frontend/src/pages/pharmacyowner` & `supplier`)**:
    - Pharmacy Owner Dashboard with interactive batch management modal, date pickers, and expandable breakdown.
    - Visual stock health progress bars and threshold status badges (`Critical`, `Expiring Soon`, `Good`).
    - Supplier Portal featuring incoming purchase request review, catalog price management, and shipment updates.
@@ -193,7 +193,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
    - Run complete xUnit test suite (`dotnet test tests/MediFlow.Tests`).
    - Confirm all 27 unit tests pass with zero regressions.
 2. **Automated Frontend Build & Typecheck**:
-   - Run `npm run build` in `web/mediflow-web` verifying strict TypeScript compilation and asset bundling.
+   - Run `npm run build` in `frontend` verifying strict TypeScript compilation and asset bundling.
 3. **Container Orchestration Verification**:
    - Execute `docker-compose up --build` verifying backend, frontend, database, and AI service health probes.
 4. **End-to-End Simulation**:
@@ -212,7 +212,7 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 
 2. **Frontend Production Compilation**:
    ```bash
-   cd web/mediflow-web && npm run build
+   cd frontend && npm run build
    ```
    *Expected Result: TypeScript typecheck passes and Vite builds production bundles with 0 errors.*
 
