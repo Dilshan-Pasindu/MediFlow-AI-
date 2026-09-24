@@ -53,37 +53,36 @@ async function apiFetch<T = unknown>(
 
 export async function apiLogin(email: string, password: string) {
   if (isSupabaseConfigured()) {
-    const { data: supaData, error: supaError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data: supaData, error: supaError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (supaError) {
-      throw new Error(supaError.message || 'Login failed. Please verify credentials.');
+      if (!supaError && supaData.session?.access_token) {
+        useAuthStore.getState().setToken(supaData.session.access_token);
+
+        const syncData = await apiFetch<AuthResponse>('/auth/sync', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${supaData.session.access_token}`,
+          },
+        });
+
+        const combined: AuthResponse = {
+          ...syncData,
+          token: supaData.session.access_token,
+        };
+        useAuthStore.getState().setAuth(combined);
+        return combined;
+      }
+    } catch {
+      // Supabase sign-in failed (e.g. user not in Supabase auth yet).
+      // Fall through to backend auth fallback below.
     }
-
-    if (!supaData.session?.access_token) {
-      throw new Error('Supabase authentication did not return a session token.');
-    }
-
-    useAuthStore.getState().setToken(supaData.session.access_token);
-
-    const syncData = await apiFetch<AuthResponse>('/auth/sync', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${supaData.session.access_token}`,
-      },
-    });
-
-    const combined: AuthResponse = {
-      ...syncData,
-      token: supaData.session.access_token,
-    };
-    useAuthStore.getState().setAuth(combined);
-    return combined;
   }
 
-  // Fallback to legacy/direct backend auth
+  // Fallback to legacy/direct backend auth (handles seeded demo accounts & doctors/admins)
   const data = await apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),

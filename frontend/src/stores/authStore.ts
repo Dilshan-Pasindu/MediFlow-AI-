@@ -68,6 +68,10 @@ export const useAuthStore = create<AuthState>((set) => {
     },
 
     logout: async () => {
+      localStorage.removeItem('mediflow_token');
+      localStorage.removeItem('mediflow_user');
+      set({ user: null, token: null, isAuthenticated: false });
+
       if (isSupabaseConfigured()) {
         try {
           await supabase.auth.signOut();
@@ -75,9 +79,6 @@ export const useAuthStore = create<AuthState>((set) => {
           console.warn('Supabase signOut error:', err);
         }
       }
-      localStorage.removeItem('mediflow_token');
-      localStorage.removeItem('mediflow_user');
-      set({ user: null, token: null, isAuthenticated: false });
     },
   };
 });
