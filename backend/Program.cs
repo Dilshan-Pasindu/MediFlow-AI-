@@ -9,7 +9,12 @@ using System.Text.Json.Serialization;
 
 using MediFlow.Api.Hubs;
 
+// Load .env file into environment if present
+LoadDotEnv(Path.Combine(Directory.GetCurrentDirectory(), ".env"));
+LoadDotEnv(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"));
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddEnvironmentVariables();
 
 // ─── Database ────────────────────────────────────────────────────────────────
 var rawConn = builder.Configuration["DATABASE_URL"]
@@ -214,6 +219,32 @@ static string ParsePostgreSqlConnectionString(string raw)
         }
     }
     return raw;
+}
+
+static void LoadDotEnv(string filePath)
+{
+    try
+    {
+        if (!File.Exists(filePath)) return;
+        foreach (var line in File.ReadAllLines(filePath))
+        {
+            var trimmed = line.Trim();
+            if (string.IsNullOrEmpty(trimmed) || trimmed.StartsWith('#')) continue;
+            var idx = trimmed.IndexOf('=');
+            if (idx <= 0) continue;
+            var rawKey = trimmed[..idx].Trim();
+            var val = trimmed[(idx + 1)..].Trim().Trim('"', '\'');
+            Environment.SetEnvironmentVariable(rawKey, val);
+            if (rawKey.Contains("__"))
+            {
+                Environment.SetEnvironmentVariable(rawKey.Replace("__", ":"), val);
+            }
+        }
+    }
+    catch
+    {
+        // Ignore file read exceptions
+    }
 }
 
 public partial class Program { }
