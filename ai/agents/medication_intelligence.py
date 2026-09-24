@@ -451,7 +451,15 @@ def generate_summary_with_gemini(
         import concurrent.futures
 
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = None
+        for m_name in [os.environ.get("GEMINI_MODEL", ""), "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-2.5-flash", "gemini-3.6-flash", "gemini-flash-latest"]:
+            if not m_name:
+                continue
+            try:
+                model = genai.GenerativeModel(m_name)
+                break
+            except Exception:
+                continue
 
         # Build a structured context block so Gemini is strictly grounded
         interaction_lines = "\n".join(

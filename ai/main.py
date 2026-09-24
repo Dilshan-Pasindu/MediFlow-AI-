@@ -9,6 +9,13 @@ for _p in [str(_workspace_root), str(_current_dir)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=_current_dir / ".env")
+    load_dotenv(dotenv_path=_workspace_root / ".env")
+except ImportError:
+    pass
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 

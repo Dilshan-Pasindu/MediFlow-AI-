@@ -15,6 +15,13 @@ for _p in [str(_workspace_root), str(_ai_dir)]:
         sys.path.insert(0, _p)
 
 try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv(dotenv_path=_ai_dir / ".env")
+    load_dotenv(dotenv_path=_workspace_root / ".env")
+except ImportError:
+    pass
+
+try:
     from ai.schemas.agent_schemas import (
         SymptomInput,
         SpecialistRecommendation,
@@ -244,26 +251,52 @@ You must respond ONLY with a valid JSON object in this exact schema:
   "alternative_confidence": 0.65
 }}"""
 
-        configured_model = os.environ.get("GEMINI_MODEL", "models/gemini-3.6-flash")
-        model = None
-        for m_name in [configured_model, "models/gemini-3.6-flash", "gemini-2.5-flash", "gemini-flash-latest", "gemini-1.5-flash"]:
+        configured_model = os.environ.get("GEMINI_MODEL", "").strip()
+        candidate_models = []
+        if configured_model:
+            candidate_models.append(configured_model)
+        for m in [
+            "gemini-3-flash-preview",
+            "gemini-3.1-flash-lite-preview",
+            "gemini-2.5-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-flash-latest",
+            "gemini-pro-latest"
+        ]:
+            if m not in candidate_models:
+                candidate_models.append(m)
+
+        text = None
+        for m_name in candidate_models:
             try:
                 model = genai.GenerativeModel(model_name=m_name, system_instruction=system_prompt)
-                break
-            except Exception:
+                prompt = f"Patient presenting symptoms: '{all_symptoms}'. Severity: {input_data.severity or 'moderate'}."
+                response = model.generate_content(prompt)
+                if response and hasattr(response, "text") and response.text:
+                    text = response.text.strip()
+                    logger.info(f"Gemini specialist recommendation succeeded using model: {m_name}")
+                    break
+            except Exception as model_err:
+                logger.warning(f"Gemini model {m_name} failed: {model_err}. Trying fallback candidate...")
                 continue
 
-        if not model:
+        if not text:
             return None
 
-        prompt = f"Patient presenting symptoms: '{all_symptoms}'. Severity: {input_data.severity or 'moderate'}."
-        response = model.generate_content(prompt)
-        text = response.text.strip()
-
         # Clean JSON markdown fences
-        if text.startswith("```"):
-            lines = text.split("\n")
-            text = "\n".join(lines[1:-1]) if len(lines) > 2 else text
+        if "```" in text:
+            parts = text.split("```")
+            for part in parts:
+                cleaned = part.strip()
+                if cleaned.startswith("json"):
+                    cleaned = cleaned[4:].strip()
+                if cleaned.startswith("{") and cleaned.endswith("}"):
+                    text = cleaned
+                    break
+            else:
+                lines = text.split("\n")
+                text = "\n".join(lines[1:-1]) if len(lines) > 2 else text
 
         data = json.loads(text)
 
