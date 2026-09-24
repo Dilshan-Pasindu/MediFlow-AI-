@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User, AuthResponse } from '../types/auth';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface AuthState {
   user: User | null;
@@ -7,7 +8,8 @@ interface AuthState {
   isAuthenticated: boolean;
   setAuth: (data: AuthResponse) => void;
   setUser: (user: User | null) => void;
-  logout: () => void;
+  setToken: (token: string | null) => void;
+  logout: () => Promise<void>;
 }
 
 const getInitialToken = (): string | null => {
@@ -53,13 +55,53 @@ export const useAuthStore = create<AuthState>((set) => {
       } else {
         localStorage.removeItem('mediflow_user');
       }
-      set({ user });
+      set({ user, isAuthenticated: !!user });
     },
 
-    logout: () => {
+    setToken: (token: string | null) => {
+      if (token) {
+        localStorage.setItem('mediflow_token', token);
+      } else {
+        localStorage.removeItem('mediflow_token');
+      }
+      set({ token });
+    },
+
+    logout: async () => {
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.auth.signOut();
+        } catch (err) {
+          console.warn('Supabase signOut error:', err);
+        }
+      }
       localStorage.removeItem('mediflow_token');
       localStorage.removeItem('mediflow_user');
       set({ user: null, token: null, isAuthenticated: false });
     },
   };
 });
+
+/**
+ * Initializes the Supabase Auth listener to automatically synchronize refreshed JWT tokens
+ * and session state changes with the application's authStore.
+ */
+export const initSupabaseAuthListener = () => {
+  if (!isSupabaseConfigured()) return () => {};
+
+  const { data: authSubscription } = supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_OUT') {
+      localStorage.removeItem('mediflow_token');
+      localStorage.removeItem('mediflow_user');
+      useAuthStore.setState({ user: null, token: null, isAuthenticated: false });
+    } else if (session?.access_token) {
+      localStorage.setItem('mediflow_token', session.access_token);
+      useAuthStore.getState().setToken(session.access_token);
+    }
+  });
+
+  return () => {
+    authSubscription.subscription.unsubscribe();
+  };
+};
+

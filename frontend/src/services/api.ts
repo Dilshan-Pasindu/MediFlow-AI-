@@ -1,5 +1,6 @@
 import { apiClient } from '../api/client';
 import { useAuthStore } from '../stores/authStore';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { User, UserRole, AuthResponse } from '../types/auth';
 import type { ProfileForm } from '../types/profile';
 import type { Order, CreateOrderDto, RestockRequestDto } from '../types/order';
@@ -51,6 +52,38 @@ async function apiFetch<T = unknown>(
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function apiLogin(email: string, password: string) {
+  if (isSupabaseConfigured()) {
+    const { data: supaData, error: supaError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (supaError) {
+      throw new Error(supaError.message || 'Login failed. Please verify credentials.');
+    }
+
+    if (!supaData.session?.access_token) {
+      throw new Error('Supabase authentication did not return a session token.');
+    }
+
+    useAuthStore.getState().setToken(supaData.session.access_token);
+
+    const syncData = await apiFetch<AuthResponse>('/auth/sync', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${supaData.session.access_token}`,
+      },
+    });
+
+    const combined: AuthResponse = {
+      ...syncData,
+      token: supaData.session.access_token,
+    };
+    useAuthStore.getState().setAuth(combined);
+    return combined;
+  }
+
+  // Fallback to legacy/direct backend auth
   const data = await apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
@@ -60,6 +93,53 @@ export async function apiLogin(email: string, password: string) {
 }
 
 export async function apiRegister(fullName: string, email: string, password: string, phoneNumber: string, role: UserRole = 'Patient') {
+  if (isSupabaseConfigured()) {
+    const { data: supaData, error: supaError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: fullName,
+          phone: phoneNumber,
+          role: role,
+        },
+      },
+    });
+
+    if (supaError) {
+      throw new Error(supaError.message || 'Registration failed.');
+    }
+
+    if (!supaData.session?.access_token) {
+      return {
+        userId: 0,
+        fullName,
+        email,
+        role,
+        token: '',
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+      };
+    }
+
+    useAuthStore.getState().setToken(supaData.session.access_token);
+
+    const syncData = await apiFetch<AuthResponse>('/auth/sync', {
+      method: 'POST',
+      body: JSON.stringify({ fullName, phoneNumber, role }),
+      headers: {
+        Authorization: `Bearer ${supaData.session.access_token}`,
+      },
+    });
+
+    const combined: AuthResponse = {
+      ...syncData,
+      token: supaData.session.access_token,
+    };
+    useAuthStore.getState().setAuth(combined);
+    return combined;
+  }
+
+  // Fallback to legacy/direct backend registration
   const data = await apiFetch<AuthResponse>('/auth/register', {
     method: 'POST',
     body: JSON.stringify({ fullName, email, password, phoneNumber, role }),
@@ -77,8 +157,12 @@ export async function apiGoogleAuth(googleData: { idToken?: string; email?: stri
   return data;
 }
 
-export function apiLogout() {
-  useAuthStore.getState().logout();
+export async function apiGetMe(): Promise<User> {
+  return apiFetch<User>('/auth/me');
+}
+
+export async function apiLogout() {
+  await useAuthStore.getState().logout();
 }
 
 // ─── Patient ──────────────────────────────────────────────────────────────────

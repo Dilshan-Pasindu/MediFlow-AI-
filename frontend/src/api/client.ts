@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5224/api';
 
@@ -10,10 +11,21 @@ export const apiClient = axios.create({
   timeout: 15000,
 });
 
-// Request Interceptor: Attach JWT Bearer Token
+// Request Interceptor: Attach Supabase JWT or Fallback Bearer Token
 apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('mediflow_token');
+  async (config: InternalAxiosRequestConfig) => {
+    let token: string | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        token = data?.session?.access_token || null;
+      } catch {
+        // fallback to storage
+      }
+    }
+    if (!token) {
+      token = localStorage.getItem('mediflow_token');
+    }
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -25,11 +37,18 @@ apiClient.interceptors.request.use(
 // Response Interceptor: Global 401 and Error Handling
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ message?: string; title?: string }>) => {
+  async (error: AxiosError<{ message?: string; title?: string }>) => {
     if (error.response?.status === 401) {
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.auth.signOut();
+        } catch {
+          // ignore
+        }
+      }
       localStorage.removeItem('mediflow_token');
       localStorage.removeItem('mediflow_user');
-      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/home')) {
         window.location.href = '/login';
       }
     }
@@ -41,3 +60,4 @@ apiClient.interceptors.response.use(
     return Promise.reject(new Error(message));
   }
 );
+
