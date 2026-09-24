@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Calendar, Activity, Pill, Star, ArrowRight, Clock,
+  Calendar, Activity, Pill, ArrowRight, Clock,
   Plus, Brain, HeartPulse, ChevronRight, Sparkles, TrendingUp
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
@@ -93,20 +93,58 @@ export default function DashboardPage() {
           <NowConsultingCard style={{ marginBottom: 28 }} />
 
           {/* Stats */}
-          <div className="stat-grid stagger" style={{ marginBottom: 28 }}>
+          <div className="stat-grid stagger" style={{ marginBottom: 28, gridTemplateColumns: 'repeat(3, 1fr)' }}>
             {[
-              { icon: <Calendar size={22} color="#0369A1" />, label: 'Upcoming', value: upcomingAppts.length, sub: 'appointments', bg: 'var(--med-blue-50)' },
-              { icon: <Activity size={22} color="#059669" />,  label: 'Completed', value: completedAppts.length, sub: 'visits total', bg: '#ECFDF5' },
-              { icon: <Pill size={22} color="#0D9488" />,      label: 'Prescriptions', value: prescriptions.length, sub: 'active', bg: 'var(--med-teal-50)' },
-              { icon: <Star size={22} color="#B45309" />,       label: 'Health Score', value: '92', sub: 'excellent', bg: '#FFFBEB' },
+              {
+                id: 'stat-card-upcoming',
+                icon: <Calendar size={22} color="#0369A1" />,
+                label: 'Upcoming',
+                value: upcomingAppts.length,
+                sub: 'appointments',
+                bg: 'var(--med-blue-50)',
+                path: '/appointments?tab=upcoming',
+              },
+              {
+                id: 'stat-card-completed',
+                icon: <Activity size={22} color="#059669" />,
+                label: 'Completed',
+                value: completedAppts.length,
+                sub: 'visits total',
+                bg: '#ECFDF5',
+                path: '/appointments?tab=past',
+              },
+              {
+                id: 'stat-card-prescriptions',
+                icon: <Pill size={22} color="#0D9488" />,
+                label: 'Prescriptions',
+                value: prescriptions.length,
+                sub: 'active',
+                bg: 'var(--med-teal-50)',
+                path: '/prescriptions',
+              },
             ].map((s, i) => (
-              <div key={i} className="stat-card fade-in" style={{ animationDelay: `${i * 60}ms` }}>
+              <div
+                key={i}
+                id={s.id}
+                role="button"
+                tabIndex={0}
+                className="stat-card fade-in"
+                style={{ animationDelay: `${i * 60}ms`, cursor: 'pointer' }}
+                onClick={() => navigate(s.path)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(s.path);
+                  }
+                }}
+              >
                 <div className="stat-icon-wrap" style={{ background: s.bg }}>{s.icon}</div>
-                <div>
+                <div style={{ flex: 1 }}>
                   <div className="stat-value">{loading ? '—' : s.value}</div>
                   <div className="stat-label">{s.label}</div>
                   <div className="stat-change">{s.sub}</div>
                 </div>
+                <ChevronRight size={16} color="var(--text-muted)" style={{ opacity: 0.5, transition: 'transform 0.2s, opacity 0.2s' }} />
               </div>
             ))}
           </div>
