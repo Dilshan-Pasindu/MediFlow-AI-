@@ -674,7 +674,7 @@ h1, h2, h3, h4, h5, h6, .heading {
 /* ─── Stat Cards ─────────────────────────────────────────────── */
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
 }
 
@@ -691,10 +691,16 @@ h1, h2, h3, h4, h5, h6, .heading {
   position: relative;
   overflow: hidden;
   animation: slideUp 0.4s ease both;
+  cursor: pointer;
+  user-select: none;
 }
 .stat-card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-2px);
+}
+.stat-card:hover svg:last-child {
+  transform: translateX(3px);
+  opacity: 1 !important;
 }
 .stat-card::after {
   content: '';

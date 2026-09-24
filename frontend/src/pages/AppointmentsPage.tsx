@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Clock, ChevronRight, Plus, FileText, Calendar,
   Star, MessageSquare, X, CheckCircle2, AlertCircle,
@@ -24,7 +24,24 @@ const STATUS = {
 
 export default function AppointmentsPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('upcoming');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(() => (tabParam === 'past' ? 'past' : 'upcoming'));
+
+  useEffect(() => {
+    if (tabParam === 'past' || tabParam === 'upcoming') {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tab);
+      return next;
+    });
+  };
   const { data: appointments = [], isLoading: loading, refetch } = useMyAppointments();
   const rateAppointmentMutation = useRateAppointment();
 
@@ -134,10 +151,10 @@ export default function AppointmentsPage() {
           {/* Tabs */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div className="tabs">
-              <button className={`tab-btn ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => setActiveTab('upcoming')} id="tab-upcoming">
+              <button className={`tab-btn ${activeTab === 'upcoming' ? 'active' : ''}`} onClick={() => handleTabChange('upcoming')} id="tab-upcoming">
                 Upcoming ({upcomingAppts.length})
               </button>
-              <button className={`tab-btn ${activeTab === 'past' ? 'active' : ''}`} onClick={() => setActiveTab('past')} id="tab-past">
+              <button className={`tab-btn ${activeTab === 'past' ? 'active' : ''}`} onClick={() => handleTabChange('past')} id="tab-past">
                 Past ({pastAppts.length})
               </button>
             </div>
