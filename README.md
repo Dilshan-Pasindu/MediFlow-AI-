@@ -240,47 +240,46 @@ The database is pre-seeded with ready-to-test accounts across all roles.
 ```text
 MediFlow-AI-/
 ├── backend/
-│   ├── MediFlow.Api/
-│   │   ├── Auth/                 # JWT configuration & authorization handlers
-│   │   ├── Controllers/          # REST API endpoints (Auth, Patient, Doctor, etc.)
-│   │   ├── DTOs/                 # Request & Response data transfer objects
-│   │   ├── Data/                 # AppDbContext & EF Core configuration
-│   │   ├── Migrations/           # Database schema migrations
-│   │   ├── Models/               # PostgreSQL domain entity models
-│   │   ├── Services/             # Business logic services & DatabaseSeeder
-│   │   ├── appsettings.json      # Connection strings & JWT secret settings
-│   │   └── Program.cs            # Application startup, DI & middleware configuration
-│   └── Dockerfile                # Multi-stage production container build
-├── web/
-│   └── mediflow-web/
-│       ├── src/
-│       │   ├── components/       # Reusable UI components & shadcn-inspired primitives
-│       │   ├── hooks/            # TanStack React Query server-state hooks
-│       │   ├── pages/            # Lazy-loaded page components (Login, Dashboard, etc.)
-│       │   ├── services/         # Typed API integration services (Axios)
-│       │   ├── stores/           # Zustand client-state stores (authStore)
-│       │   ├── schemas/          # Zod validation schemas (auth, profile, booking, consultation)
-│       │   ├── types/            # TypeScript type declarations & DTO interfaces
-│       │   ├── test/             # Vitest test specifications
-│       │   ├── App.tsx           # Application routing, Suspense fallback & route tree
-│       │   └── index.css         # Tailwind CSS 4 design tokens & global styles
-│       ├── Dockerfile            # Multi-stage Nginx production container build
-│       ├── package.json          # Node dependencies & Vitest scripts
-│       └── vite.config.ts        # Vite 8 configuration with vendor chunk splitting
+│   ├── Controllers/          # REST API endpoints (Auth, Patient, Doctor, etc.)
+│   ├── DTOs/                 # Request & Response data transfer objects
+│   ├── Data/                 # AppDbContext & EF Core configuration
+│   ├── Migrations/           # Database schema migrations
+│   ├── Models/               # PostgreSQL domain entity models
+│   ├── Services/             # Business logic services & DatabaseSeeder
+│   ├── MediFlow.Api.csproj   # ASP.NET Core Web API project configuration
+│   ├── appsettings.json      # Connection strings & JWT secret settings
+│   ├── Program.cs            # Application startup, DI & middleware configuration
+│   └── Dockerfile            # Multi-stage production container build
+├── frontend/
+│   ├── src/
+│   │   ├── components/       # Reusable UI components & shadcn-inspired primitives
+│   │   ├── hooks/            # TanStack React Query server-state hooks
+│   │   ├── pages/            # Lazy-loaded page components (Login, Dashboard, etc.)
+│   │   ├── services/         # Typed API integration services (Axios)
+│   │   ├── stores/           # Zustand client-state stores (authStore)
+│   │   ├── schemas/          # Zod validation schemas (auth, profile, booking, consultation)
+│   │   ├── types/            # TypeScript type declarations & DTO interfaces
+│   │   ├── test/             # Vitest test specifications
+│   │   ├── App.tsx           # Application routing, Suspense fallback & route tree
+│   │   └── index.css         # Tailwind CSS 4 design tokens & global styles
+│   ├── Dockerfile            # Multi-stage Nginx production container build
+│   ├── package.json          # Node dependencies & Vitest scripts
+│   └── vite.config.ts        # Vite 8 configuration with vendor chunk splitting
 ├── ai/
-│   ├── agents/                   # Agentic workflows & clinical decision recommenders
-│   ├── schemas/                  # Pydantic v2 request/response models
-│   ├── tests/                    # Pytest test suite
-│   ├── main.py                   # FastAPI service definition & endpoints
-│   ├── requirements.txt          # Python dependencies
-│   └── Dockerfile                # AI microservice container build
+│   ├── agents/               # Agentic workflows & clinical decision recommenders
+│   ├── schemas/              # Pydantic v2 request/response models
+│   ├── tests/                # Pytest test suite
+│   ├── main.py               # FastAPI service definition & endpoints
+│   ├── requirements.txt      # Python dependencies
+│   └── Dockerfile            # AI microservice container build
 ├── mobile/
-│   └── mediflow_mobile/
-│       ├── lib/                  # Flutter Dart application code
-│       │   ├── providers/        # Riverpod state providers (auth, appointment)
-│       │   ├── screens/          # Mobile UI screens (login, home)
-│       │   └── main.dart         # Mobile application entry point
-│       └── pubspec.yaml          # Flutter dependencies & metadata
+│   ├── lib/                  # Flutter Dart application code
+│   │   ├── providers/        # Riverpod state providers (auth, appointment)
+│   │   ├── screens/          # Mobile UI screens (login, home)
+│   │   └── main.dart         # Mobile application entry point
+│   ├── android/              # Android platform files & build configurations
+│   ├── ios/                  # iOS platform files & Xcode project
+│   └── pubspec.yaml          # Flutter dependencies & metadata
 ├── tests/
 │   └── MediFlow.Tests/           # xUnit backend unit & WebApplicationFactory tests
 ├── .github/workflows/            # GitHub Actions CI/CD, CodeQL & Security guardrails
@@ -308,7 +307,7 @@ Ensure you have the following installed on your machine:
 
 Create a local PostgreSQL database named `mediflow_db`.
 
-Ensure the connection string in `backend/MediFlow.Api/appsettings.json` matches your local database credentials:
+Ensure the connection string in `backend/appsettings.json` matches your local database credentials:
 
 ```json
 {
@@ -329,7 +328,7 @@ Ensure the connection string in `backend/MediFlow.Api/appsettings.json` matches 
 
 ```bash
 # Navigate to the backend directory
-cd backend/MediFlow.Api
+cd backend
 
 # Restore dependencies
 dotnet restore
@@ -350,8 +349,8 @@ dotnet run
 ### 3. Frontend Setup (React Web)
 
 ```bash
-# Navigate to the web application directory
-cd web/mediflow-web
+# Navigate to the frontend application directory
+cd frontend
 
 # Install dependencies
 npm install
@@ -394,7 +393,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ```bash
 # Navigate to the mobile directory
-cd mobile/mediflow_mobile
+cd mobile
 
 # Get packages
 flutter pub get
@@ -510,13 +509,13 @@ Recommended Restock Qty = (Target Safety Days × Demand Rate) - Current Stock Le
 dotnet test MediFlow.sln
 
 # Run frontend tests (Vitest + React Testing Library)
-cd web/mediflow-web && npm test
+cd frontend && npm test
 
 # Run AI microservice tests (Pytest)
 python3 -m pytest ai/tests
 
 # Run mobile client tests (Flutter)
-cd mobile/mediflow_mobile && flutter test
+cd mobile && flutter test
 ```
 
 ---
