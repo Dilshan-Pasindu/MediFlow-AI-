@@ -5,6 +5,7 @@ import {
   AlertCircle, Star, ShieldCheck, Info,
   RefreshCw, Clock, Building, Stethoscope, Zap,
   CalendarCheck, Search, Award, MessageSquare,
+  PhoneCall, AlertTriangle, ShieldAlert,
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -59,15 +60,16 @@ export default function SymptomAIPage() {
         specialty: string; confidence: number; altSpecialty: string; altConfidence: number;
         reason: string; systemChecker?: SystemCheckerData;
       };
+      const isCrisis = res.reason?.includes('CRITICAL CRISIS') || res.reason?.toLowerCase().includes('suicide') || res.reason?.toLowerCase().includes('crisis') || res.systemChecker?.status === 'WARNING';
       const rec: AIRecommendationState = {
         specialty: res.specialty, confidence: res.confidence, alt: res.altSpecialty,
         altConf: res.altConfidence, reason: res.reason,
         systemChecker: res.systemChecker || {
-          status: 'PASSED',
+          status: isCrisis ? 'WARNING' : 'PASSED',
           checks: [
             { name: 'Medical Domain Mapping', status: 'PASSED', detail: `Mapped to clinical specialty: ${res.specialty}` },
             { name: 'Confidence Threshold Check', status: 'PASSED', detail: `Confidence score ${res.confidence}% meets clinical routing threshold` },
-            { name: 'Emergency Red Flag Screening', status: 'PASSED', detail: 'No acute life-threatening emergency flags detected' },
+            { name: 'Emergency Red Flag Screening', status: isCrisis ? 'WARNING' : 'PASSED', detail: isCrisis ? 'CRITICAL CRISIS / EMERGENCY FLAG: Immediate intervention and psychiatric support required.' : 'No acute life-threatening emergency flags detected' },
             { name: 'Specialist Directory Match', status: 'PASSED', detail: 'Active verified consultants available in database' },
           ],
           checkedAt: new Date().toISOString(),
@@ -426,6 +428,147 @@ export default function SymptomAIPage() {
           {step === 'result' && recommendation && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+              {/* ── Crisis Emergency Support Alert Banner ────────────────── */}
+              {(recommendation.reason?.includes('CRITICAL CRISIS') || recommendation.systemChecker?.status === 'WARNING') && (
+                <div
+                  id="crisis-intervention-alert"
+                  style={{
+                    borderRadius: 18,
+                    padding: '22px 24px',
+                    background: 'linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 50%, #FEE2E2 100%)',
+                    border: '2px solid #F43F5E',
+                    boxShadow: '0 8px 30px rgba(244, 63, 94, 0.15)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 16,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 12,
+                        background: '#E11D48',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#fff',
+                        flexShrink: 0,
+                        boxShadow: '0 4px 12px rgba(225, 29, 72, 0.35)',
+                      }}
+                    >
+                      <AlertTriangle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            letterSpacing: '0.08em',
+                            textTransform: 'uppercase',
+                            color: '#9F1239',
+                            background: '#FFE4E6',
+                            padding: '3px 8px',
+                            borderRadius: 6,
+                            border: '1px solid #FDA4AF',
+                          }}
+                        >
+                          Urgent Crisis Support Required
+                        </span>
+                      </div>
+                      <h3 style={{ margin: '0 0 6px', fontSize: '1.2rem', fontWeight: 800, color: '#881337', fontFamily: "'Outfit', sans-serif" }}>
+                        Immediate Crisis Lifeline & Safety Support
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '13.5px', color: '#4C0519', lineHeight: 1.55 }}>
+                        If you or someone you care about is experiencing overwhelming distress, thoughts of self-harm, or suicidal ideation, please know that <strong>you are not alone and compassionate help is available 24/7</strong>. Please connect with immediate emergency crisis services right away:
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <a
+                      href="tel:988"
+                      id="hotline-988-btn"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        padding: '12px 14px',
+                        background: '#fff',
+                        border: '1.5px solid #F43F5E',
+                        borderRadius: 12,
+                        textDecoration: 'none',
+                        color: '#881337',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 2px 8px rgba(244, 63, 94, 0.08)',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FFF1F2'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#fff'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#E11D48', textTransform: 'uppercase' }}>Crisis Lifeline</span>
+                        <PhoneCall className="w-4 h-4 text-[#E11D48]" />
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#9F1239' }}>Call / Text 988</div>
+                      <div style={{ fontSize: '11px', color: '#9CA3AF' }}>Free, confidential, 24/7 (US/CA)</div>
+                    </a>
+
+                    <a
+                      href="tel:1926"
+                      id="hotline-1926-btn"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        padding: '12px 14px',
+                        background: '#fff',
+                        border: '1.5px solid #F43F5E',
+                        borderRadius: 12,
+                        textDecoration: 'none',
+                        color: '#881337',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 2px 8px rgba(244, 63, 94, 0.08)',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FFF1F2'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#fff'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#E11D48', textTransform: 'uppercase' }}>Sri Lanka Helpline</span>
+                        <PhoneCall className="w-4 h-4 text-[#E11D48]" />
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#9F1239' }}>Call 1926 (Toll-Free)</div>
+                      <div style={{ fontSize: '11px', color: '#9CA3AF' }}>National Mental Health 24/7</div>
+                    </a>
+
+                    <a
+                      href="tel:1990"
+                      id="hotline-1990-btn"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        padding: '12px 14px',
+                        background: '#fff',
+                        border: '1.5px solid #F43F5E',
+                        borderRadius: 12,
+                        textDecoration: 'none',
+                        color: '#881337',
+                        transition: 'all 0.2s',
+                        boxShadow: '0 2px 8px rgba(244, 63, 94, 0.08)',
+                      }}
+                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#FFF1F2'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = '#fff'; (e.currentTarget as HTMLElement).style.transform = 'translateY(0)'; }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#E11D48', textTransform: 'uppercase' }}>Emergency Ambulance</span>
+                        <PhoneCall className="w-4 h-4 text-[#E11D48]" />
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 900, color: '#9F1239' }}>Call 1990 / 911</div>
+                      <div style={{ fontSize: '11px', color: '#9CA3AF' }}>Suwa Seriya or Nearest Emergency Room</div>
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {/* ── Recommendation Header Card ──────────────────────────── */}
               <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 20px rgba(42,141,236,0.2)' }}>
                 <div
@@ -498,28 +641,59 @@ export default function SymptomAIPage() {
 
                   {/* System Checker */}
                   {recommendation.systemChecker && (
-                    <div style={{ padding: '14px 16px', background: 'rgba(16,185,129,0.04)', border: '1.5px solid rgba(16,185,129,0.18)', borderRadius: 13 }}>
+                    <div style={{
+                      padding: '14px 16px',
+                      background: recommendation.systemChecker.status === 'WARNING' ? 'rgba(239,68,68,0.05)' : 'rgba(16,185,129,0.04)',
+                      border: recommendation.systemChecker.status === 'WARNING' ? '1.5px solid rgba(239,68,68,0.25)' : '1.5px solid rgba(16,185,129,0.18)',
+                      borderRadius: 13,
+                    }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: '#064E3B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          {recommendation.systemChecker.status === 'WARNING' ? (
+                            <ShieldAlert className="w-4 h-4 text-red-600" />
+                          ) : (
+                            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                          )}
+                          <span style={{ fontSize: '10px', fontWeight: 700, color: recommendation.systemChecker.status === 'WARNING' ? '#991B1B' : '#064E3B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                             AI Safety Verification
                           </span>
                         </div>
-                        <span style={{ fontSize: '10px', fontWeight: 800, color: '#fff', background: '#059669', padding: '2px 9px', borderRadius: 99 }}>
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          color: '#fff',
+                          background: recommendation.systemChecker.status === 'WARNING' ? '#DC2626' : '#059669',
+                          padding: '2px 9px',
+                          borderRadius: 99,
+                        }}>
                           {recommendation.systemChecker.status}
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {recommendation.systemChecker.checks.map((chk, i) => (
-                          <div key={i} style={{ background: '#fff', border: '1px solid rgba(16,185,129,0.15)', borderRadius: 10, padding: '9px 11px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                            <div>
-                              <p style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 1px' }}>{chk.name}</p>
-                              <p style={{ fontSize: '10.5px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>{chk.detail}</p>
+                        {recommendation.systemChecker.checks.map((chk, i) => {
+                          const isWarn = chk.status === 'WARNING';
+                          return (
+                            <div key={i} style={{
+                              background: '#fff',
+                              border: isWarn ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(16,185,129,0.15)',
+                              borderRadius: 10,
+                              padding: '9px 11px',
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: 8,
+                            }}>
+                              {isWarn ? (
+                                <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                              ) : (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                              )}
+                              <div>
+                                <p style={{ fontSize: '11px', fontWeight: 700, color: isWarn ? '#DC2626' : 'var(--text-primary)', margin: '0 0 1px' }}>{chk.name}</p>
+                                <p style={{ fontSize: '10.5px', color: 'var(--text-muted)', margin: 0, lineHeight: 1.4 }}>{chk.detail}</p>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}

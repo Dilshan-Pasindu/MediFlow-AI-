@@ -263,6 +263,8 @@ public class PatientController : ControllerBase
         _db.SymptomSubmissions.Add(submission);
         await _db.SaveChangesAsync();
 
+        var isCrisis = reason.StartsWith("CRITICAL CRISIS");
+
         return Ok(new
         {
             submissionId = submission.Id,
@@ -273,12 +275,12 @@ public class PatientController : ControllerBase
             reason,
             systemChecker = new
             {
-                status = "PASSED",
+                status = isCrisis ? "WARNING" : "PASSED",
                 checks = new[]
                 {
                     new { name = "Medical Domain Mapping", status = "PASSED", detail = $"Mapped to registered clinical specialty: {specialty}" },
                     new { name = "Confidence Threshold Check", status = "PASSED", detail = $"Primary confidence score {confidence}% meets clinical routing threshold" },
-                    new { name = "Emergency Red Flag Screening", status = "PASSED", detail = "No acute life-threatening emergency flags detected" },
+                    new { name = "Emergency Red Flag Screening", status = isCrisis ? "WARNING" : "PASSED", detail = isCrisis ? "CRITICAL CRISIS / EMERGENCY FLAG: Immediate intervention and psychiatric support required." : "No acute life-threatening emergency flags detected" },
                     new { name = "Specialist Directory Match", status = "PASSED", detail = "Verified doctors with active schedules exist in the system" }
                 },
                 checkedAt = DateTime.UtcNow
@@ -288,9 +290,16 @@ public class PatientController : ControllerBase
 
     // ── Symptom Analysis Engine ───────────────────────────────────────────────
 
-    private static (string specialty, int confidence, string alt, int altConf, string reason) AnalyzeSymptoms(string symptoms)
+    private static (string specialty, int confidence, string altSpecialty, int altConfidence, string reason) AnalyzeSymptoms(string symptoms)
     {
         var lower = (symptoms ?? string.Empty).ToLowerInvariant();
+
+        // 0. Mental Health Crisis / Suicidal Ideation Interceptor
+        if (ContainsAny(lower, "suicid", "kill myself", "end my life", "want to die", "self harm", "self-harm", "hurt myself", "cut myself", "take my life", "ending it all"))
+        {
+            return ("Psychiatry", 100, "Emergency Medicine", 95,
+                "CRITICAL CRISIS SAFETY ALERT: Thoughts of self-harm or suicide detected. Your life and well-being are paramount. Immediate crisis support and emergency psychiatric care are essential. Please reach out to emergency helplines immediately: Call or text 988, call 1926 (Sri Lanka Mental Health Helpline, 24/7) or 1990 (Suwa Seriya Ambulance), or visit the nearest hospital emergency room.");
+        }
 
         // 1. Brain & Spine Surgery / Neurosurgery
         if (ContainsAny(lower, "brain tumor", "spinal cord", "disk herniation", "sciatica", "lumbar spine", "neurosurg"))

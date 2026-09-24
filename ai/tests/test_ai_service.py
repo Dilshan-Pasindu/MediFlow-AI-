@@ -64,6 +64,35 @@ def test_recommend_specialist_general_fallback():
     assert result.confidence_score > 0.5
 
 
+def test_recommend_specialist_crisis_suicidal_ideation():
+    input_data = SymptomInput(
+        symptoms=["I have a suicide idea and feel like ending it all"],
+        severity="severe",
+    )
+    result = recommend_specialist(input_data)
+    assert result.recommended_specialty == "Psychiatry"
+    assert result.confidence_score == 1.0
+    assert "CRITICAL CRISIS SAFETY ALERT" in result.rationale
+    assert any("988" in action for action in result.suggested_actions)
+    assert any("1926" in action for action in result.suggested_actions)
+    assert result.system_checker is not None
+    assert result.system_checker.status == "WARNING"
+
+
+def test_recommend_specialist_crisis_api(client):
+    payload = {
+        "symptoms": ["feeling overwhelmed, want to die and hurt myself"],
+        "severity": "severe",
+    }
+    response = client.post("/api/ai/recommend-specialist", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["recommended_specialty"] == "Psychiatry"
+    assert data["confidence_score"] == 1.0
+    assert "CRITICAL CRISIS" in data["rationale"]
+    assert data["system_checker"]["status"] == "WARNING"
+
+
 def test_recommend_specialist_validation_error(client):
     response = client.post("/api/ai/recommend-specialist", json={"symptoms": []})
     assert response.status_code == 422  # Pydantic min_length validation failure
