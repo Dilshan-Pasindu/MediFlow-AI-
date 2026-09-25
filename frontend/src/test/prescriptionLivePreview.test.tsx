@@ -6,9 +6,15 @@ import type { AutoFilledPrescriptionDraft } from '../types/consultation';
 describe('PrescriptionLivePreviewCard', () => {
   it('renders co-pilot placeholder when draft is empty', () => {
     const emptyDraft: AutoFilledPrescriptionDraft = {
+      patientName: 'John Doe',
       diagnosis: '',
+      fulfillmentSource: 'InHouse',
+      recipients: 'Both',
+      instructions: '',
       items: [],
       labOrders: [],
+      isAutoFilled: true,
+      lastSyncedAt: '10:00:00 AM',
     };
 
     render(<PrescriptionLivePreviewCard draft={emptyDraft} />);
@@ -18,9 +24,15 @@ describe('PrescriptionLivePreviewCard', () => {
 
   it('renders active preview card when diagnosis is populated', () => {
     const draftWithDiagnosis: AutoFilledPrescriptionDraft = {
+      patientName: 'John Doe',
       diagnosis: 'Type 2 Diabetes Mellitus with Essential Hypertension',
+      fulfillmentSource: 'InHouse',
+      recipients: 'Both',
+      instructions: 'Dietary management',
       items: [],
       labOrders: [],
+      isAutoFilled: true,
+      lastSyncedAt: '10:00:00 AM',
     };
 
     render(<PrescriptionLivePreviewCard draft={draftWithDiagnosis} />);
@@ -30,13 +42,18 @@ describe('PrescriptionLivePreviewCard', () => {
 
   it('renders approved medication items with dosage and instructions', () => {
     const draftWithMeds: AutoFilledPrescriptionDraft = {
+      patientName: 'John Doe',
       diagnosis: 'Bacterial Pharyngitis',
+      fulfillmentSource: 'InHouse',
+      recipients: 'Both',
+      instructions: 'Complete antibiotic course',
       items: [
         {
           medicineName: 'Amoxicillin 500mg',
           dosage: '500mg',
           frequency: 'TDS (Three times daily)',
           duration: '7 Days',
+          quantity: 21,
           instructions: 'Take after meals',
         },
         {
@@ -44,10 +61,13 @@ describe('PrescriptionLivePreviewCard', () => {
           dosage: '500mg',
           frequency: 'PRN (As needed)',
           duration: '3 Days',
+          quantity: 10,
           instructions: 'For fever and throat pain',
         },
       ],
       labOrders: [],
+      isAutoFilled: true,
+      lastSyncedAt: '10:00:00 AM',
     };
 
     render(<PrescriptionLivePreviewCard draft={draftWithMeds} />);
@@ -61,7 +81,11 @@ describe('PrescriptionLivePreviewCard', () => {
 
   it('renders approved laboratory investigation orders', () => {
     const draftWithLabs: AutoFilledPrescriptionDraft = {
+      patientName: 'John Doe',
       diagnosis: 'Suspected Microcytic Anemia',
+      fulfillmentSource: 'InHouse',
+      recipients: 'Both',
+      instructions: 'Fasting lab draw',
       items: [],
       labOrders: [
         {
@@ -75,6 +99,8 @@ describe('PrescriptionLivePreviewCard', () => {
           indication: 'Confirm iron deficiency status',
         },
       ],
+      isAutoFilled: true,
+      lastSyncedAt: '10:00:00 AM',
     };
 
     render(<PrescriptionLivePreviewCard draft={draftWithLabs} />);
@@ -86,16 +112,24 @@ describe('PrescriptionLivePreviewCard', () => {
   it('calls onNavigateToDraft when the action button is clicked', () => {
     const onNavigateMock = vi.fn();
     const draft: AutoFilledPrescriptionDraft = {
+      patientName: 'John Doe',
       diagnosis: 'Acute Sinusitis',
+      fulfillmentSource: 'InHouse',
+      recipients: 'Both',
+      instructions: 'Steam inhalation',
       items: [
         {
           medicineName: 'Augmentin 625mg',
           dosage: '625mg',
           frequency: 'BD',
           duration: '5 Days',
+          quantity: 10,
+          instructions: 'After food',
         },
       ],
       labOrders: [],
+      isAutoFilled: true,
+      lastSyncedAt: '10:00:00 AM',
     };
 
     render(<PrescriptionLivePreviewCard draft={draft} onNavigateToDraft={onNavigateMock} />);

@@ -6,22 +6,20 @@ describe('Order Calculations Utility', () => {
   it('calculates order subtotal accurately for multiple items', () => {
     const items: OrderItem[] = [
       {
-        id: 1,
-        orderId: 10,
         medicineId: 101,
         medicineName: 'Amoxicillin 500mg',
+        dosage: '500mg',
         quantity: 2,
         unitPrice: 50.0,
-        totalPrice: 100.0,
+        subtotal: 100.0,
       },
       {
-        id: 2,
-        orderId: 10,
         medicineId: 102,
         medicineName: 'Paracetamol 500mg',
+        dosage: '500mg',
         quantity: 4,
         unitPrice: 15.5,
-        totalPrice: 62.0,
+        subtotal: 62.0,
       },
     ];
 

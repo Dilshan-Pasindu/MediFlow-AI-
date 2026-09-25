@@ -649,7 +649,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                   child: ElevatedButton(
                     onPressed: _cancelling ? null : () async {
                       await _confirmCancel(a);
-                      if (mounted) Navigator.pop(ctx);
+                      if (ctx.mounted) Navigator.pop(ctx);
                     },
                     style: ElevatedButton.styleFrom(backgroundColor: AppTheme.statusInConsult),
                     child: _cancelling

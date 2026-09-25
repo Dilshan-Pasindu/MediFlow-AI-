@@ -37,7 +37,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       lastDate: now.add(const Duration(days: 90)),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: ColorScheme.light(primary: AppTheme.primaryDeep),
+          colorScheme: const ColorScheme.light(primary: AppTheme.primaryDeep),
         ),
         child: child!,
       ),
@@ -51,7 +51,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       initialTime: const TimeOfDay(hour: 9, minute: 0),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: ColorScheme.light(primary: AppTheme.primaryDeep),
+          colorScheme: const ColorScheme.light(primary: AppTheme.primaryDeep),
         ),
         child: child!,
       ),

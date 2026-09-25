@@ -61,7 +61,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       final user = UserModel.fromJson(data);
       if (user.role != 'Patient') {
-        state = AuthState(
+        state = const AuthState(
           error: 'This app is for patients only. '
               'Please use the web portal for staff access.',
         );
@@ -76,7 +76,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(error: e.message);
       return false;
     } catch (e) {
-      state = AuthState(error: 'Login failed. Please try again.');
+      state = const AuthState(error: 'Login failed. Please try again.');
       return false;
     }
   }
@@ -107,7 +107,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = AuthState(error: e.message);
       return false;
     } catch (e) {
-      state = AuthState(error: 'Registration failed. Please try again.');
+      state = const AuthState(error: 'Registration failed. Please try again.');
       return false;
     }
   }

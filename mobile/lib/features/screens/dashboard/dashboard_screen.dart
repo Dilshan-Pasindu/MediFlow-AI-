@@ -131,10 +131,10 @@ class DashboardScreen extends ConsumerWidget {
                 delegate: SliverChildListDelegate([
                   // ── Stats Row ────────────────────────────────────────
                   apptsAsync.when(
-                    loading: () => Row(children: [
-                      Expanded(child: ShimmerCard(height: 90, margin: const EdgeInsets.only(right: 6))),
-                      Expanded(child: ShimmerCard(height: 90, margin: const EdgeInsets.symmetric(horizontal: 6))),
-                      Expanded(child: ShimmerCard(height: 90, margin: const EdgeInsets.only(left: 6))),
+                    loading: () => const Row(children: [
+                      Expanded(child: ShimmerCard(height: 90, margin: EdgeInsets.only(right: 6))),
+                      Expanded(child: ShimmerCard(height: 90, margin: EdgeInsets.symmetric(horizontal: 6))),
+                      Expanded(child: ShimmerCard(height: 90, margin: EdgeInsets.only(left: 6))),
                     ]),
                     error: (_, __) => const SizedBox(),
                     data: (appts) {
@@ -173,7 +173,7 @@ class DashboardScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   // ── Quick Actions ────────────────────────────────────
-                  SectionHeader(title: 'Quick Actions'),
+                  const SectionHeader(title: 'Quick Actions'),
                   const SizedBox(height: 12),
                   _QuickActionsGrid(context: context, ref: ref),
                   const SizedBox(height: 24),

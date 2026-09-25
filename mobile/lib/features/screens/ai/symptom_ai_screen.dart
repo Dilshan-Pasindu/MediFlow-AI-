@@ -530,7 +530,7 @@ class _ResultView extends StatelessWidget {
                   Row(children: [
                     StarRating(rating: d.averageRating, size: 12),
                     const SizedBox(width: 4),
-                    Text('${d.averageRating.toStringAsFixed(1)}',
+                    Text(d.averageRating.toStringAsFixed(1),
                         style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
                   ]),
                 ])),

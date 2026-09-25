@@ -174,7 +174,7 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                 data: (doctors) {
                   final sorted = _sort(doctors);
                   if (sorted.isEmpty) {
-                    return EmptyState(
+                    return const EmptyState(
                       icon: Icons.person_search_outlined,
                       title: 'No doctors found',
                       subtitle: 'Try adjusting your search or filters',
