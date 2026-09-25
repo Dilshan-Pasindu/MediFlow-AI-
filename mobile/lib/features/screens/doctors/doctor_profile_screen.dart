@@ -314,9 +314,9 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryTeal,
+                          color: AppTheme.primaryBlue,
                           borderRadius: BorderRadius.circular(24),
-                          boxShadow: AppTheme.tealCardShadow,
+                          boxShadow: AppTheme.blueShadow,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -402,12 +402,12 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                               duration: const Duration(milliseconds: 200),
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                               decoration: BoxDecoration(
-                                color: isSelected ? AppTheme.primaryTeal : Colors.white,
+                                color: isSelected ? AppTheme.primaryBlue : Colors.white,
                                 borderRadius: BorderRadius.circular(22),
                                 border: Border.all(
-                                  color: isSelected ? AppTheme.primaryTeal : AppTheme.cardBorder,
+                                  color: isSelected ? AppTheme.primaryBlue : AppTheme.cardBorder,
                                 ),
-                                boxShadow: isSelected ? AppTheme.tealCardShadow : AppTheme.cardShadow,
+                                boxShadow: isSelected ? AppTheme.blueShadow : AppTheme.cardShadow,
                               ),
                               child: Column(
                                 children: [
@@ -433,7 +433,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                         style: GoogleFonts.outfit(
                                           fontSize: 13,
                                           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                          color: isSelected ? AppTheme.primaryTeal : AppTheme.textPrimary,
+                                          color: isSelected ? AppTheme.primaryBlue : AppTheme.textPrimary,
                                         ),
                                       ),
                                     ),
@@ -498,12 +498,12 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                     duration: const Duration(milliseconds: 180),
                                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                     decoration: BoxDecoration(
-                                      color: isSelected ? AppTheme.primaryTeal : AppTheme.bgCanvas,
+                                      color: isSelected ? AppTheme.primaryBlue : AppTheme.bgCanvas,
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: isSelected ? AppTheme.primaryTeal : AppTheme.cardBorder,
+                                        color: isSelected ? AppTheme.primaryBlue : AppTheme.cardBorder,
                                       ),
-                                      boxShadow: isSelected ? AppTheme.tealCardShadow : null,
+                                      boxShadow: isSelected ? AppTheme.blueShadow : null,
                                     ),
                                     child: Text(
                                       slot,
@@ -543,9 +543,8 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                 ),
               ),
 
-              // ── Bottom Fixed Full-Width CTA "Book Appointment" ───────────
               Container(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   boxShadow: [
@@ -556,19 +555,16 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                     ),
                   ],
                 ),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _isBooking ? null : () => _handleBookAppointment(doctor),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryTeal,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                      ),
+                child: GestureDetector(
+                  onTap: _isBooking ? null : () => _handleBookAppointment(doctor),
+                  child: Container(
+                    height: 56,
+                    decoration: BoxDecoration(
+                      gradient: AppTheme.primaryGradient,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      boxShadow: AppTheme.buttonShadow,
                     ),
+                    alignment: Alignment.center,
                     child: _isBooking
                         ? const SizedBox(
                             width: 22,
@@ -579,7 +575,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                             ),
                           )
                         : Text(
-                            'Book Appointment',
+                            'Book Session',
                             style: GoogleFonts.outfit(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
@@ -598,14 +594,14 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
 
   Widget _buildFallbackAvatar(DoctorModel doc) {
     return Container(
-      color: AppTheme.primaryTeal.withValues(alpha: 0.12),
+      color: AppTheme.primaryBlue.withValues(alpha: 0.12),
       child: Center(
         child: Text(
           doc.fullName.isNotEmpty ? doc.fullName[0].toUpperCase() : 'D',
           style: GoogleFonts.outfit(
             fontSize: 48,
             fontWeight: FontWeight.w800,
-            color: AppTheme.primaryTeal,
+            color: AppTheme.primaryBlue,
           ),
         ),
       ),
