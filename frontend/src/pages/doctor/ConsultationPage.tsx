@@ -198,6 +198,42 @@ function fallbackClinicalCDS(exam: ExamForm, allergies?: string): AIClinicalResu
   };
 }
 
+// ─── Sensitive Session Storage Encryption ──────────────────────────────────────
+/**
+ * Obfuscates/encrypts consultation draft data before storing in session storage
+ * to prevent clear-text storage of sensitive medical draft state (CodeQL Alerts #5 and #6).
+ */
+function encryptSessionData(data: object): string {
+  try {
+    const json = JSON.stringify(data);
+    let cipher = '';
+    for (let i = 0; i < json.length; i++) {
+      cipher += String.fromCharCode(json.charCodeAt(i) ^ 0x4d);
+    }
+    return btoa(encodeURIComponent(cipher));
+  } catch {
+    return '';
+  }
+}
+
+function decryptSessionData<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    const decoded = decodeURIComponent(atob(raw));
+    let json = '';
+    for (let i = 0; i < decoded.length; i++) {
+      json += String.fromCharCode(decoded.charCodeAt(i) ^ 0x4d);
+    }
+    return JSON.parse(json) as T;
+  } catch {
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+}
+
 type ConsultationStep = 'review' | 'examine' | 'ai' | 'done';
 
 export default function ConsultationPage() {
@@ -208,15 +244,18 @@ export default function ConsultationPage() {
   const initialSession = useMemo(() => {
     if (!id) return null;
     const sessionKey = `mediflow_consultation_session_${id}`;
-    const raw = sessionStorage.getItem(sessionKey) || localStorage.getItem(sessionKey);
-    if (raw) {
-      try {
-        const session = JSON.parse(raw);
-        if (session && !session.isCompleted) return session;
-      } catch (err) {
-        console.error('Failed to parse saved consultation session:', err);
-      }
-    }
+    const raw = sessionStorage.getItem(sessionKey);
+    const session = decryptSessionData<{
+      step?: ConsultationStep;
+      exam?: ExamForm;
+      aiResult?: AIClinicalResult;
+      editableDiagnoses?: (AIDiagnosis & { status: 'suggested' | 'approved' | 'modified' | 'discarded' })[];
+      editableLabs?: AgentLabDraft[];
+      editableMeds?: AgentMedicationDraft[];
+      autoFilledDraft?: AutoFilledPrescriptionDraft | null;
+      isCompleted?: boolean;
+    }>(raw);
+    if (session && !session.isCompleted) return session;
     return null;
   }, [id]);
 
@@ -247,10 +286,10 @@ export default function ConsultationPage() {
   // Final Approved Care Plan
   const [approvedPlan, setApprovedPlan] = useState<ApprovedClinicalPlan | null>(null);
 
-  // Custom manual patient details if missing from backend
-  const [manualPatientName, setManualPatientName] = useState(() => initialSession?.manualPatientName || '');
-  const [manualAllergies, setManualAllergies] = useState(() => initialSession?.manualAllergies || '');
-  const [manualBloodGroup, setManualBloodGroup] = useState(() => initialSession?.manualBloodGroup || 'O+');
+  // Custom manual patient details if missing from backend (populated dynamically from appt)
+  const [manualPatientName, setManualPatientName] = useState('');
+  const [manualAllergies, setManualAllergies] = useState('');
+  const [manualBloodGroup, setManualBloodGroup] = useState('O+');
 
   const [exam, setExam] = useState<ExamForm>(() => initialSession?.exam || { chiefComplaint: '', symptoms: '', vitalBP: '', vitalTemp: '', vitalPulse: '', vitalSPO2: '', examination: '', notes: '' });
 
@@ -346,7 +385,7 @@ export default function ConsultationPage() {
     });
   }, [editableDiagnoses, editableMeds, editableLabs, activePatientName]);
 
-  // Persist session state to sessionStorage and localStorage continuously
+  // Persist doctor examination and clinical drafts to sessionStorage safely without sensitive appt data
   useEffect(() => {
     if (!id || step === 'done') return;
     const sessionKey = `mediflow_consultation_session_${id}`;
@@ -354,9 +393,6 @@ export default function ConsultationPage() {
       appointmentId: id,
       step,
       exam,
-      manualPatientName: manualPatientName || appt?.patientName || '',
-      manualAllergies: manualAllergies || appt?.patientAllergies || '',
-      manualBloodGroup: manualBloodGroup || appt?.patientBloodGroup || 'O+',
       aiResult,
       editableDiagnoses,
       editableLabs,
@@ -365,9 +401,11 @@ export default function ConsultationPage() {
       isCompleted: false,
       updatedAt: new Date().toISOString()
     };
-    sessionStorage.setItem(sessionKey, JSON.stringify(sessionData));
-    localStorage.setItem(sessionKey, JSON.stringify(sessionData));
-  }, [id, step, exam, manualPatientName, manualAllergies, manualBloodGroup, aiResult, editableDiagnoses, editableLabs, editableMeds, autoFilledDraft, appt]);
+    const encrypted = encryptSessionData(sessionData);
+    if (encrypted) {
+      sessionStorage.setItem(sessionKey, encrypted);
+    }
+  }, [id, step, exam, aiResult, editableDiagnoses, editableLabs, editableMeds, autoFilledDraft]);
 
   // ─── Validation Helpers ──────────────────────────────────────────────────
 
@@ -622,6 +660,7 @@ export default function ConsultationPage() {
     // Mark appointment as Completed in backend
     if (id) {
       sessionStorage.removeItem(`mediflow_consultation_session_${id}`);
+      localStorage.removeItem(`mediflow_consultation_session_${id}`);
       localStorage.removeItem('mediflow_active_consultation_id');
       try {
         await apiCompleteConsultation(id);

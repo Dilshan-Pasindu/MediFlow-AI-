@@ -16,6 +16,27 @@ import type { DoctorProfileUpdatePayload } from '../types/doctor';
 const VALID_BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
 const VALID_GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
 
+/**
+ * Sanitizes image URLs to prevent DOM XSS vulnerabilities from unvalidated user inputs.
+ */
+function sanitizeImageUrl(url?: string | null): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (/^(https?:\/\/|\/|data:image\/(?:png|jpeg|jpg|gif|webp|svg\+xml);base64,)/i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed, window.location.origin);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
+        return trimmed;
+      }
+    } catch {
+      if (trimmed.startsWith('/') || trimmed.startsWith('data:image/')) {
+        return trimmed;
+      }
+    }
+  }
+  return '';
+}
+
 export default function ProfilePage() {
   const currentUser = getUser();
   const { user, setUser } = useAuthStore();
@@ -306,38 +327,41 @@ export default function ProfilePage() {
                   overflow: 'hidden',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                    {docForm.profilePhoto || doctorData?.profilePhoto ? (
-                      <img
-                        src={docForm.profilePhoto || doctorData?.profilePhoto}
-                        alt={displayName}
-                        style={{
+                    {(() => {
+                      const safePhotoUrl = sanitizeImageUrl(docForm.profilePhoto || doctorData?.profilePhoto);
+                      return safePhotoUrl ? (
+                        <img
+                          src={safePhotoUrl}
+                          alt={displayName}
+                          style={{
+                            width: 80,
+                            height: 80,
+                            borderRadius: 'var(--r-xl)',
+                            objectFit: 'cover',
+                            border: '3px solid rgba(255,255,255,0.3)',
+                            boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+                            background: 'rgba(255,255,255,0.1)',
+                          }}
+                        />
+                      ) : (
+                        <div style={{
                           width: 80,
                           height: 80,
                           borderRadius: 'var(--r-xl)',
-                          objectFit: 'cover',
+                          background: 'rgba(255,255,255,0.2)',
                           border: '3px solid rgba(255,255,255,0.3)',
-                          boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
-                          background: 'rgba(255,255,255,0.1)',
-                        }}
-                      />
-                    ) : (
-                      <div style={{
-                        width: 80,
-                        height: 80,
-                        borderRadius: 'var(--r-xl)',
-                        background: 'rgba(255,255,255,0.2)',
-                        border: '3px solid rgba(255,255,255,0.3)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 28,
-                        fontWeight: 800,
-                        fontFamily: 'Outfit, sans-serif',
-                        color: 'white',
-                      }}>
-                        {initials}
-                      </div>
-                    )}
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 28,
+                          fontWeight: 800,
+                          fontFamily: 'Outfit, sans-serif',
+                          color: 'white',
+                        }}>
+                          {initials}
+                        </div>
+                      );
+                    })()}
 
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
