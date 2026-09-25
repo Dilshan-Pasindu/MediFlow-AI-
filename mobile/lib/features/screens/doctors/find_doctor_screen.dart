@@ -397,12 +397,12 @@ class _FilterPill extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? AppTheme.primaryTeal : Colors.white,
+          color: selected ? AppTheme.primaryBlue : Colors.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: selected ? AppTheme.primaryTeal : AppTheme.cardBorder,
+            color: selected ? AppTheme.primaryBlue : AppTheme.cardBorder,
           ),
-          boxShadow: selected ? AppTheme.tealCardShadow : AppTheme.cardShadow,
+          boxShadow: selected ? AppTheme.blueShadow : AppTheme.cardShadow,
         ),
         child: Center(
           child: Text(
@@ -433,12 +433,12 @@ class _GridDoctorCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isHighlighted ? AppTheme.primaryTeal : Colors.white;
+    final bgColor = isHighlighted ? AppTheme.primaryBlue : Colors.white;
     final nameColor = isHighlighted ? Colors.white : AppTheme.textPrimary;
-    final specialtyColor = isHighlighted ? const Color(0xFFA7F3D0) : AppTheme.textSecondary;
+    final specialtyColor = isHighlighted ? const Color(0xFFBDD0F8) : AppTheme.textSecondary;
     final reviewColor = isHighlighted ? Colors.white70 : AppTheme.textMuted;
-    final arrowBg = isHighlighted ? Colors.white : AppTheme.bgCanvas;
-    final arrowColor = isHighlighted ? AppTheme.primaryTeal : AppTheme.textPrimary;
+    final arrowBg = isHighlighted ? Colors.white : AppTheme.primaryBlue50;
+    final arrowColor = isHighlighted ? AppTheme.primaryBlue : AppTheme.primaryBlue;
 
     final rating = doctor.averageRating > 0 ? doctor.averageRating : 4.8;
     final reviews = doctor.reviewCount > 0 ? doctor.reviewCount : 85;
@@ -451,9 +451,9 @@ class _GridDoctorCard extends StatelessWidget {
           color: bgColor,
           borderRadius: BorderRadius.circular(26),
           border: Border.all(
-            color: isHighlighted ? AppTheme.primaryTeal : AppTheme.cardBorder,
+            color: isHighlighted ? AppTheme.primaryBlue : AppTheme.cardBorder,
           ),
-          boxShadow: isHighlighted ? AppTheme.tealCardShadow : AppTheme.cardShadow,
+          boxShadow: isHighlighted ? AppTheme.blueShadow : AppTheme.cardShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -581,14 +581,14 @@ class _GridDoctorCard extends StatelessWidget {
     return Container(
       color: isHighlighted
           ? Colors.white.withValues(alpha: 0.2)
-          : AppTheme.primaryTeal.withValues(alpha: 0.1),
+          : AppTheme.primaryBlue.withValues(alpha: 0.1),
       child: Center(
         child: Text(
           doctor.fullName.isNotEmpty ? doctor.fullName[0].toUpperCase() : 'D',
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: isHighlighted ? Colors.white : AppTheme.primaryTeal,
+            color: isHighlighted ? Colors.white : AppTheme.primaryBlue,
           ),
         ),
       ),
@@ -617,11 +617,11 @@ class _SortOption extends StatelessWidget {
         style: GoogleFonts.outfit(
           fontSize: 14,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-          color: selected ? AppTheme.primaryTeal : AppTheme.textPrimary,
+          color: selected ? AppTheme.primaryBlue : AppTheme.textPrimary,
         ),
       ),
       trailing: selected
-          ? const Icon(Icons.check_circle_rounded, color: AppTheme.primaryTeal)
+          ? const Icon(Icons.check_circle_rounded, color: AppTheme.primaryBlue)
           : null,
     );
   }

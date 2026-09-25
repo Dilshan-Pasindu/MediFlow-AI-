@@ -77,29 +77,41 @@ class MedPrimaryButton extends StatelessWidget {
     return SizedBox(
       width: fullWidth ? double.infinity : null,
       height: 52,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryTeal,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          boxShadow: AppTheme.buttonShadow,
         ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22, height: 22,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-                  Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700)),
-                ],
-              ),
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
+                    Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700)),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -199,10 +211,10 @@ class EmptyState extends StatelessWidget {
             Container(
               width: 72, height: 72,
               decoration: BoxDecoration(
-                color: AppTheme.primaryTeal.withValues(alpha: 0.1),
+                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: AppTheme.primaryTeal, size: 32),
+              child: Icon(icon, color: AppTheme.primaryBlue, size: 32),
             ),
             const SizedBox(height: 16),
             Text(title, textAlign: TextAlign.center,
@@ -299,19 +311,19 @@ class DoctorAvatar extends StatelessWidget {
         radius: radius,
         backgroundImage: NetworkImage(photoUrl!),
         onBackgroundImageError: (_, __) {},
-        backgroundColor: AppTheme.primaryTeal.withValues(alpha: 0.1),
+        backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
         child: null,
       );
     }
     return CircleAvatar(
       radius: radius,
-      backgroundColor: AppTheme.primaryTeal.withValues(alpha: 0.12),
+      backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.12),
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : 'D',
         style: GoogleFonts.outfit(
           fontSize: radius * 0.75,
           fontWeight: FontWeight.w700,
-          color: AppTheme.primaryTeal,
+          color: AppTheme.primaryBlue,
         ),
       ),
     );
@@ -404,11 +416,11 @@ class SectionHeader extends StatelessWidget {
           TextButton(
             onPressed: onSeeAll,
             style: TextButton.styleFrom(
-              foregroundColor: AppTheme.primaryDeep,
+              foregroundColor: AppTheme.primaryBlue,
               padding: const EdgeInsets.symmetric(horizontal: 4),
             ),
             child: Text(seeAllLabel,
-                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryDeep)),
+                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryBlue)),
           ),
       ],
     );

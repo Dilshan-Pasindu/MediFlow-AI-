@@ -707,15 +707,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF00A389), Color(0xFF008975)],
-          ),
+          gradient: AppTheme.primaryGradient,
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF00A389).withValues(alpha: 0.35),
+              color: AppTheme.primaryBlue.withValues(alpha: 0.35),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -843,7 +839,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           style: GoogleFonts.outfit(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: isSelected ? const Color(0xFF00A389) : Colors.white.withValues(alpha: 0.7),
+                            color: isSelected ? AppTheme.primaryBlue : Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -852,7 +848,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           style: GoogleFonts.outfit(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: isSelected ? const Color(0xFF00A389) : Colors.white,
+                            color: isSelected ? AppTheme.primaryBlue : Colors.white,
                           ),
                         ),
                       ],
