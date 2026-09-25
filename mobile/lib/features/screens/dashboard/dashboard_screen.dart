@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/network/api_client.dart';
 import '../../../features/auth/auth_provider.dart';
 import '../../../features/patient/patient_providers.dart';
 import '../../../shared/models/models.dart';
@@ -10,9 +11,19 @@ import '../../../shared/widgets/widgets.dart';
 import '../appointments/appointment_detail_screen.dart';
 import '../doctors/doctor_profile_screen.dart';
 import '../ai/symptom_ai_screen.dart';
+import '../orders/orders_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../main_shell.dart';
 
+/// Patient Dashboard (macOS-Inspired Medical Design System)
+/// Implements all website functions:
+///  - macOS Top Bar with Traffic Light Window Controls & Date Badge
+///  - Real-time "Now Consulting" Clinic Activity Banner
+///  - 3 Stat Metrics Cards (Upcoming Visits, Active Rx, Medicine Orders)
+///  - 6 macOS Application Quick Action Tiles
+///  - Upcoming Appointment Hero Card with live status & instant cancel
+///  - Top Doctors showcase strip with availability selector
+///  - Active Prescriptions with direct "Track Dispense" order links
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -21,7 +32,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  int _selectedDayIndex = 3; // Defaults to Thu 15 like in reference design
+  int _selectedDayIndex = 3; // Thu 15 in reference design
   bool _isFavorite = false;
 
   @override
@@ -30,120 +41,422 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final apptsAsync = ref.watch(myAppointmentsProvider);
     final rxsAsync = ref.watch(myPrescriptionsProvider);
     final doctorsAsync = ref.watch(doctorsProvider);
+    final ordersAsync = ref.watch(myOrdersProvider);
 
     final rawName = auth.user?.fullName.trim();
-    final firstName = (rawName != null && rawName.isNotEmpty) ? rawName.split(' ').first : 'Martin';
-    final formattedDate = DateFormat('d MMMM, yyyy').format(DateTime.now());
+    final firstName = (rawName != null && rawName.isNotEmpty) ? rawName.split(' ').first : 'Patient';
+    final formattedDate = DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now());
+
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
     return Scaffold(
       backgroundColor: AppTheme.bgCanvas,
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          color: AppTheme.primaryTeal,
+          color: AppTheme.primaryBlue,
           onRefresh: () async {
             ref.invalidate(myAppointmentsProvider);
             ref.invalidate(myPrescriptionsProvider);
             ref.invalidate(doctorsProvider);
+            ref.invalidate(myOrdersProvider);
           },
           child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              // ── Top Header ──────────────────────────────────────────────
+              // ── Top Header with macOS Window Controls ─────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+                  child: Column(
                     children: [
-                      // User Avatar
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 10,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: ClipOval(
-                          child: Container(
-                            color: AppTheme.primaryTeal.withValues(alpha: 0.15),
-                            child: Center(
-                              child: Text(
-                                firstName.isNotEmpty ? firstName[0].toUpperCase() : 'M',
+                      // macOS Traffic Lights & Clinic network branding
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              AppTheme.macOSWindowDots(size: 10, spacing: 5),
+                              const SizedBox(width: 10),
+                              Text(
+                                'MediFlow AI Portal',
                                 style: GoogleFonts.outfit(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppTheme.primaryTeal,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.textSecondary,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFECFDF5),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF059669),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  'System Online',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFF059669),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // User Row: Avatar, Greeting, Search & Notification Buttons
+                      Row(
+                        children: [
+                          // User Avatar
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.06),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: ClipOval(
+                              child: Container(
+                                color: AppTheme.primaryBlue.withValues(alpha: 0.12),
+                                child: Center(
+                                  child: Text(
+                                    firstName.isNotEmpty ? firstName[0].toUpperCase() : 'P',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.primaryBlue,
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      // Greeting & Date
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Hello, $firstName',
-                              style: GoogleFonts.outfit(
-                                fontSize: 17,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.textPrimary,
-                                letterSpacing: -0.2,
-                              ),
+                          const SizedBox(width: 12),
+
+                          // Greeting & Date
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$greeting, $firstName 👋',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textPrimary,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  formattedDate,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              formattedDate,
-                              style: GoogleFonts.outfit(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: AppTheme.textSecondary,
-                              ),
+                          ),
+
+                          // Circular Search Button (opens Find Doctor tab)
+                          _CircularActionButton(
+                            icon: Icons.search_rounded,
+                            onTap: () => ref.read(shellTabProvider.notifier).state = 1,
+                          ),
+                          const SizedBox(width: 10),
+
+                          // Circular Notification Button
+                          _CircularActionButton(
+                            icon: Icons.notifications_outlined,
+                            hasBadge: true,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
                             ),
-                          ],
-                        ),
-                      ),
-                      // Circular Search button
-                      _CircularActionButton(
-                        icon: Icons.search_rounded,
-                        onTap: () => ref.read(shellTabProvider.notifier).state = 1,
-                      ),
-                      const SizedBox(width: 10),
-                      // Circular Notification button with red dot
-                      _CircularActionButton(
-                        icon: Icons.notifications_outlined,
-                        hasBadge: true,
-                        onTap: () => Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-                        ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
               ),
 
-              // ── Main Content ────────────────────────────────────────────
+              // ── Main Dashboard Body ─────────────────────────────────────
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 110),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // ── "Top Doctors" Section ─────────────────────────────
+                    // ── 1. Real-Time Now Consulting Banner ────────────────
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFECACA).withValues(alpha: 0.7)),
+                        boxShadow: AppTheme.macOSShadow,
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEF4444),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'NOW CONSULTING ACTIVE',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFFDC2626),
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                                Text(
+                                  'Live queue sessions running with OPD doctors in clinic.',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 12,
+                                    color: AppTheme.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => ref.read(shellTabProvider.notifier).state = 2,
+                            child: Text(
+                              'View Queue',
+                              style: GoogleFonts.outfit(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.primaryBlue,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── 2. Stat Metrics Grid (3 Cards mirroring Website) ──
+                    Row(
+                      children: [
+                        // Upcoming Visits
+                        _DashboardStatCard(
+                          title: 'Upcoming',
+                          icon: Icons.calendar_today_rounded,
+                          color: AppTheme.primaryBlue,
+                          bg: AppTheme.primaryBlue50,
+                          asyncVal: apptsAsync.when(
+                            data: (list) => '${list.where((a) => a.isUpcoming).length}',
+                            loading: () => '...',
+                            error: (_, __) => '0',
+                          ),
+                          subtitle: 'Visits',
+                          onTap: () => ref.read(shellTabProvider.notifier).state = 2,
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Active Prescriptions
+                        _DashboardStatCard(
+                          title: 'Active Rx',
+                          icon: Icons.medication_rounded,
+                          color: const Color(0xFF059669),
+                          bg: const Color(0xFFECFDF5),
+                          asyncVal: rxsAsync.when(
+                            data: (list) => '${list.where((r) => r.status == 'Active').length}',
+                            loading: () => '...',
+                            error: (_, __) => '0',
+                          ),
+                          subtitle: 'Meds',
+                          onTap: () => ref.read(shellTabProvider.notifier).state = 3,
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Medicine Orders
+                        _DashboardStatCard(
+                          title: 'Dispensing',
+                          icon: Icons.local_shipping_outlined,
+                          color: const Color(0xFFD97706),
+                          bg: const Color(0xFFFFFBEB),
+                          asyncVal: ordersAsync.when(
+                            data: (list) => '${list.where((o) => o.status != 'Dispensed').length}',
+                            loading: () => '...',
+                            error: (_, __) => '0',
+                          ),
+                          subtitle: 'In Queue',
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── 3. Quick Action Grid (6 macOS Style Tiles) ─────────
+                    Text(
+                      'Patient Services',
+                      style: GoogleFonts.outfit(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    GridView.count(
+                      crossAxisCount: 3,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                      childAspectRatio: 0.95,
+                      children: [
+                        _QuickActionTile(
+                          icon: Icons.medical_services_rounded,
+                          title: 'Find Doctor',
+                          subtitle: 'Specialists',
+                          iconColor: AppTheme.primaryBlue,
+                          iconBg: AppTheme.primaryBlue50,
+                          onTap: () => ref.read(shellTabProvider.notifier).state = 1,
+                        ),
+                        _QuickActionTile(
+                          icon: Icons.auto_awesome_rounded,
+                          title: 'Symptom AI',
+                          subtitle: 'Check Symptoms',
+                          iconColor: const Color(0xFF7C3AED),
+                          iconBg: const Color(0xFFEDE9FE),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SymptomAiScreen()),
+                          ),
+                        ),
+                        _QuickActionTile(
+                          icon: Icons.calendar_month_rounded,
+                          title: 'Schedule',
+                          subtitle: 'My Visits',
+                          iconColor: const Color(0xFF0284C7),
+                          iconBg: const Color(0xFFE0F2FE),
+                          onTap: () => ref.read(shellTabProvider.notifier).state = 2,
+                        ),
+                        _QuickActionTile(
+                          icon: Icons.receipt_long_rounded,
+                          title: 'Prescriptions',
+                          subtitle: 'E-Prescriptions',
+                          iconColor: const Color(0xFF059669),
+                          iconBg: const Color(0xFFECFDF5),
+                          onTap: () => ref.read(shellTabProvider.notifier).state = 3,
+                        ),
+                        _QuickActionTile(
+                          icon: Icons.local_pharmacy_rounded,
+                          title: 'Orders',
+                          subtitle: 'Track Dispense',
+                          iconColor: const Color(0xFFD97706),
+                          iconBg: const Color(0xFFFEF3C7),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                          ),
+                        ),
+                        _QuickActionTile(
+                          icon: Icons.account_circle_rounded,
+                          title: 'My Profile',
+                          subtitle: 'Vitals & History',
+                          iconColor: const Color(0xFF475569),
+                          iconBg: const Color(0xFFF1F5F9),
+                          onTap: () => ref.read(shellTabProvider.notifier).state = 4,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // ── 4. Upcoming Appointment Hero Card ──────────────────
+                    apptsAsync.when(
+                      loading: () => const ShimmerCard(height: 140),
+                      error: (_, __) => const SizedBox(),
+                      data: (appts) {
+                        final upcoming = appts.where((a) => a.isUpcoming).toList();
+                        if (upcoming.isEmpty) return const SizedBox();
+                        final nextAppt = upcoming.first;
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Next Appointment',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppTheme.textPrimary,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () => ref.read(shellTabProvider.notifier).state = 2,
+                                  child: Text(
+                                    'View all (${upcoming.length})',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.primaryBlue,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            _UpcomingAppointmentHero(
+                              appointment: nextAppt,
+                              onCancel: () => _handleCancelAppointment(nextAppt.id),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                        );
+                      },
+                    ),
+
+                    // ── 5. "Top Doctors" Section ───────────────────────────
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
                           'Top Doctors',
                           style: GoogleFonts.outfit(
-                            fontSize: 19,
+                            fontSize: 17,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.textPrimary,
                             letterSpacing: -0.2,
@@ -154,9 +467,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: Text(
                             'See all',
                             style: GoogleFonts.outfit(
-                              fontSize: 14,
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryTeal,
+                              color: AppTheme.primaryBlue,
                             ),
                           ),
                         ),
@@ -164,9 +477,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // ── Featured Emerald Teal Doctor Card ──────────────────
                     doctorsAsync.when(
-                      loading: () => const ShimmerCard(height: 260),
+                      loading: () => const ShimmerCard(height: 240),
                       error: (_, __) => _buildFeaturedDoctorCard(null),
                       data: (doctors) => _buildFeaturedDoctorCard(
                         doctors.isNotEmpty ? doctors.first : null,
@@ -174,16 +486,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── "Disease Monitoring" Section ───────────────────────
+                    // ── 6. Disease Monitoring Section ──────────────────────
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Disease\nmonitoring',
+                          'Disease Monitoring & Care',
                           style: GoogleFonts.outfit(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w800,
-                            height: 1.15,
                             color: AppTheme.textPrimary,
                             letterSpacing: -0.2,
                           ),
@@ -205,11 +516,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
 
-                    // Disease Monitoring Horizontal Cards
                     SizedBox(
-                      height: 142,
+                      height: 140,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
@@ -236,9 +546,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                           const SizedBox(width: 14),
                           _DiseaseMonitoringCard(
-                            title: "Hypertension\ntracking",
+                            title: "Cardio\nrhythm",
                             icon: Icons.favorite_rounded,
-                            iconColor: const Color(0xFF0D9488),
+                            iconColor: const Color(0xFF059669),
                             iconBg: const Color(0xFFCCFBF1),
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(builder: (_) => const SymptomAiScreen()),
@@ -249,239 +559,58 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // ── AI Symptom Banner CTA ──────────────────────────────
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SymptomAiScreen()),
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: AppTheme.cardBorder),
-                          boxShadow: AppTheme.cardShadow,
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: AppTheme.primaryTeal.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(
-                                Icons.auto_awesome_rounded,
-                                color: AppTheme.primaryTeal,
-                                size: 22,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'MediFlow Clinical AI Triage',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'Check symptoms & get specialist match',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: const BoxDecoration(
-                                color: AppTheme.bgCanvas,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.arrow_outward_rounded,
-                                color: AppTheme.primaryTeal,
-                                size: 18,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── Upcoming Appointments ──────────────────────────────
+                    // ── 7. Active Prescriptions Preview ────────────────────
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Upcoming Appointments',
+                          'Recent Prescriptions',
                           style: GoogleFonts.outfit(
-                            fontSize: 18,
+                            fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.textPrimary,
-                            letterSpacing: -0.2,
                           ),
                         ),
                         GestureDetector(
-                          onTap: () => ref.read(shellTabProvider.notifier).state = 2,
+                          onTap: () => ref.read(shellTabProvider.notifier).state = 3,
                           child: Text(
-                            'See all',
+                            'View all',
                             style: GoogleFonts.outfit(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryTeal,
+                              color: AppTheme.primaryBlue,
                             ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 12),
-                    apptsAsync.when(
-                      loading: () => Column(
-                        children: List.generate(2, (_) => const ShimmerCard(height: 80)),
-                      ),
-                      error: (e, _) => ErrorState(
-                        message: e.toString(),
-                        onRetry: () => ref.invalidate(myAppointmentsProvider),
-                      ),
-                      data: (appts) {
-                        final upcoming = appts.where((a) => a.isUpcoming).take(2).toList();
-                        if (upcoming.isEmpty) {
+
+                    rxsAsync.when(
+                      loading: () => const ShimmerCard(height: 80),
+                      error: (_, __) => const SizedBox(),
+                      data: (rxs) {
+                        if (rxs.isEmpty) {
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                            padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(24),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(color: AppTheme.cardBorder),
-                              boxShadow: AppTheme.cardShadow,
                             ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.primaryTeal.withValues(alpha: 0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.calendar_month_outlined,
-                                    color: AppTheme.primaryTeal,
-                                    size: 24,
-                                  ),
+                            child: Center(
+                              child: Text(
+                                'No prescriptions issued yet',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary,
                                 ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'No appointments booked',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: AppTheme.textPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Schedule a visit with our top specialists',
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 12,
-                                          color: AppTheme.textSecondary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () => ref.read(shellTabProvider.notifier).state = 1,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppTheme.primaryTeal,
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    'Book',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
                           );
                         }
                         return Column(
-                          children: upcoming
-                              .map((a) => _AppointmentCard(
-                                    appt: a,
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => AppointmentDetailScreen(id: a.id),
-                                        ),
-                                      );
-                                    },
-                                  ))
-                              .toList(),
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // ── Recent Prescriptions ───────────────────────────────
-                    rxsAsync.when(
-                      loading: () => const SizedBox(),
-                      error: (_, __) => const SizedBox(),
-                      data: (rxs) {
-                        if (rxs.isEmpty) return const SizedBox();
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Recent Prescriptions',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.textPrimary,
-                                    letterSpacing: -0.2,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => ref.read(shellTabProvider.notifier).state = 3,
-                                  child: Text(
-                                    'See all',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.primaryTeal,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            ...rxs.take(2).map((rx) => _PrescriptionCard(rx: rx)),
-                          ],
+                          children: rxs.take(2).map((rx) => _MiniPrescriptionTile(rx: rx)).toList(),
                         );
                       },
                     ),
@@ -495,14 +624,70 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  // ── Featured Doctor Card (Emerald Teal Hero) ─────────────────────────────
-  Widget _buildFeaturedDoctorCard(DoctorModel? doc) {
-    final doctorName = doc?.fullName ?? 'Dr. Johan Janson';
-    final specialty = doc?.primarySpecialty ?? 'Arthropathic';
-    final rating = (doc?.averageRating != null && doc!.averageRating > 0) ? doc.averageRating : 4.8;
-    final fee = doc?.consultationFee != null ? '\$${doc!.consultationFee!.toInt()}' : '\$95';
+  Future<void> _handleCancelAppointment(int id) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Cancel Appointment?',
+          style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          'Are you sure you want to cancel this scheduled consultation? This slot will be released.',
+          style: GoogleFonts.outfit(fontSize: 13.5, color: AppTheme.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Keep', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Cancel Visit', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
 
-    final days = [
+    if (confirmed == true) {
+      try {
+        await ApiClient.instance.delete('/appointments/$id');
+        ref.invalidate(myAppointmentsProvider);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Appointment cancelled successfully', style: GoogleFonts.outfit()),
+              backgroundColor: const Color(0xFF1E293B),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error: ${e.toString()}', style: GoogleFonts.outfit()),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  Widget _buildFeaturedDoctorCard(DoctorModel? doctor) {
+    final doctorName = doctor?.fullName ?? 'Dr. Saif Ababon';
+    final specialty = doctor?.primarySpecialty ?? 'Cardiologist';
+    final rating = doctor?.averageRating ?? 4.8;
+    final doctorId = doctor?.id ?? 1;
+
+    const days = [
       {'day': 'Mon', 'num': '12'},
       {'day': 'Tue', 'num': '13'},
       {'day': 'Wed', 'num': '14'},
@@ -514,51 +699,50 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     return GestureDetector(
       onTap: () {
-        if (doc != null) {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => DoctorProfileScreen(id: doc.id)),
-          );
-        } else {
-          ref.read(shellTabProvider.notifier).state = 1;
-        }
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DoctorProfileScreen(id: doctorId),
+          ),
+        );
       },
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.primaryTeal,
-          borderRadius: BorderRadius.circular(30),
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF00A389), Color(0xFF008975)],
+          ),
+          borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryTeal.withValues(alpha: 0.35),
-              blurRadius: 24,
-              spreadRadius: 0,
+              color: const Color(0xFF00A389).withValues(alpha: 0.35),
+              blurRadius: 20,
               offset: const Offset(0, 8),
             ),
           ],
         ),
         padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row: Rating Pill & Favorite Heart
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // White Rating Pill
+                // Star Rating pill
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star_rounded, color: AppTheme.starGold, size: 16),
+                      const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
                       const SizedBox(width: 4),
                       Text(
                         rating.toStringAsFixed(1),
                         style: GoogleFonts.outfit(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.textPrimary,
                         ),
@@ -566,13 +750,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ],
                   ),
                 ),
-                // Favorite Heart Button
+                const Spacer(),
+                // Heart Favorite
                 GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _isFavorite = !_isFavorite;
-                    });
-                  },
+                  onTap: () => setState(() => _isFavorite = !_isFavorite),
                   child: Container(
                     width: 36,
                     height: 36,
@@ -589,188 +770,96 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
 
-            // Middle row: Doctor details and Avatar illustration
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        specialty,
-                        style: GoogleFonts.outfit(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFFA7F3D0),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        doctorName,
-                        style: GoogleFonts.outfit(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            fee,
-                            style: GoogleFonts.outfit(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            '/session',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+            const SizedBox(height: 8),
+
+            // Doctor Portrait
+            Center(
+              child: Container(
+                width: 78,
+                height: 78,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.2),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2),
                 ),
-                // Doctor Photo / Avatar with Stethoscope representation
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: 90,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    if (doc?.profilePhoto != null && doc!.profilePhoto!.isNotEmpty)
-                      ClipOval(
-                        child: Image.network(
-                          doc.profilePhoto!,
-                          width: 82,
-                          height: 82,
+                child: ClipOval(
+                  child: doctor?.profilePhoto != null && doctor!.profilePhoto!.isNotEmpty
+                      ? Image.network(
+                          doctor.profilePhoto!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
-                            Icons.medical_services_rounded,
-                            size: 40,
-                            color: Colors.white,
-                          ),
-                        ),
-                      )
-                    else
-                      const Icon(
-                        Icons.medical_services_rounded,
-                        size: 44,
-                        color: Colors.white,
-                      ),
-                  ],
+                          errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, size: 48, color: Colors.white),
+                        )
+                      : const Icon(Icons.person_rounded, size: 48, color: Colors.white),
                 ),
-              ],
+              ),
             ),
-            const SizedBox(height: 18),
 
-            // Embedded Availability & Day Selector
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(22),
+            const SizedBox(height: 10),
+
+            Text(
+              specialty,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.8),
               ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Availability • 8 slots',
-                        style: GoogleFonts.outfit(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Text(
-                            'February 2025',
-                            style: GoogleFonts.outfit(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.white.withValues(alpha: 0.9),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.chevron_right_rounded,
-                            size: 16,
-                            color: Colors.white,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Horizontal 7-Day Selector
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(days.length, (i) {
-                      final item = days[i];
-                      final isSelected = i == _selectedDayIndex;
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedDayIndex = i;
-                          });
-                        },
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.white : Colors.transparent,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                item['day']!,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: isSelected ? AppTheme.primaryTeal : Colors.white70,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                item['num']!,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                                  color: isSelected ? AppTheme.primaryTeal : Colors.white,
-                                ),
-                              ),
-                            ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              doctorName,
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+                letterSpacing: -0.2,
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // 7-day horizontal selector strip
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: List.generate(days.length, (idx) {
+                final d = days[idx];
+                final isSelected = idx == _selectedDayIndex;
+
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedDayIndex = idx),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 38,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          d['day']!,
+                          style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: isSelected ? const Color(0xFF00A389) : Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
-                      );
-                    }),
+                        const SizedBox(height: 4),
+                        Text(
+                          d['num']!,
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected ? const Color(0xFF00A389) : Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                );
+              }),
             ),
           ],
         ),
@@ -779,7 +868,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-// ── Circular Header Action Button ─────────────────────────────────────────────
+// ── Supporting Dashboard Widgets ─────────────────────────────────────────────
+
 class _CircularActionButton extends StatelessWidget {
   const _CircularActionButton({
     required this.icon,
@@ -802,19 +892,25 @@ class _CircularActionButton extends StatelessWidget {
           color: Colors.white,
           shape: BoxShape.circle,
           border: Border.all(color: AppTheme.cardBorder),
-          boxShadow: AppTheme.cardShadow,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Icon(icon, color: AppTheme.textPrimary, size: 20),
+            Icon(icon, size: 20, color: AppTheme.textPrimary),
             if (hasBadge)
               Positioned(
-                top: 11,
-                right: 12,
+                top: 10,
+                right: 11,
                 child: Container(
-                  width: 7,
-                  height: 7,
+                  width: 8,
+                  height: 8,
                   decoration: const BoxDecoration(
                     color: Color(0xFFEF4444),
                     shape: BoxShape.circle,
@@ -828,10 +924,8 @@ class _CircularActionButton extends StatelessWidget {
   }
 }
 
-// ── Small Filter / Option Button ──────────────────────────────────────────────
 class _SmallToolButton extends StatelessWidget {
   const _SmallToolButton({required this.icon, required this.onTap});
-
   final IconData icon;
   final VoidCallback onTap;
 
@@ -840,21 +934,303 @@ class _SmallToolButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 36,
-        height: 36,
+        width: 32,
+        height: 32,
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
           border: Border.all(color: AppTheme.cardBorder),
-          boxShadow: AppTheme.cardShadow,
         ),
-        child: Icon(icon, color: AppTheme.textSecondary, size: 18),
+        child: Icon(icon, size: 16, color: AppTheme.textSecondary),
       ),
     );
   }
 }
 
-// ── Disease Monitoring Card (from Reference Design) ───────────────────────────
+class _DashboardStatCard extends StatelessWidget {
+  const _DashboardStatCard({
+    required this.title,
+    required this.icon,
+    required this.color,
+    required this.bg,
+    required this.asyncVal,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final String title;
+  final IconData icon;
+  final Color color;
+  final Color bg;
+  final String asyncVal;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: AppTheme.cardBorder),
+            boxShadow: AppTheme.macOSShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                asyncVal,
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              Text(
+                title,
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuickActionTile extends StatelessWidget {
+  const _QuickActionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.iconColor,
+    required this.iconBg,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color iconColor;
+  final Color iconBg;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppTheme.cardBorder),
+          boxShadow: AppTheme.macOSShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 20, color: iconColor),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.outfit(
+                    fontSize: 10.5,
+                    color: AppTheme.textSecondary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UpcomingAppointmentHero extends StatelessWidget {
+  const _UpcomingAppointmentHero({
+    required this.appointment,
+    required this.onCancel,
+  });
+
+  final AppointmentModel appointment;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final dt = appointment.appointmentDateTime;
+    final dateStr = DateFormat('EEE, MMM d • hh:mm a').format(dt);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3), width: 1.5),
+        boxShadow: AppTheme.macOSShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              DoctorAvatar(
+                photoUrl: appointment.doctorProfilePhoto,
+                name: appointment.doctorName,
+                radius: 24,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Dr. ${appointment.doctorName}',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      appointment.specialtyName,
+                      style: GoogleFonts.outfit(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryBlue50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  appointment.status,
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.primaryBlue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.surface2,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.access_time_rounded, size: 16, color: AppTheme.primaryBlue),
+                const SizedBox(width: 8),
+                Text(
+                  dateStr,
+                  style: GoogleFonts.outfit(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => AppointmentDetailScreen(id: appointment.id),
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primaryBlue,
+                    side: const BorderSide(color: AppTheme.cardBorder),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  child: Text(
+                    'Details',
+                    style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextButton(
+                  onPressed: onCancel,
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFDC2626),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  child: Text(
+                    'Cancel Visit',
+                    style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _DiseaseMonitoringCard extends StatelessWidget {
   const _DiseaseMonitoringCard({
     required this.title,
@@ -875,53 +1251,53 @@ class _DiseaseMonitoringCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 146,
-        padding: const EdgeInsets.all(14),
+        width: 140,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(color: AppTheme.cardBorder),
-          boxShadow: AppTheme.cardShadow,
+          boxShadow: AppTheme.macOSShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textPrimary,
-                height: 1.25,
-              ),
-            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 38,
-                  height: 38,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: iconBg,
-                    borderRadius: BorderRadius.circular(12),
+                    shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, color: iconColor, size: 18),
+                  child: Icon(icon, size: 18, color: iconColor),
                 ),
                 Container(
-                  width: 34,
-                  height: 34,
+                  width: 28,
+                  height: 28,
                   decoration: const BoxDecoration(
-                    color: AppTheme.bgCanvas,
+                    color: AppTheme.surface2,
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.arrow_outward_rounded,
+                    size: 14,
                     color: AppTheme.textPrimary,
-                    size: 16,
                   ),
                 ),
               ],
+            ),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+                height: 1.2,
+              ),
             ),
           ],
         ),
@@ -930,189 +1306,69 @@ class _DiseaseMonitoringCard extends StatelessWidget {
   }
 }
 
-// ── Clean White Appointment Card ─────────────────────────────────────────────
-class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({required this.appt, required this.onTap});
-
-  final AppointmentModel appt;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final statusInfo = AppTheme.appointmentStatus(appt.status);
-    final dt = appt.appointmentDateTime;
-    final dateStr = DateFormat('EEE, MMM d').format(dt);
-    final timeStr = DateFormat('h:mm a').format(dt);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: AppTheme.cardBorder),
-        boxShadow: AppTheme.cardShadow,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                DoctorAvatar(
-                  photoUrl: appt.doctorProfilePhoto,
-                  name: appt.doctorName,
-                  radius: 26,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        appt.doctorName,
-                        style: GoogleFonts.outfit(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        appt.specialtyName,
-                        style: GoogleFonts.outfit(
-                          fontSize: 12,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.access_time_rounded,
-                            size: 13,
-                            color: AppTheme.primaryTeal,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$dateStr • $timeStr',
-                            style: GoogleFonts.outfit(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.primaryTeal,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: statusInfo.bg,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    statusInfo.label,
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: statusInfo.text,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ── Clean Prescription Card ──────────────────────────────────────────────────
-class _PrescriptionCard extends StatelessWidget {
-  const _PrescriptionCard({required this.rx});
-
+class _MiniPrescriptionTile extends StatelessWidget {
+  const _MiniPrescriptionTile({required this.rx});
   final PrescriptionModel rx;
 
   @override
   Widget build(BuildContext context) {
-    DateTime? dt;
-    if (rx.dateIssued != null) {
-      try {
-        dt = DateTime.parse(rx.dateIssued!);
-      } catch (_) {}
-    }
-    final dateStr = dt != null ? DateFormat('MMM d, yyyy').format(dt) : (rx.dateIssued ?? 'Recent');
-    final diagnosisTitle = (rx.diagnosis != null && rx.diagnosis!.isNotEmpty)
-        ? rx.diagnosis!
-        : 'Clinical Prescription';
-
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.cardBorder),
-        boxShadow: AppTheme.cardShadow,
+        boxShadow: AppTheme.macOSShadow,
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: AppTheme.primaryTeal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
+              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
-              Icons.medication_rounded,
-              color: AppTheme.primaryTeal,
-              size: 22,
-            ),
+            child: const Icon(Icons.receipt_rounded, size: 18, color: AppTheme.primaryBlue),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  diagnosisTitle,
+                  rx.diagnosis != null && rx.diagnosis!.isNotEmpty ? rx.diagnosis! : 'Prescription #${rx.id}',
                   style: GoogleFonts.outfit(
-                    fontSize: 14,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
                 Text(
-                  '${rx.doctorName} • $dateStr',
+                  'Dr. ${rx.doctorName} • ${rx.items.length} meds',
                   style: GoogleFonts.outfit(
-                    fontSize: 12,
+                    fontSize: 11.5,
                     color: AppTheme.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.accentMint,
-              borderRadius: BorderRadius.circular(14),
-            ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const OrdersScreen()),
+              );
+            },
             child: Text(
-              '${rx.items.length} meds',
+              'Track',
               style: GoogleFonts.outfit(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.primaryDeep,
+                color: AppTheme.primaryBlue,
               ),
             ),
           ),

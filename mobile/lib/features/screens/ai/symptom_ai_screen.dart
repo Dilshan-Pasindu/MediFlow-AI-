@@ -17,6 +17,12 @@ final specialtiesForAiProvider = FutureProvider<List<SpecialtyModel>>((ref) asyn
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
+/// AI Symptom Checker & Clinical Triage Center (macOS Medical Theme)
+/// Mirrors the website SymptomAIPage:
+///  - AI Clinical Domain Mapping
+///  - Emergency Red Flag Screening
+///  - Confidence scoring & alternative specialty routing
+///  - Ranked specialist directory match
 class SymptomAiScreen extends ConsumerStatefulWidget {
   const SymptomAiScreen({super.key});
 
@@ -47,9 +53,9 @@ class _SymptomAiScreenState extends ConsumerState<SymptomAiScreen> {
   }
 
   Color get _severityColor {
-    if (_severity <= 3) return const Color(0xFF0EA5E9);
+    if (_severity <= 3) return const Color(0xFF0284C7);
     if (_severity <= 6) return const Color(0xFFF59E0B);
-    return AppTheme.statusInConsult;
+    return const Color(0xFFEF4444);
   }
 
   Future<void> _analyze() async {
@@ -90,7 +96,10 @@ class _SymptomAiScreenState extends ConsumerState<SymptomAiScreen> {
         _step = _Step.result;
       });
     } catch (e) {
-      setState(() { _step = _Step.input; _error = e.toString().replaceFirst('ApiException(', '').replaceAll('): ', ': '); });
+      setState(() {
+        _step = _Step.input;
+        _error = e.toString().replaceFirst('ApiException(', '').replaceAll('): ', ': ');
+      });
     }
   }
 
@@ -109,87 +118,90 @@ class _SymptomAiScreenState extends ConsumerState<SymptomAiScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.surfaceDim,
-      body: Column(
-        children: [
-          // Header
-          Container(
-            decoration: const BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(24),
-                bottomRight: Radius.circular(24),
+      backgroundColor: AppTheme.bgCanvas,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppTheme.bgCanvas,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.cardBorder),
+            ),
+            child: const Icon(Icons.arrow_back_rounded, size: 18, color: AppTheme.textPrimary),
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                AppTheme.macOSWindowDots(size: 9, spacing: 4),
+                const SizedBox(width: 8),
+                Text(
+                  'AI Symptom Checker',
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              'Clinical Triage & Specialist Recommendation',
+              style: GoogleFonts.outfit(
+                fontSize: 11,
+                color: AppTheme.textSecondary,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(4, 8, 16, 20),
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    Expanded(
-                      child: Column(children: [
-                        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentGreen,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Icon(Icons.psychology_rounded, color: AppTheme.textPrimary, size: 14),
-                          ),
-                          const SizedBox(width: 6),
-                          Text('AI Symptom Analysis',
-                            style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
-                        ]),
-                        Text('Powered by MediFlow Clinical AI',
-                          style: GoogleFonts.outfit(fontSize: 11, color: Colors.white60)),
-                      ]),
-                    ),
-                    if (_step == _Step.result)
-                      TextButton.icon(
-                        onPressed: _reset,
-                        icon: const Icon(Icons.refresh_rounded, color: Colors.white, size: 16),
-                        label: Text('Reset', style: GoogleFonts.outfit(color: Colors.white, fontSize: 12)),
-                      )
-                    else
-                      const SizedBox(width: 48),
-                  ],
+          ],
+        ),
+        actions: [
+          if (_step == _Step.result)
+            TextButton.icon(
+              onPressed: _reset,
+              icon: const Icon(Icons.refresh_rounded, size: 16, color: AppTheme.primaryBlue),
+              label: Text(
+                'Reset',
+                style: GoogleFonts.outfit(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryBlue,
                 ),
               ),
             ),
-          ),
-
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 400),
-              child: switch (_step) {
-                _Step.input    => _InputView(
-                    key: const ValueKey('input'),
-                    symptomsCtrl: _symptomsCtrl,
-                    durationCtrl: _durationCtrl,
-                    severity: _severity,
-                    severityLabel: _severityLabel,
-                    severityColor: _severityColor,
-                    onSeverityChanged: (v) => setState(() => _severity = v),
-                    onAnalyze: _analyze,
-                    error: _error,
-                  ),
-                _Step.analyzing => const _AnalyzingView(key: ValueKey('analyzing')),
-                _Step.result    => _ResultView(
-                    key: const ValueKey('result'),
-                    result: _result!,
-                    doctors: _recommendedDoctors,
-                    onReset: _reset,
-                  ),
-              },
-            ),
-          ),
+          const SizedBox(width: 8),
         ],
+      ),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 350),
+        child: switch (_step) {
+          _Step.input => _InputView(
+              key: const ValueKey('input'),
+              symptomsCtrl: _symptomsCtrl,
+              durationCtrl: _durationCtrl,
+              severity: _severity,
+              severityLabel: _severityLabel,
+              severityColor: _severityColor,
+              onSeverityChanged: (v) => setState(() => _severity = v),
+              onAnalyze: _analyze,
+              error: _error,
+            ),
+          _Step.analyzing => const _AnalyzingView(key: ValueKey('analyzing')),
+          _Step.result => _ResultView(
+              key: const ValueKey('result'),
+              result: _result!,
+              doctors: _recommendedDoctors,
+              onReset: _reset,
+            ),
+        },
       ),
     );
   }
@@ -201,9 +213,15 @@ enum _Step { input, analyzing, result }
 
 class _InputView extends StatelessWidget {
   const _InputView({
-    super.key, required this.symptomsCtrl, required this.durationCtrl,
-    required this.severity, required this.severityLabel, required this.severityColor,
-    required this.onSeverityChanged, required this.onAnalyze, this.error,
+    super.key,
+    required this.symptomsCtrl,
+    required this.durationCtrl,
+    required this.severity,
+    required this.severityLabel,
+    required this.severityColor,
+    required this.onSeverityChanged,
+    required this.onAnalyze,
+    this.error,
   });
 
   final TextEditingController symptomsCtrl, durationCtrl;
@@ -214,19 +232,27 @@ class _InputView extends StatelessWidget {
   final VoidCallback onAnalyze;
   final String? error;
 
-  static const _examples = [
+  static const _quickExamples = [
     'Chest pain and palpitations',
     'Severe headache and dizziness',
     'Skin rash and itching',
     'Shortness of breath',
-    'Stomach pain and acid reflux',
+    'Stomach pain, bloating, acid reflux',
     'Joint pain and swelling',
+  ];
+
+  static const _durationPresets = [
+    '1 day',
+    '3 days',
+    '1 week',
+    '2 weeks',
+    '1 month',
   ];
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -234,126 +260,276 @@ class _InputView extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppTheme.statusInConsult.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: AppTheme.statusInConsult.withOpacity(0.3)),
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFFECACA)),
               ),
-              child: Row(children: [
-                const Icon(Icons.error_outline, color: AppTheme.statusInConsult, size: 18),
-                const SizedBox(width: 8),
-                Expanded(child: Text(error!,
-                    style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.statusInConsult))),
-              ]),
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // Symptoms textarea
-          MedCard(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Describe Your Symptoms',
-                  style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              Text('Be as specific as possible for better AI recommendations',
-                  style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: symptomsCtrl,
-                maxLines: 5,
-                maxLength: 2000,
-                style: GoogleFonts.outfit(fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'e.g. I have had chest pain for 3 days, along with shortness of breath...',
-                  hintStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    borderSide: const BorderSide(color: AppTheme.divider),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    borderSide: const BorderSide(color: AppTheme.primaryDeep, width: 2),
-                  ),
-                  filled: true, fillColor: AppTheme.surfaceDim,
-                ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 10),
-
-          // Quick examples
-          Wrap(
-            spacing: 8, runSpacing: 6,
-            children: _examples.map((ex) => ActionChip(
-              label: Text(ex, style: GoogleFonts.outfit(fontSize: 11)),
-              onPressed: () => symptomsCtrl.text = ex,
-              backgroundColor: AppTheme.surface,
-              side: const BorderSide(color: AppTheme.divider),
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-            )).toList(),
-          ),
-          const SizedBox(height: 12),
-
-          // Duration & Severity row
-          Row(children: [
-            Expanded(
-              child: MedCard(
-                padding: const EdgeInsets.all(12),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Duration', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: durationCtrl,
-                    style: GoogleFonts.outfit(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'e.g. 3 days',
-                      hintStyle: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppTheme.divider),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AppTheme.primaryDeep, width: 2),
-                      ),
-                      filled: true, fillColor: AppTheme.surfaceDim,
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      error!,
+                      style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFFDC2626)),
                     ),
                   ),
-                ]),
+                ],
               ),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: MedCard(
-                padding: const EdgeInsets.all(12),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Text('Severity', style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700)),
-                    const Spacer(),
-                    Text(severityLabel,
-                        style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: severityColor)),
-                  ]),
-                  Slider(
-                    value: severity,
-                    min: 1, max: 10, divisions: 9,
-                    activeColor: severityColor,
-                    onChanged: onSeverityChanged,
+            const SizedBox(height: 14),
+          ],
+
+          // ── Describe Symptoms Card ──
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.cardBorder),
+              boxShadow: AppTheme.macOSShadow,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Describe Your Symptoms',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'AI Triage',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.primaryBlue,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Mention pain intensity, location, and any accompanying discomfort.',
+                  style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: symptomsCtrl,
+                  maxLines: 5,
+                  maxLength: 2000,
+                  style: GoogleFonts.outfit(fontSize: 14, color: AppTheme.textPrimary),
+                  decoration: InputDecoration(
+                    hintText: 'e.g., I have had sharp chest pain for 3 days with shortness of breath when climbing stairs...',
+                    hintStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
+                    filled: true,
+                    fillColor: AppTheme.surface2,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppTheme.cardBorder),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppTheme.cardBorder),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: AppTheme.primaryBlue, width: 1.8),
+                    ),
                   ),
-                ]),
-              ),
+                ),
+              ],
             ),
-          ]),
+          ),
+
+          const SizedBox(height: 14),
+
+          // ── Quick Examples ──
+          Text(
+            'Common Clinical Symptoms',
+            style: GoogleFonts.outfit(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _quickExamples.map((ex) {
+              return GestureDetector(
+                onTap: () => symptomsCtrl.text = ex,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.cardBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_rounded, size: 14, color: AppTheme.primaryBlue),
+                      const SizedBox(width: 4),
+                      Text(
+                        ex,
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Duration and Severity Card ──
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppTheme.cardBorder),
+              boxShadow: AppTheme.macOSShadow,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Duration
+                Text(
+                  'How long have you experienced this?',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: _durationPresets.map((dur) {
+                    final isSelected = durationCtrl.text == dur;
+                    return GestureDetector(
+                      onTap: () => durationCtrl.text = dur,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppTheme.primaryBlue : AppTheme.surface2,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          dur,
+                          style: GoogleFonts.outfit(
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? Colors.white : AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+
+                const Divider(height: 24),
+
+                // Severity
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Symptom Severity',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: severityColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$severityLabel (${severity.toInt()}/10)',
+                        style: GoogleFonts.outfit(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: severityColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: severity,
+                  min: 1,
+                  max: 10,
+                  divisions: 9,
+                  activeColor: severityColor,
+                  inactiveColor: AppTheme.surface2,
+                  onChanged: onSeverityChanged,
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: 20),
 
-          MedPrimaryButton(
-            label: 'Analyze Symptoms with AI',
+          // ── Analyze Button ──
+          ElevatedButton(
             onPressed: onAnalyze,
-            icon: Icons.psychology_rounded,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryBlue,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              shadowColor: Colors.transparent,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.auto_awesome_rounded, size: 18),
+                const SizedBox(width: 8),
+                Text(
+                  'Analyze Symptoms with AI',
+                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           Text(
-            '⚠️ This AI analysis is for guidance only and does not replace professional medical advice.',
+            '🔒 Secure clinical AI analysis. For guidance only; does not replace emergency medical care.',
             textAlign: TextAlign.center,
             style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted),
           ),
@@ -371,30 +547,56 @@ class _AnalyzingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF2D2BE8), Color(0xFF6C3AE0)],
-              ),
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: AppTheme.primaryDeep.withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 8))],
-            ),
-            child: const Icon(Icons.psychology_rounded, color: Colors.white, size: 40),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: AppTheme.cardBorder),
+            boxShadow: AppTheme.macOSShadow,
           ),
-          const SizedBox(height: 24),
-          Text('Analyzing Symptoms…',
-              style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
-          const SizedBox(height: 8),
-          Text('Our AI is mapping your symptoms to clinical specialties',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textSecondary)),
-          const SizedBox(height: 24),
-          const CircularProgressIndicator(color: AppTheme.primaryDeep),
-        ],
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.psychology_rounded,
+                  color: AppTheme.primaryBlue,
+                  size: 38,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Analyzing Symptoms...',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Mapping clinical indications to specialist medical fields and screening emergency red flags.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(color: AppTheme.primaryBlue),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -403,7 +605,13 @@ class _AnalyzingView extends StatelessWidget {
 // ── Result View ───────────────────────────────────────────────────────────────
 
 class _ResultView extends StatelessWidget {
-  const _ResultView({super.key, required this.result, required this.doctors, required this.onReset});
+  const _ResultView({
+    super.key,
+    required this.result,
+    required this.doctors,
+    required this.onReset,
+  });
+
   final SymptomResultModel result;
   final List<DoctorModel> doctors;
   final VoidCallback onReset;
@@ -411,151 +619,290 @@ class _ResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Crisis alert
+          // ── Safety Emergency Warning (If Crisis Detected) ──
           if (result.isCrisis) ...[
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: AppTheme.statusInConsult.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                border: Border.all(color: AppTheme.statusInConsult.withOpacity(0.4), width: 1.5),
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFECACA), width: 1.5),
               ),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  const Icon(Icons.warning_amber_rounded, color: AppTheme.statusInConsult, size: 22),
-                  const SizedBox(width: 8),
-                  Text('⚠️ CRITICAL SAFETY ALERT',
-                      style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w800, color: AppTheme.statusInConsult)),
-                ]),
-                const SizedBox(height: 8),
-                Text(result.reason, style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.statusInConsult, height: 1.5)),
-                const SizedBox(height: 12),
-                Text('Emergency contacts: Call 1926 (SL Mental Health) or 1990 (Ambulance)',
-                    style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.statusInConsult)),
-              ]),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.warning_rounded, color: Color(0xFFDC2626), size: 22),
+                      const SizedBox(width: 8),
+                      Text(
+                        'CRITICAL SAFETY SCREENING ALERT',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFDC2626),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    result.reason,
+                    style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF991B1B), height: 1.4),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Emergency Helpline: Call 1990 (Ambulance) or visit the nearest ER immediately.',
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFDC2626),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
           ],
 
-          // Primary recommendation
+          // ── Main Recommendation Card (macOS Medical Hero) ──
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(22),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                begin: Alignment.topLeft, end: Alignment.bottomRight,
-                colors: [Color(0xFF2D2BE8), Color(0xFF6C3AE0)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF2A7DE1), Color(0xFF1565C0)],
               ),
-              borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-              boxShadow: AppTheme.elevatedShadow,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.35),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentGreen,
-                    borderRadius: BorderRadius.circular(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.verified_rounded, size: 14, color: Colors.white),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Clinical Recommendation',
+                            style: GoogleFonts.outfit(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${result.confidence}% Match',
+                      style: GoogleFonts.outfit(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF81E6D9),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Consult a ${result.specialty} Specialist',
+                  style: GoogleFonts.outfit(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: -0.3,
                   ),
-                  child: const Icon(Icons.psychology_rounded, color: AppTheme.textPrimary, size: 16),
                 ),
-                const SizedBox(width: 8),
-                Text('AI Recommendation',
-                    style: GoogleFonts.outfit(fontSize: 12, color: Colors.white70, fontWeight: FontWeight.w600)),
-              ]),
-              const SizedBox(height: 12),
-              Text('See a ${result.specialty} Specialist',
-                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
-              ),
-              const SizedBox(height: 6),
-              Text('${result.confidence}% confidence',
-                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.white70)),
-              const SizedBox(height: 12),
-              // Confidence bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: result.confidence / 100,
-                  backgroundColor: Colors.white.withOpacity(0.2),
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accentGreen),
-                  minHeight: 6,
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: result.confidence / 100,
+                    backgroundColor: Colors.white.withValues(alpha: 0.2),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF4FD1C5)),
+                    minHeight: 6,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(result.reason,
-                style: GoogleFonts.outfit(fontSize: 12, color: Colors.white70, height: 1.5),
-                maxLines: 5, overflow: TextOverflow.ellipsis,
-              ),
-            ]),
+                const SizedBox(height: 14),
+                Text(
+                  result.reason,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: Colors.white.withValues(alpha: 0.9),
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
 
-          // Alt recommendation
-          MedCard(
-            child: Row(children: [
-              const Icon(Icons.alt_route_rounded, color: AppTheme.textMuted, size: 20),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Alternative Recommendation',
-                    style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
-                Text(result.altSpecialty,
-                    style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700)),
-              ])),
-              Text('${result.altConfidence}%',
-                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
-            ]),
+          const SizedBox(height: 14),
+
+          // ── Alternative Specialty ──
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.cardBorder),
+              boxShadow: AppTheme.macOSShadow,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface2,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.alt_route_rounded, size: 20, color: AppTheme.textSecondary),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Alternative Clinical Route',
+                        style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted),
+                      ),
+                      Text(
+                        result.altSpecialty,
+                        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '${result.altConfidence}%',
+                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
+                ),
+              ],
+            ),
           ),
+
           const SizedBox(height: 20),
 
-          // Recommended doctors
+          // ── Recommended Doctors in This Specialty ──
           if (doctors.isNotEmpty) ...[
-            SectionHeader(
-              title: 'Recommended Doctors',
-              subtitle: '${result.specialty} specialists',
+            Text(
+              'Available ${result.specialty} Specialists',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
             ),
             const SizedBox(height: 12),
-            ...doctors.take(3).map((d) => MedCard(
-              margin: const EdgeInsets.only(bottom: 10),
-              onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => DoctorProfileScreen(id: d.id))),
-              child: Row(children: [
-                DoctorAvatar(photoUrl: d.profilePhoto, name: d.fullName, radius: 26),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(d.fullName, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700)),
-                  Text(d.primarySpecialty, style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.primaryDeep)),
-                  Row(children: [
-                    StarRating(rating: d.averageRating, size: 12),
-                    const SizedBox(width: 4),
-                    Text(d.averageRating.toStringAsFixed(1),
-                        style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
-                  ]),
-                ])),
-                Text('Rs. ${d.consultationFee?.toStringAsFixed(0) ?? 0}',
-                    style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primaryDeep)),
-                const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted, size: 18),
-              ]),
-            )),
-            const SizedBox(height: 12),
+            ...doctors.take(3).map((doc) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppTheme.cardBorder),
+                    boxShadow: AppTheme.macOSShadow,
+                  ),
+                  child: Row(
+                    children: [
+                      DoctorAvatar(photoUrl: doc.profilePhoto, name: doc.fullName, radius: 26),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              doc.fullName,
+                              style: GoogleFonts.outfit(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                            ),
+                            Text(
+                              doc.hospitalClinic ?? doc.primarySpecialty,
+                              style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary),
+                            ),
+                            Row(
+                              children: [
+                                const Icon(Icons.star_rounded, size: 14, color: AppTheme.starGold),
+                                const SizedBox(width: 3),
+                                Text(
+                                  doc.averageRating.toStringAsFixed(1),
+                                  style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => DoctorProfileScreen(id: doc.id)),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryBlue,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'Book',
+                          style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
           ],
+
+          const SizedBox(height: 16),
 
           OutlinedButton.icon(
             onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const FindDoctorScreen())),
-            icon: const Icon(Icons.search_rounded),
-            label: Text('Browse All Doctors',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+              MaterialPageRoute(builder: (_) => const FindDoctorScreen()),
+            ),
+            icon: const Icon(Icons.search_rounded, size: 18),
+            label: const Text('Browse All Doctors'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.primaryBlue,
+              side: const BorderSide(color: AppTheme.primaryBlue),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              textStyle: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           TextButton.icon(
             onPressed: onReset,
             icon: const Icon(Icons.refresh_rounded, size: 16),
-            label: Text('Analyze Different Symptoms',
-                style: GoogleFonts.outfit(fontSize: 13)),
+            label: Text(
+              'Analyze Different Symptoms',
+              style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+            ),
           ),
         ],
       ),

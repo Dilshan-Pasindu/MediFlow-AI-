@@ -194,6 +194,20 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                       icon: Icons.chevron_left_rounded,
                       onTap: () => Navigator.of(context).pop(),
                     ),
+                    Row(
+                      children: [
+                        AppTheme.macOSWindowDots(size: 8, spacing: 4),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Doctor Profile',
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
                     _CircleNavButton(
                       icon: Icons.chat_bubble_outline_rounded,
                       onTap: () {

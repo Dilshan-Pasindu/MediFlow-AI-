@@ -11,34 +11,47 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  // ── Core Palette ──────────────────────────────────────────────────────────
-  static const Color primaryTeal   = Color(0xFF00A389);   // Signature Emerald Teal
-  static const Color primaryDeep   = Color(0xFF008975);   // Deep Emerald
-  static const Color primaryMid    = Color(0xFF00A389);   // Mid Teal
-  static const Color primaryLight  = Color(0xFF14B89A);   // Light Vibrant Teal
-  static const Color primaryDark   = Color(0xFF0E3831);   // Deep Forest Slate
+  // ── macOS & Website Design Tokens ──────────────────────────────────────────
+  static const Color primaryBlue   = Color(0xFF2A7DE1);   // Brand Primary (Website Medical Blue)
+  static const Color primaryBlueDark = Color(0xFF1565C0); // macOS Blue Dark
+  static const Color primaryBlueLight = Color(0xFF60A5FA);// macOS Blue Light
+  static const Color primaryBlue50 = Color(0xFFEBF4FF);   // Soft Blue Tint
 
-  static const Color accentMint    = Color(0xFFE6F7F4);   // Soft Mint Tint
-  static const Color accentMintSub = Color(0xFFCCF2EB);   // Secondary Mint
-  static const Color accentSage    = Color(0xFFD1FAE5);   // Sage green
-  static const Color accentGreen   = Color(0xFF00A389);   // Primary Accent
-  static const Color accentBlue    = Color(0xFF0284C7);   // Info Sky Blue
-  static const Color starGold      = Color(0xFFF59E0B);   // Rating Amber Gold
+  static const Color primaryTeal   = Color(0xFF00A389);   // Signature Medical Teal
+  static const Color primaryDeep   = Color(0xFF00796B);   // Deep Teal
+  static const Color primaryMid    = Color(0xFF2A7DE1);   // Primary Accent
+  static const Color primaryLight  = Color(0xFF4FD1C5);   // Light Mint/Teal
+  static const Color primaryDark   = Color(0xFF0B2E4A);   // Deep Medical Slate
 
-  static const Color bgCanvas      = Color(0xFFF3F8F7);   // Soft Sage/Mint Canvas
-  static const Color bgDark        = Color(0xFF082621);   // Dark Emerald Forest (Splash)
-  static const Color bgPurple      = Color(0xFF0E3831);   // Dark slate teal
-  static const Color surface       = Color(0xFFFFFFFF);   // Pure White Card
-  static const Color surfaceDim    = Color(0xFFF3F8F7);   // Dim surface / canvas
-  static const Color surfaceGlass  = Color(0x1AFFFFFF);   // Glass-morphic
+  static const Color accentMint    = Color(0xFFE6FFFA);   // Soft Mint Tint
+  static const Color accentMintSub = Color(0xFFC4F1EC);   // Secondary Mint
+  static const Color accentSage    = Color(0xFFE2E8F0);   // macOS system border
+  static const Color accentGreen   = Color(0xFF22C55E);   // Apple Success Green
+  static const Color accentBlue    = Color(0xFF2A7DE1);   // Info Medical Blue
+  static const Color starGold      = Color(0xFFF59E0B);   // Amber Gold Rating
 
-  static const Color textPrimary   = Color(0xFF1E293B);   // Slate dark text
-  static const Color textSecondary = Color(0xFF64748B);   // Slate muted text
-  static const Color textMuted     = Color(0xFF94A3B8);   // Light muted slate
+  // macOS Traffic Light Window Controls
+  static const Color trafficRed    = Color(0xFFFF5F56);   // macOS Close
+  static const Color trafficYellow = Color(0xFFFFBD2E);   // macOS Minimize
+  static const Color trafficGreen  = Color(0xFF27C93F);   // macOS Zoom/Maximize
+
+  // macOS System Backgrounds & Surfaces
+  static const Color bgCanvas      = Color(0xFFF2F2F7);   // Apple macOS System Grey Canvas
+  static const Color bgDark        = Color(0xFF0B2E4A);   // Deep Navy Slate
+  static const Color bgPurple      = Color(0xFF1E293B);   // Charcoal Slate
+  static const Color surface       = Color(0xFFFFFFFF);   // Pure Crisp White Surface
+  static const Color surfaceDim    = Color(0xFFF2F2F7);   // macOS System Background
+  static const Color surface2      = Color(0xFFF5F5F7);   // macOS System Surface 2
+  static const Color surfaceGlass  = Color(0xE6FFFFFF);   // macOS Frosted Glass (90% white)
+
+  // macOS Typography & Borders
+  static const Color textPrimary   = Color(0xFF1E293B);   // Headings text
+  static const Color textSecondary = Color(0xFF64748B);   // Body text
+  static const Color textMuted     = Color(0xFF94A3B8);   // Muted captions
   static const Color textOnDark    = Color(0xFFFFFFFF);   // White on dark
   static const Color textOnDarkSub = Color(0xCCFFFFFF);   // 80% white
-  static const Color divider       = Color(0xFFE2EBE9);   // Soft Sage Divider
-  static const Color cardBorder    = Color(0xFFE6EFEF);   // Clean Card Outline
+  static const Color divider       = Color(0xFFE2E8F0);   // macOS Thin Separator
+  static const Color cardBorder    = Color(0xFFE2E8F0);   // macOS Card Outline
 
   // Status Colors
   static const Color statusPending    = Color(0xFFB45309);
@@ -51,32 +64,38 @@ class AppTheme {
   static const Color statusCompBg     = Color(0xFFF0FDFA);
   static const Color statusCancelled  = Color(0xFF64748B);
   static const Color statusCancelBg   = Color(0xFFF1F5F9);
-  static const Color statusPaySent    = Color(0xFF0284C7);
-  static const Color statusPayBg      = Color(0xFFF0F9FF);
+  static const Color statusPaySent    = Color(0xFF2A7DE1);
+  static const Color statusPayBg      = Color(0xFFEBF4FF);
 
   // Gradient backgrounds
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF00A389), Color(0xFF007A68)],
+    colors: [Color(0xFF2A7DE1), Color(0xFF1565C0)],
+  );
+
+  static const LinearGradient tealGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF00A389), Color(0xFF00796B)],
   );
 
   static const LinearGradient darkNavyGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF092420), Color(0xFF004D40)],
+    colors: [Color(0xFF0B2E4A), Color(0xFF1E293B)],
   );
 
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF00A389), Color(0xFF02B89B)],
+    colors: [Color(0xFF2A7DE1), Color(0xFF1E88E5)],
   );
 
   static const LinearGradient emeraldHeroGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF00A389), Color(0xFF008F79)],
+    colors: [Color(0xFF00A389), Color(0xFF008975)],
   );
 
   // Border radius constants
@@ -124,14 +143,71 @@ class AppTheme {
     ),
   ];
 
+  // macOS Shadows
+  static List<BoxShadow> get macOSShadow => [
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.05),
+      blurRadius: 10,
+      offset: const Offset(0, 2),
+    ),
+    BoxShadow(
+      color: Colors.black.withValues(alpha: 0.03),
+      blurRadius: 20,
+      offset: const Offset(0, 8),
+    ),
+  ];
+
+  static List<BoxShadow> get blueShadow => [
+    BoxShadow(
+      color: primaryBlue.withValues(alpha: 0.28),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
+    ),
+  ];
+
+  /// Standard macOS Traffic Light Window Dots
+  static Widget macOSWindowDots({double size = 11, double spacing = 6}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            color: trafficRed,
+            shape: BoxShape.circle,
+          ),
+        ),
+        SizedBox(width: spacing),
+        Container(
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            color: trafficYellow,
+            shape: BoxShape.circle,
+          ),
+        ),
+        SizedBox(width: spacing),
+        Container(
+          width: size,
+          height: size,
+          decoration: const BoxDecoration(
+            color: trafficGreen,
+            shape: BoxShape.circle,
+          ),
+        ),
+      ],
+    );
+  }
+
   // ── ThemeData ─────────────────────────────────────────────────────────────
   static ThemeData get light {
     final base = ThemeData.light(useMaterial3: true);
     return base.copyWith(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryTeal,
-        primary: primaryTeal,
-        secondary: accentMint,
+        seedColor: primaryBlue,
+        primary: primaryBlue,
+        secondary: primaryTeal,
         surface: surface,
         onSurface: textPrimary,
         brightness: Brightness.light,
