@@ -65,13 +65,13 @@ class ProfileScreen extends ConsumerWidget {
                             style: GoogleFonts.outfit(fontSize: 13, color: Colors.white70)),
                           const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppTheme.accentGreen.withOpacity(0.9),
+                              color: AppTheme.accentMint,
                               borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                             ),
-                            child: Text('Patient',
-                              style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                            child: Text('Verified Patient',
+                              style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryDeep)),
                           ),
                         ],
                       ),
@@ -267,7 +267,7 @@ class _MenuItem extends StatelessWidget {
           Container(
             width: 36, height: 36,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 18),

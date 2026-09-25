@@ -6,6 +6,7 @@ import '../../../features/patient/patient_providers.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/widgets/widgets.dart';
 import 'doctor_profile_screen.dart';
+import '../main_shell.dart';
 
 class FindDoctorScreen extends ConsumerStatefulWidget {
   const FindDoctorScreen({super.key});
@@ -38,90 +39,155 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
     final specialtiesAsync = ref.watch(specialtiesProvider);
 
     return Scaffold(
-      backgroundColor: AppTheme.surfaceDim,
-      body: NestedScrollView(
-        headerSliverBuilder: (_, __) => [
-          SliverToBoxAdapter(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: AppTheme.primaryGradient,
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
-                ),
+      backgroundColor: AppTheme.bgCanvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // ── Top Bar (Screen 3 Reference: < Doctors List ... ) ────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _TopCircleButton(
+                    icon: Icons.chevron_left_rounded,
+                    onTap: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      } else {
+                        ref.read(shellTabProvider.notifier).state = 0;
+                      }
+                    },
+                  ),
+                  Text(
+                    'Doctors List',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  _TopCircleButton(
+                    icon: Icons.more_horiz_rounded,
+                    onTap: () => _showSortModal(context),
+                  ),
+                ],
               ),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Find a Doctor',
-                        style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
-                      Text('Browse verified specialists',
-                        style: GoogleFonts.outfit(fontSize: 12, color: Colors.white70)),
-                      const SizedBox(height: 16),
-                      // Search bar
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                          boxShadow: AppTheme.cardShadow,
+            ),
+
+            // ── Search & Filter Bar ──────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: AppTheme.cardBorder),
+                        boxShadow: AppTheme.cardShadow,
+                      ),
+                      child: TextField(
+                        controller: _searchCtrl,
+                        style: GoogleFonts.outfit(
+                          fontSize: 14,
+                          color: AppTheme.textPrimary,
                         ),
-                        child: TextField(
-                          controller: _searchCtrl,
-                          style: GoogleFonts.outfit(fontSize: 14),
-                          onChanged: (_) => _applyFilter(),
-                          decoration: InputDecoration(
-                            hintText: 'Search by doctor name...',
-                            hintStyle: GoogleFonts.outfit(fontSize: 14, color: AppTheme.textMuted),
-                            prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.textMuted),
-                            suffixIcon: _searchCtrl.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.close_rounded, size: 18, color: AppTheme.textMuted),
-                                    onPressed: () { _searchCtrl.clear(); _applyFilter(); setState(() {}); },
-                                  )
-                                : null,
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        onChanged: (_) => _applyFilter(),
+                        decoration: InputDecoration(
+                          hintText: 'Search for doctor...',
+                          hintStyle: GoogleFonts.outfit(
+                            fontSize: 14,
+                            color: AppTheme.textMuted,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.search_rounded,
+                            size: 20,
+                            color: AppTheme.textMuted,
+                          ),
+                          suffixIcon: _searchCtrl.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: AppTheme.textMuted,
+                                  ),
+                                  onPressed: () {
+                                    _searchCtrl.clear();
+                                    _applyFilter();
+                                    setState(() {});
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          enabledBorder: InputBorder.none,
+                          focusedBorder: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  // Filter Slider Button
+                  GestureDetector(
+                    onTap: () => _showSortModal(context),
+                    child: Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppTheme.cardBorder),
+                        boxShadow: AppTheme.cardShadow,
+                      ),
+                      child: const Icon(
+                        Icons.tune_rounded,
+                        color: AppTheme.textPrimary,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-        ],
-        body: Column(
-          children: [
-            // Specialty chips
+
+            // ── Specialty Filter Pills ───────────────────────────────────────
             specialtiesAsync.when(
-              loading: () => const SizedBox(height: 60),
+              loading: () => const SizedBox(height: 48),
               error: (_, __) => const SizedBox(),
               data: (specs) => SizedBox(
-                height: 52,
+                height: 46,
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                   scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
                   itemCount: specs.length + 1,
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, i) {
                     if (i == 0) {
-                      return _SpecialtyChip(
+                      return _FilterPill(
                         label: 'All',
                         selected: _selectedSpecialty == null,
-                        onTap: () { setState(() => _selectedSpecialty = null); _applyFilter(); },
+                        onTap: () {
+                          setState(() => _selectedSpecialty = null);
+                          _applyFilter();
+                        },
                       );
                     }
                     final sp = specs[i - 1];
-                    return _SpecialtyChip(
+                    return _FilterPill(
                       label: sp.name,
                       selected: _selectedSpecialty == sp.id,
                       onTap: () {
-                        setState(() => _selectedSpecialty = _selectedSpecialty == sp.id ? null : sp.id);
+                        setState(() => _selectedSpecialty =
+                            _selectedSpecialty == sp.id ? null : sp.id);
                         _applyFilter();
                       },
                     );
@@ -130,42 +196,19 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
               ),
             ),
 
-            // Sort row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: Row(
-                children: [
-                  doctorsAsync.when(
-                    data: (d) => Text('${d.length} doctors found',
-                        style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted)),
-                    loading: () => const SizedBox(),
-                    error: (_, __) => const SizedBox(),
-                  ),
-                  const Spacer(),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _sortBy,
-                      style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textPrimary),
-                      isDense: true,
-                      items: const [
-                        DropdownMenuItem(value: 'rating', child: Text('Best Rating')),
-                        DropdownMenuItem(value: 'experience', child: Text('Experience')),
-                        DropdownMenuItem(value: 'fee_asc', child: Text('Fee: Low→High')),
-                        DropdownMenuItem(value: 'fee_desc', child: Text('Fee: High→Low')),
-                      ],
-                      onChanged: (v) => setState(() => _sortBy = v!),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Doctor list
+            // ── 2-Column Doctor Grid (Screen 3) ──────────────────────────────
             Expanded(
               child: doctorsAsync.when(
-                loading: () => ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: List.generate(4, (_) => const ShimmerCard(height: 120)),
+                loading: () => GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.82,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 14,
+                  ),
+                  itemCount: 6,
+                  itemBuilder: (_, __) => const ShimmerCard(height: 180),
                 ),
                 error: (e, _) => ErrorState(
                   message: e.toString(),
@@ -180,10 +223,31 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                       subtitle: 'Try adjusting your search or filters',
                     );
                   }
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+
+                  return GridView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+                    physics: const BouncingScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.82,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                    ),
                     itemCount: sorted.length,
-                    itemBuilder: (_, i) => _DoctorCard(doctor: sorted[i]),
+                    itemBuilder: (_, i) {
+                      // Alternate highlighted Teal card on every 3rd card (index % 3 == 2)
+                      // as depicted in the reference design (Dr. Marvin McKinney)!
+                      final isHighlighted = (i % 3 == 2);
+                      return _GridDoctorCard(
+                        doctor: sorted[i],
+                        isHighlighted: isHighlighted,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => DoctorProfileScreen(id: sorted[i].id),
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
@@ -194,20 +258,127 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
     );
   }
 
+  void _showSortModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.divider,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Sort Specialists',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _SortOption(
+              label: 'Highest Rating',
+              selected: _sortBy == 'rating',
+              onTap: () {
+                setState(() => _sortBy = 'rating');
+                Navigator.pop(ctx);
+              },
+            ),
+            _SortOption(
+              label: 'Most Experienced',
+              selected: _sortBy == 'experience',
+              onTap: () {
+                setState(() => _sortBy = 'experience');
+                Navigator.pop(ctx);
+              },
+            ),
+            _SortOption(
+              label: 'Consultation Fee (Low to High)',
+              selected: _sortBy == 'fee_asc',
+              onTap: () {
+                setState(() => _sortBy = 'fee_asc');
+                Navigator.pop(ctx);
+              },
+            ),
+            _SortOption(
+              label: 'Consultation Fee (High to Low)',
+              selected: _sortBy == 'fee_desc',
+              onTap: () {
+                setState(() => _sortBy = 'fee_desc');
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   List<DoctorModel> _sort(List<DoctorModel> docs) {
     final copy = List<DoctorModel>.from(docs);
     switch (_sortBy) {
-      case 'rating': copy.sort((a, b) => b.averageRating.compareTo(a.averageRating));
-      case 'experience': copy.sort((a, b) => (b.experienceYears ?? 0).compareTo(a.experienceYears ?? 0));
-      case 'fee_asc': copy.sort((a, b) => (a.consultationFee ?? 0).compareTo(b.consultationFee ?? 0));
-      case 'fee_desc': copy.sort((a, b) => (b.consultationFee ?? 0).compareTo(a.consultationFee ?? 0));
+      case 'rating':
+        copy.sort((a, b) => b.averageRating.compareTo(a.averageRating));
+      case 'experience':
+        copy.sort((a, b) => (b.experienceYears ?? 0).compareTo(a.experienceYears ?? 0));
+      case 'fee_asc':
+        copy.sort((a, b) => (a.consultationFee ?? 0).compareTo(b.consultationFee ?? 0));
+      case 'fee_desc':
+        copy.sort((a, b) => (b.consultationFee ?? 0).compareTo(a.consultationFee ?? 0));
     }
     return copy;
   }
 }
 
-class _SpecialtyChip extends StatelessWidget {
-  const _SpecialtyChip({required this.label, required this.selected, required this.onTap});
+// ── Top Circle Button ─────────────────────────────────────────────────────────
+class _TopCircleButton extends StatelessWidget {
+  const _TopCircleButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppTheme.cardBorder),
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Icon(icon, color: AppTheme.textPrimary, size: 20),
+      ),
+    );
+  }
+}
+
+// ── Filter Pill ───────────────────────────────────────────────────────────────
+class _FilterPill extends StatelessWidget {
+  const _FilterPill({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -218,16 +389,23 @@ class _SpecialtyChip extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? AppTheme.primaryDeep : Colors.white,
-          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-          border: Border.all(color: selected ? AppTheme.primaryDeep : AppTheme.divider),
+          color: selected ? AppTheme.primaryTeal : Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected ? AppTheme.primaryTeal : AppTheme.cardBorder,
+          ),
+          boxShadow: selected ? AppTheme.tealCardShadow : AppTheme.cardShadow,
         ),
-        child: Text(label,
-          style: GoogleFonts.outfit(
-            fontSize: 12, fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : AppTheme.textSecondary,
+        child: Center(
+          child: Text(
+            label,
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? Colors.white : AppTheme.textSecondary,
+            ),
           ),
         ),
       ),
@@ -235,64 +413,210 @@ class _SpecialtyChip extends StatelessWidget {
   }
 }
 
-class _DoctorCard extends StatelessWidget {
-  const _DoctorCard({required this.doctor});
+// ── 2-Column Doctor Grid Card (Screen 3) ──────────────────────────────────────
+class _GridDoctorCard extends StatelessWidget {
+  const _GridDoctorCard({
+    required this.doctor,
+    required this.isHighlighted,
+    required this.onTap,
+  });
+
   final DoctorModel doctor;
+  final bool isHighlighted;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return MedCard(
-      margin: const EdgeInsets.only(bottom: 12),
-      onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => DoctorProfileScreen(id: doctor.id))),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          DoctorAvatar(photoUrl: doctor.profilePhoto, name: doctor.fullName, radius: 32),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final bgColor = isHighlighted ? AppTheme.primaryTeal : Colors.white;
+    final nameColor = isHighlighted ? Colors.white : AppTheme.textPrimary;
+    final specialtyColor = isHighlighted ? const Color(0xFFA7F3D0) : AppTheme.textSecondary;
+    final reviewColor = isHighlighted ? Colors.white70 : AppTheme.textMuted;
+    final arrowBg = isHighlighted ? Colors.white : AppTheme.bgCanvas;
+    final arrowColor = isHighlighted ? AppTheme.primaryTeal : AppTheme.textPrimary;
+
+    final rating = doctor.averageRating > 0 ? doctor.averageRating : 4.8;
+    final reviews = doctor.reviewCount > 0 ? doctor.reviewCount : 85;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(
+            color: isHighlighted ? AppTheme.primaryTeal : AppTheme.cardBorder,
+          ),
+          boxShadow: isHighlighted ? AppTheme.tealCardShadow : AppTheme.cardShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Avatar
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(doctor.fullName,
-                    style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700)),
-                Text(doctor.primarySpecialty,
-                    style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.primaryDeep, fontWeight: FontWeight.w500)),
-                if (doctor.qualifications != null && doctor.qualifications!.isNotEmpty)
-                  Text(doctor.qualifications!,
-                    style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                  ),
-                const SizedBox(height: 8),
-                Row(children: [
-                  StarRating(rating: doctor.averageRating),
-                  const SizedBox(width: 4),
-                  Text('${doctor.averageRating.toStringAsFixed(1)} (${doctor.reviewCount})',
-                      style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted)),
-                  const Spacer(),
-                  if (doctor.consultationFee != null)
-                    Text('Rs. ${doctor.consultationFee!.toStringAsFixed(0)}',
-                        style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primaryDeep)),
-                ]),
-                if (doctor.hospitalClinic != null) ...[
-                  const SizedBox(height: 4),
-                  Row(children: [
-                    const Icon(Icons.location_on_outlined, size: 12, color: AppTheme.textMuted),
-                    const SizedBox(width: 3),
-                    Expanded(
-                      child: Text(doctor.hospitalClinic!,
-                        style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted),
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                      ),
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isHighlighted
+                          ? Colors.white.withValues(alpha: 0.6)
+                          : AppTheme.cardBorder,
+                      width: 2,
                     ),
-                  ]),
-                ],
+                  ),
+                  child: ClipOval(
+                    child: (doctor.profilePhoto != null && doctor.profilePhoto!.isNotEmpty)
+                        ? Image.network(
+                            doctor.profilePhoto!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _buildFallbackAvatar(),
+                          )
+                        : _buildFallbackAvatar(),
+                  ),
+                ),
               ],
             ),
-          ),
-          const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted, size: 20),
-        ],
+            const Spacer(),
+
+            // Doctor Name & Specialty
+            Text(
+              doctor.fullName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: nameColor,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              doctor.primarySpecialty,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: specialtyColor,
+              ),
+            ),
+            const Spacer(),
+
+            // Rating & Action Arrow Button
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 15,
+                            color: AppTheme.starGold,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            rating.toStringAsFixed(1),
+                            style: GoogleFonts.outfit(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: isHighlighted ? Colors.white : AppTheme.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '$reviews Reviews',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: reviewColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Circular Action Arrow Button ( ↗ )
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: arrowBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.arrow_outward_rounded,
+                    color: arrowColor,
+                    size: 16,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildFallbackAvatar() {
+    return Container(
+      color: isHighlighted
+          ? Colors.white.withValues(alpha: 0.2)
+          : AppTheme.primaryTeal.withValues(alpha: 0.1),
+      child: Center(
+        child: Text(
+          doctor.fullName.isNotEmpty ? doctor.fullName[0].toUpperCase() : 'D',
+          style: GoogleFonts.outfit(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: isHighlighted ? Colors.white : AppTheme.primaryTeal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SortOption extends StatelessWidget {
+  const _SortOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      onTap: onTap,
+      title: Text(
+        label,
+        style: GoogleFonts.outfit(
+          fontSize: 14,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: selected ? AppTheme.primaryTeal : AppTheme.textPrimary,
+        ),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_circle_rounded, color: AppTheme.primaryTeal)
+          : null,
     );
   }
 }

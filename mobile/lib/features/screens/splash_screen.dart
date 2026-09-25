@@ -83,9 +83,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
                     ),
                     child: const Icon(
                       Icons.medical_services_rounded,
@@ -113,13 +113,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                   ),
                   const SizedBox(height: 60),
-                  SizedBox(
+                  const SizedBox(
                     width: 28,
                     height: 28,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        AppTheme.accentGreen.withOpacity(0.85),
+                        AppTheme.primaryTeal,
                       ),
                     ),
                   ),

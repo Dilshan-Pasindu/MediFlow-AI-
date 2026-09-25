@@ -22,7 +22,7 @@ class GlassCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surfaceGlass,
         borderRadius: BorderRadius.circular(AppTheme.radiusXl),
-        border: Border.all(color: Colors.white.withOpacity(0.18)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       child: child,
     );
@@ -80,7 +80,7 @@ class MedPrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryDeep,
+          backgroundColor: AppTheme.primaryTeal,
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -123,8 +123,8 @@ class MedAccentButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.accentGreen,
-          foregroundColor: AppTheme.textPrimary,
+          backgroundColor: AppTheme.primaryTeal,
+          foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusFull),
@@ -140,7 +140,7 @@ class MedAccentButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-                  Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                  Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                 ],
               ),
       ),
@@ -199,10 +199,10 @@ class EmptyState extends StatelessWidget {
             Container(
               width: 72, height: 72,
               decoration: BoxDecoration(
-                color: AppTheme.primaryDeep.withOpacity(0.08),
+                color: AppTheme.primaryTeal.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: AppTheme.primaryDeep, size: 32),
+              child: Icon(icon, color: AppTheme.primaryTeal, size: 32),
             ),
             const SizedBox(height: 16),
             Text(title, textAlign: TextAlign.center,
@@ -240,7 +240,7 @@ class ErrorState extends StatelessWidget {
             Container(
               width: 72, height: 72,
               decoration: BoxDecoration(
-                color: AppTheme.statusInConsult.withOpacity(0.1),
+                color: AppTheme.statusInConsult.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.wifi_off_rounded, color: AppTheme.statusInConsult, size: 32),
@@ -299,19 +299,19 @@ class DoctorAvatar extends StatelessWidget {
         radius: radius,
         backgroundImage: NetworkImage(photoUrl!),
         onBackgroundImageError: (_, __) {},
-        backgroundColor: AppTheme.primaryDeep.withOpacity(0.1),
+        backgroundColor: AppTheme.primaryTeal.withValues(alpha: 0.1),
         child: null,
       );
     }
     return CircleAvatar(
       radius: radius,
-      backgroundColor: AppTheme.primaryDeep.withOpacity(0.12),
+      backgroundColor: AppTheme.primaryTeal.withValues(alpha: 0.12),
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : 'D',
         style: GoogleFonts.outfit(
           fontSize: radius * 0.75,
           fontWeight: FontWeight.w700,
-          color: AppTheme.primaryDeep,
+          color: AppTheme.primaryTeal,
         ),
       ),
     );
@@ -547,7 +547,7 @@ class StatTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(AppTheme.radiusSm),
               ),
               child: Icon(icon, color: color, size: 18),

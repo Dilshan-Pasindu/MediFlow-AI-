@@ -1,88 +1,123 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// MediFlow AI Design System
-/// Inspired by the attached reference image:
-///  - Deep blue/violet gradient backgrounds
-///  - Neon green (#BFFF00 / #C1FF1C) accent for CTAs
-///  - White cards with soft shadows
-///  - Rounded corners (16–24 px)
-///  - Bold, modern typography (Outfit / Poppins)
+/// MediFlow AI - Emerald Teal & Sage Modern Medical Design System
+/// Inspired by modern clinical aesthetics:
+///  - Vibrant Emerald/Teal (#00A389) as the signature medical hero color
+///  - Soft Sage-tinted canvas (#F3F8F7) for calming contrast
+///  - Pure crisp white cards with delicate borders and soft floating shadows
+///  - Elegant rounded geometry (20–32 px)
+///  - Warm amber-gold ratings, organic badge pills, and clean typography (Outfit)
 class AppTheme {
   AppTheme._();
 
   // ── Core Palette ──────────────────────────────────────────────────────────
-  static const Color primaryDeep   = Color(0xFF2D2BE8);   // Deep blue
-  static const Color primaryMid    = Color(0xFF3B41E0);   // Mid blue-violet
-  static const Color primaryLight  = Color(0xFF5B64F5);   // Light blue-violet
-  static const Color accentGreen   = Color(0xFFC1FF1C);   // Neon lime (CTA)
-  static const Color accentBlue    = Color(0xFF2563EB);   // Action blue
-  static const Color bgDark        = Color(0xFF1A1B4B);   // Dark navy (splash)
-  static const Color bgPurple      = Color(0xFF3730A3);   // Purple-blue body
-  static const Color surface       = Color(0xFFFFFFFF);   // Card surface
-  static const Color surfaceDim    = Color(0xFFF5F6FF);   // Dim surface
+  static const Color primaryTeal   = Color(0xFF00A389);   // Signature Emerald Teal
+  static const Color primaryDeep   = Color(0xFF008975);   // Deep Emerald
+  static const Color primaryMid    = Color(0xFF00A389);   // Mid Teal
+  static const Color primaryLight  = Color(0xFF14B89A);   // Light Vibrant Teal
+  static const Color primaryDark   = Color(0xFF0E3831);   // Deep Forest Slate
+
+  static const Color accentMint    = Color(0xFFE6F7F4);   // Soft Mint Tint
+  static const Color accentMintSub = Color(0xFFCCF2EB);   // Secondary Mint
+  static const Color accentSage    = Color(0xFFD1FAE5);   // Sage green
+  static const Color accentGreen   = Color(0xFF00A389);   // Primary Accent
+  static const Color accentBlue    = Color(0xFF0284C7);   // Info Sky Blue
+  static const Color starGold      = Color(0xFFF59E0B);   // Rating Amber Gold
+
+  static const Color bgCanvas      = Color(0xFFF3F8F7);   // Soft Sage/Mint Canvas
+  static const Color bgDark        = Color(0xFF082621);   // Dark Emerald Forest (Splash)
+  static const Color bgPurple      = Color(0xFF0E3831);   // Dark slate teal
+  static const Color surface       = Color(0xFFFFFFFF);   // Pure White Card
+  static const Color surfaceDim    = Color(0xFFF3F8F7);   // Dim surface / canvas
   static const Color surfaceGlass  = Color(0x1AFFFFFF);   // Glass-morphic
-  static const Color textPrimary   = Color(0xFF0F172A);   // Near-black text
-  static const Color textSecondary = Color(0xFF475569);   // Muted text
-  static const Color textMuted     = Color(0xFF94A3B8);   // Light muted
-  static const Color textOnDark    = Color(0xFFFFFFFF);   // Text on dark bg
+
+  static const Color textPrimary   = Color(0xFF1E293B);   // Slate dark text
+  static const Color textSecondary = Color(0xFF64748B);   // Slate muted text
+  static const Color textMuted     = Color(0xFF94A3B8);   // Light muted slate
+  static const Color textOnDark    = Color(0xFFFFFFFF);   // White on dark
   static const Color textOnDarkSub = Color(0xCCFFFFFF);   // 80% white
-  static const Color divider       = Color(0xFFE2E8F0);   // Divider
+  static const Color divider       = Color(0xFFE2EBE9);   // Soft Sage Divider
+  static const Color cardBorder    = Color(0xFFE6EFEF);   // Clean Card Outline
 
   // Status Colors
   static const Color statusPending    = Color(0xFFB45309);
   static const Color statusPendingBg  = Color(0xFFFFFBEB);
   static const Color statusConfirmed  = Color(0xFF059669);
   static const Color statusConfBg     = Color(0xFFECFDF5);
-  static const Color statusInConsult  = Color(0xFFDC2626);
-  static const Color statusInConsBg   = Color(0xFFFEF2F2);
-  static const Color statusCompleted  = Color(0xFF6366F1);
-  static const Color statusCompBg     = Color(0xFFEEF2FF);
+  static const Color statusInConsult  = Color(0xFFE11D48);
+  static const Color statusInConsBg   = Color(0xFFFFF1F2);
+  static const Color statusCompleted  = Color(0xFF0D9488);
+  static const Color statusCompBg     = Color(0xFFF0FDFA);
   static const Color statusCancelled  = Color(0xFF64748B);
   static const Color statusCancelBg   = Color(0xFFF1F5F9);
-  static const Color statusPaySent    = Color(0xFF0369A1);
-  static const Color statusPayBg      = Color(0xFFEFF6FF);
+  static const Color statusPaySent    = Color(0xFF0284C7);
+  static const Color statusPayBg      = Color(0xFFF0F9FF);
 
   // Gradient backgrounds
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF2D2BE8), Color(0xFF6C3AE0)],
+    colors: [Color(0xFF00A389), Color(0xFF007A68)],
   );
 
   static const LinearGradient darkNavyGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF1A1B4B), Color(0xFF2D2BE8)],
+    colors: [Color(0xFF092420), Color(0xFF004D40)],
   );
 
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF3B41E0), Color(0xFF5B64F5)],
+    colors: [Color(0xFF00A389), Color(0xFF02B89B)],
+  );
+
+  static const LinearGradient emeraldHeroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF00A389), Color(0xFF008F79)],
   );
 
   // Border radius constants
-  static const double radiusSm  = 8.0;
-  static const double radiusMd  = 12.0;
-  static const double radiusLg  = 16.0;
-  static const double radiusXl  = 20.0;
-  static const double radiusXxl = 24.0;
-  static const double radiusFull = 100.0;
+  static const double radiusSm  = 10.0;
+  static const double radiusMd  = 14.0;
+  static const double radiusLg  = 20.0;
+  static const double radiusXl  = 28.0;
+  static const double radiusXxl = 32.0;
+  static const double radiusFull = 999.0;
 
   // Elevation / Shadow
   static List<BoxShadow> get cardShadow => [
     BoxShadow(
-      color: primaryDeep.withOpacity(0.08),
-      blurRadius: 20,
+      color: const Color(0xFF1E293B).withValues(alpha: 0.04),
+      blurRadius: 16,
       spreadRadius: 0,
       offset: const Offset(0, 4),
     ),
   ];
 
+  static List<BoxShadow> get tealCardShadow => [
+    BoxShadow(
+      color: primaryTeal.withValues(alpha: 0.25),
+      blurRadius: 20,
+      spreadRadius: 0,
+      offset: const Offset(0, 8),
+    ),
+  ];
+
   static List<BoxShadow> get elevatedShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.12),
+      color: Colors.black.withValues(alpha: 0.08),
+      blurRadius: 24,
+      spreadRadius: 0,
+      offset: const Offset(0, 8),
+    ),
+  ];
+
+  static List<BoxShadow> get navBarShadow => [
+    BoxShadow(
+      color: primaryTeal.withValues(alpha: 0.3),
       blurRadius: 24,
       spreadRadius: 0,
       offset: const Offset(0, 8),
@@ -94,34 +129,34 @@ class AppTheme {
     final base = ThemeData.light(useMaterial3: true);
     return base.copyWith(
       colorScheme: ColorScheme.fromSeed(
-        seedColor: primaryDeep,
-        primary: primaryDeep,
-        secondary: accentGreen,
+        seedColor: primaryTeal,
+        primary: primaryTeal,
+        secondary: accentMint,
         surface: surface,
         onSurface: textPrimary,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: surfaceDim,
+      scaffoldBackgroundColor: bgCanvas,
       textTheme: GoogleFonts.outfitTextTheme(base.textTheme).copyWith(
         displayLarge: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.w800, color: textPrimary),
         displayMedium: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.w700, color: textPrimary),
-        headlineLarge: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w700, color: textPrimary),
-        headlineMedium: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: textPrimary),
-        titleLarge: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary),
+        headlineLarge: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: textPrimary),
+        headlineMedium: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary),
+        titleLarge: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: textPrimary),
         titleMedium: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: textPrimary),
         bodyLarge: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w400, color: textPrimary),
         bodyMedium: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w400, color: textSecondary),
         bodySmall: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w400, color: textMuted),
-        labelLarge: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600, color: textPrimary),
+        labelLarge: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: textPrimary),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: surface,
+        backgroundColor: bgCanvas,
         foregroundColor: textPrimary,
         elevation: 0,
         shadowColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: GoogleFonts.outfit(
-          fontSize: 17, fontWeight: FontWeight.w700, color: textPrimary,
+          fontSize: 18, fontWeight: FontWeight.w700, color: textPrimary,
         ),
         iconTheme: const IconThemeData(color: textPrimary),
       ),
@@ -130,72 +165,73 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusLg),
+          side: const BorderSide(color: cardBorder, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryDeep,
+          backgroundColor: primaryTeal,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusFull),
           ),
-          textStyle: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: primaryDeep,
-          side: const BorderSide(color: primaryDeep, width: 1.5),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          foregroundColor: primaryTeal,
+          side: const BorderSide(color: primaryTeal, width: 1.5),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusFull),
           ),
-          textStyle: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600),
+          textStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surface,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: const BorderSide(color: divider),
+          borderRadius: BorderRadius.circular(radiusFull),
+          borderSide: const BorderSide(color: cardBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: const BorderSide(color: divider),
+          borderRadius: BorderRadius.circular(radiusFull),
+          borderSide: const BorderSide(color: cardBorder),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
-          borderSide: const BorderSide(color: primaryDeep, width: 2),
+          borderRadius: BorderRadius.circular(radiusFull),
+          borderSide: const BorderSide(color: primaryTeal, width: 1.8),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMd),
+          borderRadius: BorderRadius.circular(radiusFull),
           borderSide: const BorderSide(color: statusInConsult),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
         hintStyle: GoogleFonts.outfit(fontSize: 14, color: textMuted),
         labelStyle: GoogleFonts.outfit(fontSize: 14, color: textSecondary),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: surfaceDim,
+        backgroundColor: surface,
         labelStyle: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w500),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusFull),
+          side: const BorderSide(color: cardBorder),
         ),
-        side: BorderSide.none,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: surface,
-        selectedItemColor: primaryDeep,
+        selectedItemColor: primaryTeal,
         unselectedItemColor: textMuted,
         selectedLabelStyle: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w600),
         unselectedLabelStyle: GoogleFonts.outfit(fontSize: 11),
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
       ),
       dividerTheme: const DividerThemeData(
         color: divider,

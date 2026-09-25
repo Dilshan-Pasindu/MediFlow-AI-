@@ -114,9 +114,9 @@ class _StatBubble extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withOpacity(0.18)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
       ),
       child: Column(
         children: [
@@ -147,10 +147,10 @@ class _PrescriptionCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.primaryDeep.withOpacity(0.08),
+                color: AppTheme.primaryTeal.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.description_outlined, color: AppTheme.primaryDeep, size: 22),
+              child: const Icon(Icons.description_outlined, color: AppTheme.primaryTeal, size: 22),
             ),
             const SizedBox(width: 12),
             Expanded(

@@ -4,16 +4,21 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/patient/patient_providers.dart';
 import 'dashboard/dashboard_screen.dart';
-import 'appointments/appointments_screen.dart';
 import 'doctors/find_doctor_screen.dart';
+import 'appointments/appointments_screen.dart';
 import 'prescriptions/prescriptions_screen.dart';
 import 'profile/profile_screen.dart';
 
-/// Global tab index provider so children can navigate tabs without
-/// accessing private state directly.
+/// Global tab index provider:
+/// 0: Home (Dashboard)
+/// 1: Doctors (Find Doctor)
+/// 2: Appointments (Schedule)
+/// 3: Prescriptions (Records)
+/// 4: Profile (Account)
 final shellTabProvider = StateProvider<int>((_) => 0);
 
-/// Main shell with bottom navigation bar.
+/// Main shell featuring the signature organic floating teal navigation bar
+/// from the modern clinical design system.
 class MainShell extends ConsumerWidget {
   const MainShell({super.key, required this.child});
   final Widget child;
@@ -25,59 +30,79 @@ class MainShell extends ConsumerWidget {
 
     const screens = [
       DashboardScreen(),
-      AppointmentsScreen(),
       FindDoctorScreen(),
+      AppointmentsScreen(),
       PrescriptionsScreen(),
       ProfileScreen(),
     ];
 
     return Scaffold(
+      extendBody: true,
       body: IndexedStack(
-        index: selectedIndex,
+        index: selectedIndex.clamp(0, screens.length - 1),
         children: screens,
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
-              blurRadius: 20,
-              offset: const Offset(0, -4),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: Container(
+            height: 66,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryTeal,
+              borderRadius: BorderRadius.circular(38),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryTeal.withValues(alpha: 0.35),
+                  blurRadius: 22,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _NavItem(
-                  icon: Icons.home_outlined, activeIcon: Icons.home_rounded,
-                  label: 'Home', index: 0, selected: selectedIndex,
-                  onTap: (i) => ref.read(shellTabProvider.notifier).state = i,
+                _NavPillItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: 'Home',
+                  index: 0,
+                  selectedIndex: selectedIndex,
+                  onTap: () => ref.read(shellTabProvider.notifier).state = 0,
                 ),
-                _NavItem(
-                  icon: Icons.calendar_today_outlined, activeIcon: Icons.calendar_today_rounded,
-                  label: 'Appointments', index: 1, selected: selectedIndex,
-                  onTap: (i) => ref.read(shellTabProvider.notifier).state = i,
+                _NavPillItem(
+                  icon: Icons.medical_services_outlined,
+                  activeIcon: Icons.medical_services_rounded,
+                  label: 'Doctors',
+                  index: 1,
+                  selectedIndex: selectedIndex,
+                  onTap: () => ref.read(shellTabProvider.notifier).state = 1,
                 ),
-                _NavItemCenterFAB(
+                _NavPillItem(
+                  icon: Icons.calendar_today_outlined,
+                  activeIcon: Icons.calendar_today_rounded,
+                  label: 'Schedule',
+                  index: 2,
+                  selectedIndex: selectedIndex,
                   onTap: () => ref.read(shellTabProvider.notifier).state = 2,
-                  isSelected: selectedIndex == 2,
                 ),
-                _NavItem(
-                  icon: Icons.medication_outlined, activeIcon: Icons.medication_rounded,
-                  label: 'Prescriptions', index: 3, selected: selectedIndex,
-                  onTap: (i) => ref.read(shellTabProvider.notifier).state = i,
+                _NavPillItem(
+                  icon: Icons.assignment_outlined,
+                  activeIcon: Icons.assignment_rounded,
+                  label: 'Records',
+                  index: 3,
+                  selectedIndex: selectedIndex,
+                  onTap: () => ref.read(shellTabProvider.notifier).state = 3,
                 ),
-                _NavItem(
-                  icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded,
-                  label: 'Profile', index: 4, selected: selectedIndex,
+                _NavPillItem(
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Profile',
+                  index: 4,
+                  selectedIndex: selectedIndex,
                   badge: unread > 0 ? unread : null,
-                  onTap: (i) => ref.read(shellTabProvider.notifier).state = i,
+                  onTap: () => ref.read(shellTabProvider.notifier).state = 4,
                 ),
               ],
             ),
@@ -88,118 +113,82 @@ class MainShell extends ConsumerWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon, required this.activeIcon, required this.label,
-    required this.index, required this.selected, required this.onTap, this.badge,
+class _NavPillItem extends StatelessWidget {
+  const _NavPillItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.index,
+    required this.selectedIndex,
+    required this.onTap,
+    this.badge,
   });
-  final IconData icon, activeIcon;
+
+  final IconData icon;
+  final IconData activeIcon;
   final String label;
-  final int index, selected;
-  final void Function(int) onTap;
+  final int index;
+  final int selectedIndex;
+  final VoidCallback onTap;
   final int? badge;
 
   @override
   Widget build(BuildContext context) {
-    final isSelected = index == selected;
+    final isSelected = index == selectedIndex;
+
     return GestureDetector(
-      onTap: () => onTap(index),
+      onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 64,
-        child: Column(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        padding: isSelected
+            ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
+            : const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Stack(
               clipBehavior: Clip.none,
               children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.primaryDeep.withValues(alpha: 0.1)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                  ),
-                  child: Icon(
-                    isSelected ? activeIcon : icon,
-                    color: isSelected ? AppTheme.primaryDeep : AppTheme.textMuted,
-                    size: 22,
-                  ),
+                Icon(
+                  isSelected ? activeIcon : icon,
+                  color: isSelected ? AppTheme.primaryTeal : Colors.white,
+                  size: 21,
                 ),
-                if (badge != null)
+                if (badge != null && !isSelected)
                   Positioned(
-                    right: 4, top: 2,
+                    right: -4,
+                    top: -4,
                     child: Container(
-                      width: 16, height: 16,
+                      width: 8,
+                      height: 8,
                       decoration: const BoxDecoration(
-                        color: AppTheme.statusInConsult,
+                        color: Color(0xFFEF4444),
                         shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                        child: Text(badge! > 9 ? '9+' : '$badge',
-                          style: GoogleFonts.outfit(
-                              fontSize: 9, fontWeight: FontWeight.w700, color: Colors.white),
-                        ),
                       ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 3),
-            Text(label,
-              style: GoogleFonts.outfit(
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? AppTheme.primaryDeep : AppTheme.textMuted,
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.outfit(
+                  color: AppTheme.primaryTeal,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.2,
+                ),
               ),
-            ),
+            ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _NavItemCenterFAB extends StatelessWidget {
-  const _NavItemCenterFAB({required this.onTap, required this.isSelected});
-  final VoidCallback onTap;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              gradient: isSelected
-                  ? const LinearGradient(colors: [Color(0xFF2D2BE8), Color(0xFF6C3AE0)])
-                  : const LinearGradient(colors: [Color(0xFF4F46E5), Color(0xFF6366F1)]),
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryDeep.withValues(alpha: 0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(Icons.search_rounded, color: Colors.white, size: 26),
-          ),
-          const SizedBox(height: 3),
-          Text('Find Doctor',
-            style: GoogleFonts.outfit(
-              fontSize: 10, fontWeight: FontWeight.w600,
-              color: isSelected ? AppTheme.primaryDeep : AppTheme.textMuted,
-            ),
-          ),
-        ],
       ),
     );
   }

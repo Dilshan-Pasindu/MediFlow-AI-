@@ -230,11 +230,8 @@ class _AppointmentTileState extends ConsumerState<_AppointmentTile> {
               Container(
                 width: 52, height: 60,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [Color(0xFF2D2BE8), Color(0xFF6C3AE0)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
