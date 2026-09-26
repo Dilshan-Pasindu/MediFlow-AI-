@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/theme/app_theme.dart';
 import '../../features/auth/auth_provider.dart';
-import 'onboarding_screen.dart';
+import '../../shared/widgets/widgets.dart';
+import 'get_started_screen.dart';
 
 /// Splash screen: shown on cold start while session is being restored.
-/// Transitions to OnboardingScreen (first run) or LoginScreen (returning).
+/// Transitions to GetStartedScreen (new user) or MainShell (authenticated).
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
@@ -16,7 +17,7 @@ class SplashScreen extends ConsumerStatefulWidget {
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
+  late final AnimationController _ctrl;
   late final Animation<double> _fadeAnim;
   late final Animation<double> _scaleAnim;
   bool _navigated = false;
@@ -24,52 +25,65 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
-    _scaleAnim = Tween<double>(begin: 0.75, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
-    );
-    _controller.forward();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
 
-    // Navigate after 2.5 s
-    Future.delayed(const Duration(milliseconds: 2500), _navigate);
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _fadeAnim  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _scaleAnim = Tween<double>(begin: 0.75, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
+    );
+    _ctrl.forward();
+
+    // Fast 1400ms transition to GetStartedScreen
+    Future.delayed(const Duration(milliseconds: 1400), _navigate);
   }
 
   void _navigate() {
     if (_navigated || !mounted) return;
     _navigated = true;
     final auth = ref.read(authProvider);
-    if (auth.isAuthenticated) return; // _AppNavigator handles this
+    if (auth.isAuthenticated) return;
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, anim, __) => const OnboardingScreen(),
+        pageBuilder: (_, anim, __) => const GetStartedScreen(),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 350),
       ),
     );
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // If session was already restored and auth is valid, skip splash
     final auth = ref.watch(authProvider);
     if (auth.isAuthenticated && !_navigated) {
       _navigated = true;
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0B2E4A),
       body: Container(
-        decoration: const BoxDecoration(gradient: AppTheme.darkNavyGradient),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF0B2E4A),
+              Color(0xFF1565C0),
+              Color(0xFF1A1B4B),
+            ],
+            stops: [0.0, 0.5, 1.0],
+          ),
+        ),
         child: Center(
           child: FadeTransition(
             opacity: _fadeAnim,
@@ -78,48 +92,47 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo container
+                  // Official MediFlow Logo with Heartbeat Pumping Animation
                   Container(
-                    width: 96,
-                    height: 96,
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                    ),
-                    child: const Icon(
-                      Icons.medical_services_rounded,
                       color: Colors.white,
-                      size: 52,
+                      borderRadius: BorderRadius.circular(28),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 36,
+                          offset: const Offset(0, 12),
+                        ),
+                        BoxShadow(
+                          color: const Color(0xFF4FD1C5).withValues(alpha: 0.30),
+                          blurRadius: 30,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const MediFlowAnimatedLogo(
+                      variant: MediFlowLogoVariant.full,
+                      height: 110,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Text(
-                    'MediFlow AI',
-                    style: GoogleFonts.outfit(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 28),
                   Text(
                     'Smart Clinical Healthcare',
                     style: GoogleFonts.outfit(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.80),
+                      letterSpacing: 0.4,
                     ),
                   ),
-                  const SizedBox(height: 60),
-                  const SizedBox(
-                    width: 28,
-                    height: 28,
+                  const SizedBox(height: 48),
+                  SizedBox(
+                    width: 24, height: 24,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
+                      strokeWidth: 2.2,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        AppTheme.primaryTeal,
+                        const Color(0xFF4FD1C5).withValues(alpha: 0.90),
                       ),
                     ),
                   ),

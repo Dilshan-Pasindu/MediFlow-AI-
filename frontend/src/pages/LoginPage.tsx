@@ -8,6 +8,7 @@ import {
   Stethoscope, Brain, Pill, Clock, Plus
 } from 'lucide-react';
 import { apiLogin, apiRegister, apiGoogleAuth } from '../services/api';
+import { MediFlowLogo } from '../components/MediFlowLogo';
 
 // ─── Google Icon ───────────────────────────────────────────────────────────────
 function GoogleIcon({ size = 18 }: { size?: number }) {
@@ -859,13 +860,7 @@ export default function LoginPage() {
 
           {/* Brand */}
           <div className="lp-brand">
-            <div className="lp-brand-logo">
-              <HeartPulse size={22} color="#fff" />
-            </div>
-            <div>
-              <div className="lp-brand-name">MediFlow AI</div>
-              <div className="lp-brand-tag">Health Portal</div>
-            </div>
+            <MediFlowLogo variant="horizontal" height={36} />
           </div>
 
           {/* Hero section */}
@@ -950,10 +945,7 @@ export default function LoginPage() {
                   <span className="lp-mac-dot lp-dot-green" />
                 </div>
                 <div className="lp-card-logo">
-                  <div className="lp-card-logo-icon">
-                    <HeartPulse size={15} color="#fff" />
-                  </div>
-                  <div className="lp-card-logo-name">MediFlow AI</div>
+                  <MediFlowLogo variant="horizontal" height={24} />
                 </div>
                 <div style={{ width: 44 }} />
               </div>

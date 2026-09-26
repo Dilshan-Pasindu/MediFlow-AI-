@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
+export 'mediflow_logo.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared reusable widgets for MediFlow AI Flutter app
@@ -60,7 +61,7 @@ class MedCard extends StatelessWidget {
   }
 }
 
-/// Primary gradient button (neon green accent from the reference image).
+/// Primary gradient button — teal-to-blue pill shape matching website CTA style.
 class MedPrimaryButton extends StatelessWidget {
   const MedPrimaryButton({
     super.key, required this.label, required this.onPressed,
@@ -76,16 +77,23 @@ class MedPrimaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: fullWidth ? double.infinity : null,
-      height: 52,
+      height: 54,
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
+            colors: [Color(0xFF4FD1C5), Color(0xFF2A7DE1)],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          boxShadow: AppTheme.buttonShadow,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF2A7DE1).withValues(alpha: 0.40),
+              blurRadius: 20,
+              spreadRadius: 0,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: ElevatedButton(
           onPressed: isLoading ? null : onPressed,
@@ -95,7 +103,7 @@ class MedPrimaryButton extends StatelessWidget {
             foregroundColor: Colors.white,
             elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 28),
           ),
@@ -108,7 +116,7 @@ class MedPrimaryButton extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-                    Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700)),
+                    Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.2)),
                   ],
                 ),
         ),
@@ -117,7 +125,7 @@ class MedPrimaryButton extends StatelessWidget {
   }
 }
 
-/// Green accent CTA button (the lime/neon "Get Started" in reference image).
+/// Teal accent CTA button — pill-shaped with medTeal (#4FD1C5) fill.
 class MedAccentButton extends StatelessWidget {
   const MedAccentButton({
     super.key, required this.label, required this.onPressed,
@@ -131,30 +139,44 @@ class MedAccentButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 52,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryTeal,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 28),
+      height: 54,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppTheme.medTeal,
+          borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.medTeal.withValues(alpha: 0.40),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
-        child: isLoading
-            ? const SizedBox(
-                width: 22, height: 22,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
-              )
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-                  Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
-                ],
-              ),
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  width: 22, height: 22,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
+                    Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.2)),
+                  ],
+                ),
+        ),
       ),
     );
   }

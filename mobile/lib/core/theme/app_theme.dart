@@ -6,18 +6,21 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  // ── Core Brand Palette ───────────────────────────────────────────────────────
-  static const Color primaryBlue      = Color(0xFF4A6FE3); // Hero gradient start
-  static const Color primaryBlueDark  = Color(0xFF2F4FD1); // Hero gradient end
-  static const Color primaryBlueLight = Color(0xFF7B97EF); // Hover / lighter tint
-  static const Color primaryBlue50    = Color(0xFFEEF2FD); // Soft blue tint bg
+  // ── Core Brand Palette (matches website #2A7DE1 / #4FD1C5) ────────────────────
+  static const Color primaryBlue      = Color(0xFF2A7DE1); // spec: --med-blue
+  static const Color primaryBlueDark  = Color(0xFF1565C0); // spec: --med-blue-dark
+  static const Color primaryBlueDeep  = Color(0xFF0B2E4A); // spec: --med-blue-deep
+  static const Color primaryBlueLight = Color(0xFF5B9EEA); // lighter tint
+  static const Color primaryBlue50    = Color(0xFFEBF4FF); // spec: --med-blue-50
+  static const Color medTeal          = Color(0xFF4FD1C5); // spec: --med-teal
+  static const Color medTealLight     = Color(0xFF81E6D9); // spec: --med-teal-light
 
   // Legacy aliases kept so existing screens compile unchanged
-  static const Color primaryTeal  = Color(0xFF4A6FE3);
-  static const Color primaryDeep  = Color(0xFF2F4FD1);
-  static const Color primaryMid   = Color(0xFF4A6FE3);
-  static const Color primaryLight = Color(0xFF7B97EF);
-  static const Color primaryDark  = Color(0xFF1A2F8A);
+  static const Color primaryTeal  = Color(0xFF2A7DE1);
+  static const Color primaryDeep  = Color(0xFF1565C0);
+  static const Color primaryMid   = Color(0xFF2A7DE1);
+  static const Color primaryLight = Color(0xFF5B9EEA);
+  static const Color primaryDark  = Color(0xFF0B2E4A);
 
   static const Color accentMint    = Color(0xFFEEF2FD);
   static const Color accentMintSub = Color(0xFFD6DFFA);
@@ -63,42 +66,51 @@ class AppTheme {
   static const Color trafficYellow = Color(0xFFFFBD2E);
   static const Color trafficGreen  = Color(0xFF27C93F);
 
-  // ── Gradients ────────────────────────────────────────────────────────────────
-  /// Primary hero gradient — used on headers, cards, login bg
+  // ── Gradients (aligned to website tokens) ───────────────────────────────────
+  /// Primary hero gradient — teal → blue (matches website CTA hover)
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
+    colors: [Color(0xFF2A7DE1), Color(0xFF1565C0)],
   );
 
   static const LinearGradient heroGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
+    colors: [Color(0xFF0B2E4A), Color(0xFF1565C0), Color(0xFF1A1B4B)],
+    stops: [0.0, 0.5, 1.0],
+  );
+
+  /// Teal-to-blue CTA gradient (Get Started button)
+  static const LinearGradient tealToBlueGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFF4FD1C5), Color(0xFF2A7DE1)],
   );
 
   static const LinearGradient tealGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF4A6FE3), Color(0xFF3B5FD9)],
+    colors: [Color(0xFF4FD1C5), Color(0xFF2A7DE1)],
   );
 
   static const LinearGradient darkNavyGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF2F4FD1), Color(0xFF1A2F8A)],
+    colors: [Color(0xFF0B2E4A), Color(0xFF1565C0), Color(0xFF1A1B4B)],
+    stops: [0.0, 0.5, 1.0],
   );
 
   static const LinearGradient cardGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
+    colors: [Color(0xFF2A7DE1), Color(0xFF1565C0)],
   );
 
   static const LinearGradient emeraldHeroGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
+    colors: [Color(0xFF2A7DE1), Color(0xFF1565C0)],
   );
 
   // ── Border Radius ────────────────────────────────────────────────────────────
@@ -250,18 +262,18 @@ class AppTheme {
           backgroundColor: primaryBlue,
           foregroundColor: Colors.white,
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusMd)),
-          textStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusFull)),
+          textStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.2),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primaryBlue,
           side: const BorderSide(color: primaryBlue, width: 1.5),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusMd)),
-          textStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(radiusFull)),
+          textStyle: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.2),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

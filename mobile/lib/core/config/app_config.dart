@@ -14,7 +14,7 @@ class AppConfig {
   /// iOS / macOS / web → localhost:5224
   /// Set your Mac's local network IP here when testing on a physical device (e.g. '172.20.10.7').
   /// Leave empty ('') for simulator / web / local development.
-  static const String physicalDeviceIp = '';
+  static const String physicalDeviceIp = '172.20.10.7';
 
   /// Resolves the backend API base URL based on the current platform.
   static String get apiBaseUrl {

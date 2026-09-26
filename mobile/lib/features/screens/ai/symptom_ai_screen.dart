@@ -561,16 +561,23 @@ class _AnalyzingView extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 72,
-                height: 72,
+                width: 76,
+                height: 76,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                  color: Colors.white,
                   shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF4FD1C5).withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                child: const Icon(
-                  Icons.psychology_rounded,
-                  color: AppTheme.primaryBlue,
-                  size: 38,
+                padding: const EdgeInsets.all(12),
+                child: const MediFlowAnimatedLogo(
+                  variant: MediFlowLogoVariant.mark,
+                  height: 48,
                 ),
               ),
               const SizedBox(height: 20),

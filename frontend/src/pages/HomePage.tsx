@@ -8,6 +8,7 @@ import {
   PlayCircle, Award, TrendingUp, Lock, Menu, X
 } from 'lucide-react';
 import heroDoctors from '../assets/hero-doctors.jpg';
+import { MediFlowLogo } from '../components/MediFlowLogo';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
@@ -198,17 +199,7 @@ export default function HomePage() {
 
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 10,
-              background: 'linear-gradient(135deg, #2A7DE1 0%, #4FD1C5 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 12px rgba(42,125,225,0.35)',
-            }}>
-              <HeartPulse size={20} color="#fff" strokeWidth={2.5} />
-            </div>
-            <span style={{ fontSize: 20, fontWeight: 800, background: 'linear-gradient(135deg, #2A7DE1, #4FD1C5)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              MediFlow<span style={{ fontWeight: 400, WebkitTextFillColor: 'rgba(100,116,139,0.9)' }}> AI</span>
-            </span>
+            <MediFlowLogo variant="horizontal" height={36} />
           </div>
 
           {/* Desktop Nav Links */}
@@ -750,10 +741,9 @@ export default function HomePage() {
             {/* Brand */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 9, background: 'linear-gradient(135deg, #2A7DE1, #4FD1C5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <HeartPulse size={18} color="#fff" />
+                <div style={{ background: '#ffffff', borderRadius: 8, padding: '4px 8px', display: 'inline-flex', alignItems: 'center' }}>
+                  <MediFlowLogo variant="horizontal" height={28} />
                 </div>
-                <span style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>MediFlow AI</span>
               </div>
               <p style={{ fontSize: 13.5, lineHeight: 1.7, maxWidth: 260, marginBottom: 20 }}>
                 Sri Lanka's leading AI-powered healthcare platform connecting patients with certified specialists.

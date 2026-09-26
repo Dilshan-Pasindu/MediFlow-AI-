@@ -727,10 +727,8 @@ export function generatePrescriptionHtml(rx: Prescription): string {
       <!-- Hospital Header Letterhead -->
       <header class="hospital-header">
         <div class="brand-col">
-          <div class="brand-logo-icon">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 2v20M2 12h20M7 8h10M7 16h10" />
-            </svg>
+          <div class="brand-logo-icon" style="background: transparent; box-shadow: none;">
+            <img src="/mediflow_logo_mark.png" width="48" height="48" style="object-fit: contain;" alt="MediFlow AI" />
           </div>
           <div>
             <h1 class="hospital-title">MediFlow AI Integrated Healthcare</h1>
