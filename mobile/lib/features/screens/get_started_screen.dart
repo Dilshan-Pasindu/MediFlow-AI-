@@ -2,14 +2,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/widgets.dart';
 import 'auth/login_screen.dart';
 import 'auth/register_screen.dart';
 
-/// MediFlow AI — Get Started Screen
-/// Original hero layout preserved (split top hero + bottom content).
-/// Theme: white & light-blue medical palette matching the official website.
+// ── Design tokens ────────────────────────────────────────────────────────────
+const _kBgDeep    = Color(0xFF050D1A); // near-black navy
+const _kBgMid     = Color(0xFF0A1628); // dark navy
+const _kCyan      = Color(0xFF00D4FF); // neon cyan (accent)
+const _kCyanDark  = Color(0xFF00A8CC); // deeper cyan
+const _kTeal      = Color(0xFF4FD1C5); // teal secondary
+
 class GetStartedScreen extends StatefulWidget {
   const GetStartedScreen({super.key});
 
@@ -22,42 +25,43 @@ class _GetStartedScreenState extends State<GetStartedScreen>
   late final AnimationController _fadeCtrl;
   late final AnimationController _slideCtrl;
   late final AnimationController _pulseCtrl;
-  late final AnimationController _floatCtrl;
   late final AnimationController _ecgCtrl;
+  late final AnimationController _glowCtrl;
+  late final AnimationController _particleCtrl;
 
   late final Animation<double> _fadeAnim;
   late final Animation<Offset> _heroSlide;
-  late final Animation<Offset> _contentSlide;
   late final Animation<double> _pulseAnim;
-  late final Animation<double> _floatAnim;
   late final Animation<double> _ecgAnim;
+  late final Animation<double> _glowAnim;
+  late final Animation<double> _particleAnim;
 
   @override
   void initState() {
     super.initState();
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
+      statusBarIconBrightness: Brightness.light,
     ));
 
-    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _slideCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
-    _floatCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))..repeat(reverse: true);
-    _ecgCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
+    _fadeCtrl     = AnimationController(vsync: this, duration: const Duration(milliseconds: 1000));
+    _slideCtrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
+    _pulseCtrl    = AnimationController(vsync: this, duration: const Duration(milliseconds: 2500))..repeat(reverse: true);
+    _ecgCtrl      = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat();
+    _glowCtrl     = AnimationController(vsync: this, duration: const Duration(milliseconds: 3000))..repeat(reverse: true);
+    _particleCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 8000))..repeat();
 
-    _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _heroSlide = Tween<Offset>(begin: const Offset(0, -0.08), end: Offset.zero)
+    _fadeAnim     = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
+    _heroSlide    = Tween<Offset>(begin: const Offset(0, 0.06), end: Offset.zero)
         .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
-    _contentSlide = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
-    _pulseAnim = Tween<double>(begin: 0.94, end: 1.06)
+    _pulseAnim    = Tween<double>(begin: 0.92, end: 1.08)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
-    _floatAnim = Tween<double>(begin: -7.0, end: 7.0)
-        .animate(CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut));
-    _ecgAnim = Tween<double>(begin: 0.0, end: 1.0).animate(_ecgCtrl);
+    _ecgAnim      = Tween<double>(begin: 0.0, end: 1.0).animate(_ecgCtrl);
+    _glowAnim     = Tween<double>(begin: 0.4, end: 1.0)
+        .animate(CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut));
+    _particleAnim = Tween<double>(begin: 0.0, end: 1.0).animate(_particleCtrl);
 
-    Future.delayed(const Duration(milliseconds: 80), () {
+    Future.delayed(const Duration(milliseconds: 60), () {
       if (mounted) {
         _fadeCtrl.forward();
         _slideCtrl.forward();
@@ -70,8 +74,9 @@ class _GetStartedScreenState extends State<GetStartedScreen>
     _fadeCtrl.dispose();
     _slideCtrl.dispose();
     _pulseCtrl.dispose();
-    _floatCtrl.dispose();
     _ecgCtrl.dispose();
+    _glowCtrl.dispose();
+    _particleCtrl.dispose();
     super.dispose();
   }
 
@@ -108,615 +113,285 @@ class _GetStartedScreenState extends State<GetStartedScreen>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: _kBgDeep,
       body: Stack(
         children: [
-          // ── Ambient light blue radial glows (top-right & mid-left) ───────────
-          Positioned(
-            top: -100, right: -80,
-            child: Container(
-              width: 300, height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [
-                  const Color(0xFF2A7DE1).withValues(alpha: 0.10),
-                  Colors.transparent,
-                ]),
+          // ── Deep navy gradient background ─────────────────────────────────
+          Container(
+            width: size.width,
+            height: size.height,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_kBgDeep, Color(0xFF081426), _kBgMid],
+                stops: [0.0, 0.5, 1.0],
               ),
             ),
           ),
-          Positioned(
-            top: size.height * 0.30, left: -70,
-            child: Container(
-              width: 240, height: 240,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [
-                  const Color(0xFF4FD1C5).withValues(alpha: 0.12),
-                  Colors.transparent,
-                ]),
+
+          // ── Radial cyan glow — top centre ─────────────────────────────────
+          AnimatedBuilder(
+            animation: _glowAnim,
+            builder: (_, __) => Positioned(
+              top: -80,
+              left: size.width * 0.5 - 180,
+              child: Container(
+                width: 360,
+                height: 360,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      _kCyan.withValues(alpha: 0.12 * _glowAnim.value),
+                      _kTeal.withValues(alpha: 0.05 * _glowAnim.value),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
+
+          // ── Radial teal glow — bottom left ───────────────────────────────
           Positioned(
-            bottom: 180, right: -60,
+            bottom: 80, left: -60,
             child: Container(
-              width: 200, height: 200,
+              width: 260, height: 260,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(colors: [
-                  const Color(0xFF7C3AED).withValues(alpha: 0.08),
+                  _kTeal.withValues(alpha: 0.08),
                   Colors.transparent,
                 ]),
               ),
             ),
           ),
 
-          // ── Subtle dot particles ──────────────────────────────────────────────
-          ..._buildParticleDots(size),
+          // ── Subtle grid dots ─────────────────────────────────────────────
+          CustomPaint(
+            size: size,
+            painter: _GridDotPainter(),
+          ),
 
-          // ── Main content ──────────────────────────────────────────────────────
+          // ── Floating particles ────────────────────────────────────────────
+          AnimatedBuilder(
+            animation: _particleAnim,
+            builder: (_, __) => CustomPaint(
+              size: size,
+              painter: _ParticlePainter(progress: _particleAnim.value),
+            ),
+          ),
+
+          // ── Main content ──────────────────────────────────────────────────
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnim,
-              child: Column(
-                children: [
-                  // TOP: Logo + Hero illustration (40% height)
-                  Expanded(
-                    flex: 42,
-                    child: SlideTransition(
-                      position: _heroSlide,
-                      child: _buildHeroSection(size),
-                    ),
-                  ),
-
-                  // BOTTOM: All website details in a scrollable card panel (60%)
-                  Expanded(
-                    flex: 58,
-                    child: SlideTransition(
-                      position: _contentSlide,
-                      child: _buildBottomPanel(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Hero section (top 40%): official logo + animated illustration
-  // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildHeroSection(Size size) {
-    return Column(
-      children: [
-        const SizedBox(height: 16),
-
-        // Official MediFlow Logo + Portal Active badge
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const MediFlowLogo(
-                variant: MediFlowLogoVariant.horizontal,
-                height: 30,
-              ),
-              // Portal Active pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFA7F3D0)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              child: SlideTransition(
+                position: _heroSlide,
+                child: Column(
                   children: [
-                    AnimatedBuilder(
-                      animation: _pulseAnim,
-                      builder: (_, __) => Transform.scale(
-                        scale: _pulseAnim.value,
-                        child: Container(
-                          width: 6, height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF059669),
-                            shape: BoxShape.circle,
+                    // ─ Top header bar ──────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const MediFlowLogo(
+                            variant: MediFlowLogoVariant.horizontal,
+                            height: 28,
+                          ),
+                          // Logo badge (medical cross circle)
+                          AnimatedBuilder(
+                            animation: _pulseAnim,
+                            builder: (_, __) => Transform.scale(
+                              scale: _pulseAnim.value,
+                              child: Container(
+                                width: 42, height: 42,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  gradient: const LinearGradient(
+                                    colors: [_kCyan, _kTeal],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: _kCyan.withValues(alpha: 0.45),
+                                      blurRadius: 18,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.medical_services_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // ─ Main headline ───────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Smart',
+                            style: GoogleFonts.outfit(
+                              fontSize: 40, fontWeight: FontWeight.w900,
+                              color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                            ),
+                          ),
+                          ShaderMask(
+                            shaderCallback: (bounds) => const LinearGradient(
+                              colors: [_kCyan, _kTeal],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ).createShader(bounds),
+                            child: Text(
+                              'Healthcare',
+                              style: GoogleFonts.outfit(
+                                fontSize: 40, fontWeight: FontWeight.w900,
+                                color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            'At Your',
+                            style: GoogleFonts.outfit(
+                              fontSize: 40, fontWeight: FontWeight.w900,
+                              color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                            ),
+                          ),
+                          Text(
+                            'Fingertips',
+                            style: GoogleFonts.outfit(
+                              fontSize: 40, fontWeight: FontWeight.w900,
+                              color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          Text(
+                            'Connect with certified specialists, manage\nappointments, and receive digital prescriptions\n— all in one secure AI platform.',
+                            style: GoogleFonts.outfit(
+                              fontSize: 13.5, fontWeight: FontWeight.w400,
+                              color: Colors.white.withValues(alpha: 0.70),
+                              height: 1.55,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // ─ Animated ECG waveform ───────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                      child: SizedBox(
+                        height: 42,
+                        width: double.infinity,
+                        child: AnimatedBuilder(
+                          animation: _ecgAnim,
+                          builder: (_, __) => CustomPaint(
+                            painter: _EcgWavePainter(progress: _ecgAnim.value),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 5),
+
+                    const Spacer(),
+
+                    // ─ Tagline ─────────────────────────────────────────────
                     Text(
-                      'Portal Active',
+                      'Your healthcare, simplified.',
                       style: GoogleFonts.outfit(
-                        fontSize: 10, fontWeight: FontWeight.w600,
-                        color: const Color(0xFF047857),
+                        fontSize: 13, fontWeight: FontWeight.w400,
+                        color: Colors.white.withValues(alpha: 0.55),
+                        letterSpacing: 0.2,
                       ),
                     ),
+
+                    const SizedBox(height: 14),
+
+                    // ─ Get Started CTA ────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 22),
+                      child: _CyanButton(
+                        label: 'Get Started',
+                        onPressed: _goToLogin,
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // ─ Create Account link ────────────────────────────────
+                    GestureDetector(
+                      onTap: _goToRegister,
+                      child: Text(
+                        'Create an Account',
+                        style: GoogleFonts.outfit(
+                          fontSize: 14, fontWeight: FontWeight.w600,
+                          color: Colors.white.withValues(alpha: 0.85),
+                          decoration: TextDecoration.underline,
+                          decorationColor: Colors.white.withValues(alpha: 0.40),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // ─ Footer links ────────────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Terms of Service',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11, color: Colors.white.withValues(alpha: 0.35),
+                          ),
+                        ),
+                        Container(
+                          width: 3, height: 3,
+                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.25),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        Text(
+                          'Privacy Policy',
+                          style: GoogleFonts.outfit(
+                            fontSize: 11, color: Colors.white.withValues(alpha: 0.35),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        // Central animated hero illustration (floating medical icon)
-        Expanded(
-          child: AnimatedBuilder(
-            animation: Listenable.merge([_floatAnim, _pulseAnim]),
-            builder: (context, _) {
-              return Transform.translate(
-                offset: Offset(0, _floatAnim.value),
-                child: _buildHeroIllustration(),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHeroIllustration() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Outer pulsing glow ring
-        AnimatedBuilder(
-          animation: _pulseAnim,
-          builder: (_, __) => Transform.scale(
-            scale: _pulseAnim.value,
-            child: Container(
-              width: 190, height: 190,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(colors: [
-                  const Color(0xFF2A7DE1).withValues(alpha: 0.12),
-                  const Color(0xFF4FD1C5).withValues(alpha: 0.04),
-                  Colors.transparent,
-                ]),
-              ),
-            ),
-          ),
-        ),
-
-        // Outer decorative ring
-        Container(
-          width: 155, height: 155,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: const Color(0xFF2A7DE1).withValues(alpha: 0.15),
-              width: 1.5,
-            ),
-          ),
-        ),
-
-        // Inner decorative ring
-        Container(
-          width: 118, height: 118,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: const Color(0xFF4FD1C5).withValues(alpha: 0.20),
-              width: 1.5,
-            ),
-          ),
-        ),
-
-        // Central gradient card — medical icon
-        Container(
-          width: 88, height: 88,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(26),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF2A7DE1), Color(0xFF4FD1C5)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2A7DE1).withValues(alpha: 0.35),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.medical_services_rounded,
-            color: Colors.white,
-            size: 42,
-          ),
-        ),
-
-        // Floating stat pills around the illustration
-        Positioned(
-          top: 10, right: 20,
-          child: _buildFloatingPill(Icons.people_alt_rounded, '10K+ Patients'),
-        ),
-        Positioned(
-          bottom: 20, left: 15,
-          child: _buildFloatingPill(Icons.star_rounded, '4.9★ Rating'),
-        ),
-        Positioned(
-          bottom: 60, right: 10,
-          child: _buildFloatingPill(Icons.access_time_rounded, '24/7 Support'),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFloatingPill(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF2A7DE1).withValues(alpha: 0.10),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: const Color(0xFF2A7DE1)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: GoogleFonts.outfit(
-              fontSize: 10, fontWeight: FontWeight.w600,
-              color: const Color(0xFF0F172A),
             ),
           ),
         ],
       ),
     );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Bottom panel (bottom 60%): all website details
-  // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildBottomPanel() {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 24,
-            offset: Offset(0, -6),
-          ),
-        ],
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // AI-POWERED HEALTHCARE badge
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEFF6FF),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFBFDBFE)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6, height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF22C55E),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.auto_awesome_rounded, size: 12, color: Color(0xFF2A7DE1)),
-                  const SizedBox(width: 5),
-                  Text(
-                    'AI-POWERED HEALTHCARE',
-                    style: GoogleFonts.outfit(
-                      fontSize: 10, fontWeight: FontWeight.w700,
-                      color: const Color(0xFF2A7DE1), letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Headline
-            Text(
-              'Smart Healthcare',
-              style: GoogleFonts.outfit(
-                fontSize: 26, fontWeight: FontWeight.w900,
-                color: const Color(0xFF0F172A), letterSpacing: -0.6, height: 1.1,
-              ),
-            ),
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF2A7DE1), Color(0xFF4FD1C5)],
-                begin: Alignment.centerLeft, end: Alignment.centerRight,
-              ).createShader(bounds),
-              child: Text(
-                'At Your Fingertips',
-                style: GoogleFonts.outfit(
-                  fontSize: 26, fontWeight: FontWeight.w900,
-                  color: Colors.white, letterSpacing: -0.6, height: 1.1,
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 8),
-
-            // Subtitle
-            Text(
-              'Connect with certified specialists, manage appointments, and receive digital prescriptions — all in one secure AI platform.',
-              style: GoogleFonts.outfit(
-                fontSize: 12.5, fontWeight: FontWeight.w400,
-                color: const Color(0xFF64748B), height: 1.5,
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // Animated ECG waveform line
-            SizedBox(
-              height: 32,
-              width: double.infinity,
-              child: AnimatedBuilder(
-                animation: _ecgAnim,
-                builder: (_, __) => CustomPaint(
-                  painter: _EcgWavePainter(progress: _ecgAnim.value),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // 4 KPI stat cards
-            Row(
-              children: [
-                _buildStatCard(Icons.people_alt_rounded, '10K+', 'Patients',
-                    const Color(0xFF2A7DE1), const Color(0xFFEFF6FF)),
-                const SizedBox(width: 7),
-                _buildStatCard(Icons.medical_services_rounded, '500+', 'Doctors',
-                    const Color(0xFF059669), const Color(0xFFECFDF5)),
-                const SizedBox(width: 7),
-                _buildStatCard(Icons.star_rounded, '4.9★', 'Rating',
-                    const Color(0xFFD97706), const Color(0xFFFFFBEB)),
-                const SizedBox(width: 7),
-                _buildStatCard(Icons.access_time_rounded, '24/7', 'Support',
-                    const Color(0xFF7C3AED), const Color(0xFFFAF5FF)),
-              ],
-            ),
-
-            const SizedBox(height: 14),
-
-            // 4 Feature cards
-            _buildFeatureCard(Icons.person_search_rounded, 'Smart Doctor Matching',
-                'AI finds the best specialist instantly',
-                const Color(0xFF2A7DE1), const Color(0xFFEFF6FF)),
-            const SizedBox(height: 8),
-            _buildFeatureCard(Icons.psychology_rounded, 'AI Clinical Support',
-                'Evidence-based decision support',
-                const Color(0xFF7C3AED), const Color(0xFFFAF5FF)),
-            const SizedBox(height: 8),
-            _buildFeatureCard(Icons.medication_rounded, 'Digital Prescriptions',
-                'Secure e-prescriptions & pharmacy sync',
-                const Color(0xFF059669), const Color(0xFFECFDF5)),
-            const SizedBox(height: 8),
-            _buildFeatureCard(Icons.monitor_heart_rounded, 'Real-time Monitoring',
-                'Track appointments & health metrics',
-                const Color(0xFFD97706), const Color(0xFFFFFBEB)),
-
-            const SizedBox(height: 16),
-
-            // Trust & security badges
-            Wrap(
-              spacing: 8, runSpacing: 8,
-              alignment: WrapAlignment.center,
-              children: [
-                _buildTrustPill(Icons.verified_user_rounded, '256-bit JWT',
-                    const Color(0xFF22C55E), const Color(0xFFF0FDF4), const Color(0xFFDCFCE7)),
-                _buildTrustPill(Icons.shield_rounded, 'RBAC Secured',
-                    const Color(0xFF2A7DE1), const Color(0xFFEFF6FF), const Color(0xFFDBEAFE)),
-                _buildTrustPill(Icons.health_and_safety_rounded, 'HIPAA Aligned',
-                    const Color(0xFF7C3AED), const Color(0xFFFAF5FF), const Color(0xFFF3E8FF)),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-
-            // Primary CTA — Get Started
-            _PrimaryButton(
-              label: 'Get Started',
-              icon: Icons.arrow_forward_rounded,
-              onPressed: _goToLogin,
-            ),
-
-            const SizedBox(height: 10),
-
-            // Secondary CTA — Create Account
-            _SecondaryButton(
-              label: 'Create New Account',
-              onPressed: _goToRegister,
-            ),
-
-            const SizedBox(height: 14),
-
-            Center(
-              child: Text(
-                'By continuing, you agree to our Terms & Privacy Policy',
-                style: GoogleFonts.outfit(
-                  fontSize: 10.5, fontWeight: FontWeight.w400,
-                  color: const Color(0xFF94A3B8),
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Stat KPI Card
-  // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildStatCard(IconData icon, String value, String label, Color color, Color bg) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 30, height: 30,
-              decoration: BoxDecoration(
-                color: bg, borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: color.withValues(alpha: 0.20)),
-              ),
-              child: Icon(icon, size: 15, color: color),
-            ),
-            const SizedBox(height: 6),
-            Text(value, style: GoogleFonts.outfit(
-              fontSize: 13, fontWeight: FontWeight.w800,
-              color: const Color(0xFF0F172A), height: 1.1,
-            )),
-            const SizedBox(height: 1),
-            Text(label, style: GoogleFonts.outfit(
-              fontSize: 10, fontWeight: FontWeight.w500,
-              color: const Color(0xFF64748B),
-            )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Feature Card
-  // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildFeatureCard(IconData icon, String title, String subtitle, Color color, Color bg) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40, height: 40,
-            decoration: BoxDecoration(
-              color: bg, borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withValues(alpha: 0.22)),
-            ),
-            child: Icon(icon, size: 20, color: color),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: GoogleFonts.outfit(
-                  fontSize: 13, fontWeight: FontWeight.w700,
-                  color: const Color(0xFF0F172A),
-                )),
-                const SizedBox(height: 1),
-                Text(subtitle, style: GoogleFonts.outfit(
-                  fontSize: 11.5, fontWeight: FontWeight.w400,
-                  color: const Color(0xFF64748B),
-                )),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Trust Badge Pill
-  // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildTrustPill(IconData icon, String label, Color color, Color bg, Color border) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-      decoration: BoxDecoration(
-        color: bg, borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: GoogleFonts.outfit(
-            fontSize: 10.5, fontWeight: FontWeight.w600, color: color,
-          )),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Particle dot decoration
-  // ─────────────────────────────────────────────────────────────────────────────
-  List<Widget> _buildParticleDots(Size size) {
-    final rng = math.Random(42);
-    return List.generate(16, (i) {
-      final x = rng.nextDouble() * size.width;
-      final y = rng.nextDouble() * size.height * 0.42;
-      final s = 1.5 + rng.nextDouble() * 2.5;
-      return Positioned(
-        left: x, top: y,
-        child: Container(
-          width: s, height: s,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFF2A7DE1).withValues(alpha: 0.08 + rng.nextDouble() * 0.10),
-          ),
-        ),
-      );
-    });
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Animated ECG Heartbeat Wave Painter
+// Animated ECG Heartbeat Wave Painter — glowing cyan on dark
 // ─────────────────────────────────────────────────────────────────────────────
 class _EcgWavePainter extends CustomPainter {
   final double progress;
@@ -727,9 +402,9 @@ class _EcgWavePainter extends CustomPainter {
     final w = size.width;
     final cy = size.height / 2;
 
-    // Baseline dash
+    // Baseline
     final dashPaint = Paint()
-      ..color = const Color(0xFF2A7DE1).withValues(alpha: 0.12)
+      ..color = _kCyan.withValues(alpha: 0.12)
       ..strokeWidth = 1.0
       ..style = PaintingStyle.stroke;
     canvas.drawLine(Offset(0, cy), Offset(w, cy), dashPaint);
@@ -737,40 +412,57 @@ class _EcgWavePainter extends CustomPainter {
     // ECG path
     final path = Path();
     path.moveTo(0, cy);
-    path.lineTo(w * 0.10, cy);
-    path.lineTo(w * 0.14, cy - 7);
-    path.lineTo(w * 0.18, cy + 7);
-    path.lineTo(w * 0.21, cy - 15);
-    path.lineTo(w * 0.25, cy + 15);
-    path.lineTo(w * 0.29, cy);
-    path.lineTo(w * 0.46, cy);
-    path.lineTo(w * 0.50, cy - 9);
-    path.lineTo(w * 0.53, cy + 9);
-    path.lineTo(w * 0.56, cy);
-    path.lineTo(w * 0.70, cy);
-    path.lineTo(w * 0.73, cy - 16);
-    path.lineTo(w * 0.77, cy + 16);
-    path.lineTo(w * 0.81, cy);
+    path.lineTo(w * 0.08, cy);
+    path.lineTo(w * 0.12, cy - 6);
+    path.lineTo(w * 0.16, cy + 6);
+    path.lineTo(w * 0.19, cy - 20);
+    path.lineTo(w * 0.23, cy + 20);
+    path.lineTo(w * 0.27, cy);
+    path.lineTo(w * 0.44, cy);
+    path.lineTo(w * 0.48, cy - 10);
+    path.lineTo(w * 0.51, cy + 10);
+    path.lineTo(w * 0.54, cy);
+    path.lineTo(w * 0.68, cy);
+    path.lineTo(w * 0.71, cy - 18);
+    path.lineTo(w * 0.75, cy + 18);
+    path.lineTo(w * 0.79, cy);
     path.lineTo(w, cy);
 
-    // Gradient paint
-    final wavePaint = Paint()
+    // Glowing wave
+    final glowPaint = Paint()
       ..shader = LinearGradient(
         colors: [
           Colors.transparent,
-          const Color(0xFF2A7DE1).withValues(alpha: 0.6 + progress * 0.4),
-          const Color(0xFF4FD1C5),
-          const Color(0xFF2A7DE1).withValues(alpha: 0.6 + progress * 0.4),
+          _kCyan.withValues(alpha: 0.35 + progress * 0.35),
+          _kCyan,
+          _kTeal,
+          _kCyan.withValues(alpha: 0.35 + progress * 0.35),
           Colors.transparent,
         ],
-        stops: const [0.0, 0.25, 0.55, 0.80, 1.0],
+        stops: const [0.0, 0.15, 0.40, 0.60, 0.82, 1.0],
       ).createShader(Rect.fromLTWH(0, 0, w, size.height))
-      ..strokeWidth = 2.0
+      ..strokeWidth = 1.8
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    canvas.drawPath(path, wavePaint);
+    // Outer glow pass
+    final outerGlow = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          Colors.transparent,
+          _kCyan.withValues(alpha: 0.10 + progress * 0.12),
+          _kCyan.withValues(alpha: 0.15),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.30, 0.65, 1.0],
+      ).createShader(Rect.fromLTWH(0, 0, w, size.height))
+      ..strokeWidth = 5.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPath(path, outerGlow);
+    canvas.drawPath(path, glowPaint);
   }
 
   @override
@@ -778,19 +470,72 @@ class _EcgWavePainter extends CustomPainter {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Primary CTA Button (scale-on-press with blue gradient)
+// Grid dot background painter
 // ─────────────────────────────────────────────────────────────────────────────
-class _PrimaryButton extends StatefulWidget {
-  const _PrimaryButton({required this.label, required this.icon, required this.onPressed});
+class _GridDotPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _kCyan.withValues(alpha: 0.04)
+      ..style = PaintingStyle.fill;
+    const step = 28.0;
+    for (double x = 0; x < size.width; x += step) {
+      for (double y = 0; y < size.height; y += step) {
+        canvas.drawCircle(Offset(x, y), 1.0, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Floating particle painter
+// ─────────────────────────────────────────────────────────────────────────────
+class _ParticlePainter extends CustomPainter {
+  final double progress;
+  static final _rng = math.Random(99);
+  static final _particles = List.generate(20, (_) => [
+    _rng.nextDouble(), // x rel
+    _rng.nextDouble(), // y rel
+    _rng.nextDouble(), // speed factor
+    _rng.nextDouble(), // size
+    _rng.nextDouble(), // opacity seed
+  ]);
+
+  const _ParticlePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final p in _particles) {
+      final y = (p[1] + progress * p[2] * 0.4) % 1.0;
+      final opacity = (math.sin((progress + p[4]) * math.pi * 2).abs() * 0.20 + 0.03);
+      canvas.drawCircle(
+        Offset(p[0] * size.width, y * size.height * 0.85),
+        1.0 + p[3] * 2.5,
+        Paint()..color = _kCyan.withValues(alpha: opacity),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ParticlePainter old) => old.progress != progress;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Cyan glowing CTA button
+// ─────────────────────────────────────────────────────────────────────────────
+class _CyanButton extends StatefulWidget {
+  const _CyanButton({required this.label, required this.onPressed});
   final String label;
-  final IconData icon;
   final VoidCallback onPressed;
 
   @override
-  State<_PrimaryButton> createState() => _PrimaryButtonState();
+  State<_CyanButton> createState() => _CyanButtonState();
 }
 
-class _PrimaryButtonState extends State<_PrimaryButton>
+class _CyanButtonState extends State<_CyanButton>
     with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _scale;
@@ -815,98 +560,37 @@ class _PrimaryButtonState extends State<_PrimaryButton>
       child: ScaleTransition(
         scale: _scale,
         child: Container(
-          width: double.infinity, height: 52,
+          width: double.infinity, height: 56,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF2A7DE1), Color(0xFF1E5BB5)],
-              begin: Alignment.centerLeft, end: Alignment.centerRight,
+              colors: [_kCyan, _kCyanDark],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
             ),
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+            borderRadius: BorderRadius.circular(999),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2A7DE1).withValues(alpha: 0.38),
-                blurRadius: 20, offset: const Offset(0, 7),
+                color: _kCyan.withValues(alpha: 0.45),
+                blurRadius: 28,
+                spreadRadius: 2,
+                offset: const Offset(0, 8),
               ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(widget.label, style: GoogleFonts.outfit(
-                fontSize: 15, fontWeight: FontWeight.w700,
-                color: Colors.white, letterSpacing: 0.2,
-              )),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.all(4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.22),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(widget.icon, size: 13, color: Colors.white),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Secondary CTA Button (outlined, white bg)
-// ─────────────────────────────────────────────────────────────────────────────
-class _SecondaryButton extends StatefulWidget {
-  const _SecondaryButton({required this.label, required this.onPressed});
-  final String label;
-  final VoidCallback onPressed;
-
-  @override
-  State<_SecondaryButton> createState() => _SecondaryButtonState();
-}
-
-class _SecondaryButtonState extends State<_SecondaryButton>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 110));
-    _scale = Tween<double>(begin: 1.0, end: 0.97)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) { _ctrl.reverse(); widget.onPressed(); },
-      onTapCancel: () => _ctrl.reverse(),
-      child: ScaleTransition(
-        scale: _scale,
-        child: Container(
-          width: double.infinity, height: 50,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-            border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
-            boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8, offset: const Offset(0, 2),
+                color: _kCyan.withValues(alpha: 0.18),
+                blurRadius: 60,
+                spreadRadius: 4,
+                offset: const Offset(0, 0),
               ),
             ],
           ),
           child: Center(
-            child: Text(widget.label, style: GoogleFonts.outfit(
-              fontSize: 15, fontWeight: FontWeight.w700,
-              color: const Color(0xFF0F172A), letterSpacing: 0.2,
-            )),
+            child: Text(
+              widget.label,
+              style: GoogleFonts.outfit(
+                fontSize: 16, fontWeight: FontWeight.w800,
+                color: _kBgDeep, letterSpacing: 0.3,
+              ),
+            ),
           ),
         ),
       ),
