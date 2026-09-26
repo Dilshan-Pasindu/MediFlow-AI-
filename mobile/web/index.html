@@ -31,8 +31,65 @@
 
   <title>mediflow_mobile</title>
   <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(180deg, #0B2E4A 0%, #1565C0 50%, #1A1B4B 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .loading-logo-card {
+      background: #ffffff;
+      border-radius: 22px;
+      padding: 14px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35), 0 0 30px rgba(79, 209, 197, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .loading-logo {
+      width: 64px;
+      height: 64px;
+      object-fit: contain;
+      animation: heartbeat-pump 2.2s ease-in-out infinite;
+    }
+    .loading-text {
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    @keyframes heartbeat-pump {
+      0% { transform: scale(1); }
+      14% { transform: scale(1.04); }
+      28% { transform: scale(1); }
+      42% { transform: scale(1.025); }
+      56% { transform: scale(1); }
+      100% { transform: scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .loading-logo { animation: none; }
+    }
+  </style>
 </head>
 <body>
+  <div class="loading-container">
+    <div class="loading-logo-card">
+      <img src="favicon.png" alt="MediFlow AI" class="loading-logo" />
+    </div>
+    <div class="loading-text">MediFlow AI</div>
+  </div>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

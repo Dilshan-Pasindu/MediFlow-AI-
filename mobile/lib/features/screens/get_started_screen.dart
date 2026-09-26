@@ -3,12 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/widgets.dart';
 import 'auth/login_screen.dart';
 import 'auth/register_screen.dart';
 
 /// MediFlow AI — Premium "Get Started" landing screen.
-/// Single page with animated hero, features strip, and polished CTAs.
-/// Design matches the website's macOS-inspired blue palette (#2A7DE1 → #1565C0).
+/// Responsive, polished hero illustration, orbiting pills, and round pill CTAs.
+/// Color palette strictly synced with website (#2A7DE1, #1565C0, #4FD1C5, #0B2E4A).
 class GetStartedScreen extends StatefulWidget {
   const GetStartedScreen({super.key});
 
@@ -37,25 +38,23 @@ class _GetStartedScreenState extends State<GetStartedScreen>
       statusBarIconBrightness: Brightness.light,
     ));
 
-    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _slideCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2000))..repeat(reverse: true);
-    _floatCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 3000))..repeat(reverse: true);
+    _fadeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _slideCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))..repeat(reverse: true);
+    _floatCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200))..repeat(reverse: true);
 
     _fadeAnim = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeOut);
-    _heroSlide = Tween<Offset>(begin: const Offset(0, -0.08), end: Offset.zero)
+    _heroSlide = Tween<Offset>(begin: const Offset(0, -0.05), end: Offset.zero)
         .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
-    _contentSlide = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
+    _contentSlide = Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero)
         .animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
-    _pulseAnim = Tween<double>(begin: 0.95, end: 1.05)
+    _pulseAnim = Tween<double>(begin: 0.96, end: 1.04)
         .animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
-    _floatAnim = Tween<double>(begin: -8.0, end: 8.0)
+    _floatAnim = Tween<double>(begin: -6.0, end: 6.0)
         .animate(CurvedAnimation(parent: _floatCtrl, curve: Curves.easeInOut));
 
-    Future.delayed(const Duration(milliseconds: 100), () {
-      _fadeCtrl.forward();
-      _slideCtrl.forward();
-    });
+    _fadeCtrl.forward();
+    _slideCtrl.forward();
   }
 
   @override
@@ -76,7 +75,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
               .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
           child: child,
         ),
-        transitionDuration: const Duration(milliseconds: 400),
+        transitionDuration: const Duration(milliseconds: 350),
       ),
     );
   }
@@ -90,7 +89,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
               .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
           child: child,
         ),
-        transitionDuration: const Duration(milliseconds: 400),
+        transitionDuration: const Duration(milliseconds: 350),
       ),
     );
   }
@@ -100,35 +99,38 @@ class _GetStartedScreenState extends State<GetStartedScreen>
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0B2E4A),
       body: Stack(
         children: [
-          // ── Full-screen gradient background ──────────────────────────────────
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF0B2E4A),  // very deep navy top
-                  Color(0xFF1565C0),  // mid blue
-                  Color(0xFF2A7DE1),  // brand blue
-                  Color(0xFF1A1B4B),  // deep indigo bottom
-                ],
-                stops: [0.0, 0.35, 0.65, 1.0],
+          // ── Background Gradient ──────────────────────────────────────────────
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF0B2E4A),
+                    Color(0xFF134C82),
+                    Color(0xFF1E5BB5),
+                    Color(0xFF1A1B4B),
+                  ],
+                  stops: [0.0, 0.35, 0.70, 1.0],
+                ),
               ),
             ),
           ),
 
-          // ── Decorative radial glows ───────────────────────────────────────────
+          // ── Atmospheric Glow Orbs ────────────────────────────────────────────
           Positioned(
-            top: -80, left: -80,
+            top: -60, left: -60,
             child: Container(
-              width: 280, height: 280,
+              width: 240, height: 240,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF4FD1C5).withValues(alpha: 0.20),
+                    const Color(0xFF4FD1C5).withValues(alpha: 0.18),
                     Colors.transparent,
                   ],
                 ),
@@ -136,29 +138,14 @@ class _GetStartedScreenState extends State<GetStartedScreen>
             ),
           ),
           Positioned(
-            top: size.height * 0.25, right: -60,
+            top: size.height * 0.22, right: -50,
             child: Container(
               width: 200, height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF2A7DE1).withValues(alpha: 0.25),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 200, left: -40,
-            child: Container(
-              width: 180, height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                    const Color(0xFF2A7DE1).withValues(alpha: 0.22),
                     Colors.transparent,
                   ],
                 ),
@@ -166,34 +153,44 @@ class _GetStartedScreenState extends State<GetStartedScreen>
             ),
           ),
 
-          // ── Floating decorative dots grid ─────────────────────────────────────
+          // ── Ambient particle stars ───────────────────────────────────────────
           ..._buildParticleDots(size),
 
-          // ── Main scrollable content ───────────────────────────────────────────
+          // ── Main Content with responsive scroll fallback ──────────────────────
           SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: Column(
-                children: [
-                  // ── TOP: Logo + Hero illustration ─────────────────────────────
-                  Expanded(
-                    flex: 5,
-                    child: SlideTransition(
-                      position: _heroSlide,
-                      child: _buildHeroSection(size),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                  ),
+                    child: IntrinsicHeight(
+                      child: FadeTransition(
+                        opacity: _fadeAnim,
+                        child: Column(
+                          children: [
+                            // ── Top Section: Logo & Hero Visual ───────────────
+                            Expanded(
+                              child: SlideTransition(
+                                position: _heroSlide,
+                                child: _buildHeroSection(constraints.maxHeight),
+                              ),
+                            ),
 
-                  // ── BOTTOM: Tagline + features + CTAs ─────────────────────────
-                  Expanded(
-                    flex: 5,
-                    child: SlideTransition(
-                      position: _contentSlide,
-                      child: _buildBottomContent(),
+                            // ── Bottom Card: Information & Buttons ────────────
+                            SlideTransition(
+                              position: _contentSlide,
+                              child: _buildBottomContent(),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -202,167 +199,151 @@ class _GetStartedScreenState extends State<GetStartedScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Hero section: Logo + animated illustration
+  // Hero section
   // ─────────────────────────────────────────────────────────────────────────────
-  Widget _buildHeroSection(Size size) {
-    return Column(
-      children: [
-        const SizedBox(height: 20),
+  Widget _buildHeroSection(double availableHeight) {
+    // Compact spacing for shorter screens
+    final isCompact = availableHeight < 680;
 
-        // Logo mark + wordmark
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo container with glass effect
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                image: const DecorationImage(
-                  image: AssetImage('assets/images/logo.jpg'),
-                  fit: BoxFit.cover,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF2A7DE1).withValues(alpha: 0.5),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'MediFlow AI',
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.3,
-                  ),
-                ),
-                Text(
-                  'Smart Clinical Healthcare',
-                  style: GoogleFonts.outfit(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.65),
-                    letterSpacing: 0.3,
-                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          SizedBox(height: isCompact ? 12 : 20),
+
+          // Header Brand Mark
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.16),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-          ],
-        ),
-
-        const SizedBox(height: 24),
-
-        // Central animated illustration
-        Expanded(
-          child: AnimatedBuilder(
-            animation: Listenable.merge([_pulseAnim, _floatAnim]),
-            builder: (context, child) {
-              return Transform.translate(
-                offset: Offset(0, _floatAnim.value),
-                child: _buildHeroIllustration(),
-              );
-            },
+            child: const MediFlowLogo(
+              variant: MediFlowLogoVariant.horizontal,
+              height: 24,
+            ),
           ),
-        ),
-      ],
+
+          SizedBox(height: isCompact ? 10 : 20),
+
+          // Animated Floating Hero Visual
+          Expanded(
+            child: Center(
+              child: AnimatedBuilder(
+                animation: Listenable.merge([_pulseAnim, _floatAnim]),
+                builder: (context, child) {
+                  return Transform.translate(
+                    offset: Offset(0, _floatAnim.value),
+                    child: _buildHeroIllustration(isCompact),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildHeroIllustration() {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Background glow ring
-        AnimatedBuilder(
-          animation: _pulseAnim,
-          builder: (_, __) => Transform.scale(
+  Widget _buildHeroIllustration(bool isCompact) {
+    final scale = isCompact ? 0.85 : 1.0;
+
+    return Transform.scale(
+      scale: scale,
+      child: Stack(
+        alignment: Alignment.center,
+        clipBehavior: Clip.none,
+        children: [
+          // Background soft radial pulse
+          Transform.scale(
             scale: _pulseAnim.value,
             child: Container(
-              width: 220, height: 220,
+              width: 190, height: 190,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF2A7DE1).withValues(alpha: 0.18),
-                    const Color(0xFF4FD1C5).withValues(alpha: 0.05),
+                    const Color(0xFF2A7DE1).withValues(alpha: 0.20),
+                    const Color(0xFF4FD1C5).withValues(alpha: 0.08),
                     Colors.transparent,
                   ],
                 ),
               ),
             ),
           ),
-        ),
 
-        // Outer ring
-        Container(
-          width: 170, height: 170,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08),
-              width: 1.5,
-            ),
-          ),
-        ),
-
-        // Inner ring
-        Container(
-          width: 130, height: 130,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.12),
-              width: 1.5,
-            ),
-          ),
-        ),
-
-        // Central glass card (main visual)
-        Container(
-          width: 100, height: 100,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF4FD1C5), Color(0xFF2A7DE1)],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4FD1C5).withValues(alpha: 0.45),
-                blurRadius: 32,
-                offset: const Offset(0, 12),
+          // Outer orbit track
+          Container(
+            width: 160, height: 160,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.10),
+                width: 1.5,
               ),
-            ],
+            ),
           ),
-          child: const Icon(
-            Icons.medical_services_rounded,
-            color: Colors.white,
-            size: 48,
-          ),
-        ),
 
-        // Floating feature pills around center
-        ..._buildOrbitingPills(),
-      ],
+          // Inner orbit track
+          Container(
+            width: 120, height: 120,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.14),
+                width: 1.2,
+              ),
+            ),
+          ),
+
+          // Main Center Official MediFlow Mark with Heartbeat Animation
+          Container(
+            width: 82, height: 82,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4FD1C5).withValues(alpha: 0.40),
+                  blurRadius: 26,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: const Color(0xFF2A7DE1).withValues(alpha: 0.35),
+                  blurRadius: 18,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: MediFlowAnimatedLogo(
+                variant: MediFlowLogoVariant.mark,
+                height: 56,
+              ),
+            ),
+          ),
+
+          // Orbiting Feature Badges
+          ..._buildOrbitingPills(),
+        ],
+      ),
     );
   }
 
   List<Widget> _buildOrbitingPills() {
     final items = [
-      (icon: Icons.person_rounded,       label: 'Doctors',       angle: -55.0,  radius: 115.0),
-      (icon: Icons.psychology_rounded,   label: 'AI Analysis',   angle: 30.0,   radius: 115.0),
-      (icon: Icons.receipt_long_rounded, label: 'E-Rx',          angle: 155.0,  radius: 105.0),
-      (icon: Icons.calendar_month_rounded,label:'Appointments',  angle: 230.0,  radius: 110.0),
+      (icon: Icons.person_rounded,        label: 'Doctors',       angle: -50.0,  radius: 96.0),
+      (icon: Icons.psychology_rounded,    label: 'AI Match',      angle: 35.0,   radius: 96.0),
+      (icon: Icons.receipt_long_rounded,  label: 'E-Rx',          angle: 155.0,  radius: 90.0),
+      (icon: Icons.calendar_month_rounded,label: 'Bookings',      angle: 235.0,  radius: 94.0),
     ];
 
     return items.map((item) {
@@ -377,83 +358,94 @@ class _GetStartedScreenState extends State<GetStartedScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Bottom content: tagline, feature strip, CTAs
+  // Bottom Content: Headline, Features, CTAs
   // ─────────────────────────────────────────────────────────────────────────────
   Widget _buildBottomContent() {
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
+        color: const Color(0xFF0F2643).withValues(alpha: 0.88),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 30,
+            offset: const Offset(0, -6),
+          ),
+        ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(28, 32, 28, 0),
+        padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Headline
             Text(
               'Your Health,\nSmarter Than Ever',
               style: GoogleFonts.outfit(
-                fontSize: 30,
+                fontSize: 26,
                 fontWeight: FontWeight.w800,
                 color: Colors.white,
                 height: 1.15,
                 letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
+
+            // Subtitle
             Text(
-              'AI-powered doctor matching, e-prescriptions, and real-time appointment management — all in one place.',
+              'AI-powered doctor matching, smart e-prescriptions, and real-time clinical care at your fingertips.',
               style: GoogleFonts.outfit(
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: FontWeight.w400,
-                color: Colors.white.withValues(alpha: 0.70),
-                height: 1.5,
+                color: Colors.white.withValues(alpha: 0.72),
+                height: 1.45,
               ),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            // Feature pills row
+            // Feature Highlights Strip
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _FeatureChip(icon: Icons.search_rounded,            label: 'Find Doctors'),
-                  _FeatureChip(icon: Icons.psychology_rounded,        label: 'AI Analysis'),
-                  _FeatureChip(icon: Icons.receipt_long_rounded,      label: 'E-Prescriptions'),
-                  _FeatureChip(icon: Icons.notifications_rounded,     label: 'Real-time Alerts'),
+                  _FeatureChip(icon: Icons.search_rounded,        label: 'Find Doctors'),
+                  _FeatureChip(icon: Icons.psychology_rounded,    label: 'AI Triage'),
+                  _FeatureChip(icon: Icons.receipt_long_rounded,  label: 'E-Prescriptions'),
+                  _FeatureChip(icon: Icons.flash_on_rounded,      label: 'Instant Booking'),
                 ],
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
 
-            // Primary CTA — Get Started
+            // Primary CTA Button (Get Started -> Login)
             _PrimaryButton(
               label: 'Get Started',
               icon: Icons.arrow_forward_rounded,
               onPressed: _goToLogin,
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
 
-            // Secondary CTA — Create Account
+            // Secondary CTA Button (Create Account -> Register)
             _SecondaryButton(
               label: 'Create New Account',
               onPressed: _goToRegister,
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
-            // Legal text
+            // Terms & Privacy note
             Center(
               child: Text(
                 'By continuing, you agree to our Terms & Privacy Policy',
                 style: GoogleFonts.outfit(
                   fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.40),
+                  color: Colors.white.withValues(alpha: 0.45),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -465,21 +457,21 @@ class _GetStartedScreenState extends State<GetStartedScreen>
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Particle dots background
+  // Ambient background particles
   // ─────────────────────────────────────────────────────────────────────────────
   List<Widget> _buildParticleDots(Size size) {
-    final rng = math.Random(42);
-    return List.generate(20, (i) {
+    final rng = math.Random(101);
+    return List.generate(18, (i) {
       final x = rng.nextDouble() * size.width;
-      final y = rng.nextDouble() * size.height * 0.65;
-      final s = 2.0 + rng.nextDouble() * 3;
+      final y = rng.nextDouble() * size.height * 0.60;
+      final s = 2.0 + rng.nextDouble() * 2.5;
       return Positioned(
         left: x, top: y,
         child: Container(
           width: s, height: s,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.white.withValues(alpha: 0.12 + rng.nextDouble() * 0.15),
+            color: Colors.white.withValues(alpha: 0.10 + rng.nextDouble() * 0.15),
           ),
         ),
       );
@@ -488,9 +480,8 @@ class _GetStartedScreenState extends State<GetStartedScreen>
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Reusable sub-widgets
+// Orbiting Pill Widget
 // ─────────────────────────────────────────────────────────────────────────────
-
 class _FloatingPill extends StatelessWidget {
   const _FloatingPill({required this.icon, required this.label});
   final IconData icon;
@@ -499,16 +490,19 @@ class _FloatingPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: const Color(0xFF133254).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: 1),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.22),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -520,7 +514,7 @@ class _FloatingPill extends StatelessWidget {
           Text(
             label,
             style: GoogleFonts.outfit(
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -531,6 +525,9 @@ class _FloatingPill extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Feature Chip Widget
+// ─────────────────────────────────────────────────────────────────────────────
 class _FeatureChip extends StatelessWidget {
   const _FeatureChip({required this.icon, required this.label});
   final IconData icon;
@@ -539,22 +536,22 @@ class _FeatureChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: const Color(0xFF4FD1C5)),
-          const SizedBox(width: 6),
+          Icon(icon, size: 13, color: const Color(0xFF4FD1C5)),
+          const SizedBox(width: 5),
           Text(
             label,
             style: GoogleFonts.outfit(
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -565,6 +562,9 @@ class _FeatureChip extends StatelessWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Primary Gradient Button (Pill Shape)
+// ─────────────────────────────────────────────────────────────────────────────
 class _PrimaryButton extends StatefulWidget {
   const _PrimaryButton({required this.label, required this.icon, required this.onPressed});
   final String label;
@@ -583,25 +583,31 @@ class _PrimaryButtonState extends State<_PrimaryButton>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 120));
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
     _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
         CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) { _ctrl.reverse(); widget.onPressed(); },
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onPressed();
+      },
       onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(
         scale: _scale,
         child: Container(
           width: double.infinity,
-          height: 54,
+          height: 50,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               begin: Alignment.centerLeft,
@@ -611,10 +617,9 @@ class _PrimaryButtonState extends State<_PrimaryButton>
             borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF2A7DE1).withValues(alpha: 0.50),
-                blurRadius: 24,
-                spreadRadius: 0,
-                offset: const Offset(0, 8),
+                color: const Color(0xFF2A7DE1).withValues(alpha: 0.45),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
@@ -632,12 +637,12 @@ class _PrimaryButtonState extends State<_PrimaryButton>
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.all(4),
+                width: 26, height: 26,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.25),
                   shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.22),
                 ),
-                child: Icon(widget.icon, size: 14, color: Colors.white),
+                child: Icon(widget.icon, size: 15, color: Colors.white),
               ),
             ],
           ),
@@ -647,6 +652,9 @@ class _PrimaryButtonState extends State<_PrimaryButton>
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Secondary Ghost Button (Pill Shape)
+// ─────────────────────────────────────────────────────────────────────────────
 class _SecondaryButton extends StatefulWidget {
   const _SecondaryButton({required this.label, required this.onPressed});
   final String label;
@@ -664,40 +672,46 @@ class _SecondaryButtonState extends State<_SecondaryButton>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 120));
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 100));
     _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
         CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTapDown: (_) => _ctrl.forward(),
-      onTapUp: (_) { _ctrl.reverse(); widget.onPressed(); },
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onPressed();
+      },
       onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(
         scale: _scale,
         child: Container(
           width: double.infinity,
-          height: 54,
+          height: 48,
           decoration: BoxDecoration(
-            color: Colors.transparent,
+            color: Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(AppTheme.radiusFull),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.40),
-              width: 1.5,
+              color: Colors.white.withValues(alpha: 0.25),
+              width: 1.2,
             ),
           ),
           child: Center(
             child: Text(
               widget.label,
               style: GoogleFonts.outfit(
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.90),
+                color: Colors.white,
                 letterSpacing: 0.2,
               ),
             ),

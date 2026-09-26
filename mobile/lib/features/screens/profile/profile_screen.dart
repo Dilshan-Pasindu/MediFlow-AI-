@@ -299,6 +299,24 @@ class ProfileScreen extends ConsumerWidget {
                 ],
               ),
             ),
+            // ── Official Brand Footer ──
+            const SizedBox(height: 28),
+            Center(
+              child: Column(
+                children: [
+                  const MediFlowLogo(variant: MediFlowLogoVariant.horizontal, height: 22),
+                  const SizedBox(height: 6),
+                  Text(
+                    'MediFlow AI Clinical Platform • v1.0.0',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),

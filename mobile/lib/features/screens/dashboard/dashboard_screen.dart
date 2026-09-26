@@ -79,14 +79,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             children: [
                               AppTheme.macOSWindowDots(size: 10, spacing: 5),
                               const SizedBox(width: 10),
-                              Text(
-                                'MediFlow AI Portal',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.textSecondary,
-                                  letterSpacing: 0.3,
-                                ),
+                              const MediFlowLogo(
+                                variant: MediFlowLogoVariant.horizontal,
+                                height: 18,
                               ),
                             ],
                           ),

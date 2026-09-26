@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../features/auth/auth_provider.dart';
+import '../../shared/widgets/widgets.dart';
 import 'get_started_screen.dart';
 
 /// Splash screen: shown on cold start while session is being restored.
@@ -29,14 +30,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       statusBarIconBrightness: Brightness.light,
     ));
 
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
     _fadeAnim  = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
-    _scaleAnim = Tween<double>(begin: 0.70, end: 1.0).animate(
+    _scaleAnim = Tween<double>(begin: 0.75, end: 1.0).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOutBack),
     );
     _ctrl.forward();
 
-    Future.delayed(const Duration(milliseconds: 2400), _navigate);
+    // Fast 1400ms transition to GetStartedScreen
+    Future.delayed(const Duration(milliseconds: 1400), _navigate);
   }
 
   void _navigate() {
@@ -49,7 +51,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         pageBuilder: (_, anim, __) => const GetStartedScreen(),
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 600),
+        transitionDuration: const Duration(milliseconds: 350),
       ),
     );
   }
@@ -68,6 +70,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0B2E4A),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -89,51 +92,47 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // App logo
+                  // Official MediFlow Logo with Heartbeat Pumping Animation
                   Container(
-                    width: 100, height: 100,
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 22),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(26),
-                      image: const DecorationImage(
-                        image: AssetImage('assets/images/logo.jpg'),
-                        fit: BoxFit.cover,
-                      ),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2A7DE1).withValues(alpha: 0.60),
-                          blurRadius: 40,
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 36,
                           offset: const Offset(0, 12),
                         ),
+                        BoxShadow(
+                          color: const Color(0xFF4FD1C5).withValues(alpha: 0.30),
+                          blurRadius: 30,
+                          offset: const Offset(0, 4),
+                        ),
                       ],
+                    ),
+                    child: const MediFlowAnimatedLogo(
+                      variant: MediFlowLogoVariant.full,
+                      height: 110,
                     ),
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'MediFlow AI',
-                    style: GoogleFonts.outfit(
-                      fontSize: 38,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: -0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
                     'Smart Clinical Healthcare',
                     style: GoogleFonts.outfit(
                       fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white.withValues(alpha: 0.65),
-                      letterSpacing: 0.5,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.80),
+                      letterSpacing: 0.4,
                     ),
                   ),
-                  const SizedBox(height: 64),
+                  const SizedBox(height: 48),
                   SizedBox(
-                    width: 26, height: 26,
+                    width: 24, height: 24,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
+                      strokeWidth: 2.2,
                       valueColor: AlwaysStoppedAnimation<Color>(
-                        const Color(0xFF4FD1C5).withValues(alpha: 0.85),
+                        const Color(0xFF4FD1C5).withValues(alpha: 0.90),
                       ),
                     ),
                   ),

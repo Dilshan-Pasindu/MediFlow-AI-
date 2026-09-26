@@ -209,6 +209,37 @@ h1, h2, h3, h4, h5, h6, .heading {
   50%       { transform: scale(1); }
   75%       { transform: scale(1.04); }
 }
+
+/* ── Official MediFlow Logo & Subtle Heartbeat Pump Animation ── */
+@keyframes mediflow-heartbeat-pump {
+  0% { transform: scale(1); }
+  14% { transform: scale(1.04); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.025); }
+  56% { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+.mediflow-logo {
+  display: inline-block;
+  user-select: none;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
+.mediflow-logo-animated {
+  display: inline-block;
+  animation: mediflow-heartbeat-pump 2.4s ease-in-out infinite;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mediflow-logo-animated {
+    animation: none !important;
+  }
+}
+
 @keyframes gradientFlow {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }

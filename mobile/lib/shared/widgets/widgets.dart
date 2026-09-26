@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
+export 'mediflow_logo.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared reusable widgets for MediFlow AI Flutter app

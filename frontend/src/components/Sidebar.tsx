@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import type { UserRole } from '../types/auth';
+import { MediFlowLogo } from './MediFlowLogo';
 
 interface NavItem {
   to: string;
@@ -141,9 +142,7 @@ export default function Sidebar() {
       {/* ── Logo ── */}
       <div className="sidebar-logo">
         <div className="logo-mark">
-          <div className="logo-icon">
-            <HeartPulse size={17} />
-          </div>
+          <MediFlowLogo variant="mark" height={32} />
           <div>
             <div className="logo-text">MediFlow AI</div>
             <div className="logo-sub">{meta.label}</div>

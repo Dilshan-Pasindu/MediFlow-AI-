@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/auth_provider.dart';
+import '../../../shared/widgets/widgets.dart';
 
 import '../main_shell.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -121,19 +122,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo badge
+                  // Official MediFlow Logo badge
                   Container(
-                    width: 60,
-                    height: 60,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                    ),
-                    child: const Icon(
-                      Icons.medical_services_rounded,
                       color: Colors.white,
-                      size: 30,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.18),
+                          blurRadius: 18,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const MediFlowLogo(
+                      variant: MediFlowLogoVariant.horizontal,
+                      height: 28,
                     ),
                   ),
                   const SizedBox(height: 22),
