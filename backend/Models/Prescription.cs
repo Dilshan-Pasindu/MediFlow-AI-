@@ -35,6 +35,7 @@ public class Prescription
 
     public DateTime IssuedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ExpiryDate { get; set; }
+    public DateTime? SafetyCheckedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

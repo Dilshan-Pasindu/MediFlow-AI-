@@ -399,6 +399,7 @@ public class PrescriptionAndOrderTests : IDisposable
             PatientId = 1,
             DoctorId = 1,
             Status = PrescriptionStatus.Active,
+            SafetyCheckedAt = DateTime.UtcNow,
             Items = new List<PrescriptionItem>
             {
                 new() { MedicineId = 1, MedicineName = "Amoxicillin 500mg", Quantity = 10 } // UnitPrice is 25.00
@@ -506,7 +507,11 @@ public class PrescriptionAndOrderTests : IDisposable
             PharmacyId = 1,
             PatientId = 1,
             Status = OrderStatus.Pending,
-            TotalAmount = 100m
+            TotalAmount = 50m,
+            Items = new List<OrderItem>
+            {
+                new OrderItem { MedicineId = 1, MedicineName = "Amoxicillin 500mg", Quantity = 2, UnitPrice = 25.00m, Subtotal = 50.00m }
+            }
         };
         _db.Orders.Add(order);
         await _db.SaveChangesAsync();
@@ -530,6 +535,10 @@ public class PrescriptionAndOrderTests : IDisposable
         var r3 = await controller.UpdateOrderStatus(301, new UpdateOrderStatusDto("Ready"));
         Assert.IsType<OkObjectResult>(r3);
         Assert.Equal(OrderStatus.Ready, (await _db.Orders.FindAsync(301))!.Status);
+
+        // Generate and pay invoice required by Phase 2 billing gate
+        await controller.GenerateBill(301);
+        await controller.RecordPayment(301, new RecordPaymentDto("Cash"));
 
         // Ready -> Dispensed
         var r4 = await controller.UpdateOrderStatus(301, new UpdateOrderStatusDto("Dispensed"));

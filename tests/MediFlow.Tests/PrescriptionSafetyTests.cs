@@ -62,7 +62,8 @@ public class PrescriptionSafetyTests : IDisposable
         var prescription = new Prescription
         {
             Id = 10, DoctorId = 1, IsWalkIn = false,
-            Status = PrescriptionStatus.Active
+            Status = PrescriptionStatus.Active,
+            SafetyCheckedAt = DateTime.UtcNow
         };
         prescription.Items.Add(new PrescriptionItem
         {

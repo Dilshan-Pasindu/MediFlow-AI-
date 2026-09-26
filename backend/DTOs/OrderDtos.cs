@@ -65,3 +65,41 @@ public class CreateOrderDto
     public int PharmacyId { get; set; }
     public List<CreateOrderItemDto> Items { get; set; } = new();
 }
+
+public record AddOrderItemRequestDto(
+    int MedicineId,
+    int Quantity
+);
+
+public record UpdateOrderItemQuantityDto(
+    int Quantity
+);
+
+// ─── Invoice DTOs ────────────────────────────────────────────────────────────
+
+public record InvoiceLineItemDto(
+    int Id,
+    int? MedicineId,
+    string MedicineName,
+    string? Dosage,
+    int Quantity,
+    decimal UnitPrice,
+    decimal Subtotal
+);
+
+public record InvoiceDto(
+    int Id,
+    int MedicineOrderId,
+    string InvoiceNumber,
+    string IssuedAt,
+    decimal TotalAmount,
+    bool IsPaid,
+    string? PaidAt,
+    string? PaymentMethod,
+    int? GeneratedByPharmacistId,
+    List<InvoiceLineItemDto> Items
+);
+
+public record RecordPaymentDto(
+    string PaymentMethod
+);

@@ -13,6 +13,7 @@ import {
   apiAcknowledgeWarning,
   apiGetPrescriptionInteractionLogs,
   apiCreateOrder,
+  apiNotifyDoctorForPrescriptionRevision,
   type ScreenInteractionsResponse,
   type DrugInteractionLog
 } from '../../services/api';
@@ -36,6 +37,23 @@ export default function PharmacistPrescriptionsPage() {
   const [filterStatus, setFilterStatus] = useState<'QUEUE' | 'CONVERTED'>('QUEUE');
   const [converting, setConverting] = useState<Record<number, boolean>>({});
   const [convertMsg, setConvertMsg] = useState<Record<number, { ok: boolean; text: string } | null>>({});
+  const [notifyingDoctor, setNotifyingDoctor] = useState<Record<number, boolean>>({});
+  const [notifySuccessMsg, setNotifySuccessMsg] = useState<Record<number, string>>({});
+
+  async function handleNotifyDoctor(rx: Prescription, suggestedMed?: string) {
+    const rxId = Number(rx.id);
+    setNotifyingDoctor(prev => ({ ...prev, [rxId]: true }));
+    setNotifySuccessMsg(prev => ({ ...prev, [rxId]: '' }));
+    try {
+      const res = await apiNotifyDoctorForPrescriptionRevision(rxId, suggestedMed);
+      setNotifySuccessMsg(prev => ({ ...prev, [rxId]: res.message }));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to send notification to prescribing doctor.';
+      alert(msg);
+    } finally {
+      setNotifyingDoctor(prev => ({ ...prev, [rxId]: false }));
+    }
+  }
 
   // ─── AI Medication Check (Backend Screen Interactions Endpoint) ──────────────
 
@@ -54,6 +72,7 @@ export default function PharmacistPrescriptionsPage() {
 
       const ackedSet = new Set(logs.filter(l => l.isAcknowledged).map(l => l.id));
       setAcknowledgedLogs(prev => ({ ...prev, [rxId]: ackedSet }));
+      await refetch();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'AI service unavailable. Manual pharmacist review required.';
       setAiCheckErrors(prev => ({ ...prev, [rxId]: msg }));
@@ -322,29 +341,35 @@ export default function PharmacistPrescriptionsPage() {
 
                         {/* Convert to Order Button */}
                         {!isConverted && (
-                          <button
-                            id={`convert-order-btn-${rxId}`}
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleConvertToOrder(rx)}
-                            disabled={isConverting || !myPharmacy?.id || blockedByHigh}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 6,
-                              opacity: blockedByHigh ? 0.65 : 1,
-                              cursor: blockedByHigh ? 'not-allowed' : 'pointer'
-                            }}
-                            title={
-                              blockedByHigh
-                                ? 'Blocked: Provide justification note for High-severity warning'
-                                : !myPharmacy?.id
-                                ? 'Pharmacy profile not loaded'
-                                : 'Convert this prescription into a dispense order'
-                            }
-                          >
-                            {isConverting
-                              ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Converting…</>
-                              : <><ShoppingCart size={13} /> Convert to Order</>
-                            }
-                          </button>
+                          !rx.safetyCheckedAt && !screenRes ? (
+                            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded inline-flex items-center gap-1">
+                              <AlertCircle size={12} /> Run AI Safety Check first
+                            </span>
+                          ) : (
+                            <button
+                              id={`convert-order-btn-${rxId}`}
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleConvertToOrder(rx)}
+                              disabled={isConverting || !myPharmacy?.id || blockedByHigh}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                opacity: blockedByHigh ? 0.65 : 1,
+                                cursor: blockedByHigh ? 'not-allowed' : 'pointer'
+                              }}
+                              title={
+                                blockedByHigh
+                                  ? 'Blocked: Provide justification note for High-severity warning'
+                                  : !myPharmacy?.id
+                                  ? 'Pharmacy profile not loaded'
+                                  : 'Convert this prescription into a dispense order'
+                              }
+                            >
+                              {isConverting
+                                ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Converting…</>
+                                : <><ShoppingCart size={13} /> Convert to Order</>
+                              }
+                            </button>
+                          )
                         )}
 
                         {isConverted && (
@@ -543,6 +568,36 @@ export default function PharmacistPrescriptionsPage() {
                                       </div>
                                     );
                                   })}
+                                </div>
+                              )}
+
+                              {/* Action to notify prescribing doctor for replacement */}
+                              {!isSafe && (
+                                <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px dashed #A7F3D0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                                    Standard Clinical Protocol: Request prescribing doctor to substitute medicine with safe alternative.
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{ background: '#0EA5E9', color: '#FFF', fontWeight: 700, fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none' }}
+                                    onClick={() => {
+                                      const altSuggestion = alternatives[0]
+                                        ? (alternatives[0].alternative_drug || alternatives[0].alternativeDrug)
+                                        : undefined;
+                                      handleNotifyDoctor(rx, altSuggestion);
+                                    }}
+                                    disabled={notifyingDoctor[rxId]}
+                                  >
+                                    {notifyingDoctor[rxId] ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Info size={13} />}
+                                    {notifyingDoctor[rxId] ? 'Notifying Doctor…' : '📩 Notify Doctor for Revision'}
+                                  </button>
+                                </div>
+                              )}
+
+                              {notifySuccessMsg[rxId] && (
+                                <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF', fontSize: 12, fontWeight: 600 }}>
+                                  ✅ {notifySuccessMsg[rxId]}
                                 </div>
                               )}
                             </div>

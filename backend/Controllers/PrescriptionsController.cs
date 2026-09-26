@@ -79,7 +79,8 @@ public class PrescriptionsController : ControllerBase
             )).ToList(),
             ItemCount: p.Items.Count,
             DateIssued: p.IssuedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
-            CreatedAt: p.CreatedAt.ToString("o", CultureInfo.InvariantCulture)
+            CreatedAt: p.CreatedAt.ToString("o", CultureInfo.InvariantCulture),
+            SafetyCheckedAt: p.SafetyCheckedAt?.ToString("o", CultureInfo.InvariantCulture)
         );
     }
 
@@ -531,7 +532,18 @@ public class PrescriptionsController : ControllerBase
             }
         }
 
+        prescription.SafetyCheckedAt = null;
         prescription.UpdatedAt = DateTime.UtcNow;
+
+        // Purge old warning logs from previous medication list
+        var oldLogs = await _db.DrugInteractionLogs
+            .Where(l => l.PrescriptionId == id)
+            .ToListAsync();
+        if (oldLogs.Count > 0)
+        {
+            _db.DrugInteractionLogs.RemoveRange(oldLogs);
+        }
+
         await _db.SaveChangesAsync();
 
         // Reload with full nav props for response
@@ -669,6 +681,21 @@ public class PrescriptionsController : ControllerBase
             });
         }
 
+        // Mark safety check as completed on prescription
+        prescription.SafetyCheckedAt = DateTime.UtcNow;
+        prescription.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        // Clear old logs for this prescription to avoid stacking duplicate or obsolete warnings on re-run
+        var oldLogs = await _db.DrugInteractionLogs
+            .Where(l => l.PrescriptionId == id)
+            .ToListAsync();
+        if (oldLogs.Count > 0)
+        {
+            _db.DrugInteractionLogs.RemoveRange(oldLogs);
+            await _db.SaveChangesAsync();
+        }
+
         // Persist DrugInteractionLog rows for every AI-detected warning
         var logIds = new List<int>();
 
@@ -800,5 +827,58 @@ public class PrescriptionsController : ControllerBase
 
         return Ok(logs);
     }
+
+    // ─── POST /api/prescriptions/{id}/notify-doctor ────────────────────────
+
+    /// <summary>
+    /// Pharmacist sends a safety alert notification to the prescribing doctor,
+    /// requesting a medication revision/replacement based on AI safety screening findings.
+    /// </summary>
+    [HttpPost("{id:int}/notify-doctor")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> NotifyDoctorForRevision(
+        int id,
+        [FromBody] NotifyDoctorRequestDto? request)
+    {
+        var prescription = await _db.Prescriptions
+            .Include(p => p.Doctor)
+            .Include(p => p.Patient)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (prescription == null)
+            return NotFound(new { message = $"Prescription {id} not found." });
+
+        if (prescription.Doctor == null || prescription.Doctor.UserId == 0)
+            return BadRequest(new { message = $"Prescription {id} does not have a linked prescribing doctor user account." });
+
+        var patientName = prescription.Patient?.FullName ?? prescription.WalkInPatientName ?? "Patient";
+        var suggestedMed = !string.IsNullOrWhiteSpace(request?.SuggestedMedicine)
+            ? $" (Suggested Alternative: {request.SuggestedMedicine})"
+            : "";
+        var customNote = !string.IsNullOrWhiteSpace(request?.CustomNote)
+            ? $" Pharmacist note: {request.CustomNote}"
+            : "";
+
+        var notification = new Notification
+        {
+            UserId = prescription.Doctor.UserId,
+            Title = $"🚨 Clinical Action Required: Prescription #{id}",
+            Message = $"Pharmacist requested clinical revision for Prescription #{id} ({patientName}). Safety warnings detected.{suggestedMed}.{customNote} Please review and update medication items.",
+            Type = "warning",
+            CreatedAt = DateTime.UtcNow,
+            IsRead = false
+        };
+
+        _db.Notifications.Add(notification);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            message = $"Prescribing Doctor {prescription.Doctor.FullName} has been notified to revise Prescription #{id}.",
+            prescriptionId = id,
+            doctorName = prescription.Doctor.FullName
+        });
+    }
 }
+
 
