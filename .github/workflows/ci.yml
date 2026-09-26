@@ -78,7 +78,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: web/mediflow-web
+        working-directory: frontend
 
     steps:
       - name: Checkout Code
@@ -89,7 +89,7 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: web/mediflow-web/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Dependencies
         run: npm ci
@@ -107,7 +107,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-dist
-          path: web/mediflow-web/dist
+          path: frontend/dist
           retention-days: 7
 
   # ─────────────────────────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ jobs:
       - name: Check for Flutter Project
         id: check-mobile
         run: |
-          if [ -f "mobile/pubspec.yaml" ] || [ -f "mobile/mediflow_mobile/pubspec.yaml" ]; then
+          if [ -f "mobile/pubspec.yaml" ]; then
             echo "has_mobile=true" >> $GITHUB_OUTPUT
           else
             echo "has_mobile=false" >> $GITHUB_OUTPUT
@@ -179,9 +179,7 @@ jobs:
       - name: Analyze & Test Flutter
         if: steps.check-mobile.outputs.has_mobile == 'true'
         run: |
-          DIR="mobile"
-          if [ -f "mobile/mediflow_mobile/pubspec.yaml" ]; then DIR="mobile/mediflow_mobile"; fi
-          cd "$DIR"
+          cd mobile
           flutter pub get
           flutter analyze
           if [ -d "test" ]; then flutter test; fi

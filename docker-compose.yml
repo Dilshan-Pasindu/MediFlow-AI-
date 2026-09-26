@@ -40,7 +40,7 @@ services:
   # ─── Web Frontend ────────────────────────────────────────────────────────────
   web:
     build:
-      context: ./web/mediflow-web
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: mediflow-web
     restart: unless-stopped

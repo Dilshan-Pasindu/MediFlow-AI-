@@ -42,7 +42,7 @@ jobs:
 
       - name: Publish Backend API Binaries
         run: |
-          dotnet publish backend/MediFlow.Api/MediFlow.Api.csproj -c Release -o publish/backend
+          dotnet publish backend/MediFlow.Api.csproj -c Release -o publish/backend
           cd publish/backend && zip -r ../../mediflow-api-linux-x64.zip . && cd ../..
 
       # ─── Build Frontend Bundle ─────────────────────────────────────────────
@@ -52,11 +52,11 @@ jobs:
           node-version: 22
 
       - name: Build Web Application
-        working-directory: web/mediflow-web
+        working-directory: frontend
         run: |
           npm ci
           npm run build
-          cd dist && zip -r ../../../mediflow-web-dist.zip . && cd ../../..
+          cd dist && zip -r ../../mediflow-web-dist.zip . && cd ../..
 
       # ─── Create GitHub Release with Assets ─────────────────────────────────
       - name: Create GitHub Release

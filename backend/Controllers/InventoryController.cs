@@ -1,0 +1,375 @@
+using MediFlow.Api.Data;
+using MediFlow.Api.DTOs;
+using MediFlow.Api.Models;
+using MediFlow.Api.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Globalization;
+using System.Security.Claims;
+
+namespace MediFlow.Api.Controllers;
+
+/// <summary>
+/// Handles pharmacy inventory queries, low-stock detection, and restock recommendations.
+/// </summary>
+[ApiController]
+[Route("api")]
+[Authorize]
+public class InventoryController : ControllerBase
+{
+    private readonly AppDbContext _db;
+    private readonly InventoryService _inventoryService;
+
+    public InventoryController(AppDbContext db, InventoryService inventoryService)
+    {
+        _db = db;
+        _inventoryService = inventoryService;
+    }
+
+    /// <summary>
+    /// GET /api/pharmacies/{pharmacyId}/inventory
+    /// Get paginated inventory with search, category filter, and stock status filter.
+    /// Accessible by: PharmacyOwner (own pharmacy), Pharmacist, Administrator.
+    /// </summary>
+    [HttpGet("pharmacies/{pharmacyId:int}/inventory")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> GetInventory(
+        int pharmacyId,
+        [FromQuery] string? search = null,
+        [FromQuery] string? category = null,
+        [FromQuery] string? stockFilter = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20)
+    {
+        // PharmacyOwner can only access their own pharmacy
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        var result = await _inventoryService.GetInventoryAsync(pharmacyId, search, category, stockFilter, page, pageSize);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/pharmacies/{pharmacyId}/inventory
+    /// Creates a new Medicine, InventoryItem, and optional initial InventoryBatch.
+    /// Rule: InitialStock > 0 → BatchNumber and ExpiryDate required.
+    /// Accessible by: PharmacyOwner (own pharmacy), Administrator.
+    /// </summary>
+    [HttpPost("pharmacies/{pharmacyId:int}/inventory")]
+    [Authorize(Roles = "PharmacyOwner,Administrator")]
+    public async Task<IActionResult> AddMedicineWithInventory(int pharmacyId, [FromBody] CreateMedicineWithInventoryDto dto)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var result = await _inventoryService.AddMedicineWithInventoryAsync(pharmacyId, dto);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/inventory/low-stock
+    /// Returns all inventory items below their minimum stock level.
+    /// Accessible by: PharmacyOwner, Pharmacist, Administrator.
+    /// </summary>
+    [HttpGet("inventory/low-stock")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> GetLowStock([FromQuery] int? pharmacyId = null)
+    {
+        // PharmacyOwner must be restricted to their own pharmacy
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var ownedPharmacy = await _db.Pharmacies.FirstOrDefaultAsync(p => p.OwnerId == ownerId);
+            if (ownedPharmacy == null) return Ok(new List<InventoryItemDto>());
+            pharmacyId = ownedPharmacy.Id;
+        }
+
+        var items = await _inventoryService.GetLowStockAsync(pharmacyId);
+        return Ok(items);
+    }
+
+    /// <summary>
+    /// PUT /api/pharmacies/{pharmacyId}/inventory/{itemId}
+    /// Updates MinStockLevel, UnitPrice, and applies an optional signed stock adjustment.
+    /// Writes an Adjustment transaction to the audit log when stock changes.
+    /// Accessible by: PharmacyOwner (own pharmacy), Pharmacist, Administrator.
+    /// </summary>
+    [HttpPut("pharmacies/{pharmacyId:int}/inventory/{itemId:int}")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> UpdateInventoryItem(int pharmacyId, int itemId, [FromBody] UpdateInventoryItemDto dto)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var result = await _inventoryService.UpdateInventoryItemAsync(pharmacyId, itemId, dto);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// POST /api/pharmacies/{pharmacyId}/generate-restock-recommendations
+    /// Non-CRUD: Calculates demand-based restock recommendations and returns
+    /// structured agent context for the Inventory Intelligence Agent.
+    /// Accessible by: PharmacyOwner (own pharmacy only), Administrator.
+    /// </summary>
+    [HttpPost("pharmacies/{pharmacyId:int}/generate-restock-recommendations")]
+    [Authorize(Roles = "PharmacyOwner,Administrator")]
+    public async Task<IActionResult> GenerateRestockRecommendations(int pharmacyId)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var result = await _inventoryService.GenerateRestockRecommendationsAsync(pharmacyId);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches
+    /// Get all batches for a specific inventory item (expiry tracking).
+    /// </summary>
+    [HttpGet("pharmacies/{pharmacyId:int}/inventory/{itemId:int}/batches")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> GetBatches(int pharmacyId, int itemId)
+    {
+        var item = await _db.InventoryItems
+            .Include(i => i.Batches)
+            .Include(i => i.Medicine)
+            .FirstOrDefaultAsync(i => i.Id == itemId && i.PharmacyId == pharmacyId);
+
+        if (item == null) return NotFound(new { message = "Inventory item not found." });
+
+        return Ok(InventoryService.MapToDto(item));
+    }
+
+    /// <summary>
+    /// POST /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches
+    /// Add a new batch with batch number, quantity, and real-world expiration date.
+    /// </summary>
+    [HttpPost("pharmacies/{pharmacyId:int}/inventory/{itemId:int}/batches")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> AddBatch(int pharmacyId, int itemId, [FromBody] CreateInventoryBatchDto dto)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var updatedItem = await _inventoryService.AddBatchAsync(pharmacyId, itemId, dto);
+            return Ok(updatedItem);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// DELETE /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches/{batchId}
+    /// Removes an expired batch, adjusts CurrentStock, and writes an Expired audit transaction.
+    /// Rejected (409) if the batch has not yet expired.
+    /// Accessible by: PharmacyOwner (own pharmacy), Administrator.
+    /// </summary>
+    [HttpDelete("pharmacies/{pharmacyId:int}/inventory/{itemId:int}/batches/{batchId:int}")]
+    [Authorize(Roles = "PharmacyOwner,Administrator")]
+    public async Task<IActionResult> DeleteExpiredBatch(int pharmacyId, int itemId, int batchId)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var result = await _inventoryService.DeleteExpiredBatchAsync(pharmacyId, itemId, batchId);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// PUT /api/pharmacies/{pharmacyId}/inventory/{itemId}/batches/{batchId}/expiry
+    /// Update the expiration date for a specific inventory batch.
+    /// </summary>
+    [HttpPut("pharmacies/{pharmacyId:int}/inventory/{itemId:int}/batches/{batchId:int}/expiry")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator")]
+    public async Task<IActionResult> UpdateBatchExpiry(int pharmacyId, int itemId, int batchId, [FromBody] UpdateBatchExpiryDto dto)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var pharmacy = await _db.Pharmacies.FindAsync(pharmacyId);
+            if (pharmacy == null || pharmacy.OwnerId != ownerId)
+                return Forbid();
+        }
+
+        try
+        {
+            var updatedBatch = await _inventoryService.UpdateBatchExpiryAsync(pharmacyId, itemId, batchId, dto);
+            return Ok(updatedBatch);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/inventory/transactions
+    /// Get transaction history for agent demand analysis.
+    /// </summary>
+    [HttpGet("inventory/transactions")]
+    [Authorize(Roles = "PharmacyOwner,Administrator")]
+    public async Task<IActionResult> GetTransactions(
+        [FromQuery] int? pharmacyId = null,
+        [FromQuery] int? medicineId = null,
+        [FromQuery] int days = 30)
+    {
+        if (User.IsInRole("PharmacyOwner"))
+        {
+            var ownerId = GetUserId();
+            var ownedPharmacy = await _db.Pharmacies.FirstOrDefaultAsync(p => p.OwnerId == ownerId);
+            if (ownedPharmacy == null) return Ok(new List<object>());
+            pharmacyId = ownedPharmacy.Id;
+        }
+
+        var cutoff = DateTime.UtcNow.AddDays(-days);
+
+        var query = _db.InventoryTransactions
+            .Include(t => t.InventoryItem)
+                .ThenInclude(i => i!.Medicine)
+            .Where(t => t.TransactionDate >= cutoff);
+
+        if (pharmacyId.HasValue)
+            query = query.Where(t => t.InventoryItem!.PharmacyId == pharmacyId.Value);
+
+        if (medicineId.HasValue)
+            query = query.Where(t => t.InventoryItem!.MedicineId == medicineId.Value);
+
+        var transactions = await query
+            .OrderByDescending(t => t.TransactionDate)
+            .Select(t => new
+            {
+                t.Id,
+                MedicineName = t.InventoryItem!.Medicine!.MedicineName,
+                t.TransactionType,
+                t.QuantityChanged,
+                t.StockAfter,
+                t.TransactionDate,
+                t.Notes
+            })
+            .ToListAsync();
+
+        return Ok(transactions);
+    }
+
+    /// <summary>
+    /// GET /api/pharmacies (basic pharmacy lookup)
+    /// </summary>
+    [HttpGet("pharmacies")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Administrator,Supplier")]
+    public async Task<IActionResult> GetPharmacies()
+    {
+        var pharmacies = await _db.Pharmacies
+            .Select(p => new PharmacyDto(p.Id, p.Name, p.Location, p.ContactNumber, p.OwnerId))
+            .ToListAsync();
+        return Ok(pharmacies);
+    }
+
+    /// <summary>
+    /// GET /api/pharmacies/my
+    /// Returns the pharmacy for the authenticated PharmacyOwner or Pharmacist staff.
+    /// </summary>
+    [HttpGet("pharmacies/my")]
+    [Authorize(Roles = "PharmacyOwner,Pharmacist,Admin")]
+    public async Task<IActionResult> GetMyPharmacy()
+    {
+        var userId = GetUserId();
+        var pharmacy = await _db.Pharmacies.FirstOrDefaultAsync(p => p.OwnerId == userId);
+        if (pharmacy == null)
+        {
+            // Fallback for Pharmacist staff to return default dispensary pharmacy
+            pharmacy = await _db.Pharmacies.FirstOrDefaultAsync();
+        }
+        if (pharmacy == null) return NotFound(new { message = "No pharmacy profile found in the system." });
+        return Ok(new PharmacyDto(pharmacy.Id, pharmacy.Name, pharmacy.Location, pharmacy.ContactNumber, pharmacy.OwnerId));
+    }
+
+    private int GetUserId()
+    {
+        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
+        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture)
+            : throw new UnauthorizedAccessException();
+    }
+}

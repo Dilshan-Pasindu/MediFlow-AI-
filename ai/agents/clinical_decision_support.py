@@ -292,10 +292,24 @@ INSTRUCTIONS:
 4. Call check_allergy_contraindications against proposed medications.
 5. Synthesise your findings and return the final structured JSON plan."""
 
-    # Configure Gemini with tools - support Gemini 3.6, 2.5, latest, and 1.5
-    configured_model = os.environ.get("GEMINI_MODEL", "models/gemini-3.6-flash")
+    configured_model = os.environ.get("GEMINI_MODEL", "").strip()
+    candidate_models = []
+    if configured_model:
+        candidate_models.append(configured_model)
+    for m in [
+        "gemini-3-flash-preview",
+        "gemini-3.1-flash-lite-preview",
+        "gemini-2.5-flash",
+        "gemini-3.6-flash",
+        "gemini-3.5-flash",
+        "gemini-flash-latest",
+        "gemini-pro-latest"
+    ]:
+        if m not in candidate_models:
+            candidate_models.append(m)
+
     model = None
-    for m_name in [configured_model, "models/gemini-3.6-flash", "gemini-2.5-flash", "gemini-flash-latest", "gemini-1.5-flash"]:
+    for m_name in candidate_models:
         try:
             model = genai.GenerativeModel(
                 model_name=m_name,

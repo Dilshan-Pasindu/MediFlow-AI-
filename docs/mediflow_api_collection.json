@@ -1,0 +1,349 @@
+{
+  "info": {
+    "_postman_id": "8432fa21-789a-4c28-9821-39a193240212",
+    "name": "MediFlow AI Healthcare Ecosystem - API Collection",
+    "description": "Complete enterprise API suite for MediFlow AI covering Patient Channeling, CDSS Agent, E-Prescription, Dispensing, and Inventory Management.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5224",
+      "type": "string"
+    },
+    {
+      "key": "aiUrl",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication & Identity",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Dr. Alexander Fleming\",\n  \"email\": \"fleming@mediflow.ai\",\n  \"password\": \"SecurePass2026!\",\n  \"phoneNumber\": \"+1555123456\",\n  \"role\": \"Doctor\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login User (Save Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('jwt_token', jsonData.token);",
+                  "    console.log('JWT Token successfully set in collection variables.');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"fleming@mediflow.ai\",\n  \"password\": \"SecurePass2026!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Doctors & Channeling",
+      "item": [
+        {
+          "name": "Get Doctors Catalog",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctors?specialty=Cardiology&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctors"],
+              "query": [
+                {
+                  "key": "specialty",
+                  "value": "Cardiology"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Doctor by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctors/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctors", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Appointments & Queue Management",
+      "item": [
+        {
+          "name": "Book Consultation Appointment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"doctorId\": 1,\n  \"dateTime\": \"2026-10-20T10:30:00Z\",\n  \"notes\": \"Follow up consultation regarding blood pressure medication.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments"]
+            }
+          }
+        },
+        {
+          "name": "Start Consultation (Doctor)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/1/start",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "1", "start"]
+            }
+          }
+        },
+        {
+          "name": "Complete Consultation",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/appointments/1/complete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "appointments", "1", "complete"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. E-Prescriptions & Clinical Safety",
+      "item": [
+        {
+          "name": "Create E-Prescription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appointmentId\": 1,\n  \"patientId\": 1,\n  \"isWalkIn\": false,\n  \"diagnosis\": \"Acute Sinusitis (ICD-10 J01.90)\",\n  \"fulfillmentSource\": \"InHouse\",\n  \"recipients\": \"Both\",\n  \"instructions\": \"Complete full 7-day course. Rest and maintain hydration.\",\n  \"items\": [\n    {\n      \"medicineId\": 1,\n      \"medicineName\": \"Augmentin 625mg\",\n      \"dosage\": \"625mg\",\n      \"frequency\": \"Twice daily (BD)\",\n      \"duration\": \"7 Days\",\n      \"quantity\": 14,\n      \"instructions\": \"Take after food\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/prescriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prescriptions"]
+            }
+          }
+        },
+        {
+          "name": "Screen Drug Interactions (AI Medication Intelligence)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/prescriptions/1/screen-interactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "prescriptions", "1", "screen-interactions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Pharmacy Orders & Dispensing",
+      "item": [
+        {
+          "name": "Get Dispensing Queue",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            }
+          }
+        },
+        {
+          "name": "Update Order Status to Dispensed",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Dispensed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/1/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "1", "status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Inventory Intelligence & Multi-Batch",
+      "item": [
+        {
+          "name": "Get Inventory Catalog",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventory",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "inventory"]
+            }
+          }
+        },
+        {
+          "name": "Add Inventory Batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"batchNumber\": \"BATCH-2026-OCT-01\",\n  \"quantity\": 200,\n  \"expiryDate\": \"2027-10-01T00:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/inventory/1/batches",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "inventory", "1", "batches"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. AI Microservice Agents",
+      "item": [
+        {
+          "name": "Recommend Specialist (Symptom AI)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symptoms\": \"Chest tightness radiating to left arm upon climbing stairs, shortness of breath, and mild dizziness.\"\n}"
+            },
+            "url": {
+              "raw": "{{aiUrl}}/recommend-specialist",
+              "host": ["{{aiUrl}}"],
+              "path": ["recommend-specialist"]
+            }
+          }
+        },
+        {
+          "name": "Check Medication Safety & Dosage",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"allergies\": \"Penicillin\",\n  \"medications\": [\n    {\n      \"name\": \"Amoxicillin 500mg\",\n      \"dosage\": \"500mg\",\n      \"frequency\": \"TDS\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{aiUrl}}/check-medication",
+              "host": ["{{aiUrl}}"],
+              "path": ["check-medication"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

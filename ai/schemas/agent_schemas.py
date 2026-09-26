@@ -14,11 +14,26 @@ class SymptomInput(BaseModel):
     severity: Optional[str] = Field("moderate", description="Self-reported severity: mild, moderate, severe")
 
 
+class SystemCheckItem(BaseModel):
+    name: str = Field(..., description="Check name")
+    status: str = Field("PASSED", description="PASSED, WARNING, or FAILED")
+    detail: str = Field(..., description="Details of check execution")
+
+
+class SystemCheckerResult(BaseModel):
+    status: str = Field("PASSED", description="Overall check status: PASSED, WARNING, or FAILED")
+    checks: List[SystemCheckItem] = Field(default_factory=list, description="List of system checks")
+    checked_at: Optional[str] = Field(None, description="Timestamp of check execution")
+
+
 class SpecialistRecommendation(BaseModel):
     recommended_specialty: str = Field(..., description="Recommended medical specialty department")
     confidence_score: float = Field(..., ge=0.0, le=1.0, description="Confidence score from 0.0 to 1.0")
     rationale: str = Field(..., description="Clinical reasoning explaining the recommendation")
     suggested_actions: List[str] = Field(default_factory=list, description="Next steps for the patient")
+    alternative_specialty: Optional[str] = Field(None, description="Secondary candidate specialty")
+    alternative_confidence: Optional[float] = Field(None, description="Secondary candidate confidence score")
+    system_checker: Optional[SystemCheckerResult] = Field(None, description="System verification and safety audit")
 
 
 # Clinical Decision Support Schemas
@@ -101,6 +116,8 @@ class MedicationCheckInput(BaseModel):
     patient_allergies: Optional[str] = Field(None, description="Documented patient allergies")
     pharmacy_id: Optional[int] = Field(None, description="Target pharmacy ID for stock validation")
     patient_conditions: Optional[List[str]] = Field(default_factory=list, description="Patient medical conditions")
+    patient_age: Optional[int] = Field(None, ge=0, le=120, description="Patient age in years (used for dosage safety checks)")
+    out_of_stock_medications: Optional[List[str]] = Field(default_factory=list, description="Medications currently out of stock at the pharmacy")
 
 
 class MedicationCheckResult(BaseModel):
@@ -108,8 +125,9 @@ class MedicationCheckResult(BaseModel):
     safety_score: int = Field(..., ge=0, le=100, description="Calculated safety confidence score 0-100")
     interactions: List[DrugInteraction] = Field(default_factory=list, description="Detected drug-drug interactions")
     allergy_warnings: List[str] = Field(default_factory=list, description="Allergy contraindication alerts")
+    dosage_warnings: List[str] = Field(default_factory=list, description="Age-related dosage safety alerts")
     alternatives: List[AlternativeDrug] = Field(default_factory=list, description="Suggested bioequivalent alternatives")
-    summary: str = Field(..., description="Clinical reasoning summary for pharmacist")
+    summary: str = Field(..., description="Clinical reasoning summary for pharmacist (AI-enhanced when Gemini is available)")
 
 
 # Pharmacy & Inventory Intelligence Schemas (Agent 4)

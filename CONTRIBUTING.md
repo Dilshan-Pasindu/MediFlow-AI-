@@ -60,11 +60,11 @@ dotnet build MediFlow.sln
 dotnet test tests/MediFlow.Tests/MediFlow.Tests.csproj
 
 # Web Client (React / Vite)
-cd web/mediflow-web
+cd frontend
 npm run build
 
 # Mobile Client (Flutter)
-cd mobile/mediflow_mobile
+cd mobile
 flutter test
 ```
 

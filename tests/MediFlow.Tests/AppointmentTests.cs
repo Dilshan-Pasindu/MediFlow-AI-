@@ -39,14 +39,22 @@ public class AppointmentTests
         Assert.Equal(AppointmentStatus.Confirmed, appointment.Status);
         Assert.Equal("APP-2026-0001", appointment.AppointmentNumber);
 
+        appointment.Status = AppointmentStatus.InConsultation;
+        appointment.ConsultationStartedAt = DateTime.UtcNow;
+        Assert.Equal(AppointmentStatus.InConsultation, appointment.Status);
+        Assert.NotNull(appointment.ConsultationStartedAt);
+
         appointment.Status = AppointmentStatus.Completed;
+        appointment.ConsultationEndedAt = DateTime.UtcNow;
         Assert.Equal(AppointmentStatus.Completed, appointment.Status);
+        Assert.NotNull(appointment.ConsultationEndedAt);
     }
 
     [Theory]
     [InlineData(AppointmentStatus.Pending)]
     [InlineData(AppointmentStatus.PaymentSubmitted)]
     [InlineData(AppointmentStatus.Confirmed)]
+    [InlineData(AppointmentStatus.InConsultation)]
     [InlineData(AppointmentStatus.Completed)]
     [InlineData(AppointmentStatus.Cancelled)]
     [InlineData(AppointmentStatus.NoShow)]

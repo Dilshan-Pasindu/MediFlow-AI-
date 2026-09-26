@@ -31,9 +31,14 @@ venv/
 *.env
 
 # IDE
-.vscode/settings.json
+.vscode/
 .idea/
-*.DS_Store
+**/.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+**/.DS_Store
 Thumbs.db
 
 # Environment & Secrets — NEVER commit these

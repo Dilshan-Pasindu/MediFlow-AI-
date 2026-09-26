@@ -1,0 +1,714 @@
+openapi: 3.0.3
+info:
+  title: MediFlow AI Enterprise Healthcare Platform API
+  description: |
+    Comprehensive RESTful API for MediFlow AI — an intelligent hospital channeling, 
+    clinical decision support, e-prescription, and inventory intelligence ecosystem.
+    
+    ### Architecture Overview
+    - **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS
+    - **Backend API:** ASP.NET Core 8 Web API + Entity Framework Core + PostgreSQL
+    - **AI Microservice:** Python 3.11/3.12 + FastAPI + LangChain / Google Gemini
+    - **Real-Time Gateway:** SignalR WebSockets for Queue & Consultation Telemetry
+  version: 1.0.0
+  contact:
+    name: MediFlow Engineering Team
+    url: https://github.com/Dilshan-Pasindu/MediFlow-AI-
+servers:
+  - url: http://localhost:5224
+    description: Local Development Backend Server
+  - url: http://localhost:8000
+    description: AI Agent Microservice Engine
+  - url: https://api.mediflow.ai
+    description: Production Cluster Gateway
+
+tags:
+  - name: Authentication & Identity
+    description: User registration, JWT token generation, role verification, and Google OAuth
+  - name: Appointments & Channeling
+    description: Doctor slot booking, token queue allocation, consultation lifecycle, and ratings
+  - name: Clinical Management & Consultations
+    description: Electronic Health Records (EHR), vital sign recording, ICD-10 differential diagnoses
+  - name: E-Prescriptions & Clinical Safety
+    description: Digital prescription issuance, drug-drug interaction screening, dosage checks
+  - name: Pharmacy Orders & Dispensing
+    description: Prescription conversion to orders, billing calculation, pharmacist fulfillment queue
+  - name: Inventory & Supply Chain
+    description: Multi-batch expiry tracking, automated stock adjustments, restocking requests
+  - name: AI Telemetry & Agents
+    description: Specialist recommendation, medication intelligence, demand forecasting
+  - name: Administration & Compliance
+    description: System metrics, role-based access management, security audit logs
+
+paths:
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication & Identity
+      summary: Register a new platform account
+      description: Creates a new user with role-specific profile binding (Patient, Doctor, Pharmacist, etc.).
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: User successfully registered. Returns JWT access token and user claims.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error in registration details.
+        '409':
+          description: Email address already registered.
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication & Identity
+      summary: Authenticate user with credentials
+      description: Validates email and BCrypt-hashed password; returns signed JWT bearer token.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid email or password.
+
+  /api/auth/google:
+    post:
+      tags:
+        - Authentication & Identity
+      summary: Authenticate via Google OAuth
+      description: Verifies Google OpenID Connect ID token and issues system JWT.
+      operationId: googleAuth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [idToken]
+              properties:
+                idToken:
+                  type: string
+                  description: Google OIDC ID token received on frontend
+      responses:
+        '200':
+          description: Successfully authenticated via Google.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid Google token verification.
+
+  /api/doctors:
+    get:
+      tags:
+        - Appointments & Channeling
+      summary: Search and filter channeling specialists
+      description: Retrieves active doctors with specialty, availability, consultation fee, and rating stats.
+      operationId: getDoctors
+      parameters:
+        - name: specialty
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by medical specialty (e.g., Cardiology, Dermatology)
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Keyword search on doctor name or qualification
+      responses:
+        '200':
+          description: Paginated doctor directory list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DoctorSummaryDto'
+
+  /api/doctors/{id}:
+    get:
+      tags:
+        - Appointments & Channeling
+      summary: Get full doctor profile
+      description: Returns doctor bio, education, available channeling slots, and patient review breakdown.
+      operationId: getDoctorById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Detailed doctor profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DoctorDetailDto'
+        '404':
+          description: Doctor not found.
+
+  /api/appointments:
+    post:
+      tags:
+        - Appointments & Channeling
+      summary: Book consultation slot
+      security:
+        - BearerAuth: []
+      description: Patient books a verified consultation slot. Assigns queue token and calculates fee.
+      operationId: bookAppointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookAppointmentRequest'
+      responses:
+        '200':
+          description: Appointment booked in Pending state awaiting payment confirmation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          description: Slot unavailable, doctor inactive, or appointment in the past.
+        '401':
+          description: Unauthorized.
+
+    get:
+      tags:
+        - Appointments & Channeling
+      summary: Query appointments
+      security:
+        - BearerAuth: []
+      description: Returns filtered appointments based on caller role (patient history or clinic schedule).
+      operationId: queryAppointments
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [Pending, PaymentSubmitted, Confirmed, InConsultation, Completed, Cancelled]
+      responses:
+        '200':
+          description: List of appointment records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppointmentResponse'
+
+  /api/appointments/{id}/start:
+    post:
+      tags:
+        - Clinical Management & Consultations
+      summary: Start clinical consultation
+      security:
+        - BearerAuth: []
+      description: Doctor signals start of consultation. Broadcasts SignalR event to clinic queue monitors.
+      operationId: startConsultation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Consultation started. Status updated to InConsultation.
+        '400':
+          description: Appointment not in Confirmed state.
+
+  /api/appointments/{id}/complete:
+    post:
+      tags:
+        - Clinical Management & Consultations
+      summary: Complete clinical consultation
+      security:
+        - BearerAuth: []
+      description: Doctor finishes examination. Records session completion timestamp.
+      operationId: completeConsultation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Consultation marked as Completed.
+
+  /api/prescriptions:
+    post:
+      tags:
+        - E-Prescriptions & Clinical Safety
+      summary: Issue digital E-Prescription
+      security:
+        - BearerAuth: []
+      description: Doctor creates signed digital prescription with items, dosages, and lab investigations.
+      operationId: createPrescription
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePrescriptionRequest'
+      responses:
+        '200':
+          description: Prescription issued successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrescriptionDto'
+        '400':
+          description: Invalid medication items or patient parameters.
+
+    get:
+      tags:
+        - E-Prescriptions & Clinical Safety
+      summary: Get prescriptions list
+      security:
+        - BearerAuth: []
+      description: Returns accessible prescriptions based on authenticated user context.
+      operationId: getPrescriptions
+      responses:
+        '200':
+          description: Array of prescription records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PrescriptionDto'
+
+  /api/prescriptions/{id}/screen-interactions:
+    post:
+      tags:
+        - E-Prescriptions & Clinical Safety
+      summary: Screen drug interactions & safety
+      security:
+        - BearerAuth: []
+      description: Invokes Medication Intelligence Agent to screen items for drug-drug interactions and allergies.
+      operationId: screenInteractions
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Screening analysis report with risk levels and pharmacological recommendations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicationScreeningResult'
+
+  /api/orders:
+    get:
+      tags:
+        - Pharmacy Orders & Dispensing
+      summary: Retrieve pharmacy dispensing queue
+      security:
+        - BearerAuth: []
+      description: Pharmacist queries incoming orders, fulfilling statuses, and calculated pricing.
+      operationId: getOrders
+      responses:
+        '200':
+          description: Dispensing queue orders.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderDto'
+
+  /api/orders/{id}/status:
+    put:
+      tags:
+        - Pharmacy Orders & Dispensing
+      summary: Update order dispensing stage
+      security:
+        - BearerAuth: []
+      description: Transitions order through Pending, Confirmed, Preparing, Ready, and Dispensed.
+      operationId: updateOrderStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [Pending, Confirmed, Preparing, Ready, Dispensed, Cancelled]
+      responses:
+        '200':
+          description: Order status successfully transitioned.
+
+  /api/inventory:
+    get:
+      tags:
+        - Inventory & Supply Chain
+      summary: Get inventory catalog
+      security:
+        - BearerAuth: []
+      description: Fetches inventory items, multi-batch expiry dates, and current stock thresholds.
+      operationId: getInventory
+      responses:
+        '200':
+          description: Inventory catalog list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InventoryItemDto'
+
+  /api/admin/dashboard/stats:
+    get:
+      tags:
+        - Administration & Compliance
+      summary: Retrieve executive dashboard KPIs
+      security:
+        - BearerAuth: []
+      description: Returns overall system stats (total users, daily bookings, revenue, and active AI agents).
+      operationId: getAdminStats
+      responses:
+        '200':
+          description: Platform KPI telemetry statistics.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Input your JWT bearer token generated from `/api/auth/login`.
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [fullName, email, password, phoneNumber]
+      properties:
+        fullName:
+          type: string
+          example: "Sarah Jenkins"
+        email:
+          type: string
+          format: email
+          example: "sarah.jenkins@example.com"
+        password:
+          type: string
+          format: password
+          example: "P@ssword2026!"
+        phoneNumber:
+          type: string
+          example: "+1-555-0199"
+        role:
+          type: string
+          enum: [Patient, Doctor, Receptionist, Pharmacist, PharmacyOwner, Supplier, Administrator]
+          default: Patient
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "doctor@mediflow.ai"
+        password:
+          type: string
+          format: password
+          example: "DoctorPass123!"
+
+    AuthResponse:
+      type: object
+      properties:
+        userId:
+          type: integer
+          example: 104
+        fullName:
+          type: string
+          example: "Dr. Alexander Fleming"
+        email:
+          type: string
+          example: "doctor@mediflow.ai"
+        role:
+          type: string
+          example: "Doctor"
+        token:
+          type: string
+          description: Signed HMAC-SHA256 JWT Token
+        expiresAt:
+          type: string
+          format: date-time
+
+    DoctorSummaryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 12
+        fullName:
+          type: string
+          example: "Dr. Gregory House"
+        specialty:
+          type: string
+          example: "Infectious Disease"
+        consultationFee:
+          type: number
+          example: 75.00
+        rating:
+          type: number
+          example: 4.9
+        totalReviews:
+          type: integer
+          example: 128
+        isActive:
+          type: boolean
+          example: true
+
+    DoctorDetailDto:
+      allOf:
+        - $ref: '#/components/schemas/DoctorSummaryDto'
+        - type: object
+          properties:
+            bio:
+              type: string
+              example: "Board-certified specialist with 15+ years experience in complex diagnostics."
+            qualifications:
+              type: string
+              example: "MBBS, MD, FACP"
+            hospitalClinic:
+              type: string
+              example: "MediFlow Central Hospital, Suite 402"
+            languages:
+              type: string
+              example: "English, Sinhala, Tamil"
+
+    BookAppointmentRequest:
+      type: object
+      required: [doctorId, dateTime]
+      properties:
+        doctorId:
+          type: integer
+          example: 12
+        dateTime:
+          type: string
+          format: date-time
+          example: "2026-10-15T09:30:00Z"
+        notes:
+          type: string
+          example: "Persistent dry cough and shortness of breath upon exertion."
+
+    AppointmentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 501
+        appointmentNumber:
+          type: string
+          example: "APP-2026-0501"
+        doctorId:
+          type: integer
+          example: 12
+        doctorName:
+          type: string
+          example: "Dr. Gregory House"
+        dateTime:
+          type: string
+          format: date-time
+        status:
+          type: string
+          example: "Confirmed"
+        fee:
+          type: number
+          example: 75.00
+        queueToken:
+          type: integer
+          example: 4
+
+    CreatePrescriptionRequest:
+      type: object
+      required: [doctorId, items]
+      properties:
+        appointmentId:
+          type: integer
+          nullable: true
+          example: 501
+        patientId:
+          type: integer
+          nullable: true
+          example: 22
+        isWalkIn:
+          type: boolean
+          example: false
+        patientName:
+          type: string
+          example: "Sarah Jenkins"
+        diagnosis:
+          type: string
+          example: "Acute Bacterial Sinusitis (ICD-10 J01.90)"
+        fulfillmentSource:
+          type: string
+          enum: [InHouse, External]
+          example: "InHouse"
+        recipients:
+          type: string
+          enum: [Both, PatientOnly]
+          example: "Both"
+        instructions:
+          type: string
+          example: "Hydrate well and complete full antibiotic course."
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionItemDto'
+
+    PrescriptionItemDto:
+      type: object
+      required: [medicineName, dosage, frequency, duration, quantity]
+      properties:
+        medicineName:
+          type: string
+          example: "Augmentin 625mg"
+        dosage:
+          type: string
+          example: "625mg"
+        frequency:
+          type: string
+          example: "Twice daily (BD)"
+        duration:
+          type: string
+          example: "7 Days"
+        quantity:
+          type: integer
+          example: 14
+        instructions:
+          type: string
+          example: "Take after meals"
+
+    PrescriptionDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 301
+        doctorName:
+          type: string
+          example: "Dr. Gregory House"
+        patientName:
+          type: string
+          example: "Sarah Jenkins"
+        status:
+          type: string
+          example: "Active"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PrescriptionItemDto'
+        createdAt:
+          type: string
+          format: date-time
+
+    MedicationScreeningResult:
+      type: object
+      properties:
+        safeToPrescribe:
+          type: boolean
+          example: true
+        riskSeverity:
+          type: string
+          enum: [Low, Moderate, High, Critical]
+          example: "Low"
+        interactions:
+          type: array
+          items:
+            type: object
+            properties:
+              severity:
+                type: string
+                example: "Moderate"
+              description:
+                type: string
+                example: "No severe pharmacodynamic antagonism detected."
+        recommendations:
+          type: array
+          items:
+            type: string
+            example: "Standard therapeutic dosage confirmed."
+
+    OrderDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 701
+        orderNumber:
+          type: string
+          example: "ORD-2026-0701"
+        patientName:
+          type: string
+          example: "Sarah Jenkins"
+        totalAmount:
+          type: number
+          example: 3500.00
+        status:
+          type: string
+          example: "Preparing"
+        isPaid:
+          type: boolean
+          example: true
+
+    InventoryItemDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 18
+        medicineName:
+          type: string
+          example: "Paracetamol 500mg"
+        totalQuantity:
+          type: integer
+          example: 840
+        reorderThreshold:
+          type: integer
+          example: 200
+        status:
+          type: string
+          example: "Good"
