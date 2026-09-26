@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
@@ -8,6 +9,13 @@ import '../../../shared/widgets/widgets.dart';
 import '../main_shell.dart';
 import '../dashboard/dashboard_screen.dart';
 import 'register_screen.dart';
+
+// ── Design tokens (shared with Get Started) ──────────────────────────────────
+const _kBgDeep   = Color(0xFF050D1A);
+const _kBgMid    = Color(0xFF0A1628);
+const _kCyan     = Color(0xFF00D4FF);
+const _kCyanDark = Color(0xFF00A8CC);
+const _kTeal     = Color(0xFF4FD1C5);
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -28,12 +36,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
     _slideCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 650),
     );
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.35),
+      begin: const Offset(0, 0.40),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
     _slideCtrl.forward();
@@ -68,95 +80,116 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
+      backgroundColor: _kBgDeep,
       body: Stack(
         children: [
-          // ── Full-screen gradient background ──────────────────────────────────
+          // ── Dark gradient background ──────────────────────────────────────
           Container(
-            height: size.height,
-            decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
-          ),
-
-          // ── Decorative blurred circles ───────────────────────────────────────
-          Positioned(
-            top: -60,
-            right: -50,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 80,
-            left: -80,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
-              ),
-            ),
-          ),
-          Positioned(
-            top: size.height * 0.18,
-            right: -30,
-            child: Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.06),
+            width: size.width, height: size.height,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_kBgDeep, Color(0xFF081426), _kBgMid],
+                stops: [0.0, 0.5, 1.0],
               ),
             ),
           ),
 
-          // ── Hero header ───────────────────────────────────────────────────────
+          // ── Cyan radial glow top ─────────────────────────────────────────
+          Positioned(
+            top: -100, left: size.width * 0.5 - 160,
+            child: Container(
+              width: 320, height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  _kCyan.withValues(alpha: 0.10),
+                  _kTeal.withValues(alpha: 0.04),
+                  Colors.transparent,
+                ]),
+              ),
+            ),
+          ),
+
+          // ── Teal glow bottom-right ───────────────────────────────────────
+          Positioned(
+            bottom: 0, right: -60,
+            child: Container(
+              width: 220, height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  _kTeal.withValues(alpha: 0.07),
+                  Colors.transparent,
+                ]),
+              ),
+            ),
+          ),
+
+          // ── Grid dots ────────────────────────────────────────────────────
+          CustomPaint(size: size, painter: _GridDotPainter()),
+
+          // ── Hero header (top ~28%) ───────────────────────────────────────
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(28, 28, 28, 0),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Official MediFlow Logo badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.18),
-                          blurRadius: 18,
-                          offset: const Offset(0, 4),
+                  // Back button + Logo
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.of(context).pop(),
+                        child: Container(
+                          width: 40, height: 40,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                          ),
+                          child: const Icon(Icons.arrow_back_rounded,
+                              color: Colors.white, size: 20),
                         ),
-                      ],
-                    ),
-                    child: const MediFlowLogo(
-                      variant: MediFlowLogoVariant.horizontal,
-                      height: 28,
+                      ),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                        ),
+                        child: const MediFlowLogo(
+                          variant: MediFlowLogoVariant.horizontal,
+                          height: 24,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Welcome text
+                  Text(
+                    'Welcome Back',
+                    style: GoogleFonts.outfit(
+                      fontSize: 32, fontWeight: FontWeight.w900,
+                      color: Colors.white, letterSpacing: -0.8, height: 1.1,
                     ),
                   ),
-                  const SizedBox(height: 22),
-                  Text(
-                    'Welcome Back! 👋',
-                    style: GoogleFonts.outfit(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Sign in to access your health portal',
-                    style: GoogleFonts.outfit(
-                      fontSize: 14,
-                      color: Colors.white.withValues(alpha: 0.75),
+                  const SizedBox(height: 4),
+                  ShaderMask(
+                    shaderCallback: (b) => const LinearGradient(
+                      colors: [_kCyan, _kTeal],
+                    ).createShader(b),
+                    child: Text(
+                      'Sign in to your health portal',
+                      style: GoogleFonts.outfit(
+                        fontSize: 15, fontWeight: FontWeight.w500,
+                        color: Colors.white, height: 1.3,
+                      ),
                     ),
                   ),
                 ],
@@ -164,48 +197,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
 
-          // ── Sliding white card ────────────────────────────────────────────────
+          // ── Sliding dark-glass card ───────────────────────────────────────
           Positioned(
-            top: size.height * 0.30,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            top: size.height * 0.295,
+            left: 0, right: 0, bottom: 0,
             child: SlideTransition(
               position: _slideAnim,
               child: Container(
-                decoration: const BoxDecoration(
-                  color: AppTheme.bgCanvas,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1F38).withValues(alpha: 0.97),
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(32),
                     topRight: Radius.circular(32),
                   ),
+                  border: Border(
+                    top: BorderSide(color: _kCyan.withValues(alpha: 0.18), width: 1),
+                  ),
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
                   child: Form(
                     key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Drag handle
+                        Center(
+                          child: Container(
+                            width: 36, height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
                         // Error banner
                         if (auth.error != null) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: AppTheme.statusInConsult.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                              border: Border.all(color: AppTheme.statusInConsult.withValues(alpha: 0.25)),
+                              color: Colors.red.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.red.withValues(alpha: 0.30)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline_rounded,
-                                    color: AppTheme.statusInConsult, size: 18),
+                                Icon(Icons.error_outline_rounded,
+                                    color: Colors.red.shade300, size: 18),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     auth.error!,
                                     style: GoogleFonts.outfit(
-                                        fontSize: 13, color: AppTheme.statusInConsult),
+                                        fontSize: 13, color: Colors.red.shade300),
                                   ),
                                 ),
                               ],
@@ -215,7 +261,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ],
 
                         // Email
-                        _AuthField(
+                        _DarkAuthField(
                           label: 'Email Address',
                           hint: 'Enter your email',
                           controller: _emailCtrl,
@@ -227,7 +273,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         const SizedBox(height: 16),
 
                         // Password
-                        _AuthField(
+                        _DarkAuthField(
                           label: 'Password',
                           hint: 'Enter your password',
                           controller: _passCtrl,
@@ -239,7 +285,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               _obscure
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
-                              color: AppTheme.textMuted,
+                              color: Colors.white.withValues(alpha: 0.45),
                               size: 20,
                             ),
                           ),
@@ -258,17 +304,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             child: Text(
                               'Forgot Password?',
                               style: GoogleFonts.outfit(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.primaryBlue,
+                                fontSize: 13, fontWeight: FontWeight.w600,
+                                color: _kCyan,
                               ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
 
                         // Sign In button
-                        _GradientButton(
+                        _CyanGradientButton(
                           label: 'Sign In',
                           isLoading: auth.isLoading,
                           onPressed: _login,
@@ -278,25 +323,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         // Divider
                         Row(
                           children: [
-                            const Expanded(child: Divider()),
+                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.10))),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 12),
                               child: Text(
                                 'or continue with',
                                 style: GoogleFonts.outfit(
-                                    fontSize: 12, color: AppTheme.textMuted),
+                                    fontSize: 12,
+                                    color: Colors.white.withValues(alpha: 0.35)),
                               ),
                             ),
-                            const Expanded(child: Divider()),
+                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.10))),
                           ],
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 16),
 
-                        // Social buttons row
+                        // Social buttons
                         Row(
                           children: [
                             Expanded(
-                              child: _SocialButton(
+                              child: _DarkSocialButton(
                                 label: 'Google',
                                 icon: Icons.g_mobiledata_rounded,
                                 onTap: () {},
@@ -304,7 +350,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _SocialButton(
+                              child: _DarkSocialButton(
                                 label: 'Apple',
                                 icon: Icons.apple_rounded,
                                 onTap: () {},
@@ -312,7 +358,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                           ],
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 24),
 
                         // Register link
                         Row(
@@ -321,7 +367,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             Text(
                               "Don't have an account? ",
                               style: GoogleFonts.outfit(
-                                  fontSize: 13, color: AppTheme.textSecondary),
+                                  fontSize: 13,
+                                  color: Colors.white.withValues(alpha: 0.50)),
                             ),
                             GestureDetector(
                               onTap: () => Navigator.of(context).push(
@@ -333,22 +380,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 style: GoogleFonts.outfit(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
-                                  color: AppTheme.primaryBlue,
+                                  color: _kCyan,
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
                         // Demo hint
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryBlue50,
-                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                            border: Border.all(
-                                color: AppTheme.primaryBlue.withValues(alpha: 0.15)),
+                            color: _kCyan.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: _kCyan.withValues(alpha: 0.18)),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,14 +402,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               Row(
                                 children: [
                                   Icon(Icons.info_outline_rounded,
-                                      size: 14, color: AppTheme.primaryBlue),
+                                      size: 14, color: _kCyan.withValues(alpha: 0.80)),
                                   const SizedBox(width: 6),
                                   Text(
                                     'Demo Account',
                                     style: GoogleFonts.outfit(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.primaryBlue,
+                                      fontSize: 11, fontWeight: FontWeight.w700,
+                                      color: _kCyan.withValues(alpha: 0.90),
                                     ),
                                   ),
                                 ],
@@ -371,10 +416,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               const SizedBox(height: 6),
                               Text('Email: dilshan@gmail.com',
                                   style: GoogleFonts.outfit(
-                                      fontSize: 12, color: AppTheme.textSecondary)),
+                                      fontSize: 12,
+                                      color: Colors.white.withValues(alpha: 0.55))),
                               Text('Password: Test@123',
                                   style: GoogleFonts.outfit(
-                                      fontSize: 12, color: AppTheme.textSecondary)),
+                                      fontSize: 12,
+                                      color: Colors.white.withValues(alpha: 0.55))),
                             ],
                           ),
                         ),
@@ -391,9 +438,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 }
 
-// ── Reusable auth text field ──────────────────────────────────────────────────
-class _AuthField extends StatelessWidget {
-  const _AuthField({
+// ─────────────────────────────────────────────────────────────────────────────
+// Dark theme text field
+// ─────────────────────────────────────────────────────────────────────────────
+class _DarkAuthField extends StatelessWidget {
+  const _DarkAuthField({
     required this.label,
     required this.hint,
     required this.icon,
@@ -421,9 +470,8 @@ class _AuthField extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.outfit(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+            fontSize: 13, fontWeight: FontWeight.w600,
+            color: Colors.white.withValues(alpha: 0.70),
           ),
         ),
         const SizedBox(height: 8),
@@ -432,19 +480,19 @@ class _AuthField extends StatelessWidget {
           obscureText: obscure,
           keyboardType: keyboardType,
           validator: validator,
-          style: GoogleFonts.outfit(fontSize: 14, color: AppTheme.textPrimary),
+          style: GoogleFonts.outfit(fontSize: 14, color: Colors.white),
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
-            fillColor: Colors.white,
+            fillColor: Colors.white.withValues(alpha: 0.06),
             prefixIcon: Container(
               margin: const EdgeInsets.all(12),
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: AppTheme.primaryBlue50,
-                borderRadius: BorderRadius.circular(10),
+                color: _kCyan.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(9),
               ),
-              child: Icon(icon, size: 16, color: AppTheme.primaryBlue),
+              child: Icon(icon, size: 16, color: _kCyan),
             ),
             suffixIcon: suffixIcon != null
                 ? Padding(
@@ -454,26 +502,28 @@ class _AuthField extends StatelessWidget {
                 : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              borderSide: const BorderSide(color: AppTheme.cardBorder),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              borderSide: const BorderSide(color: AppTheme.cardBorder),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              borderSide:
-                  const BorderSide(color: AppTheme.primaryBlue, width: 1.5),
+              borderSide: const BorderSide(color: _kCyan, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-              borderSide:
-                  const BorderSide(color: AppTheme.statusInConsult, width: 1),
+              borderSide: BorderSide(color: Colors.red.shade400, width: 1),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-            hintStyle:
-                GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            hintStyle: GoogleFonts.outfit(
+                fontSize: 13, color: Colors.white.withValues(alpha: 0.28)),
+            errorStyle: GoogleFonts.outfit(fontSize: 12, color: Colors.red.shade300),
           ),
         ),
       ],
@@ -481,9 +531,11 @@ class _AuthField extends StatelessWidget {
   }
 }
 
-// ── Gradient primary button ───────────────────────────────────────────────────
-class _GradientButton extends StatefulWidget {
-  const _GradientButton({
+// ─────────────────────────────────────────────────────────────────────────────
+// Cyan gradient primary button
+// ─────────────────────────────────────────────────────────────────────────────
+class _CyanGradientButton extends StatefulWidget {
+  const _CyanGradientButton({
     required this.label,
     required this.onPressed,
     this.isLoading = false,
@@ -493,10 +545,10 @@ class _GradientButton extends StatefulWidget {
   final bool isLoading;
 
   @override
-  State<_GradientButton> createState() => _GradientButtonState();
+  State<_CyanGradientButton> createState() => _CyanGradientButtonState();
 }
 
-class _GradientButtonState extends State<_GradientButton> {
+class _CyanGradientButtonState extends State<_CyanGradientButton> {
   bool _pressed = false;
 
   @override
@@ -515,27 +567,31 @@ class _GradientButtonState extends State<_GradientButton> {
           height: 54,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
+              colors: [_kCyan, _kCyanDark],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            boxShadow: AppTheme.buttonShadow,
+            boxShadow: [
+              BoxShadow(
+                color: _kCyan.withValues(alpha: 0.40),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: widget.isLoading
               ? const SizedBox(
-                  width: 22,
-                  height: 22,
+                  width: 22, height: 22,
                   child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2.5),
+                      color: _kBgDeep, strokeWidth: 2.5),
                 )
               : Text(
                   widget.label,
                   style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    fontSize: 15, fontWeight: FontWeight.w800,
+                    color: _kBgDeep,
                   ),
                 ),
         ),
@@ -544,9 +600,11 @@ class _GradientButtonState extends State<_GradientButton> {
   }
 }
 
-// ── Social login button ───────────────────────────────────────────────────────
-class _SocialButton extends StatelessWidget {
-  const _SocialButton({
+// ─────────────────────────────────────────────────────────────────────────────
+// Dark social button
+// ─────────────────────────────────────────────────────────────────────────────
+class _DarkSocialButton extends StatelessWidget {
+  const _DarkSocialButton({
     required this.label,
     required this.icon,
     required this.onTap,
@@ -560,24 +618,22 @@ class _SocialButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 50,
+        height: 48,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.white.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border.all(color: AppTheme.cardBorder),
-          boxShadow: AppTheme.cardShadow,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 22, color: AppTheme.textPrimary),
+            Icon(icon, size: 22, color: Colors.white.withValues(alpha: 0.75)),
             const SizedBox(width: 8),
             Text(
               label,
               style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: Colors.white.withValues(alpha: 0.75),
               ),
             ),
           ],
@@ -585,4 +641,25 @@ class _SocialButton extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grid dot background painter (reused from Get Started)
+// ─────────────────────────────────────────────────────────────────────────────
+class _GridDotPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _kCyan.withValues(alpha: 0.04)
+      ..style = PaintingStyle.fill;
+    const step = 28.0;
+    for (double x = 0; x < size.width; x += step) {
+      for (double y = 0; y < size.height; y += step) {
+        canvas.drawCircle(Offset(x, y), 1.0, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }

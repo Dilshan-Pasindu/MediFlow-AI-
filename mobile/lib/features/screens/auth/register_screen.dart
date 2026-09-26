@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
@@ -6,6 +7,13 @@ import '../../../features/auth/auth_provider.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../main_shell.dart';
 import '../dashboard/dashboard_screen.dart';
+
+// ── Design tokens (shared) ────────────────────────────────────────────────────
+const _kBgDeep   = Color(0xFF050D1A);
+const _kBgMid    = Color(0xFF0A1628);
+const _kCyan     = Color(0xFF00D4FF);
+const _kCyanDark = Color(0xFF00A8CC);
+const _kTeal     = Color(0xFF4FD1C5);
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -30,12 +38,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   @override
   void initState() {
     super.initState();
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ));
     _slideCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 650),
     );
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.25),
+      begin: const Offset(0, 0.30),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
     _slideCtrl.forward();
@@ -76,44 +88,60 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
+      backgroundColor: _kBgDeep,
       body: Stack(
         children: [
-          // Gradient background
+          // ── Dark gradient background ──────────────────────────────────────
           Container(
-            height: size.height,
-            decoration: const BoxDecoration(gradient: AppTheme.primaryGradient),
-          ),
-
-          // Decorative circles
-          Positioned(
-            top: -50,
-            right: -40,
-            child: Container(
-              width: 180,
-              height: 180,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.07),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 60,
-            left: -60,
-            child: Container(
-              width: 150,
-              height: 150,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.05),
+            width: size.width, height: size.height,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_kBgDeep, Color(0xFF081426), _kBgMid],
+                stops: [0.0, 0.5, 1.0],
               ),
             ),
           ),
 
-          // Header
+          // ── Cyan radial glow top ─────────────────────────────────────────
+          Positioned(
+            top: -80, left: size.width * 0.5 - 140,
+            child: Container(
+              width: 280, height: 280,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  _kCyan.withValues(alpha: 0.10),
+                  _kTeal.withValues(alpha: 0.04),
+                  Colors.transparent,
+                ]),
+              ),
+            ),
+          ),
+
+          // ── Teal bottom glow ──────────────────────────────────────────────
+          Positioned(
+            bottom: 40, right: -40,
+            child: Container(
+              width: 200, height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(colors: [
+                  _kTeal.withValues(alpha: 0.08),
+                  Colors.transparent,
+                ]),
+              ),
+            ),
+          ),
+
+          // ── Grid dots ─────────────────────────────────────────────────────
+          CustomPaint(size: size, painter: _GridDotPainter()),
+
+          // ── Header ────────────────────────────────────────────────────────
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -122,11 +150,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                       GestureDetector(
                         onTap: () => Navigator.of(context).pop(),
                         child: Container(
-                          width: 40,
-                          height: 40,
+                          width: 40, height: 40,
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.18),
+                            color: Colors.white.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.12)),
                           ),
                           child: const Icon(Icons.arrow_back_rounded,
                               color: Colors.white, size: 20),
@@ -139,16 +168,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           Text(
                             'Create Account',
                             style: GoogleFonts.outfit(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
+                              fontSize: 22, fontWeight: FontWeight.w900,
+                              color: Colors.white, letterSpacing: -0.5,
                             ),
                           ),
-                          Text(
-                            'Join MediFlow AI today',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13,
-                              color: Colors.white.withValues(alpha: 0.72),
+                          ShaderMask(
+                            shaderCallback: (b) => const LinearGradient(
+                              colors: [_kCyan, _kTeal],
+                            ).createShader(b),
+                            child: Text(
+                              'Join MediFlow AI today',
+                              style: GoogleFonts.outfit(
+                                fontSize: 13, fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ],
@@ -156,17 +189,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                     ],
                   ),
                   Container(
-                    padding: const EdgeInsets.all(7),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.white.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(14),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                     ),
                     child: const MediFlowLogo(
                       variant: MediFlowLogoVariant.mark,
@@ -178,54 +205,64 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
             ),
           ),
 
-          // Sliding card
+          // ── Sliding dark glass card ────────────────────────────────────────
           Positioned(
-            top: size.height * 0.17,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            top: size.height * 0.18,
+            left: 0, right: 0, bottom: 0,
             child: SlideTransition(
               position: _slideAnim,
               child: Container(
-                decoration: const BoxDecoration(
-                  color: AppTheme.bgCanvas,
-                  borderRadius: BorderRadius.only(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0D1F38).withValues(alpha: 0.97),
+                  borderRadius: const BorderRadius.only(
                     topLeft: Radius.circular(32),
                     topRight: Radius.circular(32),
                   ),
+                  border: Border(
+                    top: BorderSide(color: _kCyan.withValues(alpha: 0.18), width: 1),
+                  ),
                 ),
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(24, 28, 24, 48),
+                  padding: const EdgeInsets.fromLTRB(24, 24, 24, 48),
                   child: Form(
                     key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Drag handle
+                        Center(
+                          child: Container(
+                            width: 36, height: 4,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
                         // Error banner
                         if (auth.error != null) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: AppTheme.statusInConsult
-                                  .withValues(alpha: 0.08),
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusMd),
+                              color: Colors.red.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                  color: AppTheme.statusInConsult
-                                      .withValues(alpha: 0.25)),
+                                  color: Colors.red.withValues(alpha: 0.30)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.error_outline_rounded,
-                                    color: AppTheme.statusInConsult, size: 18),
+                                Icon(Icons.error_outline_rounded,
+                                    color: Colors.red.shade300, size: 18),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     auth.error!,
                                     style: GoogleFonts.outfit(
                                         fontSize: 13,
-                                        color: AppTheme.statusInConsult),
+                                        color: Colors.red.shade300),
                                   ),
                                 ),
                               ],
@@ -235,23 +272,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         ],
 
                         // Section: Personal Info
-                        _SectionLabel(label: 'Personal Information'),
+                        const _DarkSectionLabel(label: 'Personal Information'),
                         const SizedBox(height: 12),
-                        _RegField(
+                        _DarkRegField(
                           label: 'Full Name',
                           hint: 'Enter your full name',
                           icon: Icons.person_outline_rounded,
                           controller: _nameCtrl,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Full name is required';
-                            if (v.trim().length < 2)
+                            }
+                            if (v.trim().length < 2) {
                               return 'Name must be at least 2 characters';
+                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 12),
-                        _RegField(
+                        _DarkRegField(
                           label: 'Email Address',
                           hint: 'patient@example.com',
                           icon: Icons.email_outlined,
@@ -262,26 +301,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               : null,
                         ),
                         const SizedBox(height: 12),
-                        _RegField(
+                        _DarkRegField(
                           label: 'Phone Number',
                           hint: '+94 71 234 5678',
                           icon: Icons.phone_outlined,
                           controller: _phoneCtrl,
                           keyboardType: TextInputType.phone,
                           validator: (v) {
-                            if (v == null || v.trim().isEmpty)
+                            if (v == null || v.trim().isEmpty) {
                               return 'Phone number is required';
-                            if (v.trim().length < 7)
+                            }
+                            if (v.trim().length < 7) {
                               return 'Enter a valid phone number';
+                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 24),
 
                         // Section: Security
-                        _SectionLabel(label: 'Security'),
+                        const _DarkSectionLabel(label: 'Security'),
                         const SizedBox(height: 12),
-                        _RegField(
+                        _DarkRegField(
                           label: 'Password',
                           hint: 'Min. 6 characters',
                           icon: Icons.lock_outline_rounded,
@@ -295,19 +336,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
                               size: 20,
-                              color: AppTheme.textMuted,
+                              color: Colors.white.withValues(alpha: 0.45),
                             ),
                           ),
                           validator: (v) {
-                            if (v == null || v.isEmpty)
+                            if (v == null || v.isEmpty) {
                               return 'Password is required';
-                            if (v.length < 6)
+                            }
+                            if (v.length < 6) {
                               return 'Password must be at least 6 characters';
+                            }
                             return null;
                           },
                         ),
                         const SizedBox(height: 12),
-                        _RegField(
+                        _DarkRegField(
                           label: 'Confirm Password',
                           hint: 'Re-enter password',
                           icon: Icons.lock_outline_rounded,
@@ -321,7 +364,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                   ? Icons.visibility_outlined
                                   : Icons.visibility_off_outlined,
                               size: 20,
-                              color: AppTheme.textMuted,
+                              color: Colors.white.withValues(alpha: 0.45),
                             ),
                           ),
                           validator: (v) => v != _passCtrl.text
@@ -331,7 +374,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         const SizedBox(height: 28),
 
                         // CTA
-                        _GradientButton(
+                        _CyanGradientButton(
                           label: 'Create Account',
                           isLoading: auth.isLoading,
                           onPressed: _register,
@@ -345,29 +388,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             Text(
                               'Already have an account? ',
                               style: GoogleFonts.outfit(
-                                  fontSize: 13, color: AppTheme.textSecondary),
+                                  fontSize: 13,
+                                  color: Colors.white.withValues(alpha: 0.50)),
                             ),
                             GestureDetector(
                               onTap: () => Navigator.of(context).pop(),
                               child: Text(
                                 'Sign In',
                                 style: GoogleFonts.outfit(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.primaryBlue,
+                                  fontSize: 13, fontWeight: FontWeight.w700,
+                                  color: _kCyan,
                                 ),
                               ),
                             ),
                           ],
                         ),
 
-                        // Terms note
                         const SizedBox(height: 20),
                         Text(
                           'By creating an account you agree to our\nTerms of Service and Privacy Policy.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.outfit(
-                              fontSize: 11, color: AppTheme.textMuted, height: 1.5),
+                              fontSize: 11,
+                              color: Colors.white.withValues(alpha: 0.28),
+                              height: 1.5),
                         ),
                       ],
                     ),
@@ -382,18 +426,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.label});
+// ─────────────────────────────────────────────────────────────────────────────
+// Section label with cyan accent bar
+// ─────────────────────────────────────────────────────────────────────────────
+class _DarkSectionLabel extends StatelessWidget {
+  const _DarkSectionLabel({required this.label});
   final String label;
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Container(
-          width: 4,
-          height: 16,
+          width: 4, height: 16,
           decoration: BoxDecoration(
-            color: AppTheme.primaryBlue,
+            gradient: const LinearGradient(
+              colors: [_kCyan, _kTeal],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -401,9 +451,8 @@ class _SectionLabel extends StatelessWidget {
         Text(
           label,
           style: GoogleFonts.outfit(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppTheme.textPrimary,
+            fontSize: 13, fontWeight: FontWeight.w700,
+            color: Colors.white.withValues(alpha: 0.80),
           ),
         ),
       ],
@@ -411,8 +460,11 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _RegField extends StatelessWidget {
-  const _RegField({
+// ─────────────────────────────────────────────────────────────────────────────
+// Dark register text field
+// ─────────────────────────────────────────────────────────────────────────────
+class _DarkRegField extends StatelessWidget {
+  const _DarkRegField({
     required this.label,
     required this.hint,
     required this.icon,
@@ -439,20 +491,20 @@ class _RegField extends StatelessWidget {
       obscureText: obscure,
       keyboardType: keyboardType,
       validator: validator,
-      style: GoogleFonts.outfit(fontSize: 14, color: AppTheme.textPrimary),
+      style: GoogleFonts.outfit(fontSize: 14, color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         filled: true,
-        fillColor: Colors.white,
+        fillColor: Colors.white.withValues(alpha: 0.06),
         prefixIcon: Container(
           margin: const EdgeInsets.all(12),
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: AppTheme.primaryBlue50,
+            color: _kCyan.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(9),
           ),
-          child: Icon(icon, size: 16, color: AppTheme.primaryBlue),
+          child: Icon(icon, size: 16, color: _kCyan),
         ),
         suffixIcon: suffixIcon != null
             ? Padding(
@@ -462,34 +514,41 @@ class _RegField extends StatelessWidget {
             : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          borderSide: const BorderSide(color: AppTheme.cardBorder),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          borderSide: const BorderSide(color: AppTheme.cardBorder),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          borderSide:
-              const BorderSide(color: AppTheme.primaryBlue, width: 1.5),
+          borderSide: const BorderSide(color: _kCyan, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          borderSide:
-              const BorderSide(color: AppTheme.statusInConsult, width: 1),
+          borderSide: BorderSide(color: Colors.red.shade400, width: 1),
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        hintStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
-        labelStyle:
-            GoogleFonts.outfit(fontSize: 13, color: AppTheme.textSecondary),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        hintStyle: GoogleFonts.outfit(
+            fontSize: 13, color: Colors.white.withValues(alpha: 0.28)),
+        labelStyle: GoogleFonts.outfit(
+            fontSize: 13, color: Colors.white.withValues(alpha: 0.55)),
+        floatingLabelStyle: GoogleFonts.outfit(fontSize: 13, color: _kCyan),
+        errorStyle: GoogleFonts.outfit(fontSize: 12, color: Colors.red.shade300),
       ),
     );
   }
 }
 
-class _GradientButton extends StatefulWidget {
-  const _GradientButton({
+// ─────────────────────────────────────────────────────────────────────────────
+// Cyan gradient button
+// ─────────────────────────────────────────────────────────────────────────────
+class _CyanGradientButton extends StatefulWidget {
+  const _CyanGradientButton({
     required this.label,
     required this.onPressed,
     this.isLoading = false,
@@ -499,10 +558,10 @@ class _GradientButton extends StatefulWidget {
   final bool isLoading;
 
   @override
-  State<_GradientButton> createState() => _GradientButtonState();
+  State<_CyanGradientButton> createState() => _CyanGradientButtonState();
 }
 
-class _GradientButtonState extends State<_GradientButton> {
+class _CyanGradientButtonState extends State<_CyanGradientButton> {
   bool _pressed = false;
 
   @override
@@ -521,31 +580,56 @@ class _GradientButtonState extends State<_GradientButton> {
           height: 54,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
+              colors: [_kCyan, _kCyanDark],
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
             ),
             borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            boxShadow: AppTheme.buttonShadow,
+            boxShadow: [
+              BoxShadow(
+                color: _kCyan.withValues(alpha: 0.40),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: widget.isLoading
               ? const SizedBox(
-                  width: 22,
-                  height: 22,
+                  width: 22, height: 22,
                   child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2.5),
+                      color: _kBgDeep, strokeWidth: 2.5),
                 )
               : Text(
                   widget.label,
                   style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    fontSize: 15, fontWeight: FontWeight.w800,
+                    color: _kBgDeep,
                   ),
                 ),
         ),
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Grid dot painter
+// ─────────────────────────────────────────────────────────────────────────────
+class _GridDotPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _kCyan.withValues(alpha: 0.04)
+      ..style = PaintingStyle.fill;
+    const step = 28.0;
+    for (double x = 0; x < size.width; x += step) {
+      for (double y = 0; y < size.height; y += step) {
+        canvas.drawCircle(Offset(x, y), 1.0, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }
