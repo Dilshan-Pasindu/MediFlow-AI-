@@ -26,7 +26,14 @@ var connectionString = ParsePostgreSqlConnectionString(rawConn);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
         connectionString,
-        npgsqlOptions => npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
+        npgsqlOptions =>
+        {
+            npgsqlOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorCodesToAdd: null);
+            npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+        }));
 
 // ─── SignalR ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
@@ -196,29 +203,48 @@ app.Run();
 
 static string ParsePostgreSqlConnectionString(string raw)
 {
+    Npgsql.NpgsqlConnectionStringBuilder builder;
     if (!string.IsNullOrWhiteSpace(raw) && (raw.StartsWith("postgres://") || raw.StartsWith("postgresql://")))
     {
         try
         {
             var uri = new Uri(raw);
             var userInfo = uri.UserInfo.Split(':');
-            var npgsql = new Npgsql.NpgsqlConnectionStringBuilder
+            builder = new Npgsql.NpgsqlConnectionStringBuilder
             {
                 Host = uri.Host,
                 Port = uri.Port > 0 ? uri.Port : 5432,
                 Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : "postgres",
                 Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "",
                 Database = uri.AbsolutePath.TrimStart('/'),
-                SslMode = Npgsql.SslMode.Prefer
+                SslMode = Npgsql.SslMode.Prefer,
+                TrustServerCertificate = true,
             };
-            return npgsql.ConnectionString;
+        }
+        catch
+        {
+            builder = new Npgsql.NpgsqlConnectionStringBuilder(raw);
+        }
+    }
+    else
+    {
+        try
+        {
+            builder = new Npgsql.NpgsqlConnectionStringBuilder(raw);
         }
         catch
         {
             return raw;
         }
     }
-    return raw;
+
+    // Harden against Supabase connection pooler idle socket termination & transient latency
+    builder.KeepAlive = 15;
+    builder.Timeout = 30;
+    builder.CommandTimeout = 60;
+    builder.Pooling = true;
+    builder.ConnectionLifetime = 300;
+    return builder.ConnectionString;
 }
 
 static void LoadDotEnv(string filePath)
