@@ -87,6 +87,8 @@ export default function PharmacistDashboard() {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['pharmacist'] });
+    queryClient.invalidateQueries({ queryKey: ['inventory'] });
+    queryClient.invalidateQueries({ queryKey: ['owner'] });
   };
 
   // Fetch Live Pharmacy Inventory
