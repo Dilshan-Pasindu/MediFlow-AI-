@@ -115,6 +115,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
     return Scaffold(
       backgroundColor: _kBgDeep,
       body: Stack(
+        fit: StackFit.expand,
         children: [
           // ── Deep navy gradient background ─────────────────────────────────
           Container(
@@ -131,12 +132,12 @@ class _GetStartedScreenState extends State<GetStartedScreen>
           ),
 
           // ── Radial cyan glow — top centre ─────────────────────────────────
-          AnimatedBuilder(
-            animation: _glowAnim,
-            builder: (_, __) => Positioned(
-              top: -80,
-              left: size.width * 0.5 - 180,
-              child: Container(
+          Positioned(
+            top: -80,
+            left: size.width * 0.5 - 180,
+            child: AnimatedBuilder(
+              animation: _glowAnim,
+              builder: (_, __) => Container(
                 width: 360,
                 height: 360,
                 decoration: BoxDecoration(
@@ -184,202 +185,228 @@ class _GetStartedScreenState extends State<GetStartedScreen>
           ),
 
           // ── Main content ──────────────────────────────────────────────────
-          SafeArea(
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: SlideTransition(
-                position: _heroSlide,
-                child: Column(
-                  children: [
-                    // ─ Top header bar ──────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const MediFlowLogo(
-                            variant: MediFlowLogoVariant.horizontal,
-                            height: 28,
-                          ),
-                          // Logo badge (medical cross circle)
-                          AnimatedBuilder(
-                            animation: _pulseAnim,
-                            builder: (_, __) => Transform.scale(
-                              scale: _pulseAnim.value,
-                              child: Container(
-                                width: 42, height: 42,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  gradient: const LinearGradient(
-                                    colors: [_kCyan, _kTeal],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _kCyan.withValues(alpha: 0.45),
-                                      blurRadius: 18,
-                                      spreadRadius: 2,
+          Positioned.fill(
+            child: SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnim,
+                child: SlideTransition(
+                  position: _heroSlide,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      physics: const ClampingScrollPhysics(),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              // ─ Top header bar ──────────────────────────────────────
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(22, 14, 22, 0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const MediFlowLogo(
+                                      variant: MediFlowLogoVariant.horizontal,
+                                      height: 28,
+                                    ),
+                                    // Logo badge (medical cross circle)
+                                    AnimatedBuilder(
+                                      animation: _pulseAnim,
+                                      builder: (_, __) => Transform.scale(
+                                        scale: _pulseAnim.value,
+                                        child: Container(
+                                          width: 42, height: 42,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: const LinearGradient(
+                                              colors: [_kCyan, _kTeal],
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                            ),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: _kCyan.withValues(alpha: 0.45),
+                                                blurRadius: 18,
+                                                spreadRadius: 2,
+                                              ),
+                                            ],
+                                          ),
+                                          child: const Icon(
+                                            Icons.medical_services_rounded,
+                                            color: Colors.white,
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: const Icon(
-                                  Icons.medical_services_rounded,
-                                  color: Colors.white,
-                                  size: 20,
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // ─ Main headline ───────────────────────────────────────
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 22),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Smart',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 40, fontWeight: FontWeight.w900,
+                                        color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                                      ),
+                                    ),
+                                    ShaderMask(
+                                      shaderCallback: (bounds) => const LinearGradient(
+                                        colors: [_kCyan, _kTeal],
+                                        begin: Alignment.centerLeft,
+                                        end: Alignment.centerRight,
+                                      ).createShader(bounds),
+                                      child: Text(
+                                        'Healthcare',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 40, fontWeight: FontWeight.w900,
+                                          color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                                        ),
+                                      ),
+                                    ),
+                                    Text(
+                                      'At Your',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 40, fontWeight: FontWeight.w900,
+                                        color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Fingertips',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 40, fontWeight: FontWeight.w900,
+                                        color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 16),
+
+                                    Text(
+                                      'Connect with certified specialists, manage\nappointments, and receive digital prescriptions\n— all in one secure AI platform.',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 13.5, fontWeight: FontWeight.w400,
+                                        color: Colors.white.withValues(alpha: 0.70),
+                                        height: 1.55,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
 
-                    const SizedBox(height: 28),
+                              const SizedBox(height: 24),
 
-                    // ─ Main headline ───────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Smart',
-                            style: GoogleFonts.outfit(
-                              fontSize: 40, fontWeight: FontWeight.w900,
-                              color: Colors.white, height: 1.1, letterSpacing: -1.0,
-                            ),
-                          ),
-                          ShaderMask(
-                            shaderCallback: (bounds) => const LinearGradient(
-                              colors: [_kCyan, _kTeal],
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                            ).createShader(bounds),
-                            child: Text(
-                              'Healthcare',
-                              style: GoogleFonts.outfit(
-                                fontSize: 40, fontWeight: FontWeight.w900,
-                                color: Colors.white, height: 1.1, letterSpacing: -1.0,
+                              // ─ Animated ECG waveform ───────────────────────────────
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 22),
+                                child: SizedBox(
+                                  height: 42,
+                                  width: double.infinity,
+                                  child: AnimatedBuilder(
+                                    animation: _ecgAnim,
+                                    builder: (_, __) => CustomPaint(
+                                      painter: _EcgWavePainter(progress: _ecgAnim.value),
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
-                          Text(
-                            'At Your',
-                            style: GoogleFonts.outfit(
-                              fontSize: 40, fontWeight: FontWeight.w900,
-                              color: Colors.white, height: 1.1, letterSpacing: -1.0,
-                            ),
-                          ),
-                          Text(
-                            'Fingertips',
-                            style: GoogleFonts.outfit(
-                              fontSize: 40, fontWeight: FontWeight.w900,
-                              color: Colors.white, height: 1.1, letterSpacing: -1.0,
-                            ),
-                          ),
 
-                          const SizedBox(height: 16),
+                              const Spacer(),
 
-                          Text(
-                            'Connect with certified specialists, manage\nappointments, and receive digital prescriptions\n— all in one secure AI platform.',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13.5, fontWeight: FontWeight.w400,
-                              color: Colors.white.withValues(alpha: 0.70),
-                              height: 1.55,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                              // ─ Tagline ─────────────────────────────────────────────
+                              Center(
+                                child: Text(
+                                  'Your healthcare, simplified.',
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 13, fontWeight: FontWeight.w400,
+                                    color: Colors.white.withValues(alpha: 0.55),
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
 
-                    const SizedBox(height: 24),
+                              const SizedBox(height: 14),
 
-                    // ─ Animated ECG waveform ───────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: SizedBox(
-                        height: 42,
-                        width: double.infinity,
-                        child: AnimatedBuilder(
-                          animation: _ecgAnim,
-                          builder: (_, __) => CustomPaint(
-                            painter: _EcgWavePainter(progress: _ecgAnim.value),
-                          ),
-                        ),
-                      ),
-                    ),
+                              // ─ Get Started CTA ────────────────────────────────────
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 22),
+                                child: _CyanButton(
+                                  label: 'Get Started',
+                                  onPressed: _goToLogin,
+                                ),
+                              ),
 
-                    const Spacer(),
+                              const SizedBox(height: 14),
 
-                    // ─ Tagline ─────────────────────────────────────────────
-                    Text(
-                      'Your healthcare, simplified.',
-                      style: GoogleFonts.outfit(
-                        fontSize: 13, fontWeight: FontWeight.w400,
-                        color: Colors.white.withValues(alpha: 0.55),
-                        letterSpacing: 0.2,
-                      ),
-                    ),
+                              // ─ Create Account link ────────────────────────────────
+                              Center(
+                                child: GestureDetector(
+                                  onTap: _goToRegister,
+                                  child: Text(
+                                    'Create an Account',
+                                    style: GoogleFonts.outfit(
+                                      fontSize: 14, fontWeight: FontWeight.w600,
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: Colors.white.withValues(alpha: 0.40),
+                                    ),
+                                  ),
+                                ),
+                              ),
 
-                    const SizedBox(height: 14),
+                              const SizedBox(height: 24),
 
-                    // ─ Get Started CTA ────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: _CyanButton(
-                        label: 'Get Started',
-                        onPressed: _goToLogin,
-                      ),
-                    ),
+                              // ─ Footer links ────────────────────────────────────────
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Terms of Service',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 11, color: Colors.white.withValues(alpha: 0.35),
+                                        ),
+                                      ),
+                                      Container(
+                                        width: 3, height: 3,
+                                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.25),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Privacy Policy',
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 11, color: Colors.white.withValues(alpha: 0.35),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
 
-                    const SizedBox(height: 14),
-
-                    // ─ Create Account link ────────────────────────────────
-                    GestureDetector(
-                      onTap: _goToRegister,
-                      child: Text(
-                        'Create an Account',
-                        style: GoogleFonts.outfit(
-                          fontSize: 14, fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.85),
-                          decoration: TextDecoration.underline,
-                          decorationColor: Colors.white.withValues(alpha: 0.40),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // ─ Footer links ────────────────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Terms of Service',
-                          style: GoogleFonts.outfit(
-                            fontSize: 11, color: Colors.white.withValues(alpha: 0.35),
+                              const SizedBox(height: 20),
+                            ],
                           ),
                         ),
-                        Container(
-                          width: 3, height: 3,
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.25),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        Text(
-                          'Privacy Policy',
-                          style: GoogleFonts.outfit(
-                            fontSize: 11, color: Colors.white.withValues(alpha: 0.35),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-
-                    const SizedBox(height: 20),
-                  ],
+                  ),
                 ),
               ),
             ),
