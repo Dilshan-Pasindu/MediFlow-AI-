@@ -981,7 +981,12 @@ public class OrdersController : ControllerBase
         }
 
         var invoice = await _db.Invoices
+            .Include(i => i.MedicineOrder)
+                .ThenInclude(o => o!.Items)
             .FirstOrDefaultAsync(i => i.MedicineOrderId == id);
+
+        if (invoice == null)
+            return NotFound(new { message = $"No invoice found for order {id}." });
 
         return Ok(ToInvoiceDto(invoice, order));
     }

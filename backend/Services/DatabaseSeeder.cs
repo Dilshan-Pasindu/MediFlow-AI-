@@ -698,6 +698,271 @@ public static class DatabaseSeeder
                 await db.SaveChangesAsync();
             }
         }
+
+        // ════════════════════════════════════════════════════════════════
+        // MEMBER 3 — E-Prescription, Orders & Safety Interaction Seed Data
+        // ════════════════════════════════════════════════════════════════
+        if (await db.Prescriptions.CountAsync() < 7)
+        {
+            var doctors = await db.Doctors.ToListAsync();
+            var patients = await db.Patients.ToListAsync();
+            var medicines = await db.Medicines.ToListAsync();
+            var pharmacy = await db.Pharmacies.FirstOrDefaultAsync();
+            var pharmacistUser = await db.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Pharmacist);
+
+            if (doctors.Count > 0 && (patients.Count > 0 || medicines.Count > 0))
+            {
+                var doc1 = doctors[0];
+                var doc2 = doctors.Count > 1 ? doctors[1] : doc1;
+                var doc3 = doctors.Count > 4 ? doctors[4] : doc1;
+                var doc4 = doctors.Count > 6 ? doctors[6] : doc1;
+                var doc5 = doctors.Count > 8 ? doctors[8] : doc1;
+
+                var pat1 = patients.Count > 0 ? patients[0] : null;
+                var pat2 = patients.Count > 1 ? patients[1] : pat1;
+                var pat3 = patients.Count > 2 ? patients[2] : pat1;
+                var pat4 = patients.Count > 3 ? patients[3] : pat1;
+                var pat5 = patients.Count > 4 ? patients[4] : pat1;
+
+                var medAmox = medicines.FirstOrDefault(m => m.MedicineName.Contains("Amoxicillin")) ?? (medicines.Count > 0 ? medicines[0] : null);
+                var medPara = medicines.FirstOrDefault(m => m.MedicineName.Contains("Paracetamol")) ?? (medicines.Count > 1 ? medicines[1] : medAmox);
+                var medOmep = medicines.FirstOrDefault(m => m.MedicineName.Contains("Omeprazole")) ?? (medicines.Count > 2 ? medicines[2] : medAmox);
+                var medMetf = medicines.FirstOrDefault(m => m.MedicineName.Contains("Metformin")) ?? (medicines.Count > 3 ? medicines[3] : medAmox);
+                var medAtor = medicines.FirstOrDefault(m => m.MedicineName.Contains("Atorvastatin")) ?? (medicines.Count > 4 ? medicines[4] : medAmox);
+                var medAsp  = medicines.FirstOrDefault(m => m.MedicineName.Contains("Aspirin")) ?? (medicines.Count > 5 ? medicines[5] : medAmox);
+                var medLos  = medicines.FirstOrDefault(m => m.MedicineName.Contains("Losartan")) ?? (medicines.Count > 6 ? medicines[6] : medAmox);
+                var medCet  = medicines.FirstOrDefault(m => m.MedicineName.Contains("Cetirizine")) ?? (medicines.Count > 7 ? medicines[7] : medAmox);
+                var medIbu  = medicines.FirstOrDefault(m => m.MedicineName.Contains("Ibuprofen")) ?? (medicines.Count > 8 ? medicines[8] : medAmox);
+                var medSalb = medicines.FirstOrDefault(m => m.MedicineName.Contains("Salbutamol")) ?? (medicines.Count > 9 ? medicines[9] : medAmox);
+
+                var now = DateTime.UtcNow;
+
+                // 1. Prescription #1 — Acute Bacterial Pharyngitis (Active Queue)
+                var rx1 = new Prescription
+                {
+                    PatientId = pat1?.Id,
+                    DoctorId = doc1.Id,
+                    Diagnosis = "Acute Bacterial Pharyngitis",
+                    Instructions = "Complete full 7-day course of antibiotics. Stay well hydrated.",
+                    FulfillmentSource = FulfillmentSource.InHouse,
+                    Recipients = PrescriptionRecipients.Both,
+                    Status = PrescriptionStatus.Active,
+                    IssuedAt = now.AddHours(-2),
+                    ExpiryDate = now.AddDays(30),
+                    CreatedAt = now.AddHours(-2),
+                    UpdatedAt = now.AddHours(-2),
+                    Items = new List<PrescriptionItem>
+                    {
+                        new() { MedicineId = medAmox?.Id, MedicineName = medAmox?.MedicineName ?? "Amoxicillin 250mg", Dosage = "250 mg", Frequency = "Three times daily (TDS)", Duration = "7 days", Quantity = 21, Instructions = "Take after meals" },
+                        new() { MedicineId = medPara?.Id, MedicineName = medPara?.MedicineName ?? "Paracetamol 500mg", Dosage = "500 mg", Frequency = "Every 6 hours PRN", Duration = "5 days", Quantity = 20, Instructions = "For throat pain and fever" }
+                    }
+                };
+
+                // 2. Prescription #2 — Hypertension & Dyslipidemia (Active Queue, Safety Screened)
+                var rx2 = new Prescription
+                {
+                    PatientId = pat2?.Id,
+                    DoctorId = doc2.Id,
+                    Diagnosis = "Essential Hypertension & Mixed Dyslipidemia",
+                    Instructions = "Take medications regularly at specified times. Monitor BP weekly.",
+                    FulfillmentSource = FulfillmentSource.InHouse,
+                    Recipients = PrescriptionRecipients.Both,
+                    Status = PrescriptionStatus.Active,
+                    IssuedAt = now.AddHours(-5),
+                    ExpiryDate = now.AddDays(30),
+                    SafetyCheckedAt = now.AddHours(-4),
+                    CreatedAt = now.AddHours(-5),
+                    UpdatedAt = now.AddHours(-4),
+                    Items = new List<PrescriptionItem>
+                    {
+                        new() { MedicineId = medLos?.Id, MedicineName = medLos?.MedicineName ?? "Losartan 50mg", Dosage = "50 mg", Frequency = "Once daily in the morning", Duration = "30 days", Quantity = 30, Instructions = "Take with or without food" },
+                        new() { MedicineId = medAtor?.Id, MedicineName = medAtor?.MedicineName ?? "Atorvastatin 10mg", Dosage = "10 mg", Frequency = "Once daily at bedtime", Duration = "30 days", Quantity = 30, Instructions = "Avoid grapefruit juice" }
+                    }
+                };
+
+                // 3. Prescription #3 — Osteoarthritis Flare (High DDI Warning: Aspirin + Ibuprofen)
+                var rx3 = new Prescription
+                {
+                    PatientId = pat3?.Id,
+                    DoctorId = doc3.Id,
+                    Diagnosis = "Severe Osteoarthritis Flare with Cardiovascular Prophylaxis",
+                    Instructions = "AI Interaction warning detected. Pharmacist evaluation required before dispensing.",
+                    FulfillmentSource = FulfillmentSource.InHouse,
+                    Recipients = PrescriptionRecipients.Both,
+                    Status = PrescriptionStatus.Active,
+                    IssuedAt = now.AddHours(-8),
+                    ExpiryDate = now.AddDays(14),
+                    SafetyCheckedAt = now.AddHours(-7),
+                    CreatedAt = now.AddHours(-8),
+                    UpdatedAt = now.AddHours(-7),
+                    Items = new List<PrescriptionItem>
+                    {
+                        new() { MedicineId = medAsp?.Id, MedicineName = medAsp?.MedicineName ?? "Aspirin 75mg", Dosage = "75 mg", Frequency = "Once daily after lunch", Duration = "14 days", Quantity = 14, Instructions = "Cardiovascular prophylaxis" },
+                        new() { MedicineId = medIbu?.Id, MedicineName = medIbu?.MedicineName ?? "Ibuprofen 400mg", Dosage = "400 mg", Frequency = "Twice daily after meals", Duration = "7 days", Quantity = 14, Instructions = "For severe acute knee pain" },
+                        new() { MedicineId = medOmep?.Id, MedicineName = medOmep?.MedicineName ?? "Omeprazole 20mg", Dosage = "20 mg", Frequency = "Once daily before breakfast", Duration = "14 days", Quantity = 14, Instructions = "Gastric protection" }
+                    }
+                };
+
+                // 4. Prescription #4 — Walk-in Patient (Allergic Rhinitis)
+                var rx4 = new Prescription
+                {
+                    IsWalkIn = true,
+                    WalkInPatientName = "Sunil Shantha",
+                    WalkInPatientAge = "48",
+                    WalkInPatientGender = "Male",
+                    WalkInPatientPhone = "+94778899001",
+                    DoctorId = doc4.Id,
+                    Diagnosis = "Seasonal Allergic Rhinitis & Conjunctivitis",
+                    Instructions = "Avoid allergen triggers and outdoor dust during morning hours.",
+                    FulfillmentSource = FulfillmentSource.InHouse,
+                    Recipients = PrescriptionRecipients.Both,
+                    Status = PrescriptionStatus.Active,
+                    IssuedAt = now.AddHours(-12),
+                    ExpiryDate = now.AddDays(30),
+                    CreatedAt = now.AddHours(-12),
+                    UpdatedAt = now.AddHours(-12),
+                    Items = new List<PrescriptionItem>
+                    {
+                        new() { MedicineId = medCet?.Id, MedicineName = medCet?.MedicineName ?? "Cetirizine 10mg", Dosage = "10 mg", Frequency = "Once daily at night", Duration = "10 days", Quantity = 10, Instructions = "May cause mild drowsiness" },
+                        new() { MedicineId = medPara?.Id, MedicineName = medPara?.MedicineName ?? "Paracetamol 500mg", Dosage = "500 mg", Frequency = "Twice daily PRN", Duration = "3 days", Quantity = 6, Instructions = "For headache" }
+                    }
+                };
+
+                // 5. Prescription #5 — Type 2 Diabetes Mellitus
+                var rx5 = new Prescription
+                {
+                    PatientId = pat4?.Id,
+                    DoctorId = doc5.Id,
+                    Diagnosis = "Type 2 Diabetes Mellitus (Uncomplicated)",
+                    Instructions = "Maintain diabetic diet. Review fasting blood glucose in 4 weeks.",
+                    FulfillmentSource = FulfillmentSource.InHouse,
+                    Recipients = PrescriptionRecipients.Both,
+                    Status = PrescriptionStatus.Active,
+                    IssuedAt = now.AddHours(-24),
+                    ExpiryDate = now.AddDays(60),
+                    SafetyCheckedAt = now.AddHours(-23),
+                    CreatedAt = now.AddHours(-24),
+                    UpdatedAt = now.AddHours(-23),
+                    Items = new List<PrescriptionItem>
+                    {
+                        new() { MedicineId = medMetf?.Id, MedicineName = medMetf?.MedicineName ?? "Metformin 500mg", Dosage = "500 mg", Frequency = "Twice daily with meals", Duration = "30 days", Quantity = 60, Instructions = "Take immediately with breakfast & dinner" },
+                        new() { MedicineId = medAtor?.Id, MedicineName = medAtor?.MedicineName ?? "Atorvastatin 10mg", Dosage = "10 mg", Frequency = "Once daily at bedtime", Duration = "30 days", Quantity = 30, Instructions = "Lipid regulation" }
+                    }
+                };
+
+                // 6. Prescription #6 — Bronchial Asthma Exacerbation
+                var rx6 = new Prescription
+                {
+                    PatientId = pat5?.Id,
+                    DoctorId = doc2.Id,
+                    Diagnosis = "Bronchial Asthma Exacerbation with Wheezing",
+                    Instructions = "Rinse mouth after inhalation. Keep inhaler on hand at all times.",
+                    FulfillmentSource = FulfillmentSource.InHouse,
+                    Recipients = PrescriptionRecipients.Both,
+                    Status = PrescriptionStatus.Active,
+                    IssuedAt = now.AddDays(-2),
+                    ExpiryDate = now.AddDays(30),
+                    CreatedAt = now.AddDays(-2),
+                    UpdatedAt = now.AddDays(-2),
+                    Items = new List<PrescriptionItem>
+                    {
+                        new() { MedicineId = medSalb?.Id, MedicineName = medSalb?.MedicineName ?? "Salbutamol Inhaler", Dosage = "100 mcg/actuation", Frequency = "2 puffs every 4-6 hours PRN", Duration = "30 days", Quantity = 1, Instructions = "Inhale using spacer if needed" },
+                        new() { MedicineId = medCet?.Id, MedicineName = medCet?.MedicineName ?? "Cetirizine 10mg", Dosage = "10 mg", Frequency = "Once daily in evening", Duration = "14 days", Quantity = 14, Instructions = "Allergic symptom relief" }
+                    }
+                };
+
+                // 7. Prescription #7 — GERD (Converted & Dispensed Order with Invoice)
+                var rx7 = new Prescription
+                {
+                    PatientId = pat1?.Id,
+                    DoctorId = doc1.Id,
+                    Diagnosis = "Severe Gastroesophageal Reflux Disease (GERD)",
+                    Instructions = "Take 30 minutes before first meal of the day. Avoid spicy foods.",
+                    FulfillmentSource = FulfillmentSource.InHouse,
+                    Recipients = PrescriptionRecipients.Both,
+                    Status = PrescriptionStatus.Fulfilled,
+                    IssuedAt = now.AddDays(-3),
+                    ExpiryDate = now.AddDays(30),
+                    SafetyCheckedAt = now.AddDays(-3),
+                    CreatedAt = now.AddDays(-3),
+                    UpdatedAt = now.AddDays(-3),
+                    Items = new List<PrescriptionItem>
+                    {
+                        new() { MedicineId = medOmep?.Id, MedicineName = medOmep?.MedicineName ?? "Omeprazole 20mg", Dosage = "20 mg", Frequency = "Once daily before breakfast", Duration = "14 days", Quantity = 14, Instructions = "Swallow whole" }
+                    }
+                };
+
+                db.Prescriptions.AddRange(rx1, rx2, rx3, rx4, rx5, rx6, rx7);
+                await db.SaveChangesAsync();
+
+                // Seed DDI Safety Audit Log for Prescription #3 (Aspirin + Ibuprofen)
+                db.DrugInteractionLogs.Add(new DrugInteractionLog
+                {
+                    PrescriptionId = rx3.Id,
+                    DrugA = medAsp?.MedicineName ?? "Aspirin 75mg",
+                    DrugB = medIbu?.MedicineName ?? "Ibuprofen 400mg",
+                    WarningType = WarningType.DrugInteraction,
+                    SeverityLevel = "High",
+                    Description = "Concurrent use of Aspirin and Ibuprofen significantly elevates the risk of severe gastrointestinal ulceration, mucosal bleeding, and antagonizes the cardioprotective antiplatelet effect of Aspirin.",
+                    PharmacistId = null,
+                    PharmacistOverrideNote = null,
+                    AcknowledgedAt = null,
+                    CreatedAt = now.AddHours(-7)
+                });
+
+                // Seed Dispensed Order & Invoice for Prescription #7
+                if (pharmacy != null)
+                {
+                    var unitPrice = 45.00m;
+                    var qty = 14;
+                    var total = unitPrice * qty;
+
+                    var order = new MedicineOrder
+                    {
+                        PrescriptionId = rx7.Id,
+                        PatientId = rx7.PatientId,
+                        PharmacyId = pharmacy.Id,
+                        PharmacistId = pharmacistUser?.Id,
+                        Status = OrderStatus.Dispensed,
+                        TotalAmount = total,
+                        IsPaid = true,
+                        DeliveryAddress = "In-Clinic Pharmacy Counter Pickup",
+                        Notes = "Dispensed directly to patient with dosage counselling.",
+                        CreatedAt = now.AddDays(-3),
+                        UpdatedAt = now.AddDays(-3),
+                        DispensedAt = now.AddDays(-3)
+                    };
+                    db.Orders.Add(order);
+                    await db.SaveChangesAsync();
+
+                    order.Items.Add(new OrderItem
+                    {
+                        MedicineOrderId = order.Id,
+                        MedicineId = medOmep?.Id,
+                        MedicineName = medOmep?.MedicineName ?? "Omeprazole 20mg",
+                        Dosage = "20 mg",
+                        Quantity = qty,
+                        UnitPrice = unitPrice,
+                        Subtotal = total
+                    });
+
+                    db.Invoices.Add(new Invoice
+                    {
+                        MedicineOrderId = order.Id,
+                        InvoiceNumber = $"INV-{now:yyyyMMdd}-{order.Id:D4}",
+                        TotalAmount = total,
+                        IsPaid = true,
+                        PaidAt = now.AddDays(-3),
+                        PaymentMethod = "Cash",
+                        GeneratedByPharmacistId = pharmacistUser?.Id,
+                        IssuedAt = now.AddDays(-3),
+                        CreatedAt = now.AddDays(-3)
+                    });
+
+                    await db.SaveChangesAsync();
+                }
+            }
+        }
     }
 
     private record DoctorSeedDefinition(
