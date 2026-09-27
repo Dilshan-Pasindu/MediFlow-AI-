@@ -116,6 +116,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     ApiClient.instance.setToken(null);
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(AppConfig.userKey);
+    await prefs.remove(AppConfig.tokenKey);
     state = const AuthState();
   }
 

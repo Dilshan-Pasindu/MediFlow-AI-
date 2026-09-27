@@ -9,6 +9,8 @@ import '../../../shared/widgets/widgets.dart';
 import '../notifications/notifications_screen.dart';
 import '../orders/orders_screen.dart';
 import '../ai/symptom_ai_screen.dart';
+import '../get_started_screen.dart';
+import '../main_shell.dart';
 import 'edit_profile_screen.dart';
 
 /// Patient Profile Screen (macOS Medical Theme)
@@ -356,7 +358,26 @@ class ProfileScreen extends ConsumerWidget {
     );
 
     if (confirmed == true) {
+      // 1. Reset bottom navigation tab back to Home
+      ref.read(shellTabProvider.notifier).state = 0;
+
+      // 2. Clear patient caches
+      ref.invalidate(patientProfileProvider);
+      ref.invalidate(myAppointmentsProvider);
+      ref.invalidate(myPrescriptionsProvider);
+      ref.invalidate(myOrdersProvider);
+      ref.invalidate(notificationsProvider);
+
+      // 3. Clear auth session & stored tokens
       await ref.read(authProvider.notifier).logout();
+
+      // 4. Redirect to home landing page (Get Started screen)
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const GetStartedScreen()),
+          (_) => false,
+        );
+      }
     }
   }
 }
