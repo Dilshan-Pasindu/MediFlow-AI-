@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/authStore';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { User, UserRole, AuthResponse } from '../types/auth';
 import type { ProfileForm } from '../types/profile';
-import type { Order, CreateOrderDto, RestockRequestDto } from '../types/order';
+import type { Order, CreateOrderDto, RestockRequestDto, Invoice, InvoiceLineItem } from '../types/order';
 import type { Prescription, CreatePrescriptionDto, MedicationCheckResult, DrugInteraction, AlternativeDrug, ScreenInteractionsResponse, DrugInteractionLog } from '../types/prescription';
 import type { DoctorDetail, SpecialtyInfo, RankedDoctor, DoctorReviewDto, DoctorProfileUpdatePayload } from '../types/doctor';
 import type { ConsultationAppointment, ExamForm, MedicineEntry, AIDiagnosis, DiagnosisDecision, ClinicalAnalysisRequestDto, CurrentConsultationResponse } from '../types/consultation';
@@ -458,6 +458,31 @@ export async function apiCalculateOrderPrice(id: number | string, pharmacyId: nu
   return apiFetch(`/orders/${id}/calculate-price`, { method: 'POST', body: JSON.stringify({ pharmacyId }) });
 }
 
+export async function apiAddOrderItem(orderId: number | string, data: { medicineId: number; quantity: number }): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/items`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function apiUpdateOrderItem(orderId: number | string, itemId: number | string, data: { quantity: number }): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function apiRemoveOrderItem(orderId: number | string, itemId: number | string): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/items/${itemId}`, { method: 'DELETE' });
+}
+
+export async function apiGenerateBill(orderId: number | string): Promise<Invoice> {
+  return apiFetch<Invoice>(`/orders/${orderId}/generate-bill`, { method: 'POST' });
+}
+
+export async function apiRecordPayment(orderId: number | string, data: { paymentMethod: string }): Promise<Invoice> {
+  return apiFetch<Invoice>(`/orders/${orderId}/record-payment`, { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function apiGetInvoice(orderId: number | string): Promise<Invoice> {
+  return apiFetch<Invoice>(`/orders/${orderId}/invoice`);
+}
+
+
 // ─── Pharmacist ───────────────────────────────────────────────────────────────
 
 export async function apiGetPharmacistPrescriptions(): Promise<Prescription[]> {
@@ -826,6 +851,30 @@ export async function apiGetPrescriptionInteractionLogs(
 ): Promise<DrugInteractionLog[]> {
   return apiFetch<DrugInteractionLog[]>(`/prescriptions/${prescriptionId}/interaction-logs`);
 }
+
+export async function apiNotifyDoctorForPrescriptionRevision(
+  prescriptionId: number | string,
+  suggestedMedicine?: string,
+  customNote?: string
+) {
+  return apiFetch<{ message: string; prescriptionId: number; doctorName: string }>(
+    `/prescriptions/${prescriptionId}/notify-doctor`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ suggestedMedicine, customNote }),
+    }
+  );
+}
+
+export async function apiNotifyOwnerRestock(orderId: number | string) {
+  return apiFetch<{ message: string; orderId: number }>(
+    `/orders/${orderId}/notify-owner-restock`,
+    {
+      method: 'POST',
+    }
+  );
+}
+
 
 export async function apiRunMedicationCheck(payload: MedicationCheckPayload): Promise<MedicationCheckResult> {
   try {

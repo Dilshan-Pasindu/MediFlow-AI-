@@ -40,6 +40,7 @@ public class AppDbContext : DbContext
     public DbSet<MedicineOrder> Orders => Set<MedicineOrder>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<DrugInteractionLog> DrugInteractionLogs => Set<DrugInteractionLog>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
 
     // ─────────────────────────────────────────────────────────────────────
     // MEMBER 4 — Pharmacy Inventory & Supplier Management
@@ -330,6 +331,22 @@ public class AppDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(d => d.PrescriptionId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Invoice ───────────────────────────────────────────────────────
+        modelBuilder.Entity<Invoice>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.HasIndex(i => i.InvoiceNumber).IsUnique();
+            entity.Property(i => i.InvoiceNumber).IsRequired().HasMaxLength(50);
+            entity.Property(i => i.TotalAmount).HasColumnType("decimal(10,2)");
+            entity.Property(i => i.PaymentMethod).HasMaxLength(50);
+            entity.HasIndex(i => i.MedicineOrderId).IsUnique();
+
+            entity.HasOne(i => i.MedicineOrder)
+                .WithOne(o => o.Invoice)
+                .HasForeignKey<Invoice>(i => i.MedicineOrderId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ════════════════════════════════════════════════════════════════

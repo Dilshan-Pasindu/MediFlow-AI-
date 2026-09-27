@@ -61,6 +61,33 @@ public class OrdersController : ControllerBase
         );
     }
 
+    internal static InvoiceDto ToInvoiceDto(Invoice inv, MedicineOrder? order = null)
+    {
+        var itemsSource = order?.Items ?? inv.MedicineOrder?.Items;
+        var items = itemsSource?.Select(i => new InvoiceLineItemDto(
+            Id: i.Id,
+            MedicineId: i.MedicineId,
+            MedicineName: i.MedicineName,
+            Dosage: i.Dosage,
+            Quantity: i.Quantity,
+            UnitPrice: i.UnitPrice,
+            Subtotal: i.Subtotal
+        )).ToList() ?? new List<InvoiceLineItemDto>();
+
+        return new InvoiceDto(
+            Id: inv.Id,
+            MedicineOrderId: inv.MedicineOrderId,
+            InvoiceNumber: inv.InvoiceNumber,
+            IssuedAt: inv.IssuedAt.ToString("o", CultureInfo.InvariantCulture),
+            TotalAmount: inv.TotalAmount,
+            IsPaid: inv.IsPaid,
+            PaidAt: inv.PaidAt?.ToString("o", CultureInfo.InvariantCulture),
+            PaymentMethod: inv.PaymentMethod,
+            GeneratedByPharmacistId: inv.GeneratedByPharmacistId,
+            Items: items
+        );
+    }
+
     // ─── Helper ────────────────────────────────────────────────────────────
 
     private int? TryGetUserId()
@@ -105,12 +132,26 @@ public class OrdersController : ControllerBase
         Prescription? prescription = null;
         if (request.PrescriptionId.HasValue)
         {
+            var existingOrder = await _db.Orders
+                .AnyAsync(o => o.PrescriptionId == request.PrescriptionId.Value && o.Status != OrderStatus.Cancelled);
+            if (existingOrder)
+                return Conflict(new { message = $"A non-cancelled order already exists for prescription {request.PrescriptionId.Value}." });
+
             prescription = await _db.Prescriptions
                 .Include(p => p.Items)
                 .FirstOrDefaultAsync(p => p.Id == request.PrescriptionId.Value);
 
             if (prescription == null)
                 return NotFound(new { message = $"Prescription {request.PrescriptionId} not found." });
+
+            if (prescription.Status is PrescriptionStatus.Expired or PrescriptionStatus.Cancelled)
+                return BadRequest(new { message = $"Cannot create an order from a prescription with status '{prescription.Status}'." });
+
+            if (prescription.FulfillmentSource == FulfillmentSource.External)
+                return BadRequest(new { message = "Cannot create an order for an external fulfillment prescription." });
+
+            if (!prescription.SafetyCheckedAt.HasValue)
+                return Conflict(new { message = "This prescription must pass the AI safety check before it can be converted to an order. Run 'Run AI Safety Check' first." });
         }
 
         // Build order items — prefer caller-supplied list, fall back to prescription items
@@ -138,13 +179,33 @@ public class OrdersController : ControllerBase
             if (item.Quantity <= 0)
                 return BadRequest(new { message = $"Quantity for '{item.MedicineName}' must be greater than zero." });
 
-            // Look up unit price from pharmacy inventory if not supplied
+            // Look up unit price from pharmacy inventory if not supplied or zero (Fix Bug #13)
             decimal unitPrice = item.UnitPrice ?? 0m;
-            if (unitPrice == 0m && item.MedicineId.HasValue)
+            int? resolvedMedicineId = item.MedicineId;
+
+            if (unitPrice == 0m)
             {
-                var inv = await _db.InventoryItems
-                    .FirstOrDefaultAsync(i => i.PharmacyId == request.PharmacyId && i.MedicineId == item.MedicineId.Value);
-                unitPrice = inv?.UnitPrice ?? 0m;
+                InventoryItem? inv = null;
+                if (item.MedicineId.HasValue)
+                {
+                    inv = await _db.InventoryItems
+                        .FirstOrDefaultAsync(i => i.PharmacyId == request.PharmacyId && i.MedicineId == item.MedicineId.Value);
+                }
+
+                if (inv == null && !string.IsNullOrWhiteSpace(item.MedicineName))
+                {
+                    var nameTrimmed = item.MedicineName.Trim().ToLower();
+                    inv = await _db.InventoryItems
+                        .Include(i => i.Medicine)
+                        .FirstOrDefaultAsync(i => i.PharmacyId == request.PharmacyId &&
+                            (i.Medicine != null && i.Medicine.MedicineName.ToLower() == nameTrimmed));
+                }
+
+                if (inv != null)
+                {
+                    unitPrice = inv.UnitPrice;
+                    resolvedMedicineId ??= inv.MedicineId;
+                }
             }
 
             var subtotal = unitPrice * item.Quantity;
@@ -152,7 +213,7 @@ public class OrdersController : ControllerBase
 
             orderItems.Add(new OrderItem
             {
-                MedicineId = item.MedicineId,
+                MedicineId = resolvedMedicineId,
                 MedicineName = item.MedicineName,
                 Dosage = item.Dosage,
                 Quantity = item.Quantity,
@@ -310,6 +371,12 @@ public class OrdersController : ControllerBase
         if (order.Status == OrderStatus.Pending && newStatus == OrderStatus.Confirmed
             && order.PrescriptionId.HasValue)
         {
+            var rx = await _db.Prescriptions.FindAsync(order.PrescriptionId.Value);
+            if (rx != null && !rx.SafetyCheckedAt.HasValue)
+            {
+                return Conflict(new { message = "This prescription must pass the AI safety check before it can be converted to an order. Run 'Run AI Safety Check' first." });
+            }
+
             var blockers = await _db.DrugInteractionLogs
                 .Where(l =>
                     l.PrescriptionId == order.PrescriptionId.Value &&
@@ -341,16 +408,118 @@ public class OrdersController : ControllerBase
         }
         // ─────────────────────────────────────────────────────────────────────
 
+        // ── DISPENSING GATES & STOCK DECREMENT (Ready → Dispensed) ───────────
+        if (newStatus == OrderStatus.Dispensed)
+        {
+            // 1. Invoice & Payment verification
+            var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.MedicineOrderId == id);
+            if (invoice == null || !invoice.IsPaid)
+            {
+                return Conflict(new { message = $"Cannot dispense order {id}: Payment must be recorded on the invoice before dispensing." });
+            }
+
+            // 2. Final stock re-validation
+            var orderWithItems = await _db.Orders
+                .Include(o => o.Items)
+                .FirstOrDefaultAsync(o => o.Id == id);
+
+            if (orderWithItems == null || !orderWithItems.PharmacyId.HasValue)
+            {
+                return BadRequest(new { message = $"Order {id} does not have an assigned pharmacy." });
+            }
+
+            var unpriced = orderWithItems.Items.Where(i => i.UnitPrice <= 0 || i.Subtotal <= 0).Select(i => i.MedicineName).ToList();
+            if (unpriced.Count > 0)
+            {
+                return BadRequest(new { message = $"Cannot dispense order {id}: medicine(s) '{string.Join(", ", unpriced)}' have invalid or unset prices." });
+            }
+
+            var stockErrors = new List<string>();
+            var itemsToProcess = new List<(OrderItem Item, InventoryItem Inventory)>();
+
+            foreach (var item in orderWithItems.Items)
+            {
+                if (item.MedicineId.HasValue)
+                {
+                    var inv = await _db.InventoryItems
+                        .Include(i => i.Medicine)
+                        .FirstOrDefaultAsync(i => i.PharmacyId == orderWithItems.PharmacyId.Value && i.MedicineId == item.MedicineId.Value);
+
+                    if (inv == null || item.Quantity > inv.CurrentStock)
+                    {
+                        var medName = inv?.Medicine?.MedicineName ?? item.MedicineName;
+                        var availStock = inv?.CurrentStock ?? 0;
+                        stockErrors.Add($"Requested quantity ({item.Quantity}) exceeds available stock ({availStock}) for medicine '{medName}'.");
+                    }
+                    else
+                    {
+                        itemsToProcess.Add((item, inv));
+                    }
+                }
+            }
+
+            if (stockErrors.Count > 0)
+            {
+                return BadRequest(new { message = $"Cannot dispense order {id} due to insufficient inventory stock.", errors = stockErrors });
+            }
+
+            // 3. Execution within a single database transaction (All-or-Nothing)
+            using var tx = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory"
+                ? await _db.Database.BeginTransactionAsync()
+                : null;
+            try
+            {
+                foreach (var (item, inv) in itemsToProcess)
+                {
+                    inv.CurrentStock -= item.Quantity;
+
+                    var txLog = new InventoryTransaction
+                    {
+                        InventoryItemId = inv.Id,
+                        TransactionType = TransactionType.Dispense,
+                        QuantityChanged = -item.Quantity,
+                        StockAfter = inv.CurrentStock,
+                        TransactionDate = DateTime.UtcNow,
+                        Notes = $"Dispensed for Order #{id}"
+                    };
+                    _db.InventoryTransactions.Add(txLog);
+                }
+
+                order.Status = OrderStatus.Dispensed;
+                order.DispensedAt = DateTime.UtcNow;
+                var currentUserId = TryGetUserId();
+                if (currentUserId.HasValue)
+                {
+                    order.PharmacistId = currentUserId.Value;
+                }
+                order.UpdatedAt = DateTime.UtcNow;
+
+                await _db.SaveChangesAsync();
+                if (tx != null)
+                {
+                    await tx.CommitAsync();
+                }
+
+                var updated = await LoadOrderAsync(id);
+                return Ok(ToOrderDto(updated!));
+            }
+            catch
+            {
+                if (tx != null)
+                {
+                    await tx.RollbackAsync();
+                }
+                throw;
+            }
+        }
+
         order.Status = newStatus;
         order.UpdatedAt = DateTime.UtcNow;
 
-        if (newStatus == OrderStatus.Dispensed)
-            order.DispensedAt = DateTime.UtcNow;
-
         await _db.SaveChangesAsync();
 
-        var updated = await LoadOrderAsync(id);
-        return Ok(ToOrderDto(updated!));
+        var updatedOrder = await LoadOrderAsync(id);
+        return Ok(ToOrderDto(updatedOrder!));
     }
 
     // ─── POST /api/orders/{id}/calculate-price ────────────────────────────
@@ -462,6 +631,18 @@ public class OrdersController : ControllerBase
         if (order.Status is OrderStatus.Preparing or OrderStatus.Ready)
             return BadRequest(new { message = $"Order {id} is in '{order.Status}' state. Only Pending or Confirmed orders can be cancelled." });
 
+        // Handle linked Invoice on cancellation (Section H Rule 34)
+        var existingInvoice = await _db.Invoices.FirstOrDefaultAsync(i => i.MedicineOrderId == id);
+        if (existingInvoice != null)
+        {
+            if (existingInvoice.IsPaid)
+            {
+                return Conflict(new { message = $"Cannot cancel order {id} because a paid invoice ({existingInvoice.InvoiceNumber}) exists for this order." });
+            }
+
+            _db.Invoices.Remove(existingInvoice);
+        }
+
         order.Status = OrderStatus.Cancelled;
         order.UpdatedAt = DateTime.UtcNow;
 
@@ -476,5 +657,407 @@ public class OrdersController : ControllerBase
 
         return Ok(new { message = $"Order {id} has been cancelled. The linked prescription (if any) has been returned to the Active queue." });
     }
+
+    // ─── POST /api/orders/{id}/items ────────────────────────────────────────
+
+    /// <summary>
+    /// Pharmacist adds a line item to an order.
+    /// Rejects with 409 Conflict if order is Dispensed or Cancelled.
+    /// Stock validation: Rejects with 400 Bad Request if requested quantity > available stock.
+    /// </summary>
+    [HttpPost("{id:int}/items")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> AddOrderItem(int id, [FromBody] AddOrderItemRequestDto dto)
+    {
+        var order = await LoadOrderAsync(id);
+        if (order == null)
+            return NotFound(new { message = $"Order {id} not found." });
+
+        if (order.Status is OrderStatus.Dispensed or OrderStatus.Cancelled)
+            return Conflict(new { message = $"Cannot modify items for order {id} because it is in terminal state '{order.Status}'." });
+
+        if (dto.Quantity <= 0)
+            return BadRequest(new { message = "Quantity must be greater than zero." });
+
+        if (!order.PharmacyId.HasValue)
+            return BadRequest(new { message = $"Order {id} does not have an assigned pharmacy." });
+
+        var inv = await _db.InventoryItems
+            .Include(i => i.Medicine)
+            .FirstOrDefaultAsync(i => i.PharmacyId == order.PharmacyId.Value && i.MedicineId == dto.MedicineId);
+
+        if (inv == null)
+            return BadRequest(new { message = $"Medicine with ID {dto.MedicineId} is not available in the pharmacy inventory." });
+
+        var existingItem = order.Items.FirstOrDefault(i => i.MedicineId == dto.MedicineId);
+        var currentlyHeld = existingItem?.Quantity ?? 0;
+        var totalProposed = currentlyHeld + dto.Quantity;
+
+        if (totalProposed > inv.CurrentStock)
+        {
+            var medicineName = inv.Medicine?.MedicineName ?? $"ID {dto.MedicineId}";
+            return BadRequest(new { message = $"Not enough stock available for {medicineName} (Requested: {totalProposed}, Available stock: {inv.CurrentStock})." });
+        }
+
+        if (existingItem != null)
+        {
+            existingItem.Quantity = totalProposed;
+            existingItem.UnitPrice = inv.UnitPrice;
+            existingItem.Subtotal = inv.UnitPrice * existingItem.Quantity;
+        }
+        else
+        {
+            var newItem = new OrderItem
+            {
+                MedicineOrderId = order.Id,
+                MedicineId = dto.MedicineId,
+                MedicineName = inv.Medicine?.MedicineName ?? "Medicine",
+                Dosage = inv.Medicine?.UnitOfMeasure,
+                Quantity = dto.Quantity,
+                UnitPrice = inv.UnitPrice,
+                Subtotal = inv.UnitPrice * dto.Quantity
+            };
+            _db.OrderItems.Add(newItem);
+            order.Items.Add(newItem);
+        }
+
+        order.TotalAmount = order.Items.Sum(i => i.Subtotal);
+        order.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        var updated = await LoadOrderAsync(id);
+        return Ok(ToOrderDto(updated!));
+    }
+
+    // ─── PUT /api/orders/{id}/items/{itemId} ────────────────────────────────
+
+    /// <summary>
+    /// Pharmacist updates quantity of an existing line item in an order.
+    /// Rejects with 409 Conflict if order is Dispensed or Cancelled.
+    /// Stock validation: Rejects if requested quantity exceeds available physical stock.
+    /// </summary>
+    [HttpPut("{id:int}/items/{itemId:int}")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> UpdateOrderItem(int id, int itemId, [FromBody] UpdateOrderItemQuantityDto dto)
+    {
+        var order = await LoadOrderAsync(id);
+        if (order == null)
+            return NotFound(new { message = $"Order {id} not found." });
+
+        if (order.Status is OrderStatus.Dispensed or OrderStatus.Cancelled)
+            return Conflict(new { message = $"Cannot modify items for order {id} because it is in terminal state '{order.Status}'." });
+
+        if (dto.Quantity <= 0)
+            return BadRequest(new { message = "Quantity must be greater than zero." });
+
+        var item = order.Items.FirstOrDefault(i => i.Id == itemId);
+        if (item == null)
+            return NotFound(new { message = $"Order item {itemId} not found in order {id}." });
+
+        if (order.PharmacyId.HasValue && item.MedicineId.HasValue)
+        {
+            var inv = await _db.InventoryItems
+                .Include(i => i.Medicine)
+                .FirstOrDefaultAsync(i => i.PharmacyId == order.PharmacyId.Value && i.MedicineId == item.MedicineId.Value);
+
+            if (inv != null)
+            {
+                if (dto.Quantity > inv.CurrentStock)
+                {
+                    var medicineName = inv.Medicine?.MedicineName ?? item.MedicineName;
+                    return BadRequest(new { message = $"Not enough stock available for {medicineName} (Requested: {dto.Quantity}, Available stock: {inv.CurrentStock})." });
+                }
+
+                item.UnitPrice = inv.UnitPrice;
+            }
+        }
+
+        item.Quantity = dto.Quantity;
+        item.Subtotal = item.UnitPrice * item.Quantity;
+
+        order.TotalAmount = order.Items.Sum(i => i.Subtotal);
+        order.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        var updated = await LoadOrderAsync(id);
+        return Ok(ToOrderDto(updated!));
+    }
+
+    // ─── DELETE /api/orders/{id}/items/{itemId} ─────────────────────────────
+
+    /// <summary>
+    /// Pharmacist removes a line item from an order and recalculates TotalAmount.
+    /// Rejects with 409 Conflict if order is Dispensed or Cancelled.
+    /// </summary>
+    [HttpDelete("{id:int}/items/{itemId:int}")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> DeleteOrderItem(int id, int itemId)
+    {
+        var order = await LoadOrderAsync(id);
+        if (order == null)
+            return NotFound(new { message = $"Order {id} not found." });
+
+        if (order.Status is OrderStatus.Dispensed or OrderStatus.Cancelled)
+            return Conflict(new { message = $"Cannot modify items for order {id} because it is in terminal state '{order.Status}'." });
+
+        var item = order.Items.FirstOrDefault(i => i.Id == itemId);
+        if (item == null)
+            return NotFound(new { message = $"Order item {itemId} not found in order {id}." });
+
+        _db.OrderItems.Remove(item);
+        order.Items.Remove(item);
+
+        order.TotalAmount = order.Items.Sum(i => i.Subtotal);
+        order.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        var updated = await LoadOrderAsync(id);
+        return Ok(ToOrderDto(updated!));
+    }
+
+    // ─── POST /api/orders/{id}/generate-bill ────────────────────────────────
+
+    /// <summary>
+    /// Pharmacist generates a billing invoice for an order.
+    /// Rejects with 400 Bad Request if order has zero items or insufficient inventory stock.
+    /// Rejects with 409 Conflict if order is already Dispensed or Cancelled.
+    /// Idempotent: returns existing invoice if already generated.
+    /// </summary>
+    [HttpPost("{id:int}/generate-bill")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> GenerateBill(int id)
+    {
+        var order = await _db.Orders
+            .Include(o => o.Items)
+            .Include(o => o.Invoice)
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+        if (order == null)
+            return NotFound(new { message = $"Order {id} not found." });
+
+        if (order.Items.Count == 0)
+            return BadRequest(new { message = $"Cannot generate bill for order {id} because it has zero items." });
+
+        if (order.Status is OrderStatus.Dispensed or OrderStatus.Cancelled)
+            return Conflict(new { message = $"Cannot generate bill for order {id} because it is in status '{order.Status}'." });
+
+        // Reject bill generation if any line item is unpriced or <= 0 (Fix Bug #18 & Item 19)
+        var unpricedItems = order.Items.Where(i => i.UnitPrice <= 0 || i.Subtotal <= 0).Select(i => i.MedicineName).ToList();
+        if (unpricedItems.Count > 0)
+        {
+            return BadRequest(new { message = $"Cannot generate bill for order {id}: the following medicine(s) have invalid/unset prices: {string.Join(", ", unpricedItems)}. Please calculate or set prices before billing." });
+        }
+
+        if (order.Items.Sum(i => i.Subtotal) <= 0)
+        {
+            return BadRequest(new { message = $"Cannot generate bill for order {id}: grand total must be greater than zero." });
+        }
+
+        // Check stock availability for all items before billing
+        if (order.PharmacyId.HasValue)
+        {
+            var stockErrors = new List<string>();
+            foreach (var item in order.Items)
+            {
+                if (item.MedicineId.HasValue)
+                {
+                    var inv = await _db.InventoryItems
+                        .Include(i => i.Medicine)
+                        .FirstOrDefaultAsync(i => i.PharmacyId == order.PharmacyId.Value && i.MedicineId == item.MedicineId.Value);
+
+                    if (inv != null && item.Quantity > inv.CurrentStock)
+                    {
+                        var medName = inv.Medicine?.MedicineName ?? item.MedicineName;
+                        stockErrors.Add($"Not enough stock available for {medName} (Requested: {item.Quantity}, Available stock: {inv.CurrentStock}).");
+                    }
+                }
+            }
+
+            if (stockErrors.Count > 0)
+            {
+                return BadRequest(new { message = $"Cannot generate bill: {string.Join(" ", stockErrors)}" });
+            }
+        }
+
+        // Recompute TotalAmount server-side as sum of current item subtotals
+        order.TotalAmount = order.Items.Sum(i => i.Subtotal);
+        order.UpdatedAt = DateTime.UtcNow;
+
+        Invoice invoice;
+        if (order.Invoice != null)
+        {
+            invoice = order.Invoice;
+            invoice.TotalAmount = order.TotalAmount;
+        }
+        else
+        {
+            invoice = new Invoice
+            {
+                MedicineOrderId = order.Id,
+                InvoiceNumber = $"INV-{order.Id:D6}",
+                IssuedAt = DateTime.UtcNow,
+                TotalAmount = order.TotalAmount,
+                IsPaid = false,
+                GeneratedByPharmacistId = TryGetUserId(),
+                CreatedAt = DateTime.UtcNow
+            };
+            _db.Invoices.Add(invoice);
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(ToInvoiceDto(invoice, order));
+    }
+
+    // ─── POST /api/orders/{id}/record-payment ───────────────────────────────
+
+    /// <summary>
+    /// Pharmacist records payment against an existing counter Invoice.
+    /// Rejects with 400 Bad Request if no invoice exists yet.
+    /// Rejects with 409 Conflict if invoice is already paid or order is Dispensed/Cancelled.
+    /// </summary>
+    [HttpPost("{id:int}/record-payment")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> RecordPayment(int id, [FromBody] RecordPaymentDto dto)
+    {
+        var invoice = await _db.Invoices
+            .Include(i => i.MedicineOrder)
+                .ThenInclude(o => o!.Items)
+            .FirstOrDefaultAsync(i => i.MedicineOrderId == id);
+
+        if (invoice == null)
+        {
+            var orderExists = await _db.Orders.AnyAsync(o => o.Id == id);
+            if (!orderExists)
+                return NotFound(new { message = $"Order {id} not found." });
+
+            return BadRequest(new { message = $"No invoice exists for order {id}. Generate the bill first." });
+        }
+
+        if (invoice.IsPaid)
+            return Conflict(new { message = $"Invoice {invoice.InvoiceNumber} for order {id} is already paid." });
+
+        if (invoice.MedicineOrder.Status is OrderStatus.Dispensed or OrderStatus.Cancelled)
+            return Conflict(new { message = $"Cannot record payment for order {id} because it is in status '{invoice.MedicineOrder.Status}'." });
+
+        invoice.IsPaid = true;
+        invoice.PaidAt = DateTime.UtcNow;
+        invoice.PaymentMethod = !string.IsNullOrWhiteSpace(dto.PaymentMethod) ? dto.PaymentMethod : "Cash";
+        invoice.MedicineOrder.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+
+        return Ok(ToInvoiceDto(invoice, invoice.MedicineOrder));
+    }
+
+    // ─── GET /api/orders/{id}/invoice ───────────────────────────────────────
+
+    /// <summary>
+    /// Retrieves itemized invoice for display or PDF rendering.
+    /// Accessible by Pharmacists, Administrators, or the Patient who owns the order.
+    /// </summary>
+    [HttpGet("{id:int}/invoice")]
+    [Authorize(Roles = "Pharmacist,Patient,Administrator")]
+    public async Task<IActionResult> GetInvoice(int id)
+    {
+        var order = await LoadOrderAsync(id);
+        if (order == null)
+            return NotFound(new { message = $"Order {id} not found." });
+
+        // Patient ownership check
+        var roles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        if (roles.Contains("Patient") && !roles.Contains("Pharmacist") && !roles.Contains("Administrator"))
+        {
+            var userId = TryGetUserId();
+            var patient = userId != null
+                ? await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId.Value)
+                : null;
+
+            if (patient == null || order.PatientId != patient.Id)
+                return Forbid();
+        }
+
+        var invoice = await _db.Invoices
+            .FirstOrDefaultAsync(i => i.MedicineOrderId == id);
+
+        return Ok(ToInvoiceDto(invoice, order));
+    }
+
+    // ─── POST /api/orders/{id}/notify-owner-restock ────────────────────────
+
+    /// <summary>
+    /// Sends a low-stock / restock notification to the Pharmacy Owner for items exceeding inventory stock.
+    /// Accessible by Pharmacists.
+    /// </summary>
+    [HttpPost("{id:int}/notify-owner-restock")]
+    [Authorize(Roles = "Pharmacist")]
+    public async Task<IActionResult> NotifyOwnerRestock(int id)
+    {
+        var order = await _db.Orders
+            .Include(o => o.Items)
+            .Include(o => o.Prescription)
+            .Include(o => o.Patient)
+            .FirstOrDefaultAsync(o => o.Id == id);
+
+        if (order == null)
+            return NotFound(new { message = $"Order #{id} not found." });
+
+        // Find items that exceed current inventory stock
+        var shortItems = new List<string>();
+        if (order.PharmacyId.HasValue)
+        {
+            foreach (var item in order.Items)
+            {
+                if (item.MedicineId.HasValue)
+                {
+                    var inv = await _db.InventoryItems
+                        .FirstOrDefaultAsync(i => i.PharmacyId == order.PharmacyId.Value && i.MedicineId == item.MedicineId.Value);
+
+                    var stock = inv?.CurrentStock ?? 0;
+                    if (inv == null || item.Quantity > stock)
+                    {
+                        shortItems.Add($"{item.MedicineName} (Stock: {stock}, Requested: {item.Quantity})");
+                    }
+                }
+            }
+        }
+
+        var detailMsg = shortItems.Count > 0
+            ? string.Join(", ", shortItems)
+            : string.Join(", ", order.Items.Select(i => i.MedicineName));
+
+        var patientName = order.Prescription?.WalkInPatientName 
+            ?? order.Prescription?.Patient?.FullName 
+            ?? order.Patient?.FullName 
+            ?? "Patient";
+
+        // Find Pharmacy Owner(s)
+        var owners = await _db.Users.Where(u => u.Role == UserRole.PharmacyOwner).ToListAsync();
+        if (owners.Count == 0)
+        {
+            owners = await _db.Users.Where(u => u.Role == UserRole.Administrator).ToListAsync();
+        }
+
+        foreach (var owner in owners)
+        {
+            _db.Notifications.Add(new Notification
+            {
+                UserId = owner.Id,
+                Title = $"Low Stock Restock Alert: Order #{id}",
+                Message = $"Order #{id} for patient '{patientName}' requires restocking: {detailMsg}.",
+                Type = "warning",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new { message = $"Restock alert sent to Pharmacy Owner successfully for Order #{id}!", orderId = id });
+    }
 }
+
 

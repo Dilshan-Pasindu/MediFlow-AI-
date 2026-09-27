@@ -44,6 +44,7 @@ export interface Prescription {
   instructions?: string;
   dateIssued: string;
   createdAt: string;
+  safetyCheckedAt?: string;
 }
 
 export interface CreatePrescriptionDto {

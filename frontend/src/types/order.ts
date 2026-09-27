@@ -7,9 +7,11 @@ export type OrderStatus =
   | 'Cancelled';
 
 export interface OrderItem {
+  id?: number;
   medicineId: number;
   medicineName: string;
-  dosage: string;
+  genericName?: string;
+  dosage?: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
@@ -33,6 +35,28 @@ export interface Order {
   dispensedAt?: string;
 }
 
+export interface InvoiceLineItem {
+  id: number;
+  medicineId?: number;
+  medicineName: string;
+  dosage?: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+}
+
+export interface Invoice {
+  id: number;
+  medicineOrderId: number;
+  invoiceNumber: string;
+  issuedAt: string;
+  totalAmount: number;
+  isPaid: boolean;
+  paidAt?: string;
+  paymentMethod?: string;
+  generatedByPharmacistId?: number;
+  items: InvoiceLineItem[];
+}
 
 export interface CreateOrderDto {
   prescriptionId?: number;
@@ -53,4 +77,5 @@ export interface RestockRequestDto {
   reason?: string;
   urgency?: 'Low' | 'Medium' | 'High';
 }
+
 
