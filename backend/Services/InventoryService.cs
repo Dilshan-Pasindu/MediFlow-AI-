@@ -351,6 +351,7 @@ public class InventoryService
                 InventoryItemId = invItem.Id,
                 BatchNumber = batchNumber,
                 Quantity = requestItem.Quantity,
+                UnitPrice = requestItem.UnitPrice,
                 ExpiryDate = expiryDate,
                 ReceivedDate = now
             });
@@ -455,6 +456,7 @@ public class InventoryService
                 InventoryItemId = item.Id,
                 BatchNumber     = dto.BatchNumber!.Trim(),
                 Quantity        = dto.InitialStock,
+                UnitPrice       = dto.UnitPrice,
                 ExpiryDate      = dto.ExpiryDate!.Value,
                 ReceivedDate    = now
             });
@@ -670,6 +672,7 @@ public class InventoryService
             Id: batch.Id,
             BatchNumber: batch.BatchNumber,
             Quantity: batch.Quantity,
+            UnitPrice: batch.UnitPrice,
             ExpiryDate: batch.ExpiryDate,
             ReceivedDate: batch.ReceivedDate,
             IsExpired: isExpired,
@@ -712,6 +715,7 @@ public class InventoryService
                     Id: b.Id,
                     BatchNumber: b.BatchNumber,
                     Quantity: b.Quantity,
+                    UnitPrice: b.UnitPrice,
                     ExpiryDate: b.ExpiryDate,
                     ReceivedDate: b.ReceivedDate,
                     IsExpired: isExpired,
