@@ -73,6 +73,7 @@ public record InventoryBatchDto(
     int Id,
     string BatchNumber,
     int Quantity,
+    decimal? UnitPrice,
     DateTime ExpiryDate,
     DateTime ReceivedDate,
     bool IsExpired,
