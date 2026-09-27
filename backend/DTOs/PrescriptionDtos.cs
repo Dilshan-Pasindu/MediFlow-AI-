@@ -34,7 +34,8 @@ public record PrescriptionDto(
     List<PrescriptionItemDto> Items,
     int ItemCount,
     string DateIssued,
-    string CreatedAt
+    string CreatedAt,
+    string? SafetyCheckedAt = null
 );
 
 // ─── Prescription Request DTOs ─────────────────────────────────────────────────
@@ -92,4 +93,10 @@ public record UpdatePrescriptionRequestDto(
     string? Instructions,
     List<CreatePrescriptionItemDto>? Items
 );
+
+public record NotifyDoctorRequestDto(
+    string? CustomNote = null,
+    string? SuggestedMedicine = null
+);
+
 

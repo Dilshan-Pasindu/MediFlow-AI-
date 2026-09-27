@@ -38,6 +38,7 @@ public class MedicineOrder
     public Patient? Patient { get; set; }
     public Pharmacy? Pharmacy { get; set; }
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+    public Invoice? Invoice { get; set; }
 }
 
 public enum OrderStatus

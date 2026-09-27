@@ -68,7 +68,8 @@ public class PharmacistController : ControllerBase
             )).ToList(),
             ItemCount: p.Items.Count,
             DateIssued: p.IssuedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
-            CreatedAt: p.CreatedAt.ToString("o", CultureInfo.InvariantCulture)
+            CreatedAt: p.CreatedAt.ToString("o", CultureInfo.InvariantCulture),
+            SafetyCheckedAt: p.SafetyCheckedAt?.ToString("o", CultureInfo.InvariantCulture)
         );
     }
 
@@ -89,7 +90,7 @@ public class PharmacistController : ControllerBase
             .ToListAsync();
 
         var prescriptions = await _db.Prescriptions
-            .Where(p => p.Status == PrescriptionStatus.Active && !fulfilledIds.Contains(p.Id))
+            .Where(p => p.Status == PrescriptionStatus.Active && p.FulfillmentSource == FulfillmentSource.InHouse && !fulfilledIds.Contains(p.Id))
             .Include(p => p.Items)
             .Include(p => p.Patient)
             .Include(p => p.Doctor)
