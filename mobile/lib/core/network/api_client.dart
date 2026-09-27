@@ -25,6 +25,9 @@ class ApiClient {
 
   String? _token;
 
+  /// Optional callback invoked when a request fails with 401 Unauthorized while a token was present.
+  void Function()? onSessionExpired;
+
   /// Set/clear the JWT access token.
   void setToken(String? token) => _token = token;
 
@@ -54,16 +57,20 @@ class ApiClient {
     final body = _tryDecode(res.body);
     if (res.statusCode >= 200 && res.statusCode < 300) return body;
 
+    if (res.statusCode == 401 && _token != null) {
+      onSessionExpired?.call();
+    }
+
     // Map error status codes to user-friendly messages
     final serverMsg = _extractMessage(body);
     final msg = switch (res.statusCode) {
       400 => serverMsg ?? 'Invalid request. Please check your input.',
-      401 => 'Your session has expired. Please sign in again.',
-      403 => 'You do not have permission to perform this action.',
+      401 => serverMsg ?? 'Your session has expired. Please sign in again.',
+      403 => serverMsg ?? 'You do not have permission to perform this action.',
       404 => serverMsg ?? 'The requested resource was not found.',
       409 => serverMsg ?? 'A conflict occurred. This record may already exist.',
       422 => serverMsg ?? 'Validation failed. Please check your input.',
-      500 => 'A server error occurred. Please try again later.',
+      500 => serverMsg ?? 'A server error occurred. Please try again later.',
       _ => serverMsg ?? 'An unexpected error occurred (${res.statusCode}).',
     };
 

@@ -10,18 +10,18 @@ class AppConfig {
 
   /// Resolves the backend API base URL based on the current platform.
   ///
-  /// Android Emulator  → 10.0.2.2:5224
-  /// iOS / macOS / web → localhost:5224
-  /// Set your Mac's local network IP here when testing on a physical device (e.g. '172.20.10.7').
-  /// Leave empty ('') for simulator / web / local development.
-  static const String physicalDeviceIp = '172.20.10.7';
+  /// Web (Chrome/Safari) → localhost:5224
+  /// Android Emulator   → 10.0.2.2:5224
+  /// iOS Simulator       → localhost:5224
+  /// Physical Device     → your Mac's local network IP (e.g. '172.28.17.196')
+  static const String physicalDeviceIp = '172.28.17.196';
 
   /// Resolves the backend API base URL based on the current platform.
   static String get apiBaseUrl {
+    if (kIsWeb) return 'http://localhost:5224/api';
     if (physicalDeviceIp.isNotEmpty) {
       return 'http://$physicalDeviceIp:5224/api';
     }
-    if (kIsWeb) return 'http://localhost:5224/api';
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:5224/api';
     }
@@ -30,10 +30,10 @@ class AppConfig {
 
   /// AI service URL (FastAPI/uvicorn)
   static String get aiBaseUrl {
+    if (kIsWeb) return 'http://localhost:8000';
     if (physicalDeviceIp.isNotEmpty) {
       return 'http://$physicalDeviceIp:8000';
     }
-    if (kIsWeb) return 'http://localhost:8000';
     if (defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:8000';
     }

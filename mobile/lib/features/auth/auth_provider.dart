@@ -30,6 +30,7 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState()) {
+    ApiClient.instance.onSessionExpired = logout;
     _restore();
   }
 
@@ -42,6 +43,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final map = jsonDecode(raw) as Map<String, dynamic>;
       final user = UserModel.fromJson(map);
       if (user.token.isNotEmpty) {
+        // If the token is already expired, cleanly discard it
+        if (user.expiresAt != null) {
+          final expiry = DateTime.tryParse(user.expiresAt!);
+          if (expiry != null && DateTime.now().toUtc().isAfter(expiry)) {
+            await prefs.remove(AppConfig.userKey);
+            await prefs.remove(AppConfig.tokenKey);
+            return;
+          }
+        }
         ApiClient.instance.setToken(user.token);
         state = AuthState(user: user);
       }
