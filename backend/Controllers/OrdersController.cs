@@ -443,6 +443,7 @@ public class OrdersController : ControllerBase
                 {
                     var inv = await _db.InventoryItems
                         .Include(i => i.Medicine)
+                        .Include(i => i.Batches)
                         .FirstOrDefaultAsync(i => i.PharmacyId == orderWithItems.PharmacyId.Value && i.MedicineId == item.MedicineId.Value);
 
                     if (inv == null || item.Quantity > inv.CurrentStock)
@@ -472,6 +473,30 @@ public class OrdersController : ControllerBase
                 foreach (var (item, inv) in itemsToProcess)
                 {
                     inv.CurrentStock -= item.Quantity;
+
+                    // Deduct batch quantities FIFO (oldest expiry date first)
+                    var remainingToDeduct = item.Quantity;
+                    var activeBatches = inv.Batches
+                        .Where(b => b.Quantity > 0)
+                        .OrderBy(b => b.ExpiryDate)
+                        .ThenBy(b => b.ReceivedDate)
+                        .ToList();
+
+                    foreach (var batch in activeBatches)
+                    {
+                        if (remainingToDeduct <= 0) break;
+
+                        if (batch.Quantity >= remainingToDeduct)
+                        {
+                            batch.Quantity -= remainingToDeduct;
+                            remainingToDeduct = 0;
+                        }
+                        else
+                        {
+                            remainingToDeduct -= batch.Quantity;
+                            batch.Quantity = 0;
+                        }
+                    }
 
                     var txLog = new InventoryTransaction
                     {
