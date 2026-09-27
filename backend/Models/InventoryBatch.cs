@@ -8,6 +8,7 @@ public class InventoryBatch
 
     public string BatchNumber { get; set; } = string.Empty;
     public int Quantity { get; set; }
+    public decimal? UnitPrice { get; set; }
     public DateTime ExpiryDate { get; set; }
     public DateTime ReceivedDate { get; set; } = DateTime.UtcNow;
 }
