@@ -30,6 +30,7 @@ interface InventoryItem {
     id: number;
     batchNumber: string;
     quantity: number;
+    unitPrice?: number;
     expiryDate: string;
     receivedDate?: string;
     isExpired: boolean;
@@ -696,16 +697,6 @@ export default function OwnerDashboard() {
                                 <div style={{ display: 'inline-flex', gap: 6 }}>
                                   <button
                                     type="button"
-                                    className="btn btn-secondary btn-sm"
-                                    style={{ fontSize: 12, padding: '4px 8px' }}
-                                    onClick={() => openAddBatchModal(item)}
-                                    id={`add-batch-btn-${item.id}`}
-                                    title="Log a new batch with expiry date"
-                                  >
-                                    <Plus size={13} /> Add Batch
-                                  </button>
-                                  <button
-                                    type="button"
                                     className="btn btn-ghost btn-sm"
                                     style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
                                     onClick={() => openEditItemModal(item)}
@@ -738,20 +729,12 @@ export default function OwnerDashboard() {
                                         <span style={{ fontWeight: 700, fontSize: 13.5 }}>Batch Expiry Breakdown for {item.medicineName}</span>
                                         <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>({item.batches.length} active batches)</span>
                                       </div>
-                                      <button
-                                        type="button"
-                                        className="btn btn-secondary btn-sm"
-                                        style={{ fontSize: 11.5, padding: '4px 10px' }}
-                                        onClick={() => openAddBatchModal(item)}
-                                        id={`sub-add-batch-${item.id}`}
-                                      >
-                                        <Plus size={12} /> Log New Batch
-                                      </button>
+
                                     </div>
 
                                     {item.batches.length === 0 ? (
                                       <div style={{ fontSize: 12.5, color: 'var(--text-muted)', padding: '16px 0', textAlign: 'center' }}>
-                                        No individual batches recorded for this medicine yet. Click "Log New Batch" to add one with a real-world expiry date.
+                                        No individual batches recorded for this medicine yet.
                                       </div>
                                     ) : (
                                       <div style={{ overflowX: 'auto' }}>
@@ -760,6 +743,7 @@ export default function OwnerDashboard() {
                                             <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)', textAlign: 'left' }}>
                                               <th style={{ padding: '6px 8px' }}>Batch Number</th>
                                               <th style={{ padding: '6px 8px' }}>Quantity</th>
+                                              <th style={{ padding: '6px 8px' }}>Unit Price</th>
                                               <th style={{ padding: '6px 8px' }}>Received Date</th>
                                               <th style={{ padding: '6px 8px' }}>Expiration Date</th>
                                               <th style={{ padding: '6px 8px' }}>Days Remaining</th>
@@ -782,6 +766,9 @@ export default function OwnerDashboard() {
                                                     <code>{batch.batchNumber}</code>
                                                   </td>
                                                   <td style={{ padding: '10px 8px', fontWeight: 700 }}>{batch.quantity} units</td>
+                                                  <td style={{ padding: '10px 8px', fontWeight: 600, color: 'var(--primary)' }}>
+                                                    Rs. {(batch.unitPrice ?? item.unitPrice ?? 0).toFixed(2)}
+                                                  </td>
                                                   <td style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>
                                                     {batch.receivedDate ? new Date(batch.receivedDate).toLocaleDateString() : '—'}
                                                   </td>
