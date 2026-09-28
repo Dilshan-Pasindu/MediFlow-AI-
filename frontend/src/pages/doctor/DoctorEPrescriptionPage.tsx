@@ -34,6 +34,24 @@ const COMMON_MEDICINES = [
   { name: 'Atorvastatin 20mg', dosage: '1 tablet', frequency: 'Once daily at night', duration: '30 days', qty: 30, inst: 'Avoid grapefruit juice' },
 ];
 
+function decryptSessionData<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    const decoded = decodeURIComponent(atob(raw));
+    let json = '';
+    for (let i = 0; i < decoded.length; i++) {
+      json += String.fromCharCode(decoded.charCodeAt(i) ^ 0x4d);
+    }
+    return JSON.parse(json) as T;
+  } catch {
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+}
+
 export default function DoctorEPrescriptionPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -139,11 +157,12 @@ export default function DoctorEPrescriptionPage() {
     const targetApptId = apptIdFromUrl || localStorage.getItem('mediflow_active_consultation_id');
     if (!targetApptId) return;
 
-    const savedSession = sessionStorage.getItem(`mediflow_consultation_session_${targetApptId}`) || localStorage.getItem(`mediflow_consultation_session_${targetApptId}`);
+    const key = `mediflow_consultation_session_${targetApptId}`;
+    const savedSession = sessionStorage.getItem(key) || localStorage.getItem(key);
     if (savedSession) {
       try {
-        const session = JSON.parse(savedSession);
-        if (session && !session.isCompleted) {
+        const session = decryptSessionData<any>(savedSession);
+        if (session && typeof session === 'object' && !session.isCompleted) {
           setSelectedApptId(String(targetApptId));
           if (session.manualPatientName || session.autoFilledDraft?.patientName) {
             setSelectedPatientName(session.manualPatientName || session.autoFilledDraft.patientName);
@@ -175,7 +194,9 @@ export default function DoctorEPrescriptionPage() {
           }
         }
       } catch (e) {
-        console.error('Failed to parse saved consultation draft:', e);
+        console.warn('Clearing invalid/corrupt consultation session draft:', e);
+        sessionStorage.removeItem(key);
+        localStorage.removeItem(key);
       }
     }
   }, [apptIdFromUrl]);
@@ -191,11 +212,12 @@ export default function DoctorEPrescriptionPage() {
     }
 
     if (val) {
-      const savedSession = sessionStorage.getItem(`mediflow_consultation_session_${val}`);
+      const key = `mediflow_consultation_session_${val}`;
+      const savedSession = sessionStorage.getItem(key) || localStorage.getItem(key);
       if (savedSession) {
         try {
-          const session = JSON.parse(savedSession);
-          if (session && session.autoFilledDraft) {
+          const session = decryptSessionData<any>(savedSession);
+          if (session && typeof session === 'object' && session.autoFilledDraft) {
             const draft = session.autoFilledDraft;
             if (draft.diagnosis) setDiagnosis(draft.diagnosis);
             let instructionsText = draft.instructions || 'Take as directed by doctor.';
@@ -217,7 +239,10 @@ export default function DoctorEPrescriptionPage() {
             }
             setIsAutoPopulatedFromSession(true);
           }
-        } catch (err) {}
+        } catch (err) {
+          sessionStorage.removeItem(key);
+          localStorage.removeItem(key);
+        }
       }
     }
   };
