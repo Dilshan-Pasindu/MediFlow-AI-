@@ -520,7 +520,6 @@ export default function ConsultationPage() {
   // HITL Handlers for Diagnoses
   function updateDiagnosis(id: string, newTitle: string, newIcd: string) {
     setEditableDiagnoses(prev => prev.map(d => d.id === id ? { ...d, diagnosis: newTitle, icdCode: newIcd, status: 'modified' } : d));
-    setEditingDiagId(null);
   }
 
   function setDiagnosisStatus(id: string, status: 'approved' | 'discarded') {
