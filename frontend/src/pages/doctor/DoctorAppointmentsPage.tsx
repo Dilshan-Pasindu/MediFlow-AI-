@@ -39,6 +39,24 @@ function parseDateInfo(dateTimeStr: string) {
   };
 }
 
+function decryptSessionData<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    const decoded = decodeURIComponent(atob(raw));
+    let json = '';
+    for (let i = 0; i < decoded.length; i++) {
+      json += String.fromCharCode(decoded.charCodeAt(i) ^ 0x4d);
+    }
+    return JSON.parse(json) as T;
+  } catch {
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+}
+
 export default function DoctorAppointmentsPage() {
   const navigate = useNavigate();
   const { data: appointments = [], isLoading, error, refetch, isRefetching } = useDoctorAppointments();
@@ -57,7 +75,7 @@ export default function DoctorAppointmentsPage() {
       const raw = sessionStorage.getItem(sessionKey) || localStorage.getItem(sessionKey);
       if (raw) {
         try {
-          const session = JSON.parse(raw);
+          const session = decryptSessionData<any>(raw);
           if (session && !session.isCompleted) {
             setActiveConsultationSession({
               appointmentId: String(activeId),
