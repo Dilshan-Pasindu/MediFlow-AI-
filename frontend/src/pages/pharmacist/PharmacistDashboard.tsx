@@ -490,7 +490,8 @@ export default function PharmacistDashboard() {
                   const msg = messages[order.id];
                   const isExpanded = !!expandedOrders[order.id];
                   const invoice = invoices[order.id];
-                  const isPaid = invoice?.isPaid || order.isPaid;
+                  const isPaid = invoice?.isPaid || order.isPaid || order.paymentStatus === 'Paid' || invoice?.paymentStatus === 'Paid';
+                  const isEditable = order.status !== 'Dispensed' && !isPaid;
                   const isAddingItem = actionLoading[`add-item-${order.id}`];
                   const isGeneratingBill = actionLoading[`bill-${order.id}`];
                   const isRecordingPayment = actionLoading[`pay-${order.id}`];
@@ -509,28 +510,32 @@ export default function PharmacistDashboard() {
                           <OrderStatusBadge status={order.status} />
 
                           {/* Calculate Price */}
-                          <button
-                            className="btn btn-ghost btn-sm text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-white rounded-lg transition-all"
-                            onClick={() => handleCalculatePrice(order.id)}
-                            disabled={!!isCalcing}
-                            id={`calc-price-order-${order.id}`}
-                            title="Recalculate prices from inventory"
-                          >
-                            {isCalcing ? <Loader size={12} className="spin text-teal-600" /> : <Calculator size={12} className="text-teal-600" />}
-                            Price
-                          </button>
+                          {isEditable && (
+                            <button
+                              className="btn btn-ghost btn-sm text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-white rounded-lg transition-all"
+                              onClick={() => handleCalculatePrice(order.id)}
+                              disabled={!!isCalcing}
+                              id={`calc-price-order-${order.id}`}
+                              title="Recalculate prices from inventory"
+                            >
+                              {isCalcing ? <Loader size={12} className="spin text-teal-600" /> : <Calculator size={12} className="text-teal-600" />}
+                              Price
+                            </button>
+                          )}
 
                           {/* Delete / Cancel Order */}
-                          <button
-                            className="btn btn-ghost btn-sm text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-all"
-                            onClick={() => handleDeleteOrder(order.id)}
-                            disabled={!!actionLoading[`del-${order.id}`]}
-                            id={`delete-order-${order.id}`}
-                            title="Cancel / Delete Order"
-                          >
-                            {actionLoading[`del-${order.id}`] ? <Loader size={12} className="spin" /> : <Trash2 size={12} />}
-                            Delete
-                          </button>
+                          {!isPaid && (
+                            <button
+                              className="btn btn-ghost btn-sm text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-all"
+                              onClick={() => handleDeleteOrder(order.id)}
+                              disabled={!!actionLoading[`del-${order.id}`]}
+                              id={`delete-order-${order.id}`}
+                              title="Cancel / Delete Order"
+                            >
+                              {actionLoading[`del-${order.id}`] ? <Loader size={12} className="spin" /> : <Trash2 size={12} />}
+                              Delete
+                            </button>
+                          )}
 
                           {/* Start to Dispense Button */}
                           {order.status !== 'Dispensed' && (
@@ -611,8 +616,8 @@ export default function PharmacistDashboard() {
                                 <Pill size={14} className="text-teal-600 shrink-0" />
                                 Dispensing & Billing Editor
                               </h4>
-                              <span className="text-[10px] text-teal-800 bg-teal-100/70 border border-teal-200/80 px-2.5 py-0.5 rounded-full font-medium shrink-0">
-                                Interactive Editor Mode
+                              <span className={`text-[10px] border px-2.5 py-0.5 rounded-full font-medium shrink-0 ${isEditable ? 'text-teal-800 bg-teal-100/70 border-teal-200/80' : 'text-slate-700 bg-slate-100 border-slate-300 font-semibold'}`}>
+                                {isEditable ? 'Interactive Editor Mode' : '🔒 Finalized & Locked (Paid)'}
                               </span>
                             </div>
 
@@ -642,7 +647,7 @@ export default function PharmacistDashboard() {
                             )}
 
                             {/* 1. Add Medicine from Pharmacy Inventory */}
-                            {order.status !== 'Dispensed' && (
+                            {isEditable && (
                               <div className="bg-white p-3.5 rounded-lg border border-slate-200/80 shadow-2xs space-y-2">
                                 <label className="block text-[11px] font-semibold text-slate-700">
                                   Add Medicine from Pharmacy Inventory
@@ -703,7 +708,7 @@ export default function PharmacistDashboard() {
                               </h5>
                               <OrderItemTable
                                 items={order.items || []}
-                                editable={order.status !== 'Dispensed'}
+                                editable={isEditable}
                                 onUpdateQuantity={(item, qty) => handleUpdateOrderItem(order.id, item, qty)}
                                 onRemoveItem={item => handleRemoveOrderItem(order.id, item)}
                                 loadingItemId={loadingItemId[order.id]}
