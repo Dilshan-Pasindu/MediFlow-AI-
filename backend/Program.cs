@@ -22,18 +22,43 @@ var rawConn = builder.Configuration["DATABASE_URL"]
     ?? "Host=localhost;Port=5432;Database=MedFlow-AI;Username=postgres;Password=postgres";
 
 var connectionString = ParsePostgreSqlConnectionString(rawConn);
+var forceInMemory = string.Equals(builder.Configuration["USE_IN_MEMORY_DB"], "true", StringComparison.OrdinalIgnoreCase);
 
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(
-        connectionString,
-        npgsqlOptions =>
-        {
-            npgsqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 5,
-                maxRetryDelay: TimeSpan.FromSeconds(5),
-                errorCodesToAdd: null);
-            npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
-        }));
+bool postgresAvailable = false;
+if (!forceInMemory)
+{
+    try
+    {
+        using var testConn = new Npgsql.NpgsqlConnection(connectionString);
+        testConn.Open();
+        postgresAvailable = true;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Database Warning] PostgreSQL connection failed ({ex.Message}). Falling back to In-Memory Database for seamless execution.");
+        postgresAvailable = false;
+    }
+}
+
+if (postgresAvailable)
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseNpgsql(
+            connectionString,
+            npgsqlOptions =>
+            {
+                npgsqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 5,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorCodesToAdd: null);
+                npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+            }));
+}
+else
+{
+    builder.Services.AddDbContext<AppDbContext>(options =>
+        options.UseInMemoryDatabase("MediFlowDb"));
+}
 
 // ─── SignalR ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
@@ -176,11 +201,18 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    if (db.Database.IsRelational())
+    try
     {
-        await db.Database.MigrateAsync();
+        if (db.Database.IsRelational())
+        {
+            await db.Database.MigrateAsync();
+        }
+        await DatabaseSeeder.SeedAsync(db);
     }
-    await DatabaseSeeder.SeedAsync(db);
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[Database Warning] Migration/Seeding skipped or failed: {ex.Message}");
+    }
 }
 
 // ─── Middleware Pipeline ───────────────────────────────────────────────────────
