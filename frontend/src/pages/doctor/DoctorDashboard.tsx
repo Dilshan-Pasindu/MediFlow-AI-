@@ -40,6 +40,24 @@ function fmtDate(dt: string) {
   return { day: d.getDate(), month: d.toLocaleString('default', { month: 'short' }), weekday: d.toLocaleString('default', { weekday: 'short' }) };
 }
 
+function decryptSessionData<T>(raw: string | null): T | null {
+  if (!raw) return null;
+  try {
+    const decoded = decodeURIComponent(atob(raw));
+    let json = '';
+    for (let i = 0; i < decoded.length; i++) {
+      json += String.fromCharCode(decoded.charCodeAt(i) ^ 0x4d);
+    }
+    return JSON.parse(json) as T;
+  } catch {
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return null;
+    }
+  }
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function KPICard({ icon: Icon, label, value, sub, color, bg, loading }: {
@@ -192,7 +210,7 @@ export default function DoctorDashboard() {
       const saved = sessionStorage.getItem(`mediflow_consultation_session_${activeId}`);
       if (saved) {
         try {
-          const session = JSON.parse(saved);
+          const session = decryptSessionData<any>(saved);
           if (session && !session.isCompleted) {
             setActiveConsultationSession({
               appointmentId: String(activeId),

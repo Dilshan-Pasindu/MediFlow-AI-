@@ -1,25 +1,46 @@
 """
-MediFlow Clinical Decision Support Agent — Level 1 + Level 2 Gemini AI
-=======================================================================
-LEVEL 1: Real Gemini LLM (gemini-1.5-flash) replaces all hardcoded keyword rules.
-          The model genuinely reasons over clinical presentations and produces
-          differential diagnoses, lab recommendations, and treatment plans.
+MediFlow Clinical Decision Support Agent — Gemini Free-Tier Edition
+====================================================================
+Design goals: work reliably on a FREE Gemini API key and fall back to the
+offline rule-based engine as rarely as possible.
 
-LEVEL 2: Gemini Function Calling (Tool Use) — The LLM autonomously decides which
-          clinical tools to invoke (allergy checker, vitals scorer, guideline KB,
-          medication drafter) and iterates in a ReAct loop until satisfied.
+How it stays online on the free tier
+------------------------------------
+1. ONE Gemini request per case. Clinical tools (vitals score, guideline KB) run
+   locally in Python first and their results are fed into the prompt.
+2. Correct SDK usage: JSON mime type, thinking disabled on 2.5 models (thinking
+   tokens would otherwise eat the output budget), generous max_output_tokens.
+3. Models are discovered from your key (retired models are skipped), and each
+   model gets its own retry/cooldown logic, so a 429 on one model moves to the next.
+4. Client-side rate limiter (GEMINI_RPM, default 8/min) so we don't trigger 429s.
+5. Smart retry: 429 with a short retryDelay -> wait and retry; 503/timeouts ->
+   backoff and retry; truncated/invalid JSON -> repair, then retry.
+6. Result cache (1 hour) so repeated identical cases never spend quota.
+7. Partial repair: if Gemini omits medications, they are filled from the local
+   medication tool instead of discarding the whole Gemini answer.
+8. Safety net: allergy check is ALWAYS run on the medications Gemini proposes.
 
-Falls back to rule-based engine if GEMINI_API_KEY is not set or API call fails.
+NOTE on "Level 2": tools are pre-executed and their output given to the model
+(1 request) instead of a multi-turn function-calling loop (3-6 requests), which
+would burn the free quota. The thought stream reflects exactly what happens.
+
+Requires:  pip install google-genai python-dotenv
+Env:       GEMINI_API_KEY (required), GEMINI_MODEL (optional), GEMINI_RPM (optional)
 """
 
 import os
 import sys
+import re
 import json
+import time
+import hashlib
 import logging
+import threading
+from collections import deque, OrderedDict
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
-# Add project root and ai directory to sys.path so modules resolve correctly in all environments
+# ── Path setup so imports resolve in all environments ────────────────────────
 _current_dir = Path(__file__).resolve().parent
 _ai_dir = _current_dir.parent
 _workspace_root = _ai_dir.parent
@@ -27,22 +48,21 @@ for _p in [str(_workspace_root), str(_ai_dir)]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-# Load environment variables from .env file if present
+# ── Environment loading ──────────────────────────────────────────────────────
 try:
     from dotenv import load_dotenv  # type: ignore
-    load_dotenv(dotenv_path=os.path.join(str(_ai_dir), '.env'))
-    load_dotenv(dotenv_path=os.path.join(str(_workspace_root), '.env'))
+    load_dotenv(dotenv_path=os.path.join(str(_ai_dir), ".env"))
+    load_dotenv(dotenv_path=os.path.join(str(_workspace_root), ".env"))
 except ImportError:
-    # Fallback minimal .env loader if python-dotenv is not installed
-    for _env_file in [os.path.join(str(_ai_dir), '.env'), os.path.join(str(_workspace_root), '.env')]:
+    for _env_file in [os.path.join(str(_ai_dir), ".env"), os.path.join(str(_workspace_root), ".env")]:
         if os.path.isfile(_env_file):
             try:
-                with open(_env_file, 'r', encoding='utf-8') as _f:
+                with open(_env_file, "r", encoding="utf-8") as _f:
                     for _line in _f:
                         _line = _line.strip()
-                        if _line and not _line.startswith('#') and '=' in _line:
-                            _k, _v = _line.split('=', 1)
-                            _k, _v = _k.strip(), _v.strip().strip('"\'')
+                        if _line and not _line.startswith("#") and "=" in _line:
+                            _k, _v = _line.split("=", 1)
+                            _k, _v = _k.strip(), _v.strip().strip("\"'")
                             if _k and _k not in os.environ:
                                 os.environ[_k] = _v
             except Exception:
@@ -82,561 +102,768 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────
-# GEMINI TOOL DECLARATIONS (used for Level 2 Function Calling)
+# CONFIG
 # ─────────────────────────────────────────────────────────────
-GEMINI_TOOL_DECLARATIONS = [
-    {
-        "name": "check_allergy_contraindications",
-        "description": (
-            "Cross-checks a list of proposed medications against the patient's known allergies "
-            "to identify critical contraindications that must not be prescribed."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "allergies": {
-                    "type": "string",
-                    "description": "Patient's known allergies as a comma-separated string e.g. 'Penicillin, Aspirin'"
-                },
-                "proposed_medications": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                    "description": "List of drug names the agent is considering prescribing"
-                }
-            },
-            "required": ["allergies", "proposed_medications"]
-        }
-    },
-    {
-        "name": "calculate_vitals_risk_score",
-        "description": (
-            "Evaluates the patient's vital signs (BP, temperature, pulse, SpO2) "
-            "and returns an urgency level (routine/urgent/emergency) plus clinical findings."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "vitals": {
-                    "type": "object",
-                    "description": "Vitals dictionary with keys: bp, temp, pulse, spo2",
-                    "properties": {
-                        "bp":    {"type": "string", "description": "Blood pressure e.g. '120/80'"},
-                        "temp":  {"type": "string", "description": "Temperature in °C e.g. '38.5'"},
-                        "pulse": {"type": "string", "description": "Pulse rate in bpm e.g. '88'"},
-                        "spo2":  {"type": "string", "description": "SpO2 percentage e.g. '97%'"}
-                    }
-                }
-            },
-            "required": ["vitals"]
-        }
-    },
-    {
-        "name": "query_clinical_guidelines",
-        "description": (
-            "Retrieves evidence-based clinical practice guidelines from the medical knowledge base "
-            "for a given diagnosis or symptom keywords. Returns first-line treatments, testing recommendations, "
-            "and follow-up protocols sourced from NICE, BSG, ACG, and ESC guidelines."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "diagnosis_keywords": {
-                    "type": "string",
-                    "description": "Clinical condition or keywords to query e.g. 'gastritis GERD' or 'URTI respiratory'"
-                },
-                "specialty": {
-                    "type": "string",
-                    "description": "Optional medical specialty to filter guidelines e.g. 'gastroenterology', 'cardiology'"
-                }
-            },
-            "required": ["diagnosis_keywords"]
-        }
-    },
-    {
-        "name": "generate_medication_drafts_from_diagnosis",
-        "description": (
-            "Generates evidence-based medication draft regimens for a given diagnosis, "
-            "automatically adjusting for known patient allergies to flag contraindications."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "diagnosis": {
-                    "type": "string",
-                    "description": "The confirmed or most probable diagnosis e.g. 'Acute Gastritis'"
-                },
-                "allergies": {
-                    "type": "string",
-                    "description": "Patient's known allergies as a string e.g. 'Penicillin'"
-                }
-            },
-            "required": ["diagnosis", "allergies"]
-        }
-    }
+# Retired 1.5 models removed. Flash-Lite has the most generous free quota.
+DEFAULT_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
+    "gemini-2.0-flash",
 ]
+PER_CALL_TIMEOUT_MS = 25_000       # HTTP timeout for one Gemini request
+TOTAL_BUDGET_SECONDS = 45.0        # max wall time for all Gemini attempts
+MAX_OUTPUT_TOKENS = 4096
+CACHE_TTL_SECONDS = 3600
+CACHE_MAX_ITEMS = 256
 
-# ─────────────────────────────────────────────────────────────
-# TOOL DISPATCHER — Executes the tool Gemini chose to call
-# ─────────────────────────────────────────────────────────────
-def _dispatch_tool(tool_name: str, tool_args: dict) -> str:
-    """Executes the tool function that the Gemini model invoked and returns serialized result."""
-    try:
-        if tool_name == "check_allergy_contraindications":
-            result = check_allergy_contraindications(
-                allergies=tool_args.get("allergies", ""),
-                proposed_medications=tool_args.get("proposed_medications", [])
-            )
-        elif tool_name == "calculate_vitals_risk_score":
-            result = calculate_vitals_risk_score(vitals=tool_args.get("vitals", {}))
-        elif tool_name == "query_clinical_guidelines":
-            result = query_clinical_guidelines(
-                diagnosis_keywords=tool_args.get("diagnosis_keywords", ""),
-                specialty=tool_args.get("specialty")
-            )
-        elif tool_name == "generate_medication_drafts_from_diagnosis":
-            result = generate_medication_drafts_from_diagnosis(
-                diagnosis=tool_args.get("diagnosis", ""),
-                allergies=tool_args.get("allergies", "")
-            )
-        else:
-            result = {"error": f"Unknown tool: {tool_name}"}
-        return json.dumps(result, indent=2)
-    except Exception as e:
-        logger.error(f"Tool execution error for {tool_name}: {e}")
-        return json.dumps({"error": str(e)})
+_URGENCY_RANK = {"routine": 0, "urgent": 1, "emergency": 2}
 
 
-def _clean_proto_args(val):
-    """Recursively converts protobuf MapComposite and RepeatedComposite into native Python dicts and lists."""
-    if hasattr(val, "items"):
-        return {str(k): _clean_proto_args(v) for k, v in val.items()}
-    elif hasattr(val, "__iter__") and not isinstance(val, (str, bytes)):
-        return [_clean_proto_args(x) for x in val]
-    return val
+def _api_key() -> str:
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    return "" if key in ("", "your_gemini_api_key_here") else key
 
 
 # ─────────────────────────────────────────────────────────────
-# LEVEL 1 + 2: GEMINI AGENTIC ENGINE
+# SHARED STATE: client, model discovery, cooldowns, limiter, cache
 # ─────────────────────────────────────────────────────────────
-def _run_gemini_agent(input_data: ClinicalCDSInput) -> ClinicalCDSResult:
-    """
-    Ultra-Minimal Token Single-Turn Gemini CDS Agent.
-    Pre-executes clinical tools locally in Python, then executes 1 single-turn Gemini API request.
-    Reduces input/output token usage by ~88% on Gemini Free Tier.
-    """
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key or api_key == "your_gemini_api_key_here":
-        raise ValueError("GEMINI_API_KEY is not configured in .env file.")
+_state_lock = threading.Lock()
+_client = None
+_client_key = None
+_available_models: Optional[set] = None
+_dead_models: set = set()                  # 404 / not supported
+_model_cooldown: Dict[str, float] = {}     # model -> monotonic time when usable again
 
-    vitals = input_data.vitals
-    vitals_dict = {}
-    vitals_str = "None"
-    if vitals:
-        vitals_dict = {
-            "bp": vitals.bp or "N/A",
-            "temp": vitals.temp or "N/A",
-            "pulse": vitals.pulse or "N/A",
-            "spo2": vitals.spo2 or "N/A",
-        }
-        vitals_str = f"BP:{vitals.bp or '-'},T:{vitals.temp or '-'},HR:{vitals.pulse or '-'},O2:{vitals.spo2 or '-'}"
+_rate_lock = threading.Lock()
+_call_times: deque = deque()
 
-    thought_stream: List[AgentThoughtStep] = []
-    step_counter = 1
+_cache_lock = threading.Lock()
+_cache: "OrderedDict[str, Tuple[float, ClinicalCDSResult]]" = OrderedDict()
 
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step_counter,
-        thought=f"Received patient case. Chief complaint: '{input_data.chief_complaint}'. Symptoms: '{input_data.symptoms}'. Initiating evaluation.",
-        toolName=None,
-        toolInput=None,
-        observation="Patient context loaded. Beginning clinical evaluation."
-    ))
-    step_counter += 1
 
-    # Pre-execute local tools in Python to save multi-turn token overhead
-    vitals_res_str = _dispatch_tool("calculate_vitals_risk_score", vitals_dict)
-    vitals_res = json.loads(vitals_res_str)
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step_counter,
-        thought="Invoking clinical tool 'calculate_vitals_risk_score' to assess urgency.",
-        toolName="calculate_vitals_risk_score",
-        toolInput=json.dumps(vitals_dict),
-        observation=_summarize_tool_result("calculate_vitals_risk_score", vitals_res)
-    ))
-    step_counter += 1
-
-    symptoms_kw = input_data.symptoms or input_data.chief_complaint or "fever"
-    guide_res_str = _dispatch_tool("query_clinical_guidelines", {"keywords": symptoms_kw})
-    guide_res = json.loads(guide_res_str)
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step_counter,
-        thought="Invoking clinical tool 'query_clinical_guidelines' to retrieve evidence-based protocols.",
-        toolName="query_clinical_guidelines",
-        toolInput=json.dumps({"keywords": symptoms_kw}),
-        observation=_summarize_tool_result("query_clinical_guidelines", guide_res)
-    ))
-    step_counter += 1
-
-    # Ultra-compact system instruction for schema generation
-    system_instruction = 'Output JSON EXACTLY:{"diagnoses":[{"id":"D1","diagnosis":"X","confidence":85,"icdCode":"X","evidence":["X"]}],"labTests":["X"],"urgency":"routine|urgent|emergency","warnings":["X"],"labDrafts":[{"id":"L1","testName":"X","indication":"X","urgency":"routine"}],"medicationDrafts":[{"id":"M1","drugName":"X","dosage":"X","frequency":"X","duration":"X","instructions":"X","safetyWarning":null}]}'
-
-    guide_res_str = json.dumps(guide_res)[:150]
-    prompt = f"Age:{input_data.patient_age or '-'},Sex:{input_data.patient_gender or '-'},CC:{input_data.chief_complaint or '-'},Sx:{input_data.symptoms},Vitals:{vitals_str},Allergies:{input_data.patient_allergies or '-'} Risk:{vitals_res.get('risk_score',0)}({vitals_res.get('urgency')}),Guide:{guide_res_str} Return JSON."
-
-    try:
-        from google import genai
-        from google.genai import types
-        client = genai.Client(api_key=api_key)
-    except Exception as e:
-        logger.error(f"Failed to initialize google.genai client: {e}")
-        raise RuntimeError("Failed to initialize Google GenAI SDK")
-
-    configured_model = os.environ.get("GEMINI_MODEL", "").strip()
-    candidate_models = []
-    if configured_model:
-        candidate_models.append(configured_model)
-    for m in [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-flash-latest"
-    ]:
-        if m not in candidate_models:
-            candidate_models.append(m)
-
-    import concurrent.futures
-    response_text = None
-    for m_name in candidate_models:
+def _get_client(api_key: str):
+    """Create (or reuse) the google-genai client with an HTTP timeout."""
+    global _client, _client_key
+    with _state_lock:
+        if _client is not None and _client_key == api_key:
+            return _client
         try:
-            def _call_gemini():
-                return client.models.generate_content(
-                    model=m_name,
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        temperature=0.2,
-                        max_output_tokens=512,
-                        top_p=0.95
-                    )
-                )
+            from google import genai
+            from google.genai import types
+            _client = genai.Client(
+                api_key=api_key,
+                http_options=types.HttpOptions(timeout=PER_CALL_TIMEOUT_MS),
+            )
+            _client_key = api_key
+            return _client
+        except Exception as e:
+            logger.error(f"Failed to initialise google-genai client (pip install google-genai): {e}")
+            raise RuntimeError("Google GenAI SDK unavailable") from e
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(_call_gemini)
-                try:
-                    res = future.result(timeout=7.0)
-                    if res and hasattr(res, 'text') and res.text:
-                        response_text = res.text.strip()
-                        logger.info(f"Gemini CDS evaluation succeeded with model: {m_name}")
-                        break
-                except concurrent.futures.TimeoutError:
-                    logger.warning(f"Gemini API call timed out (>7s) for model {m_name}")
-                    continue
-        except Exception as err:
-            logger.warning(f"Gemini model {m_name} failed: {err}. Trying next candidate...")
-            continue
 
-    if not response_text:
-        raise RuntimeError("No compatible or active Gemini model responded for CDS evaluation")
+def _discover_models(client) -> set:
+    """Ask the API which models this key can actually call. Cached; empty set = unknown."""
+    global _available_models
+    if _available_models is not None:
+        return _available_models
+    names: set = set()
+    try:
+        for m in client.models.list():
+            actions = getattr(m, "supported_actions", None) or []
+            if not actions or "generateContent" in actions:
+                names.add(str(m.name).replace("models/", ""))
+    except Exception as e:
+        logger.warning(f"Model discovery failed (will try defaults): {e}")
+    _available_models = names
+    return names
 
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step_counter,
-        thought="Synthesising final differential diagnosis plan and structured care recommendations.",
-        toolName="finalize_clinical_plan",
-        toolInput="status=complete",
-        observation="Generating final structured JSON response for doctor review."
-    ))
 
-    return _parse_gemini_response(response_text, thought_stream, input_data)
+def _candidate_models(client) -> List[str]:
+    wanted: List[str] = []
+    configured = os.environ.get("GEMINI_MODEL", "").strip()
+    if configured:
+        wanted.append(configured)
+    for m in DEFAULT_MODELS:
+        if m not in wanted:
+            wanted.append(m)
+
+    available = _discover_models(client)
+    if available:
+        filtered = [m for m in wanted if m in available]
+        if filtered:
+            wanted = filtered
+
+    now = time.monotonic()
+    return [m for m in wanted if m not in _dead_models and _model_cooldown.get(m, 0) <= now]
+
+
+def _acquire_rate_slot(deadline: float) -> None:
+    """Sliding-window limiter (GEMINI_RPM per 60s). Waits if needed, else raises TimeoutError."""
+    try:
+        rpm = max(1, int(os.environ.get("GEMINI_RPM", "8")))
+    except ValueError:
+        rpm = 8
+    while True:
+        with _rate_lock:
+            now = time.monotonic()
+            while _call_times and now - _call_times[0] >= 60:
+                _call_times.popleft()
+            if len(_call_times) < rpm:
+                _call_times.append(now)
+                return
+            wait = 60 - (now - _call_times[0])
+        if time.monotonic() + wait > deadline:
+            raise TimeoutError("No free rate-limit slot before deadline")
+        time.sleep(min(wait, 5.0) + 0.05)
+
+
+def _cache_key(d: ClinicalCDSInput) -> str:
+    v = d.vitals
+    payload = {
+        "cc": (d.chief_complaint or "").strip().lower(),
+        "sx": (d.symptoms or "").strip().lower(),
+        "age": str(d.patient_age or ""),
+        "sex": str(d.patient_gender or "").lower(),
+        "al": (d.patient_allergies or "").strip().lower(),
+        "v": [getattr(v, k, None) for k in ("bp", "temp", "pulse", "spo2")] if v else None,
+    }
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def _cache_get(key: str) -> Optional[ClinicalCDSResult]:
+    with _cache_lock:
+        item = _cache.get(key)
+        if not item:
+            return None
+        ts, result = item
+        if time.time() - ts > CACHE_TTL_SECONDS:
+            _cache.pop(key, None)
+            return None
+        _cache.move_to_end(key)
+        return result.model_copy(deep=True) if hasattr(result, "model_copy") else result
+
+
+def _cache_put(key: str, result: ClinicalCDSResult) -> None:
+    with _cache_lock:
+        _cache[key] = (time.time(), result)
+        _cache.move_to_end(key)
+        while len(_cache) > CACHE_MAX_ITEMS:
+            _cache.popitem(last=False)
+
+
+# ─────────────────────────────────────────────────────────────
+# TOOL HELPERS
+# ─────────────────────────────────────────────────────────────
+def _safe_tool(fn, **kwargs) -> Dict[str, Any]:
+    """Run a clinical tool; a tool bug must never take down the whole agent."""
+    try:
+        res = fn(**kwargs)
+        return res if isinstance(res, dict) else {"result": res}
+    except Exception as e:
+        logger.error(f"Clinical tool {getattr(fn, '__name__', fn)} failed: {e}")
+        return {"error": str(e)}
 
 
 def _summarize_tool_result(tool_name: str, result: dict) -> str:
-    """Creates a concise human-readable summary of a tool's output for the thought stream."""
+    """Concise human-readable summary of a tool's output for the thought stream."""
+    if result.get("error"):
+        return f"Tool error: {result['error']}"
     if tool_name == "calculate_vitals_risk_score":
-        return f"Urgency={result.get('urgency', 'unknown').upper()}. Risk score={result.get('risk_score', 0)}/9. Findings: {'; '.join(result.get('findings', ['None'])) or 'All vitals within normal range'}"
-    elif tool_name == "check_allergy_contraindications":
-        contraindications = result.get("contraindications", [])
-        if contraindications:
-            flagged = [f"{c['drug']} ({c['allergen']} allergy)" for c in contraindications]
-            return f"⚠️ CONTRAINDICATIONS DETECTED: {', '.join(flagged)}"
+        findings = "; ".join(result.get("findings", []) or []) or "All vitals within normal range"
+        return f"Urgency={str(result.get('urgency', 'unknown')).upper()}. Risk score={result.get('risk_score', 0)}/9. Findings: {findings}"
+    if tool_name == "check_allergy_contraindications":
+        contra = result.get("contraindications", [])
+        if contra:
+            flagged = [f"{c.get('drug')} ({c.get('allergen')} allergy)" for c in contra]
+            return f"CONTRAINDICATIONS DETECTED: {', '.join(flagged)}"
         return f"Safety check complete. All {len(result.get('medications_checked', []))} medications safe for this patient."
-    elif tool_name == "query_clinical_guidelines":
-        sources = [v.get('source', '') for v in result.get('guidelines', {}).values()]
-        return f"Retrieved {result.get('guidelines_found', 0)} clinical guidelines: {'; '.join(sources[:2])}"
-    elif tool_name == "generate_medication_drafts_from_diagnosis":
-        meds = [d['drug_name'] for d in result.get('medication_drafts', [])]
+    if tool_name == "query_clinical_guidelines":
+        g = result.get("guidelines", {})
+        vals = g.values() if isinstance(g, dict) else g
+        sources = [v.get("source", "") for v in vals if isinstance(v, dict)]
+        return f"Retrieved {result.get('guidelines_found', 0)} clinical guidelines: {'; '.join([s for s in sources if s][:2])}"
+    if tool_name == "generate_medication_drafts_from_diagnosis":
+        meds = [d.get("drug_name", "?") for d in result.get("medication_drafts", [])]
         return f"Generated {len(meds)} medication drafts: {', '.join(meds)}"
-    return json.dumps(result)[:200]
+    return json.dumps(result, default=str)[:200]
 
 
-def _parse_gemini_response(text: str, thought_stream: List[AgentThoughtStep], input_data: ClinicalCDSInput) -> ClinicalCDSResult:
-    """
-    Parses Gemini's final JSON response into our ClinicalCDSResult schema.
-    Handles markdown code fences and partial JSON gracefully.
-    """
-    # Strip markdown code fences if present
-    clean = text.strip()
+def _compact_guidelines(res: dict, limit: int = 600) -> str:
+    """Flatten the guideline KB output into a short string for the prompt."""
+    g = res.get("guidelines", {}) if isinstance(res, dict) else {}
+    items = g.values() if isinstance(g, dict) else (g if isinstance(g, list) else [])
+    parts: List[str] = []
+    for v in items:
+        if isinstance(v, dict):
+            parts.append("; ".join(f"{k}: {x if isinstance(x, str) else json.dumps(x, default=str)}" for k, x in v.items()))
+        else:
+            parts.append(str(v))
+    return " | ".join(parts)[:limit]
+
+
+def _add_warning(warnings: List[str], msg: str) -> None:
+    if msg and msg not in warnings:
+        warnings.append(msg)
+
+
+# ─────────────────────────────────────────────────────────────
+# JSON PARSING / REPAIR
+# ─────────────────────────────────────────────────────────────
+def _repair_truncated_json(s: str) -> Optional[dict]:
+    """Close brackets on a truncated JSON object, backing off to the last valid boundary."""
+    start = s.find("{")
+    if start < 0:
+        return None
+    s = s[start:]
+    stack: List[str] = []
+    in_str = esc = False
+    snapshots: List[Tuple[int, List[str]]] = []
+    for i, ch in enumerate(s):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            snapshots.append((i + 1, list(stack)))
+    for pos, stk in reversed(snapshots):
+        candidate = s[:pos].rstrip().rstrip(",") + "".join(reversed(stk))
+        try:
+            data = json.loads(candidate)
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def _extract_json(text: str) -> dict:
+    clean = (text or "").strip()
     if clean.startswith("```"):
         lines = clean.split("\n")
-        clean = "\n".join(lines[1:-1]) if len(lines) > 2 else clean
-
+        clean = "\n".join(lines[1:-1] if lines[-1].strip().startswith("```") else lines[1:])
     try:
         data = json.loads(clean)
+        if isinstance(data, dict):
+            return data
     except json.JSONDecodeError:
-        # Find JSON block within the text
-        start = clean.find("{")
-        end = clean.rfind("}") + 1
-        if start >= 0 and end > start:
+        pass
+    start, end = clean.find("{"), clean.rfind("}") + 1
+    if start >= 0 and end > start:
+        try:
+            data = json.loads(clean[start:end])
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            pass
+    repaired = _repair_truncated_json(clean)
+    if repaired:
+        logger.info("Recovered truncated Gemini JSON via repair")
+        return repaired
+    raise ValueError("No parseable JSON in Gemini response")
+
+
+# ─────────────────────────────────────────────────────────────
+# GEMINI CALL WITH RESILIENCE
+# ─────────────────────────────────────────────────────────────
+SYSTEM_INSTRUCTION = (
+    "You are a clinical decision support assistant for a licensed doctor. "
+    "Your output is a DRAFT that a doctor will review. "
+    "Reply with ONE valid JSON object and nothing else (no markdown), in exactly this shape:\n"
+    '{"diagnoses":[{"id":"D1","diagnosis":"name","confidence":85,"icdCode":"K29.7","evidence":["..."]}],'
+    '"labTests":["..."],'
+    '"urgency":"routine|urgent|emergency",'
+    '"warnings":["..."],'
+    '"labDrafts":[{"id":"L1","testName":"...","indication":"...","urgency":"routine|urgent|emergency"}],'
+    '"medicationDrafts":[{"id":"M1","drugName":"...","dosage":"...","frequency":"...","duration":"...",'
+    '"instructions":"...","safetyWarning":null}]}\n'
+    "Rules: 2-3 diagnoses ordered by confidence (integer 0-100) with valid ICD-10 codes; "
+    "2-4 lab drafts; 1-4 medication drafts; keep every string short. "
+    "NEVER propose a drug (or drug class) the patient is allergic to. "
+    "Respect the provided vitals urgency: never lower it. "
+    "Add warnings for red flags, drug interactions, and follow-up advice."
+)
+
+
+def _classify_error(err: Exception) -> Tuple[Optional[int], str]:
+    msg = str(err)
+    code = getattr(err, "code", None) or getattr(err, "status_code", None)
+    if not isinstance(code, int):
+        m = re.search(r"\b([45]\d\d)\b", msg[:80])
+        code = int(m.group(1)) if m else None
+    return code, msg
+
+
+def _parse_retry_delay(msg: str) -> Optional[float]:
+    m = re.search(r"retry(?:Delay)?\W+(?:in\s+)?['\"]?([\d.]+)\s*s", msg, re.I)
+    return float(m.group(1)) if m else None
+
+
+def _call_gemini_json(client, prompt: str) -> Tuple[dict, str]:
+    """
+    Try candidate models in order with per-model retry logic.
+    Returns (parsed_json, model_name). Raises RuntimeError if everything fails.
+    """
+    from google.genai import types
+
+    deadline = time.monotonic() + TOTAL_BUDGET_SECONDS
+    models = _candidate_models(client)
+    if not models:
+        raise RuntimeError("All Gemini models are on cooldown or unavailable")
+
+    safety = [
+        types.SafetySetting(category=c, threshold="BLOCK_ONLY_HIGH")
+        for c in (
+            "HARM_CATEGORY_HARASSMENT",
+            "HARM_CATEGORY_HATE_SPEECH",
+            "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "HARM_CATEGORY_DANGEROUS_CONTENT",
+        )
+    ]
+
+    last_error = "unknown"
+    for model in models:
+        use_thinking_cfg = "2.5" in model and "pro" not in model
+        for attempt in range(4):
+            if time.monotonic() >= deadline:
+                raise RuntimeError(f"Gemini time budget exhausted (last error: {last_error})")
+
+            cfg_kwargs: Dict[str, Any] = dict(
+                system_instruction=SYSTEM_INSTRUCTION,
+                temperature=0.2,
+                top_p=0.95,
+                max_output_tokens=MAX_OUTPUT_TOKENS,
+                response_mime_type="application/json",
+                safety_settings=safety,
+            )
+            if use_thinking_cfg:
+                cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=0)
+
             try:
-                data = json.loads(clean[start:end])
-            except Exception:
-                logger.error("Could not parse Gemini JSON response — using fallback")
-                raise ValueError("JSON parse failure")
-        else:
-            raise ValueError("No JSON found in Gemini response")
+                _acquire_rate_slot(deadline)
+                res = client.models.generate_content(
+                    model=model,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(**cfg_kwargs),
+                )
+                text = getattr(res, "text", None)
+                if not text:
+                    last_error = f"{model}: empty response"
+                    logger.warning(last_error)
+                    continue
+                data = _extract_json(text)
+                if not data.get("diagnoses"):
+                    last_error = f"{model}: JSON had no diagnoses"
+                    logger.warning(last_error)
+                    continue
+                logger.info(f"Gemini CDS succeeded with model={model} (attempt {attempt + 1})")
+                return data, model
 
-    # Build DiagnosisCandidate list
-    diagnoses = []
-    for idx, d in enumerate(data.get("diagnoses", [])):
+            except TimeoutError as e:  # local limiter couldn't give us a slot in time
+                raise RuntimeError(str(e)) from e
+            except ValueError as e:    # JSON parse failure -> retry
+                last_error = f"{model}: {e}"
+                logger.warning(last_error)
+                continue
+            except Exception as e:
+                code, msg = _classify_error(e)
+                last_error = f"{model}: {code} {msg[:160]}"
+                low = msg.lower()
+
+                if code in (401, 403) or "api key" in low and "invalid" in low:
+                    raise PermissionError(f"Gemini rejected the API key: {msg[:200]}") from e
+
+                if code == 404 or "not found" in low or "no longer available" in low:
+                    logger.warning(f"Model {model} unavailable, skipping: {msg[:120]}")
+                    _dead_models.add(model)
+                    break
+
+                if code == 400 and use_thinking_cfg and "think" in low:
+                    logger.info(f"{model} rejected thinking config; retrying without it")
+                    use_thinking_cfg = False
+                    continue
+
+                if code == 429 or "resource_exhausted" in low or "quota" in low:
+                    delay = _parse_retry_delay(msg)
+                    if "perday" in low.replace(" ", "").replace("_", "") or "per day" in low:
+                        _model_cooldown[model] = time.monotonic() + 3600
+                        logger.warning(f"{model}: daily quota exhausted, trying next model")
+                        break
+                    remaining = deadline - time.monotonic()
+                    if delay is not None and delay <= 12 and remaining > delay + 6:
+                        logger.info(f"{model}: 429, waiting {delay:.1f}s then retrying")
+                        time.sleep(delay + 0.5)
+                        continue
+                    _model_cooldown[model] = time.monotonic() + (delay if delay else 30)
+                    logger.warning(f"{model}: rate limited, trying next model")
+                    break
+
+                if code in (500, 502, 503, 504) or "timeout" in low or "timed out" in low or "deadline" in low or "overloaded" in low:
+                    backoff = 1.5 * (attempt + 1)
+                    if deadline - time.monotonic() > backoff + 5:
+                        logger.info(f"{model}: transient error ({code}), retrying in {backoff:.1f}s")
+                        time.sleep(backoff)
+                        continue
+                    break
+
+                logger.warning(f"{model}: unhandled error, moving on: {msg[:200]}")
+                break
+
+    raise RuntimeError(f"All Gemini models failed (last error: {last_error})")
+
+
+# ─────────────────────────────────────────────────────────────
+# GEMINI AGENT
+# ─────────────────────────────────────────────────────────────
+def _to_int(v: Any, default: int) -> int:
+    try:
+        return max(0, min(100, int(float(v))))
+    except (TypeError, ValueError):
+        return default
+
+
+def _norm_urgency(v: Any, default: str = "routine") -> str:
+    v = str(v or "").strip().lower()
+    return v if v in _URGENCY_RANK else default
+
+
+def _run_gemini_agent(input_data: ClinicalCDSInput) -> ClinicalCDSResult:
+    api_key = _api_key()
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY not configured")
+
+    vitals = input_data.vitals
+    vitals_dict: Dict[str, str] = {}
+    vitals_str = "None"
+    if vitals:
+        vitals_dict = {
+            "bp": vitals.bp or "",
+            "temp": vitals.temp or "",
+            "pulse": vitals.pulse or "",
+            "spo2": vitals.spo2 or "",
+        }
+        vitals_str = f"BP {vitals.bp or '-'}, Temp {vitals.temp or '-'}, HR {vitals.pulse or '-'}, SpO2 {vitals.spo2 or '-'}"
+
+    thoughts: List[AgentThoughtStep] = []
+    step = 1
+
+    def add_step(thought, tool=None, tool_input=None, obs=""):
+        nonlocal step
+        thoughts.append(AgentThoughtStep(
+            stepNumber=step, thought=thought, toolName=tool, toolInput=tool_input, observation=obs
+        ))
+        step += 1
+
+    add_step(
+        f"Received patient case. Chief complaint: '{input_data.chief_complaint}'. Symptoms: '{input_data.symptoms}'.",
+        obs="Patient context loaded. Beginning clinical evaluation.",
+    )
+
+    # ── Local tools (no API quota used) ──
+    vitals_res = _safe_tool(calculate_vitals_risk_score, vitals=vitals_dict)
+    add_step("Invoking 'calculate_vitals_risk_score' to assess urgency.",
+             "calculate_vitals_risk_score", json.dumps(vitals_dict),
+             _summarize_tool_result("calculate_vitals_risk_score", vitals_res))
+    vitals_urgency = _norm_urgency(vitals_res.get("urgency"))
+
+    kw = (input_data.symptoms or input_data.chief_complaint or "general").strip()
+    guide_res = _safe_tool(query_clinical_guidelines, diagnosis_keywords=kw)
+    add_step("Invoking 'query_clinical_guidelines' to retrieve evidence-based protocols.",
+             "query_clinical_guidelines", json.dumps({"diagnosis_keywords": kw}),
+             _summarize_tool_result("query_clinical_guidelines", guide_res))
+
+    # ── Single Gemini request ──
+    findings = "; ".join(vitals_res.get("findings", []) or []) or "none"
+    prompt = (
+        f"Patient: age {input_data.patient_age or 'unknown'}, sex {input_data.patient_gender or 'unknown'}.\n"
+        f"Chief complaint: {input_data.chief_complaint or 'not stated'}.\n"
+        f"Symptoms: {input_data.symptoms or 'not stated'}.\n"
+        f"Vitals: {vitals_str}.\n"
+        f"Known allergies: {input_data.patient_allergies or 'none reported'}.\n"
+        f"Vitals risk tool: urgency={vitals_urgency}, score={vitals_res.get('risk_score', 0)}/9, findings: {findings}.\n"
+        f"Guideline context: {_compact_guidelines(guide_res) or 'none'}.\n"
+        "Produce the JSON care-plan draft."
+    )
+
+    client = _get_client(api_key)
+    data, model_used = _call_gemini_json(client, prompt)
+
+    # ── Build typed result ──
+    diagnoses: List[DiagnosisCandidate] = []
+    for idx, d in enumerate(data.get("diagnoses", [])[:4]):
+        if not isinstance(d, dict):
+            continue
+        evidence = d.get("evidence", [])
         diagnoses.append(DiagnosisCandidate(
-            id=d.get("id", f"D{idx+1}"),
-            diagnosis=d.get("diagnosis", "Unknown"),
-            confidence=int(d.get("confidence", 70)),
-            icdCode=d.get("icdCode", "R69"),
-            evidence=d.get("evidence", [])
+            id=str(d.get("id") or f"D{idx + 1}"),
+            diagnosis=str(d.get("diagnosis") or "Unknown"),
+            confidence=_to_int(d.get("confidence"), 70),
+            icdCode=str(d.get("icdCode") or "R69"),
+            evidence=[str(e) for e in evidence] if isinstance(evidence, list) else [str(evidence)],
         ))
+    if not diagnoses:
+        raise ValueError("Gemini returned no usable diagnoses")
 
-    # Build AgentLabDraft list
-    lab_drafts = []
-    for idx, l in enumerate(data.get("labDrafts", [])):
-        lab_drafts.append(AgentLabDraft(
-            id=l.get("id", f"L{idx+1}"),
-            testName=l.get("testName", ""),
-            indication=l.get("indication", ""),
-            urgency=l.get("urgency", "routine")
-        ))
+    lab_drafts: List[AgentLabDraft] = []
+    for idx, l in enumerate(data.get("labDrafts", [])[:6]):
+        if isinstance(l, dict) and l.get("testName"):
+            lab_drafts.append(AgentLabDraft(
+                id=str(l.get("id") or f"L{idx + 1}"),
+                testName=str(l["testName"]),
+                indication=str(l.get("indication") or ""),
+                urgency=_norm_urgency(l.get("urgency")),
+            ))
 
-    # Build AgentMedicationDraft list
-    med_drafts = []
-    for idx, m in enumerate(data.get("medicationDrafts", [])):
-        med_drafts.append(AgentMedicationDraft(
-            id=m.get("id", f"M{idx+1}"),
-            drugName=m.get("drugName", ""),
-            dosage=m.get("dosage", ""),
-            frequency=m.get("frequency", ""),
-            duration=m.get("duration", ""),
-            instructions=m.get("instructions", ""),
-            safetyWarning=m.get("safetyWarning")
-        ))
+    med_drafts: List[AgentMedicationDraft] = []
+    for idx, m in enumerate(data.get("medicationDrafts", [])[:6]):
+        if isinstance(m, dict) and m.get("drugName"):
+            sw = m.get("safetyWarning")
+            med_drafts.append(AgentMedicationDraft(
+                id=str(m.get("id") or f"M{idx + 1}"),
+                drugName=str(m["drugName"]),
+                dosage=str(m.get("dosage") or ""),
+                frequency=str(m.get("frequency") or ""),
+                duration=str(m.get("duration") or ""),
+                instructions=str(m.get("instructions") or ""),
+                safetyWarning=str(sw) if sw else None,
+            ))
 
-    lab_test_names = data.get("labTests", [l.testName for l in lab_drafts])
+    top_dx = diagnoses[0].diagnosis
+    allergies = input_data.patient_allergies or ""
 
-    warnings = data.get("warnings", [])
-    if input_data.patient_allergies and not any("ALLERGY ALERT" in w for w in warnings):
-        al_lower = input_data.patient_allergies.lower()
-        if "penicillin" in al_lower or "amoxicillin" in al_lower:
-            warnings.append("ALLERGY ALERT: Patient is allergic to Penicillins. Avoid beta-lactam prescribing.")
-        elif "nsaid" in al_lower or "aspirin" in al_lower:
-            warnings.append("ALLERGY ALERT: Patient has reported NSAID sensitivity.")
-        else:
-            warnings.append(f"ALLERGY ALERT: Documented patient allergy: {input_data.patient_allergies.strip()}.")
+    # ── Partial repair: fill gaps from the local medication tool instead of going offline ──
+    if not med_drafts:
+        med_res = _safe_tool(generate_medication_drafts_from_diagnosis, diagnosis=top_dx, allergies=allergies)
+        for idx, m in enumerate(med_res.get("medication_drafts", [])):
+            try:
+                med_drafts.append(AgentMedicationDraft(
+                    id=f"M{idx + 1}", drugName=m["drug_name"], dosage=m["dosage"],
+                    frequency=m["frequency"], duration=m["duration"],
+                    instructions=m["instructions"], safetyWarning=m.get("safety_warning"),
+                ))
+            except Exception:
+                continue
+        if med_drafts:
+            add_step(f"Gemini returned no medications; generated drafts for '{top_dx}' from local tool.",
+                     "generate_medication_drafts_from_diagnosis",
+                     f"diagnosis={top_dx}, allergies={allergies}",
+                     _summarize_tool_result("generate_medication_drafts_from_diagnosis", med_res))
+
+    lab_test_names = [str(t) for t in data.get("labTests", []) if t] or [l.testName for l in lab_drafts]
+    if not lab_test_names:
+        lab_test_names = [l.testName for l in lab_drafts]
+
+    # ── Mandatory allergy safety check on whatever the model proposed ──
+    warnings: List[str] = [str(w) for w in data.get("warnings", []) if w]
+    for f in vitals_res.get("findings", []) or []:
+        _add_warning(warnings, str(f))
+
+    proposed = [m.drugName for m in med_drafts]
+    allergy_res = _safe_tool(check_allergy_contraindications, allergies=allergies, proposed_medications=proposed)
+    for c in allergy_res.get("contraindications", []) or []:
+        rec = c.get("recommendation", f"{c.get('drug')} contraindicated ({c.get('allergen')} allergy)")
+        _add_warning(warnings, f"ALLERGY ALERT: {rec}")
+        for m in med_drafts:
+            if str(c.get("drug", "")).lower() in m.drugName.lower():
+                m.safetyWarning = f"CRITICAL CONTRAINDICATION: {rec}"
+    add_step(f"Running drug-allergy safety cross-check on {len(proposed)} proposed medications.",
+             "check_allergy_contraindications", f"allergies={allergies}, meds={proposed}",
+             _summarize_tool_result("check_allergy_contraindications", allergy_res))
+
+    if allergies.strip() and not any("ALLERGY ALERT" in w for w in warnings):
+        _add_warning(warnings, f"ALLERGY ALERT: Documented patient allergy: {allergies.strip()}.")
+
+    # Urgency = the more severe of tool and model
+    urgency = max(vitals_urgency, _norm_urgency(data.get("urgency")), key=lambda u: _URGENCY_RANK[u])
+
+    add_step(f"Synthesised differential diagnosis and care plan with Gemini ({model_used}).",
+             "finalize_clinical_plan", "status=pending_doctor_approval",
+             f"Produced {len(diagnoses)} diagnoses, {len(lab_drafts)} lab orders, {len(med_drafts)} medication drafts for doctor review.")
 
     return ClinicalCDSResult(
         diagnoses=diagnoses,
         labTests=lab_test_names,
-        urgency=data.get("urgency", "routine"),
+        urgency=urgency,
         warnings=warnings,
-        thoughtStream=thought_stream,
+        thoughtStream=thoughts,
         labDrafts=lab_drafts,
-        medicationDrafts=med_drafts
+        medicationDrafts=med_drafts,
     )
 
 
 # ─────────────────────────────────────────────────────────────
-# RULE-BASED FALLBACK ENGINE (used when Gemini is unavailable)
+# RULE-BASED FALLBACK (last resort only)
 # ─────────────────────────────────────────────────────────────
-def _rule_based_fallback(input_data: ClinicalCDSInput) -> ClinicalCDSResult:
-    """
-    Rule-based fallback engine. Runs when GEMINI_API_KEY is not set or API fails.
-    Still uses the real clinical tools (allergy check, vitals score, guideline KB)
-    but chains them with pre-defined logic rather than LLM reasoning.
-    """
-    text = (f"{input_data.chief_complaint or ''} {input_data.symptoms or ''}").lower()
+def _rule_based_fallback(input_data: ClinicalCDSInput, reason: str = "Gemini unavailable") -> ClinicalCDSResult:
+    text = f"{input_data.chief_complaint or ''} {input_data.symptoms or ''}".lower()
     vitals = input_data.vitals
     allergies = input_data.patient_allergies or ""
 
-    thought_stream: List[AgentThoughtStep] = []
+    thoughts: List[AgentThoughtStep] = []
     diagnoses: List[DiagnosisCandidate] = []
     lab_drafts: List[AgentLabDraft] = []
-    medication_drafts: List[AgentMedicationDraft] = []
+    med_drafts: List[AgentMedicationDraft] = []
     warnings: List[str] = []
-    urgency = "routine"
     step = 1
 
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step,
-        thought="[Fallback Mode — Gemini API not configured] Initiating rule-based clinical evaluation. Set GEMINI_API_KEY in ai/.env for real AI agent.",
-        toolName="perceive_patient_context",
-        toolInput=f"symptoms={input_data.symptoms}, chief_complaint={input_data.chief_complaint}",
-        observation="Patient context loaded via rule-based engine."
-    ))
-    step += 1
+    def add_step(thought, tool=None, tool_input=None, obs=""):
+        nonlocal step
+        thoughts.append(AgentThoughtStep(
+            stepNumber=step, thought=thought, toolName=tool, toolInput=tool_input, observation=obs
+        ))
+        step += 1
 
-    # Real tool: Vitals risk score
+    add_step(f"[Fallback Mode — {reason}] Initiating rule-based clinical evaluation.",
+             "perceive_patient_context",
+             f"symptoms={input_data.symptoms}, chief_complaint={input_data.chief_complaint}",
+             "Patient context loaded via rule-based engine.")
+
     vitals_dict = {}
     if vitals:
         vitals_dict = {"bp": vitals.bp or "", "temp": vitals.temp or "", "pulse": vitals.pulse or "", "spo2": vitals.spo2 or ""}
-    vitals_result = calculate_vitals_risk_score(vitals_dict)
-    urgency = vitals_result.get("urgency", "routine")
-    for finding in vitals_result.get("findings", []):
-        warnings.append(finding)
+    vitals_res = _safe_tool(calculate_vitals_risk_score, vitals=vitals_dict)
+    urgency = _norm_urgency(vitals_res.get("urgency"))
+    for f in vitals_res.get("findings", []) or []:
+        _add_warning(warnings, str(f))
+    add_step("Assessing vital signs for emergency flags.", "calculate_vitals_risk_score",
+             json.dumps(vitals_dict), _summarize_tool_result("calculate_vitals_risk_score", vitals_res))
 
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step,
-        thought="Assessing vital signs for emergency flags.",
-        toolName="calculate_vitals_risk_score",
-        toolInput=json.dumps(vitals_dict),
-        observation=_summarize_tool_result("calculate_vitals_risk_score", vitals_result)
-    ))
-    step += 1
-
-    # Determine likely diagnosis from keywords
-    primary_diagnosis = None
-    if any(kw in text for kw in ["epigastric", "stomach", "gastritis", "acid", "heartburn", "nausea", "abdominal"]):
-        primary_diagnosis = "Acute Gastritis"
-        diagnoses.append(DiagnosisCandidate(id="D1", diagnosis="Acute Gastritis", confidence=88, icdCode="K29.7",
-            evidence=["Reported epigastric discomfort", "Postprandial nausea", "Mucosal irritation pattern"]))
-        diagnoses.append(DiagnosisCandidate(id="D2", diagnosis="Gastroesophageal Reflux Disease (GERD)", confidence=74, icdCode="K21.9",
-            evidence=["Retrosternal acid regurgitation", "Symptoms exacerbated after meals"]))
-        lab_drafts.extend([
-            AgentLabDraft(id="L1", testName="H. Pylori Stool Antigen Test", indication="Screen for H. pylori infection", urgency="routine"),
-            AgentLabDraft(id="L2", testName="Full Blood Count (FBC)", indication="Exclude GI blood loss and anaemia", urgency="routine"),
-        ])
-
-    elif any(kw in text for kw in ["cough", "fever", "throat", "runny nose", "congestion", "sore throat"]):
-        primary_diagnosis = "Acute Upper Respiratory Tract Infection"
-        diagnoses.append(DiagnosisCandidate(id="D1", diagnosis="Acute Upper Respiratory Tract Infection (URTI)", confidence=91, icdCode="J06.9",
-            evidence=["Respiratory symptoms with throat inflammation", "Febrile presentation"]))
-        diagnoses.append(DiagnosisCandidate(id="D2", diagnosis="Acute Bronchitis", confidence=68, icdCode="J20.9",
-            evidence=["Productive cough", "Absence of pulmonary consolidation signs"]))
-        lab_drafts.extend([
-            AgentLabDraft(id="L1", testName="Full Blood Count (FBC)", indication="Differentiate bacterial vs viral infection", urgency="routine"),
-            AgentLabDraft(id="L2", testName="C-Reactive Protein (CRP)", indication="Measure systemic inflammatory marker", urgency="routine"),
-        ])
-
-    elif any(kw in text for kw in ["chest pain", "palpitations", "high bp", "dizziness", "shortness of breath"]):
-        primary_diagnosis = "Hypertension"
-        urgency = "urgent" if urgency != "emergency" else urgency
-        diagnoses.append(DiagnosisCandidate(id="D1", diagnosis="Essential Hypertension", confidence=85, icdCode="I10",
-            evidence=["Elevated blood pressure readings", "Exertional dizziness"]))
-        diagnoses.append(DiagnosisCandidate(id="D2", diagnosis="Angina Pectoris — Ischaemic Evaluation", confidence=65, icdCode="I20.9",
-            evidence=["Exertional chest discomfort", "Serial ECG monitoring required"]))
-        lab_drafts.extend([
+    if any(k in text for k in ["chest pain", "palpitations", "high bp", "dizziness", "shortness of breath"]):
+        primary = "Hypertension"
+        if urgency == "routine":
+            urgency = "urgent"
+        diagnoses += [
+            DiagnosisCandidate(id="D1", diagnosis="Essential Hypertension", confidence=85, icdCode="I10",
+                               evidence=["Elevated blood pressure readings", "Exertional dizziness"]),
+            DiagnosisCandidate(id="D2", diagnosis="Angina Pectoris — Ischaemic Evaluation", confidence=65, icdCode="I20.9",
+                               evidence=["Exertional chest discomfort", "Serial ECG monitoring required"]),
+        ]
+        lab_drafts += [
             AgentLabDraft(id="L1", testName="12-Lead ECG", indication="Cardiac rhythm and ischaemia assessment", urgency="urgent"),
             AgentLabDraft(id="L2", testName="Serum Troponin I (0h + 1h)", indication="Exclude acute myocardial injury", urgency="urgent"),
             AgentLabDraft(id="L3", testName="Lipid Profile", indication="Cardiovascular risk stratification", urgency="routine"),
-        ])
+        ]
+    elif any(k in text for k in ["epigastric", "stomach", "gastritis", "acid", "heartburn", "nausea", "abdominal"]):
+        primary = "Acute Gastritis"
+        diagnoses += [
+            DiagnosisCandidate(id="D1", diagnosis="Acute Gastritis", confidence=88, icdCode="K29.7",
+                               evidence=["Reported epigastric discomfort", "Postprandial nausea", "Mucosal irritation pattern"]),
+            DiagnosisCandidate(id="D2", diagnosis="Gastroesophageal Reflux Disease (GERD)", confidence=74, icdCode="K21.9",
+                               evidence=["Retrosternal acid regurgitation", "Symptoms exacerbated after meals"]),
+        ]
+        lab_drafts += [
+            AgentLabDraft(id="L1", testName="H. Pylori Stool Antigen Test", indication="Screen for H. pylori infection", urgency="routine"),
+            AgentLabDraft(id="L2", testName="Full Blood Count (FBC)", indication="Exclude GI blood loss and anaemia", urgency="routine"),
+        ]
+    elif any(k in text for k in ["cough", "fever", "throat", "runny nose", "congestion", "sore throat"]):
+        primary = "Acute Upper Respiratory Tract Infection"
+        diagnoses += [
+            DiagnosisCandidate(id="D1", diagnosis="Acute Upper Respiratory Tract Infection (URTI)", confidence=91, icdCode="J06.9",
+                               evidence=["Respiratory symptoms with throat inflammation", "Febrile presentation"]),
+            DiagnosisCandidate(id="D2", diagnosis="Acute Bronchitis", confidence=68, icdCode="J20.9",
+                               evidence=["Productive cough", "Absence of pulmonary consolidation signs"]),
+        ]
+        lab_drafts += [
+            AgentLabDraft(id="L1", testName="Full Blood Count (FBC)", indication="Differentiate bacterial vs viral infection", urgency="routine"),
+            AgentLabDraft(id="L2", testName="C-Reactive Protein (CRP)", indication="Measure systemic inflammatory marker", urgency="routine"),
+        ]
     else:
-        primary_diagnosis = "Undifferentiated Presentation"
+        primary = "Undifferentiated Presentation"
         diagnoses.append(DiagnosisCandidate(id="D1", diagnosis="Undifferentiated Clinical Presentation", confidence=70, icdCode="R69",
-            evidence=["Non-specific symptoms reported", "Baseline workup required"]))
-        lab_drafts.append(AgentLabDraft(id="L1", testName="Basic Metabolic Panel (BMP)", indication="Baseline electrolyte and renal function screen", urgency="routine"))
+                                            evidence=["Non-specific symptoms reported", "Baseline workup required"]))
+        lab_drafts.append(AgentLabDraft(id="L1", testName="Basic Metabolic Panel (BMP)",
+                                        indication="Baseline electrolyte and renal function screen", urgency="routine"))
 
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step,
-        thought=f"Querying clinical knowledge base for evidence-based guidelines on '{primary_diagnosis}'.",
-        toolName="query_clinical_guidelines",
-        toolInput=f"diagnosis_keywords={primary_diagnosis}",
-        observation="Clinical guidelines retrieved and mapped to treatment recommendations."
-    ))
-    step += 1
+    guide_res = _safe_tool(query_clinical_guidelines, diagnosis_keywords=primary)
+    add_step(f"Querying clinical knowledge base for guidelines on '{primary}'.", "query_clinical_guidelines",
+             f"diagnosis_keywords={primary}", _summarize_tool_result("query_clinical_guidelines", guide_res))
 
-    # Real tool: Generate medication drafts
-    med_result = generate_medication_drafts_from_diagnosis(diagnosis=primary_diagnosis or "General", allergies=allergies)
-    for idx, m in enumerate(med_result.get("medication_drafts", [])):
-        medication_drafts.append(AgentMedicationDraft(
-            id=f"M{idx+1}",
-            drugName=m["drug_name"],
-            dosage=m["dosage"],
-            frequency=m["frequency"],
-            duration=m["duration"],
-            instructions=m["instructions"],
-            safetyWarning=m.get("safety_warning")
-        ))
+    med_res = _safe_tool(generate_medication_drafts_from_diagnosis, diagnosis=primary, allergies=allergies)
+    for idx, m in enumerate(med_res.get("medication_drafts", [])):
+        try:
+            med_drafts.append(AgentMedicationDraft(
+                id=f"M{idx + 1}", drugName=m["drug_name"], dosage=m["dosage"], frequency=m["frequency"],
+                duration=m["duration"], instructions=m["instructions"], safetyWarning=m.get("safety_warning"),
+            ))
+        except Exception:
+            continue
+    add_step(f"Generating medication drafts for '{primary}'.", "generate_medication_drafts_from_diagnosis",
+             f"diagnosis={primary}, allergies={allergies}",
+             _summarize_tool_result("generate_medication_drafts_from_diagnosis", med_res))
 
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step,
-        thought=f"Generating medication drafts for '{primary_diagnosis}'.",
-        toolName="generate_medication_drafts_from_diagnosis",
-        toolInput=f"diagnosis={primary_diagnosis}, allergies={allergies}",
-        observation=_summarize_tool_result("generate_medication_drafts_from_diagnosis", med_result)
-    ))
-    step += 1
+    proposed = [m.drugName for m in med_drafts]
+    allergy_res = _safe_tool(check_allergy_contraindications, allergies=allergies, proposed_medications=proposed)
+    for c in allergy_res.get("contraindications", []) or []:
+        rec = c.get("recommendation", f"{c.get('drug')} contraindicated")
+        _add_warning(warnings, f"ALLERGY ALERT: {rec}")
+        for m in med_drafts:
+            if str(c.get("drug", "")).lower() in m.drugName.lower():
+                m.safetyWarning = f"CRITICAL CONTRAINDICATION: {rec}"
 
-    # Real tool: Allergy cross-check
-    proposed_drug_names = [m.drugName for m in medication_drafts]
-    allergy_result = check_allergy_contraindications(allergies=allergies, proposed_medications=proposed_drug_names)
-    for contraindication in allergy_result.get("contraindications", []):
-        warnings.append(f"ALLERGY ALERT: {contraindication['recommendation']}")
-        for med in medication_drafts:
-            if contraindication["drug"].lower() in med.drugName.lower():
-                med.safetyWarning = f"CRITICAL CONTRAINDICATION: {contraindication['recommendation']}"
-
-    # General allergy awareness warnings
-    if allergies and allergies.strip():
-        al_lower = allergies.lower()
-        if "penicillin" in al_lower or "amoxicillin" in al_lower:
-            warnings.append("ALLERGY ALERT: Patient is allergic to Penicillins. Avoid beta-lactam prescribing.")
-        elif "nsaid" in al_lower or "aspirin" in al_lower:
-            warnings.append("ALLERGY ALERT: Patient has reported NSAID sensitivity.")
+    if allergies.strip():
+        al = allergies.lower()
+        if "penicillin" in al or "amoxicillin" in al:
+            _add_warning(warnings, "ALLERGY ALERT: Patient is allergic to Penicillins. Avoid beta-lactam prescribing.")
+        elif "nsaid" in al or "aspirin" in al:
+            _add_warning(warnings, "ALLERGY ALERT: Patient has reported NSAID sensitivity.")
         elif not any("ALLERGY ALERT" in w for w in warnings):
-            warnings.append(f"ALLERGY ALERT: Documented allergy to {allergies.strip()}.")
+            _add_warning(warnings, f"ALLERGY ALERT: Documented allergy to {allergies.strip()}.")
+    add_step(f"Running drug-allergy safety cross-check on {len(proposed)} proposed medications.",
+             "check_allergy_contraindications", f"allergies={allergies}, meds={proposed}",
+             _summarize_tool_result("check_allergy_contraindications", allergy_res))
 
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step,
-        thought=f"Running drug-allergy safety cross-check on {len(proposed_drug_names)} proposed medications.",
-        toolName="check_allergy_contraindications",
-        toolInput=f"allergies={allergies}, meds={proposed_drug_names}",
-        observation=_summarize_tool_result("check_allergy_contraindications", allergy_result)
-    ))
-    step += 1
-
-    thought_stream.append(AgentThoughtStep(
-        stepNumber=step,
-        thought="Rule-based agent execution complete. Draft care plan compiled for Human-in-the-Loop doctor review.",
-        toolName="finalize_clinical_plan",
-        toolInput="status=pending_doctor_approval",
-        observation=f"Produced {len(diagnoses)} differential diagnoses, {len(lab_drafts)} lab orders, {len(medication_drafts)} medication drafts."
-    ))
+    add_step("Rule-based execution complete. Draft care plan compiled for doctor review.",
+             "finalize_clinical_plan", "status=pending_doctor_approval",
+             f"Produced {len(diagnoses)} diagnoses, {len(lab_drafts)} lab orders, {len(med_drafts)} medication drafts.")
 
     return ClinicalCDSResult(
         diagnoses=diagnoses,
         labTests=[l.testName for l in lab_drafts],
         urgency=urgency,
         warnings=warnings,
-        thoughtStream=thought_stream,
+        thoughtStream=thoughts,
         labDrafts=lab_drafts,
-        medicationDrafts=medication_drafts
+        medicationDrafts=med_drafts,
     )
 
 
 # ─────────────────────────────────────────────────────────────
-# MAIN ENTRY POINT — Called by FastAPI endpoint
+# MAIN ENTRY POINT — called by the FastAPI endpoint
 # ─────────────────────────────────────────────────────────────
 def evaluate_clinical_decision_support(input_data: ClinicalCDSInput) -> ClinicalCDSResult:
     """
-    Primary clinical decision support entry point.
-    Attempts Gemini AI agent first; gracefully falls back to rule-based engine.
+    Cache -> Gemini (with retries / model rotation) -> rule-based fallback.
+    Every request logs which engine served it.
     """
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    
-    if api_key and api_key != "your_gemini_api_key_here":
-        try:
-            logger.info("Routing to Gemini AI Agent (Level 1 + Level 2 Function Calling)")
-            return _run_gemini_agent(input_data)
-        except Exception as e:
-            logger.warning(f"Gemini agent failed: {e}. Falling back to rule-based engine.")
-    else:
-        logger.info("GEMINI_API_KEY not configured — running rule-based fallback engine")
+    if not _api_key():
+        logger.info("ENGINE=fallback reason=no GEMINI_API_KEY")
+        return _rule_based_fallback(input_data, "GEMINI_API_KEY not configured")
 
-    return _rule_based_fallback(input_data)
+    key = _cache_key(input_data)
+    cached = _cache_get(key)
+    if cached is not None:
+        logger.info("ENGINE=cache")
+        return cached
 
+    try:
+        result = _run_gemini_agent(input_data)
+        _cache_put(key, result)
+        logger.info("ENGINE=gemini")
+        return result
+    except PermissionError as e:
+        logger.error(f"ENGINE=fallback reason=bad API key: {e}")
+        return _rule_based_fallback(input_data, "Gemini API key rejected")
+    except Exception as e:
+        logger.warning(f"ENGINE=fallback reason={e}")
+        return _rule_based_fallback(input_data, f"Gemini unavailable: {str(e)[:120]}")
