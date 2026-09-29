@@ -60,20 +60,14 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                       }
                     },
                   ),
-                  Row(
-                    children: [
-                      AppTheme.macOSWindowDots(size: 8, spacing: 4),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Doctors List',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.textPrimary,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Doctors List',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
+                      letterSpacing: -0.2,
+                    ),
                   ),
                   _TopCircleButton(
                     icon: Icons.more_horiz_rounded,

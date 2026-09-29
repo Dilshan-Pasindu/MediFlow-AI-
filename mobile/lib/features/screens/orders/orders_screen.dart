@@ -49,20 +49,14 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                AppTheme.macOSWindowDots(size: 9, spacing: 4),
-                const SizedBox(width: 8),
-                Text(
-                  'Medicine Dispensing Tracker',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ],
-            ),
+            Text(
+                   'Medicine Dispensing Tracker',
+                   style: GoogleFonts.outfit(
+                     fontSize: 16,
+                     fontWeight: FontWeight.w800,
+                     color: AppTheme.textPrimary,
+                   ),
+                 ),
             Text(
               'Real-time pharmacy fulfillment queue',
               style: GoogleFonts.outfit(

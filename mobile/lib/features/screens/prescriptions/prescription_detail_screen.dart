@@ -40,19 +40,13 @@ class PrescriptionDetailScreen extends ConsumerWidget {
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Row(
-          children: [
-            AppTheme.macOSWindowDots(size: 9, spacing: 4),
-            const SizedBox(width: 8),
-            Text(
-              'E-Prescription #$id',
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ],
+        title: Text(
+          'E-Prescription #$id',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textPrimary,
+          ),
         ),
         actions: [
           IconButton(
@@ -498,20 +492,14 @@ class _OfficialReceiptSheet extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    AppTheme.macOSWindowDots(size: 9, spacing: 4),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Official Clinical Receipt',
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textPrimary,
-                      ),
+                Text(
+                    'Official Clinical Receipt',
+                    style: GoogleFonts.outfit(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textPrimary,
                     ),
-                  ],
-                ),
+                  ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, size: 20),
                   onPressed: () => Navigator.of(context).pop(),

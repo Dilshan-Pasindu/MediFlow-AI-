@@ -106,19 +106,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Row(
-          children: [
-            AppTheme.macOSWindowDots(size: 9, spacing: 4),
-            const SizedBox(width: 8),
-            Text(
-              'Edit Health Profile',
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ],
+        title: Text(
+          'Edit Health Profile',
+          style: GoogleFonts.outfit(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textPrimary,
+          ),
         ),
       ),
       body: _loading

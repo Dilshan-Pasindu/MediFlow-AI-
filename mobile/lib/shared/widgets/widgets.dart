@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
 export 'mediflow_logo.dart';
+export 'now_consulting_widget.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared reusable widgets for MediFlow AI Flutter app

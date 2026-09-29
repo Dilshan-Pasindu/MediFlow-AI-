@@ -139,20 +139,14 @@ class _SymptomAiScreenState extends ConsumerState<SymptomAiScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                AppTheme.macOSWindowDots(size: 9, spacing: 4),
-                const SizedBox(width: 8),
-                Text(
-                  'AI Symptom Checker',
-                  style: GoogleFonts.outfit(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ],
-            ),
+            Text(
+               'AI Symptom Checker',
+               style: GoogleFonts.outfit(
+                 fontSize: 16,
+                 fontWeight: FontWeight.w800,
+                 color: AppTheme.textPrimary,
+               ),
+             ),
             Text(
               'Clinical Triage & Specialist Recommendation',
               style: GoogleFonts.outfit(

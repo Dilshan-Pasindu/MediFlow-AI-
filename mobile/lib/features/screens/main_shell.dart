@@ -12,9 +12,8 @@ import 'profile/profile_screen.dart';
 /// Global tab index provider
 final shellTabProvider = StateProvider<int>((_) => 0);
 
-/// Main shell — blue pill-shaped bottom navigation bar
-/// matching the reference design: blue background, white icons,
-/// active item in a white rounded capsule
+/// Main shell — premium medical bottom navigation bar
+/// Dark navy pill with glowing active indicator and label
 class MainShell extends ConsumerWidget {
   const MainShell({super.key, required this.child});
   final Widget child;
@@ -42,20 +41,27 @@ class MainShell extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
           child: Container(
-            height: 66,
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            height: 68,
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
             decoration: BoxDecoration(
+              // Deep navy glass with subtle gradient
               gradient: const LinearGradient(
-                colors: [Color(0xFF4A6FE3), Color(0xFF2F4FD1)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF0B2E4A), Color(0xFF1565C0)],
               ),
               borderRadius: BorderRadius.circular(AppTheme.radiusFull),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF4A6FE3).withValues(alpha: 0.40),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
+                  color: const Color(0xFF1565C0).withValues(alpha: 0.50),
+                  blurRadius: 28,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 10),
+                ),
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
@@ -87,8 +93,8 @@ class MainShell extends ConsumerWidget {
                   onTap: () => ref.read(shellTabProvider.notifier).state = 2,
                 ),
                 _NavItem(
-                  icon: Icons.favorite_border_rounded,
-                  activeIcon: Icons.favorite_rounded,
+                  icon: Icons.medication_outlined,
+                  activeIcon: Icons.medication_rounded,
                   label: 'Records',
                   index: 3,
                   selectedIndex: selectedIndex,
@@ -139,16 +145,39 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 260),
         curve: Curves.easeOutCubic,
         padding: isSelected
             ? const EdgeInsets.symmetric(horizontal: 16, vertical: 6)
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            : const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected
-              ? Colors.white.withValues(alpha: 0.22)
-              : Colors.transparent,
+          // Frosted glass glow for selected item
+          gradient: isSelected
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.24),
+                    Colors.white.withValues(alpha: 0.12),
+                  ],
+                )
+              : null,
           borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+          border: isSelected
+              ? Border.all(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  width: 1,
+                )
+              : null,
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    spreadRadius: 0,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -158,7 +187,9 @@ class _NavItem extends StatelessWidget {
               children: [
                 Icon(
                   isSelected ? activeIcon : icon,
-                  color: Colors.white,
+                  color: isSelected
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: 0.55),
                   size: 22,
                 ),
                 if (badge != null && !isSelected)
@@ -177,13 +208,14 @@ class _NavItem extends StatelessWidget {
               ],
             ),
             if (isSelected) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 7),
               Text(
                 label,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.plusJakartaSans(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
+                  letterSpacing: 0.1,
                 ),
               ),
             ],

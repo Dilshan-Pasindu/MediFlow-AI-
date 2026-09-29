@@ -15,15 +15,16 @@ import '../orders/orders_screen.dart';
 import '../notifications/notifications_screen.dart';
 import '../main_shell.dart';
 
-/// Patient Dashboard (macOS-Inspired Medical Design System)
-/// Implements all website functions:
-///  - macOS Top Bar with Traffic Light Window Controls & Date Badge
-///  - Real-time "Now Consulting" Clinic Activity Banner
-///  - 3 Stat Metrics Cards (Upcoming Visits, Active Rx, Medicine Orders)
-///  - 6 macOS Application Quick Action Tiles
-///  - Upcoming Appointment Hero Card with live status & instant cancel
-///  - Top Doctors showcase strip with availability selector
-///  - Active Prescriptions with direct "Track Dispense" order links
+/// Patient Dashboard — Premium Medical Theme
+/// Features:
+///  - Warm gradient header with avatar, greeting & real date
+///  - Real-time "Now Consulting" live SignalR card (mirroring website)
+///  - 3 animated stat metric cards (Upcoming, Prescriptions, Orders)
+///  - 6 premium service tiles with gradient icons
+///  - Upcoming appointment hero card
+///  - Top Doctors showcase
+///  - Disease Monitoring horizontal strip
+///  - Active prescriptions preview
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -32,7 +33,7 @@ class DashboardScreen extends ConsumerStatefulWidget {
 }
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
-  int _selectedDayIndex = 3; // Thu 15 in reference design
+  int _selectedDayIndex = 3;
   bool _isFavorite = false;
 
   @override
@@ -44,14 +45,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final ordersAsync = ref.watch(myOrdersProvider);
 
     final rawName = auth.user?.fullName.trim();
-    final firstName = (rawName != null && rawName.isNotEmpty) ? rawName.split(' ').first : 'Patient';
-    final formattedDate = DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now());
+    final firstName =
+        (rawName != null && rawName.isNotEmpty) ? rawName.split(' ').first : 'Patient';
+    final formattedDate = DateFormat('EEEE, MMMM d').format(DateTime.now());
 
     final hour = DateTime.now().hour;
-    final greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    final greeting =
+        hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
     return Scaffold(
-      backgroundColor: AppTheme.bgCanvas,
+      backgroundColor: const Color(0xFFF0F3FA),
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
@@ -65,271 +68,179 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              // ── Top Header with macOS Window Controls ─────────────────────
+              // ── Gradient Hero Header ──────────────────────────────────────
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-                  child: Column(
-                    children: [
-                      // macOS Traffic Lights & Clinic network branding
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              AppTheme.macOSWindowDots(size: 10, spacing: 5),
-                              const SizedBox(width: 10),
-                              const MediFlowLogo(
-                                variant: MediFlowLogoVariant.horizontal,
-                                height: 18,
-                              ),
-                            ],
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFECFDF5),
-                              borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF1565C0), Color(0xFF2A7DE1), Color(0xFF4FA3E0)],
+                      stops: [0.0, 0.55, 1.0],
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+                    child: Column(
+                      children: [
+                        // Top bar: Logo + actions
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const MediFlowLogo(
+                              variant: MediFlowLogoVariant.white,
+                              height: 22,
                             ),
-                            child: Row(
+                            Row(
                               children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF059669),
-                                    shape: BoxShape.circle,
-                                  ),
+                                _HeaderIconButton(
+                                  icon: Icons.search_rounded,
+                                  onTap: () => ref.read(shellTabProvider.notifier).state = 1,
                                 ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  'System Online',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF059669),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-
-                      // User Row: Avatar, Greeting, Search & Notification Buttons
-                      Row(
-                        children: [
-                          // User Avatar
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.06),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: Container(
-                                color: AppTheme.primaryBlue.withValues(alpha: 0.12),
-                                child: Center(
-                                  child: Text(
-                                    firstName.isNotEmpty ? firstName[0].toUpperCase() : 'P',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTheme.primaryBlue,
+                                const SizedBox(width: 10),
+                                _HeaderIconButton(
+                                  icon: Icons.notifications_outlined,
+                                  hasBadge: true,
+                                  onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const NotificationsScreen(),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-
-                          // Greeting & Date
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '$greeting, $firstName 👋',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.textPrimary,
-                                    letterSpacing: -0.2,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  formattedDate,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
                               ],
                             ),
-                          ),
+                          ],
+                        ),
 
-                          // Circular Search Button (opens Find Doctor tab)
-                          _CircularActionButton(
-                            icon: Icons.search_rounded,
-                            onTap: () => ref.read(shellTabProvider.notifier).state = 1,
-                          ),
-                          const SizedBox(width: 10),
+                        const SizedBox(height: 20),
 
-                          // Circular Notification Button
-                          _CircularActionButton(
-                            icon: Icons.notifications_outlined,
-                            hasBadge: true,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                        // User greeting row
+                        Row(
+                          children: [
+                            // Avatar
+                            Container(
+                              width: 54,
+                              height: 54,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withValues(alpha: 0.2),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.5),
+                                  width: 2,
+                                ),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  firstName.isNotEmpty ? firstName[0].toUpperCase() : 'P',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$greeting, $firstName 👋',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                      letterSpacing: -0.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    formattedDate,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.white.withValues(alpha: 0.75),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        // 3 stat cards overlapping the gradient edge
+                        Row(
+                          children: [
+                            _StatCard(
+                              label: 'Upcoming',
+                              icon: Icons.calendar_today_rounded,
+                              color: Colors.white,
+                              value: apptsAsync.when(
+                                data: (list) =>
+                                    '${list.where((a) => a.isUpcoming).length}',
+                                loading: () => '–',
+                                error: (_, __) => '0',
+                              ),
+                              onTap: () =>
+                                  ref.read(shellTabProvider.notifier).state = 2,
+                            ),
+                            const SizedBox(width: 10),
+                            _StatCard(
+                              label: 'Active Rx',
+                              icon: Icons.medication_liquid_rounded,
+                              color: const Color(0xFF34D399),
+                              value: rxsAsync.when(
+                                data: (list) =>
+                                    '${list.where((r) => r.status == 'Active').length}',
+                                loading: () => '–',
+                                error: (_, __) => '0',
+                              ),
+                              onTap: () =>
+                                  ref.read(shellTabProvider.notifier).state = 3,
+                            ),
+                            const SizedBox(width: 10),
+                            _StatCard(
+                              label: 'Orders',
+                              icon: Icons.local_pharmacy_rounded,
+                              color: const Color(0xFFFBBF24),
+                              value: ordersAsync.when(
+                                data: (list) =>
+                                    '${list.where((o) => o.status != 'Dispensed').length}',
+                                loading: () => '–',
+                                error: (_, __) => '0',
+                              ),
+                              onTap: () => Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => const OrdersScreen()),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
 
-              // ── Main Dashboard Body ─────────────────────────────────────
+              // ── Dashboard Body ────────────────────────────────────────────
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 6, 20, 110),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // ── 1. Real-Time Now Consulting Banner ────────────────
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFFECACA).withValues(alpha: 0.7)),
-                        boxShadow: AppTheme.macOSShadow,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEF4444),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'NOW CONSULTING ACTIVE',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFFDC2626),
-                                    letterSpacing: 0.4,
-                                  ),
-                                ),
-                                Text(
-                                  'Live queue sessions running with OPD doctors in clinic.',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 12,
-                                    color: AppTheme.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () => ref.read(shellTabProvider.notifier).state = 2,
-                            child: Text(
-                              'View Queue',
-                              style: GoogleFonts.outfit(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.primaryBlue,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                    // ── 1. Live Consulting Banner ─────────────────────────
+                    const NowConsultingWidget(),
+                    const SizedBox(height: 24),
 
-                    // ── 2. Stat Metrics Grid (3 Cards mirroring Website) ──
-                    Row(
-                      children: [
-                        // Upcoming Visits
-                        _DashboardStatCard(
-                          title: 'Upcoming',
-                          icon: Icons.calendar_today_rounded,
-                          color: AppTheme.primaryBlue,
-                          bg: AppTheme.primaryBlue50,
-                          asyncVal: apptsAsync.when(
-                            data: (list) => '${list.where((a) => a.isUpcoming).length}',
-                            loading: () => '...',
-                            error: (_, __) => '0',
-                          ),
-                          subtitle: 'Visits',
-                          onTap: () => ref.read(shellTabProvider.notifier).state = 2,
-                        ),
-                        const SizedBox(width: 10),
-
-                        // Active Prescriptions
-                        _DashboardStatCard(
-                          title: 'Active Rx',
-                          icon: Icons.medication_rounded,
-                          color: const Color(0xFF059669),
-                          bg: const Color(0xFFECFDF5),
-                          asyncVal: rxsAsync.when(
-                            data: (list) => '${list.where((r) => r.status == 'Active').length}',
-                            loading: () => '...',
-                            error: (_, __) => '0',
-                          ),
-                          subtitle: 'Meds',
-                          onTap: () => ref.read(shellTabProvider.notifier).state = 3,
-                        ),
-                        const SizedBox(width: 10),
-
-                        // Medicine Orders
-                        _DashboardStatCard(
-                          title: 'Dispensing',
-                          icon: Icons.local_shipping_outlined,
-                          color: const Color(0xFFD97706),
-                          bg: const Color(0xFFFFFBEB),
-                          asyncVal: ordersAsync.when(
-                            data: (list) => '${list.where((o) => o.status != 'Dispensed').length}',
-                            loading: () => '...',
-                            error: (_, __) => '0',
-                          ),
-                          subtitle: 'In Queue',
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const OrdersScreen()),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ── 3. Quick Action Grid (6 macOS Style Tiles) ─────────
+                    // ── 2. Patient Services ───────────────────────────────
                     Text(
                       'Patient Services',
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 17,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
-                        letterSpacing: -0.2,
+                        letterSpacing: -0.3,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -338,181 +249,128 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       crossAxisCount: 3,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 0.95,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 0.92,
                       children: [
-                        _QuickActionTile(
+                        _ServiceTile(
                           icon: Icons.medical_services_rounded,
                           title: 'Find Doctor',
-                          subtitle: 'Specialists',
-                          iconColor: AppTheme.primaryBlue,
-                          iconBg: AppTheme.primaryBlue50,
+                          subtitle: 'Browse Specialists',
+                          gradientColors: const [Color(0xFF2A7DE1), Color(0xFF1565C0)],
                           onTap: () => ref.read(shellTabProvider.notifier).state = 1,
                         ),
-                        _QuickActionTile(
+                        _ServiceTile(
                           icon: Icons.auto_awesome_rounded,
                           title: 'Symptom AI',
                           subtitle: 'Check Symptoms',
-                          iconColor: const Color(0xFF7C3AED),
-                          iconBg: const Color(0xFFEDE9FE),
+                          gradientColors: const [Color(0xFF7C3AED), Color(0xFF5B21B6)],
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const SymptomAiScreen()),
                           ),
                         ),
-                        _QuickActionTile(
+                        _ServiceTile(
                           icon: Icons.calendar_month_rounded,
                           title: 'Schedule',
                           subtitle: 'My Visits',
-                          iconColor: const Color(0xFF0284C7),
-                          iconBg: const Color(0xFFE0F2FE),
+                          gradientColors: const [Color(0xFF0EA5E9), Color(0xFF0284C7)],
                           onTap: () => ref.read(shellTabProvider.notifier).state = 2,
                         ),
-                        _QuickActionTile(
+                        _ServiceTile(
                           icon: Icons.receipt_long_rounded,
                           title: 'Prescriptions',
                           subtitle: 'E-Prescriptions',
-                          iconColor: const Color(0xFF059669),
-                          iconBg: const Color(0xFFECFDF5),
+                          gradientColors: const [Color(0xFF10B981), Color(0xFF059669)],
                           onTap: () => ref.read(shellTabProvider.notifier).state = 3,
                         ),
-                        _QuickActionTile(
-                          icon: Icons.local_pharmacy_rounded,
+                        _ServiceTile(
+                          icon: Icons.local_shipping_rounded,
                           title: 'Orders',
                           subtitle: 'Track Dispense',
-                          iconColor: const Color(0xFFD97706),
-                          iconBg: const Color(0xFFFEF3C7),
+                          gradientColors: const [Color(0xFFF59E0B), Color(0xFFD97706)],
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const OrdersScreen()),
                           ),
                         ),
-                        _QuickActionTile(
+                        _ServiceTile(
                           icon: Icons.account_circle_rounded,
                           title: 'My Profile',
-                          subtitle: 'Vitals & History',
-                          iconColor: const Color(0xFF475569),
-                          iconBg: const Color(0xFFF1F5F9),
+                          subtitle: 'Health Records',
+                          gradientColors: const [Color(0xFF6366F1), Color(0xFF4F46E5)],
                           onTap: () => ref.read(shellTabProvider.notifier).state = 4,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
 
-                    // ── 4. Upcoming Appointment Hero Card ──────────────────
+                    // ── 3. Upcoming Appointment ───────────────────────────
                     apptsAsync.when(
-                      loading: () => const ShimmerCard(height: 140),
+                      loading: () => const ShimmerCard(height: 150),
                       error: (_, __) => const SizedBox(),
                       data: (appts) {
-                        final upcoming = appts.where((a) => a.isUpcoming).toList();
+                        final upcoming =
+                            appts.where((a) => a.isUpcoming).toList();
                         if (upcoming.isEmpty) return const SizedBox();
-                        final nextAppt = upcoming.first;
+                        final next = upcoming.first;
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Next Appointment',
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                                GestureDetector(
-                                  onTap: () => ref.read(shellTabProvider.notifier).state = 2,
-                                  child: Text(
-                                    'View all (${upcoming.length})',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.primaryBlue,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            _SectionRow(
+                              title: 'Next Appointment',
+                              actionLabel: 'View all (${upcoming.length})',
+                              onAction: () =>
+                                  ref.read(shellTabProvider.notifier).state = 2,
                             ),
-                            const SizedBox(height: 10),
-                            _UpcomingAppointmentHero(
-                              appointment: nextAppt,
-                              onCancel: () => _handleCancelAppointment(nextAppt.id),
+                            const SizedBox(height: 12),
+                            _UpcomingAppointmentCard(
+                              appointment: next,
+                              onCancel: () => _handleCancelAppointment(next.id),
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 28),
                           ],
                         );
                       },
                     ),
 
-                    // ── 5. "Top Doctors" Section ───────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Top Doctors',
-                          style: GoogleFonts.outfit(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => ref.read(shellTabProvider.notifier).state = 1,
-                          child: Text(
-                            'See all',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryBlue,
-                            ),
-                          ),
-                        ),
-                      ],
+                    // ── 4. Top Doctors ────────────────────────────────────
+                    _SectionRow(
+                      title: 'Top Doctors',
+                      actionLabel: 'See all',
+                      onAction: () => ref.read(shellTabProvider.notifier).state = 1,
                     ),
                     const SizedBox(height: 12),
-
                     doctorsAsync.when(
-                      loading: () => const ShimmerCard(height: 240),
-                      error: (_, __) => _buildFeaturedDoctorCard(null),
-                      data: (doctors) => _buildFeaturedDoctorCard(
-                        doctors.isNotEmpty ? doctors.first : null,
+                      loading: () => const ShimmerCard(height: 220),
+                      error: (_, __) => _buildFeaturedDoctor(null),
+                      data: (doctors) => _buildFeaturedDoctor(
+                          doctors.isNotEmpty ? doctors.first : null),
+                    ),
+                    const SizedBox(height: 28),
+
+                    // ── 5. Disease Monitoring ─────────────────────────────
+                    _SectionRow(
+                      title: 'Disease Monitoring',
+                      actionLabel: '',
+                      onAction: null,
+                      trailing: Row(
+                        children: [
+                          _MiniIconButton(
+                            icon: Icons.tune_rounded,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const SymptomAiScreen()),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _MiniIconButton(
+                            icon: Icons.more_horiz_rounded,
+                            onTap: () =>
+                                ref.read(shellTabProvider.notifier).state = 1,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 24),
-
-                    // ── 6. Disease Monitoring Section ──────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Disease Monitoring & Care',
-                          style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            _SmallToolButton(
-                              icon: Icons.tune_rounded,
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(builder: (_) => const SymptomAiScreen()),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            _SmallToolButton(
-                              icon: Icons.more_horiz_rounded,
-                              onTap: () => ref.read(shellTabProvider.notifier).state = 1,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 12),
-
                     SizedBox(
                       height: 140,
                       child: ListView(
@@ -520,74 +378,64 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         physics: const BouncingScrollPhysics(),
                         clipBehavior: Clip.none,
                         children: [
-                          _DiseaseMonitoringCard(
-                            title: "Bechterew's\ndisease",
+                          _DiseaseCard(
+                            title: "Spine\nDisorder",
                             icon: Icons.accessibility_new_rounded,
-                            iconColor: const Color(0xFFE11D48),
-                            iconBg: const Color(0xFFFFE4E6),
+                            gradient: const [Color(0xFFE11D48), Color(0xFFFB7185)],
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const SymptomAiScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const SymptomAiScreen()),
                             ),
                           ),
                           const SizedBox(width: 14),
-                          _DiseaseMonitoringCard(
-                            title: "Migraine\ncare",
+                          _DiseaseCard(
+                            title: "Migraine\nCare",
                             icon: Icons.psychology_rounded,
-                            iconColor: const Color(0xFF7C3AED),
-                            iconBg: const Color(0xFFEDE9FE),
+                            gradient: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const SymptomAiScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const SymptomAiScreen()),
                             ),
                           ),
                           const SizedBox(width: 14),
-                          _DiseaseMonitoringCard(
-                            title: "Cardio\nrhythm",
+                          _DiseaseCard(
+                            title: "Cardio\nRhythm",
                             icon: Icons.favorite_rounded,
-                            iconColor: const Color(0xFF059669),
-                            iconBg: const Color(0xFFCCFBF1),
+                            gradient: const [Color(0xFF059669), Color(0xFF34D399)],
                             onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => const SymptomAiScreen()),
+                              MaterialPageRoute(
+                                  builder: (_) => const SymptomAiScreen()),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          _DiseaseCard(
+                            title: "Diabetes\nMonitor",
+                            icon: Icons.bloodtype_rounded,
+                            gradient: const [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                  builder: (_) => const SymptomAiScreen()),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 28),
 
-                    // ── 7. Active Prescriptions Preview ────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Recent Prescriptions',
-                          style: GoogleFonts.outfit(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => ref.read(shellTabProvider.notifier).state = 3,
-                          child: Text(
-                            'View all',
-                            style: GoogleFonts.outfit(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: AppTheme.primaryBlue,
-                            ),
-                          ),
-                        ),
-                      ],
+                    // ── 6. Recent Prescriptions ───────────────────────────
+                    _SectionRow(
+                      title: 'Recent Prescriptions',
+                      actionLabel: 'View all',
+                      onAction: () => ref.read(shellTabProvider.notifier).state = 3,
                     ),
                     const SizedBox(height: 12),
-
                     rxsAsync.when(
                       loading: () => const ShimmerCard(height: 80),
                       error: (_, __) => const SizedBox(),
                       data: (rxs) {
                         if (rxs.isEmpty) {
                           return Container(
-                            padding: const EdgeInsets.all(18),
+                            padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
@@ -596,7 +444,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             child: Center(
                               child: Text(
                                 'No prescriptions issued yet',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.plusJakartaSans(
                                   fontSize: 13,
                                   color: AppTheme.textSecondary,
                                 ),
@@ -605,7 +453,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           );
                         }
                         return Column(
-                          children: rxs.take(2).map((rx) => _MiniPrescriptionTile(rx: rx)).toList(),
+                          children: rxs
+                              .take(2)
+                              .map((rx) => _PrescriptionTile(rx: rx))
+                              .toList(),
                         );
                       },
                     ),
@@ -626,16 +477,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Cancel Appointment?',
-          style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w800),
+          style: GoogleFonts.plusJakartaSans(fontSize: 17, fontWeight: FontWeight.w800),
         ),
         content: Text(
           'Are you sure you want to cancel this scheduled consultation? This slot will be released.',
-          style: GoogleFonts.outfit(fontSize: 13.5, color: AppTheme.textSecondary),
+          style: GoogleFonts.plusJakartaSans(
+              fontSize: 13.5, color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Keep', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            child: Text('Keep',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -643,9 +496,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('Cancel Visit', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+            child: Text('Cancel Visit',
+                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -658,7 +513,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Appointment cancelled successfully', style: GoogleFonts.outfit()),
+              content: Text('Appointment cancelled successfully',
+                  style: GoogleFonts.plusJakartaSans()),
               backgroundColor: const Color(0xFF1E293B),
             ),
           );
@@ -667,7 +523,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${e.toString()}', style: GoogleFonts.outfit()),
+              content: Text('Error: ${e.toString()}',
+                  style: GoogleFonts.plusJakartaSans()),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );
@@ -676,7 +533,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     }
   }
 
-  Widget _buildFeaturedDoctorCard(DoctorModel? doctor) {
+  Widget _buildFeaturedDoctor(DoctorModel? doctor) {
     final doctorName = doctor?.fullName ?? 'Dr. Saif Ababon';
     final specialty = doctor?.primarySpecialty ?? 'Cardiologist';
     final rating = doctor?.averageRating ?? 4.8;
@@ -693,22 +550,23 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     ];
 
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => DoctorProfileScreen(id: doctorId),
-          ),
-        );
-      },
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => DoctorProfileScreen(id: doctorId)),
+      ),
       child: Container(
         decoration: BoxDecoration(
-          gradient: AppTheme.primaryGradient,
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF1565C0), Color(0xFF2A7DE1), Color(0xFF4FA3E0)],
+            stops: [0.0, 0.55, 1.0],
+          ),
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.primaryBlue.withValues(alpha: 0.35),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
+              color: AppTheme.primaryBlue.withValues(alpha: 0.4),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
             ),
           ],
         ),
@@ -718,7 +576,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Star Rating pill
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
@@ -728,11 +585,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star_rounded, size: 14, color: Color(0xFFF59E0B)),
+                      const Icon(Icons.star_rounded,
+                          size: 14, color: Color(0xFFF59E0B)),
                       const SizedBox(width: 4),
                       Text(
                         rating.toStringAsFixed(1),
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.textPrimary,
@@ -742,7 +600,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   ),
                 ),
                 const Spacer(),
-                // Heart Favorite
                 GestureDetector(
                   onTap: () => setState(() => _isFavorite = !_isFavorite),
                   child: Container(
@@ -761,36 +618,37 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ],
             ),
-
-            const SizedBox(height: 8),
-
-            // Doctor Portrait
+            const SizedBox(height: 10),
             Center(
               child: Container(
-                width: 78,
-                height: 78,
+                width: 82,
+                height: 82,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withValues(alpha: 0.2),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.6), width: 2),
+                  border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.6), width: 2.5),
                 ),
                 child: ClipOval(
-                  child: doctor?.profilePhoto != null && doctor!.profilePhoto!.isNotEmpty
+                  child: doctor?.profilePhoto != null &&
+                          doctor!.profilePhoto!.isNotEmpty
                       ? Image.network(
                           doctor.profilePhoto!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, size: 48, color: Colors.white),
+                          errorBuilder: (_, __, ___) => const Icon(
+                              Icons.person_rounded,
+                              size: 48,
+                              color: Colors.white),
                         )
-                      : const Icon(Icons.person_rounded, size: 48, color: Colors.white),
+                      : const Icon(Icons.person_rounded,
+                          size: 48, color: Colors.white),
                 ),
               ),
             ),
-
             const SizedBox(height: 10),
-
             Text(
               specialty,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: Colors.white.withValues(alpha: 0.8),
@@ -799,23 +657,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             const SizedBox(height: 2),
             Text(
               doctorName,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.plusJakartaSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: Colors.white,
                 letterSpacing: -0.2,
               ),
             ),
-
             const SizedBox(height: 16),
-
-            // 7-day horizontal selector strip
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(days.length, (idx) {
                 final d = days[idx];
-                final isSelected = idx == _selectedDayIndex;
-
+                final isSel = idx == _selectedDayIndex;
                 return GestureDetector(
                   onTap: () => setState(() => _selectedDayIndex = idx),
                   child: AnimatedContainer(
@@ -823,7 +677,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     width: 38,
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.15),
+                      color: isSel
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Column(
@@ -831,19 +687,22 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       children: [
                         Text(
                           d['day']!,
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.plusJakartaSans(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: isSelected ? AppTheme.primaryBlue : Colors.white.withValues(alpha: 0.7),
+                            color: isSel
+                                ? AppTheme.primaryBlue
+                                : Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           d['num']!,
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.plusJakartaSans(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: isSelected ? AppTheme.primaryBlue : Colors.white,
+                            color:
+                                isSel ? AppTheme.primaryBlue : Colors.white,
                           ),
                         ),
                       ],
@@ -859,15 +718,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-// ── Supporting Dashboard Widgets ─────────────────────────────────────────────
+// ── Supporting Widgets ────────────────────────────────────────────────────────
 
-class _CircularActionButton extends StatelessWidget {
-  const _CircularActionButton({
-    required this.icon,
-    required this.onTap,
-    this.hasBadge = false,
-  });
-
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({required this.icon, required this.onTap, this.hasBadge = false});
   final IconData icon;
   final VoidCallback onTap;
   final bool hasBadge;
@@ -877,31 +731,24 @@ class _CircularActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44,
-        height: 44,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.white.withValues(alpha: 0.18),
           shape: BoxShape.circle,
-          border: Border.all(color: AppTheme.cardBorder),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            Icon(icon, size: 20, color: AppTheme.textPrimary),
+            Icon(icon, size: 20, color: Colors.white),
             if (hasBadge)
               Positioned(
-                top: 10,
-                right: 11,
+                top: 9,
+                right: 9,
                 child: Container(
-                  width: 8,
-                  height: 8,
+                  width: 7,
+                  height: 7,
                   decoration: const BoxDecoration(
                     color: Color(0xFFEF4444),
                     shape: BoxShape.circle,
@@ -915,46 +762,18 @@ class _CircularActionButton extends StatelessWidget {
   }
 }
 
-class _SmallToolButton extends StatelessWidget {
-  const _SmallToolButton({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: AppTheme.cardBorder),
-        ),
-        child: Icon(icon, size: 16, color: AppTheme.textSecondary),
-      ),
-    );
-  }
-}
-
-class _DashboardStatCard extends StatelessWidget {
-  const _DashboardStatCard({
-    required this.title,
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.label,
     required this.icon,
     required this.color,
-    required this.bg,
-    required this.asyncVal,
-    required this.subtitle,
+    required this.value,
     required this.onTap,
   });
-
-  final String title;
+  final String label;
   final IconData icon;
   final Color color;
-  final Color bg;
-  final String asyncVal;
-  final String subtitle;
+  final String value;
   final VoidCallback onTap;
 
   @override
@@ -963,40 +782,31 @@ class _DashboardStatCard extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: AppTheme.cardBorder),
-            boxShadow: AppTheme.macOSShadow,
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: bg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              const SizedBox(height: 10),
+              Icon(icon, size: 18, color: color),
+              const SizedBox(height: 8),
               Text(
-                asyncVal,
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
+                value,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 22,
                   fontWeight: FontWeight.w900,
-                  color: AppTheme.textPrimary,
+                  color: Colors.white,
                 ),
               ),
               Text(
-                title,
-                style: GoogleFonts.outfit(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textSecondary,
+                label,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.75),
                 ),
               ),
             ],
@@ -1007,21 +817,63 @@ class _DashboardStatCard extends StatelessWidget {
   }
 }
 
-class _QuickActionTile extends StatelessWidget {
-  const _QuickActionTile({
+class _SectionRow extends StatelessWidget {
+  const _SectionRow({
+    required this.title,
+    required this.actionLabel,
+    this.onAction,
+    this.trailing,
+  });
+  final String title;
+  final String actionLabel;
+  final VoidCallback? onAction;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textPrimary,
+            letterSpacing: -0.2,
+          ),
+        ),
+        trailing ??
+            (onAction != null && actionLabel.isNotEmpty
+                ? GestureDetector(
+                    onTap: onAction,
+                    child: Text(
+                      actionLabel,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primaryBlue,
+                      ),
+                    ),
+                  )
+                : const SizedBox()),
+      ],
+    );
+  }
+}
+
+class _ServiceTile extends StatelessWidget {
+  const _ServiceTile({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.iconColor,
-    required this.iconBg,
+    required this.gradientColors,
     required this.onTap,
   });
-
   final IconData icon;
   final String title;
   final String subtitle;
-  final Color iconColor;
-  final Color iconBg;
+  final List<Color> gradientColors;
   final VoidCallback onTap;
 
   @override
@@ -1029,7 +881,7 @@ class _QuickActionTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(13),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
@@ -1041,21 +893,32 @@ class _QuickActionTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(10),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: gradientColors,
+                ),
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: gradientColors.first.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
-              child: Icon(icon, size: 20, color: iconColor),
+              child: Icon(icon, size: 20, color: Colors.white),
             ),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   title,
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.textPrimary,
                   ),
@@ -1064,8 +927,8 @@ class _QuickActionTile extends StatelessWidget {
                 ),
                 Text(
                   subtitle,
-                  style: GoogleFonts.outfit(
-                    fontSize: 10.5,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
                     color: AppTheme.textSecondary,
                   ),
                   maxLines: 1,
@@ -1080,12 +943,11 @@ class _QuickActionTile extends StatelessWidget {
   }
 }
 
-class _UpcomingAppointmentHero extends StatelessWidget {
-  const _UpcomingAppointmentHero({
+class _UpcomingAppointmentCard extends StatelessWidget {
+  const _UpcomingAppointmentCard({
     required this.appointment,
     required this.onCancel,
   });
-
   final AppointmentModel appointment;
   final VoidCallback onCancel;
 
@@ -1099,7 +961,8 @@ class _UpcomingAppointmentHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3), width: 1.5),
+        border: Border.all(
+            color: AppTheme.primaryBlue.withValues(alpha: 0.25), width: 1.5),
         boxShadow: AppTheme.macOSShadow,
       ),
       child: Column(
@@ -1110,7 +973,7 @@ class _UpcomingAppointmentHero extends StatelessWidget {
               DoctorAvatar(
                 photoUrl: appointment.doctorProfilePhoto,
                 name: appointment.doctorName,
-                radius: 24,
+                radius: 26,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1119,7 +982,7 @@ class _UpcomingAppointmentHero extends StatelessWidget {
                   children: [
                     Text(
                       'Dr. ${appointment.doctorName}',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
@@ -1127,7 +990,7 @@ class _UpcomingAppointmentHero extends StatelessWidget {
                     ),
                     Text(
                       appointment.specialtyName,
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         color: AppTheme.textSecondary,
                         fontWeight: FontWeight.w500,
@@ -1137,15 +1000,15 @@ class _UpcomingAppointmentHero extends StatelessWidget {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryBlue50,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   appointment.status,
-                  style: GoogleFonts.outfit(
-                    fontSize: 11,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.primaryBlue,
                   ),
@@ -1153,21 +1016,21 @@ class _UpcomingAppointmentHero extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
               color: AppTheme.surface2,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
               children: [
-                const Icon(Icons.access_time_rounded, size: 16, color: AppTheme.primaryBlue),
+                const Icon(Icons.access_time_rounded,
+                    size: 15, color: AppTheme.primaryBlue),
                 const SizedBox(width: 8),
                 Text(
                   dateStr,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -1176,42 +1039,27 @@ class _UpcomingAppointmentHero extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).push(
+                child: _PremiumButton(
+                  label: 'View Details',
+                  outlined: true,
+                  onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => AppointmentDetailScreen(id: appointment.id),
+                      builder: (_) =>
+                          AppointmentDetailScreen(id: appointment.id),
                     ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppTheme.primaryBlue,
-                    side: const BorderSide(color: AppTheme.cardBorder),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  child: Text(
-                    'Details',
-                    style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: TextButton(
-                  onPressed: onCancel,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFDC2626),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
-                  child: Text(
-                    'Cancel Visit',
-                    style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
-                  ),
+                child: _PremiumButton(
+                  label: 'Cancel Visit',
+                  danger: true,
+                  onTap: onCancel,
                 ),
               ),
             ],
@@ -1222,19 +1070,90 @@ class _UpcomingAppointmentHero extends StatelessWidget {
   }
 }
 
-class _DiseaseMonitoringCard extends StatelessWidget {
-  const _DiseaseMonitoringCard({
+class _PremiumButton extends StatelessWidget {
+  const _PremiumButton({
+    required this.label,
+    required this.onTap,
+    this.outlined = false,
+    this.danger = false,
+  });
+  final String label;
+  final VoidCallback onTap;
+  final bool outlined;
+  final bool danger;
+
+  @override
+  Widget build(BuildContext context) {
+    if (danger) {
+      return GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 11),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF2F2),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFFCA5A5)),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFDC2626),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 11),
+        decoration: BoxDecoration(
+          gradient: outlined
+              ? null
+              : const LinearGradient(
+                  colors: [Color(0xFF2A7DE1), Color(0xFF1565C0)],
+                ),
+          color: outlined ? Colors.white : null,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.cardBorder),
+          boxShadow: outlined
+              ? null
+              : [
+                  BoxShadow(
+                    color: AppTheme.primaryBlue.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: outlined ? AppTheme.primaryBlue : Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DiseaseCard extends StatelessWidget {
+  const _DiseaseCard({
     required this.title,
     required this.icon,
-    required this.iconColor,
-    required this.iconBg,
+    required this.gradient,
     required this.onTap,
   });
-
   final String title;
   final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
+  final List<Color> gradient;
   final VoidCallback onTap;
 
   @override
@@ -1242,13 +1161,22 @@ class _DiseaseMonitoringCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 140,
+        width: 130,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: gradient,
+          ),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: AppTheme.cardBorder),
-          boxShadow: AppTheme.macOSShadow,
+          boxShadow: [
+            BoxShadow(
+              color: gradient.first.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1261,32 +1189,29 @@ class _DiseaseMonitoringCard extends StatelessWidget {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: iconBg,
+                    color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(icon, size: 18, color: iconColor),
+                  child: Icon(icon, size: 18, color: Colors.white),
                 ),
                 Container(
-                  width: 28,
-                  height: 28,
-                  decoration: const BoxDecoration(
-                    color: AppTheme.surface2,
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
-                    Icons.arrow_outward_rounded,
-                    size: 14,
-                    color: AppTheme.textPrimary,
-                  ),
+                  child: const Icon(Icons.arrow_outward_rounded,
+                      size: 13, color: Colors.white),
                 ),
               ],
             ),
             Text(
               title,
-              style: GoogleFonts.outfit(
-                fontSize: 14,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13.5,
                 fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
+                color: Colors.white,
                 height: 1.2,
               ),
             ),
@@ -1297,8 +1222,8 @@ class _DiseaseMonitoringCard extends StatelessWidget {
   }
 }
 
-class _MiniPrescriptionTile extends StatelessWidget {
-  const _MiniPrescriptionTile({required this.rx});
+class _PrescriptionTile extends StatelessWidget {
+  const _PrescriptionTile({required this.rx});
   final PrescriptionModel rx;
 
   @override
@@ -1315,13 +1240,15 @@ class _MiniPrescriptionTile extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            width: 36,
-            height: 36,
+            width: 40,
+            height: 40,
             decoration: BoxDecoration(
-              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF10B981), Color(0xFF059669)],
+              ),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.receipt_rounded, size: 18, color: AppTheme.primaryBlue),
+            child: const Icon(Icons.receipt_rounded, size: 18, color: Colors.white),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1329,8 +1256,10 @@ class _MiniPrescriptionTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  rx.diagnosis != null && rx.diagnosis!.isNotEmpty ? rx.diagnosis! : 'Prescription #${rx.id}',
-                  style: GoogleFonts.outfit(
+                  rx.diagnosis != null && rx.diagnosis!.isNotEmpty
+                      ? rx.diagnosis!
+                      : 'Prescription #${rx.id}',
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -1340,7 +1269,7 @@ class _MiniPrescriptionTile extends StatelessWidget {
                 ),
                 Text(
                   'Dr. ${rx.doctorName} • ${rx.items.length} meds',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.plusJakartaSans(
                     fontSize: 11.5,
                     color: AppTheme.textSecondary,
                   ),
@@ -1348,22 +1277,50 @@ class _MiniPrescriptionTile extends StatelessWidget {
               ],
             ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const OrdersScreen()),
-              );
-            },
-            child: Text(
-              'Track',
-              style: GoogleFonts.outfit(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.primaryBlue,
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const OrdersScreen()),
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Track',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryBlue,
+                ),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MiniIconButton extends StatelessWidget {
+  const _MiniIconButton({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          border: Border.all(color: AppTheme.cardBorder),
+        ),
+        child: Icon(icon, size: 16, color: AppTheme.textSecondary),
       ),
     );
   }

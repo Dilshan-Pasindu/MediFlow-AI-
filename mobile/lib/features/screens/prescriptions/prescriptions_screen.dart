@@ -25,19 +25,13 @@ class PrescriptionsScreen extends ConsumerWidget {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            AppTheme.macOSWindowDots(size: 9, spacing: 4),
-            const SizedBox(width: 8),
-            Text(
-              'My E-Prescriptions',
-              style: GoogleFonts.outfit(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ],
+        title: Text(
+          'My E-Prescriptions',
+          style: GoogleFonts.outfit(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textPrimary,
+          ),
         ),
         actions: [
           TextButton.icon(

@@ -12,6 +12,10 @@ enum MediFlowLogoVariant {
   /// Full stacked lockup: Icon mark on top, "MediFlow" wordmark below.
   /// Ideal for Splash screens, Get Started screen, and hero brand displays.
   full,
+
+  /// White horizontal lockup — same shape as [horizontal] but fully white.
+  /// Use on dark/gradient backgrounds (e.g. the dashboard header).
+  white,
 }
 
 /// Official MediFlow Brand Logo for Flutter.
@@ -47,6 +51,8 @@ class MediFlowLogo extends StatelessWidget {
         return 'assets/images/mediflow_logo_horizontal.png';
       case MediFlowLogoVariant.full:
         return 'assets/images/mediflow_logo_full.png';
+      case MediFlowLogoVariant.white:
+        return 'assets/images/mediflow_logo_white.jpg';
     }
   }
 

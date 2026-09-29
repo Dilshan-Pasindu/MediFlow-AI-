@@ -32,19 +32,13 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         elevation: 0,
         surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: false,
-        title: Row(
-          children: [
-            AppTheme.macOSWindowDots(size: 9, spacing: 4),
-            const SizedBox(width: 8),
-            Text(
-              'My Appointments',
-              style: GoogleFonts.outfit(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-          ],
+        title: Text(
+          'My Appointments',
+          style: GoogleFonts.outfit(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textPrimary,
+          ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
