@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   FileText, Pill, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck,
   RefreshCw, ArrowRight, Loader2, ShoppingCart, Package, Clock, X,
-  AlertCircle, Check, Info
+  AlertCircle, Check, Info, PackageCheck, Bot
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -199,9 +199,9 @@ export default function PharmacistPrescriptionsPage() {
             subtitle="Human-in-the-loop (HITL) safety checkpoint before medication dispensing"
             loading={loading}
             stats={[
-              { label: 'Awaiting Conversion', value: queuePrescriptions.length, icon: '📋', highlight: true },
-              { label: 'Converted to Orders', value: convertedPrescriptions.length, icon: '📦' },
-              { label: 'AI Screening', value: 'Active', icon: '🤖' },
+              { label: 'Awaiting Conversion', value: queuePrescriptions.length, icon: <FileText size={16} />, highlight: true },
+              { label: 'Converted to Orders', value: convertedPrescriptions.length, icon: <PackageCheck size={16} /> },
+              { label: 'AI Screening', value: 'Active', icon: <Bot size={16} /> },
             ]}
           />
 

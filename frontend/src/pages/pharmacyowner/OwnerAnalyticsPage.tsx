@@ -52,9 +52,9 @@ export default function OwnerAnalyticsPage() {
             subtitle="Executive analytics dashboard tracking revenue, demand velocity, and AI restock budgets"
             loading={loading}
             stats={[
-              { label: 'Forecasted Budget', value: forecast ? `Rs. ${forecast.total_projected_cost.toLocaleString()}` : 'Rs. 22,400', icon: '💰' },
-              { label: 'Stockout Hazards', value: forecast ? forecast.risk_items.filter(i => i.urgency === 'CRITICAL').length : 2, icon: '⚠️', highlight: true },
-              { label: 'Supply Health', value: 'Optimal', icon: '📈' },
+              { label: 'Forecasted Budget', value: forecast ? `Rs. ${forecast.total_projected_cost.toLocaleString()}` : 'Rs. 22,400', icon: <DollarSign size={16} /> },
+              { label: 'Stockout Hazards', value: forecast ? forecast.risk_items.filter(i => i.urgency === 'CRITICAL').length : 2, icon: <AlertTriangle size={16} />, highlight: true },
+              { label: 'Supply Health', value: 'Optimal', icon: <TrendingUp size={16} /> },
             ]}
           />
 

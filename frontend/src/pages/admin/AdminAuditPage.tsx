@@ -61,9 +61,9 @@ export default function AdminAuditPage() {
             subtitle="Centralized tamper-evident audit logging for HIPAA/clinical governance standards"
             loading={loading}
             stats={[
-              { label: 'Logged Events', value: logs.length, icon: '📜' },
-              { label: 'Informational', value: infoCount, icon: 'ℹ️' },
-              { label: 'Security Flags', value: warningCount, icon: '⚠️', highlight: warningCount > 0 },
+              { label: 'Logged Events', value: logs.length, icon: <FileText size={16} /> },
+              { label: 'Informational', value: infoCount, icon: <Info size={16} /> },
+              { label: 'Security Flags', value: warningCount, icon: <AlertTriangle size={16} />, highlight: warningCount > 0 },
             ]}
           />
 

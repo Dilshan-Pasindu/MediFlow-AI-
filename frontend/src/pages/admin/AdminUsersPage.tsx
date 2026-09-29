@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Search, Filter, ShieldCheck, UserCheck, UserX, RefreshCw, Mail, Phone, Clock } from 'lucide-react';
+import { Users, Search, Filter, ShieldCheck, UserCheck, UserX, RefreshCw, Mail, Phone, Clock, CheckCircle2, Shield } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -82,9 +82,9 @@ export default function AdminUsersPage() {
             subtitle="Control role access, security states, and activation credentials across MediFlow"
             loading={loading}
             stats={[
-              { label: 'Total Registered', value: users.length, icon: '👥' },
-              { label: 'Active Accounts', value: users.filter(u => u.isActive).length, icon: '✅' },
-              { label: 'Role Types', value: '7 Roles', icon: '🛡️' },
+              { label: 'Total Registered', value: users.length, icon: <Users size={16} /> },
+              { label: 'Active Accounts', value: users.filter(u => u.isActive).length, icon: <CheckCircle2 size={16} /> },
+              { label: 'Role Types', value: '7 Roles', icon: <Shield size={16} /> },
             ]}
           />
 

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import {
   CheckCircle, X, AlertTriangle, Package, Loader, Sparkles,
   RefreshCw, Search, Filter, ChevronDown, ChevronUp, Truck, Plus, Eye,
-  Calendar, Clock, Edit3, AlertCircle
+  Calendar, Clock, Edit3, AlertCircle, Pill, ShieldAlert, Bot, FileText,
+  CheckCircle2, Siren, Hourglass
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -531,10 +532,10 @@ export default function OwnerDashboard() {
             subtitle={pharmacyName ? `${pharmacyName} — Inventory & AI restocking` : 'Inventory management, AI demand forecasting, and restock automation'}
             loading={loading}
             stats={[
-              { label: 'Total Medicines',  value: inventoryMeta.totalCount,      icon: '💊' },
-              { label: 'Low Stock',         value: inventoryMeta.lowStockCount,   icon: '⚠️', highlight: inventoryMeta.lowStockCount > 0 },
-              { label: 'Critical',          value: inventoryMeta.criticalCount,   icon: '🚨', highlight: inventoryMeta.criticalCount > 0 },
-              { label: 'Expiring (<60d)',   value: totalExpiringBatches,          icon: '⏰', highlight: totalExpiringBatches > 0 },
+              { label: 'Total Medicines',  value: inventoryMeta.totalCount,      icon: <Pill size={16} /> },
+              { label: 'Low Stock',         value: inventoryMeta.lowStockCount,   icon: <AlertTriangle size={16} />, highlight: inventoryMeta.lowStockCount > 0 },
+              { label: 'Critical',          value: inventoryMeta.criticalCount,   icon: <Siren size={16} />, highlight: inventoryMeta.criticalCount > 0 },
+              { label: 'Expiring (<60d)',   value: totalExpiringBatches,          icon: <Hourglass size={16} />, highlight: totalExpiringBatches > 0 },
             ]}
           />
 
@@ -557,7 +558,7 @@ export default function OwnerDashboard() {
           {/* Delivered items awaiting receipt */}
           {deliveredRequests.length > 0 && (
             <div className="approval-banner" style={{ marginBottom: 16, background: 'linear-gradient(135deg,#ECFDF5,#D1FAE5)', borderColor: '#6EE7B7' }}>
-              <span className="approval-banner-icon">📦</span>
+              <Package className="approval-banner-icon text-emerald-600 shrink-0" size={24} />
               <div style={{ flex: 1 }}>
                 <div className="approval-banner-title" style={{ color: '#065F46' }}>Stock Awaiting Your Confirmation</div>
                 <div className="approval-banner-sub" style={{ color: '#047857' }}>
@@ -573,13 +574,13 @@ export default function OwnerDashboard() {
           {/* Tabs */}
           <div className="tabs" style={{ marginBottom: 20 }}>
             <button className={`tab-btn ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} id="tab-inventory">
-              💊 Inventory ({inventoryMeta.totalCount})
+              <Pill size={14} className="inline mr-1.5" /> Inventory ({inventoryMeta.totalCount})
             </button>
             <button className={`tab-btn ${activeTab === 'restock' ? 'active' : ''}`} onClick={() => setActiveTab('restock')} id="tab-restock">
-              🤖 AI Restock {restockRecs.length > 0 && `(${restockRecs.length})`}
+              <Bot size={14} className="inline mr-1.5" /> AI Restock {restockRecs.length > 0 && `(${restockRecs.length})`}
             </button>
             <button className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')} id="tab-requests">
-              📋 Restock Requests ({requests.length})
+              <FileText size={14} className="inline mr-1.5" /> Restock Requests ({requests.length})
               {deliveredRequests.length > 0 && <span className="nav-badge" style={{ marginLeft: 4 }}>{deliveredRequests.length}</span>}
             </button>
           </div>
@@ -871,7 +872,9 @@ export default function OwnerDashboard() {
           {activeTab === 'restock' && (
             restockRecs.length === 0 ? (
               <div className="card" style={{ textAlign: 'center', padding: 48 }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🤖</div>
+                <div className="flex justify-center text-teal-600 mb-4">
+                  <Bot size={48} />
+                </div>
                 <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>AI Restock Analysis</div>
                 <div style={{ fontSize: 13.5, color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.7, maxWidth: 500, margin: '0 auto 24px' }}>
                   The Inventory Intelligence Agent will analyze your 30-day demand history, current stock levels, and expiry data to generate optimized restock recommendations.
@@ -884,7 +887,7 @@ export default function OwnerDashboard() {
               <div>
                 {/* Human Approval Banner */}
                 <div className="approval-banner" style={{ marginBottom: 20 }}>
-                  <span className="approval-banner-icon">🤖</span>
+                  <Bot className="approval-banner-icon text-teal-600 shrink-0" size={24} />
                   <div style={{ flex: 1 }}>
                     <div className="approval-banner-title">Human Approval Point #3 — AI Restock Recommendations</div>
                     <div className="approval-banner-sub">Review each recommendation. Select a supplier, then Approve to send a restock request, or Dismiss to ignore.</div>
@@ -974,7 +977,9 @@ export default function OwnerDashboard() {
                 </div>
                 {requests.length === 0 ? (
                   <div className="empty-state" style={{ padding: 40 }}>
-                    <div className="empty-icon">📋</div>
+                    <div className="empty-icon flex justify-center text-teal-600 mb-2">
+                      <FileText size={36} />
+                    </div>
                     <div className="empty-title">No restock requests yet</div>
                     <div className="empty-sub">Use AI Restock Analysis to generate and approve requests.</div>
                   </div>

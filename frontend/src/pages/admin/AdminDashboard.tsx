@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Activity, ShieldCheck, BarChart3, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Clock, Mail } from 'lucide-react';
+import { Users, Activity, ShieldCheck, BarChart3, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Clock, Mail, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PortalHeader from '../../components/PortalHeader';
 import Sidebar from '../../components/Sidebar';
@@ -75,9 +75,9 @@ export default function AdminDashboard() {
             subtitle="Central command for user roles, compliance auditing, and multi-agent health"
             loading={loading}
             stats={[
-              { label: 'Total Accounts', value: stats?.totalUsers || users.length || 7, icon: '👥' },
-              { label: 'Appointments', value: stats?.totalAppointments || 12, icon: '📅' },
-              { label: 'System Uptime', value: stats?.uptime || '99.98%', icon: '🟢' },
+              { label: 'Total Accounts', value: stats?.totalUsers || users.length || 7, icon: <Users size={16} /> },
+              { label: 'Appointments', value: stats?.totalAppointments || 12, icon: <Calendar size={16} /> },
+              { label: 'System Uptime', value: stats?.uptime || '99.98%', icon: <Activity size={16} /> },
             ]}
           />
 

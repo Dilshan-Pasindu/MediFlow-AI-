@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   CheckCircle,
+  CheckCircle2,
   Loader,
   RefreshCw,
   AlertCircle,
@@ -15,6 +16,9 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
+  Package,
+  FlaskConical,
+  PartyPopper,
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -434,9 +438,9 @@ export default function PharmacistDashboard() {
             subtitle="Process prescriptions and manage medicine dispensing"
             loading={loading}
             stats={[
-              { label: 'New Prescriptions', value: prescriptions.filter((p: Prescription) => p.status === 'Active').length, icon: '📋' },
-              { label: 'Active Orders', value: activeOrders.length, icon: '⚗️', highlight: activeOrders.length > 0 },
-              { label: 'Dispensed Today', value: completedOrders.length, icon: '✅' },
+              { label: 'New Prescriptions', value: prescriptions.filter((p: Prescription) => p.status === 'Active').length, icon: <FileText size={16} /> },
+              { label: 'Active Orders', value: activeOrders.length, icon: <FlaskConical size={16} />, highlight: activeOrders.length > 0 },
+              { label: 'Dispensed Today', value: completedOrders.length, icon: <CheckCircle2 size={16} /> },
             ]}
           />
 
@@ -447,21 +451,21 @@ export default function PharmacistDashboard() {
               onClick={() => setActiveTab('orders')}
               id="tab-orders-pharma"
             >
-              ⚗️ Active Orders ({activeOrders.length})
+              <FlaskConical size={14} className="inline mr-1.5" /> Active Orders ({activeOrders.length})
             </button>
             <button
               className={`tab-btn ${activeTab === 'prescriptions' ? 'active' : ''}`}
               onClick={() => setActiveTab('prescriptions')}
               id="tab-rx-pharma"
             >
-              📋 Prescriptions ({prescriptions.length})
+              <FileText size={14} className="inline mr-1.5" /> Prescriptions ({prescriptions.length})
             </button>
             <button
               className={`tab-btn ${activeTab === 'completed' ? 'active' : ''}`}
               onClick={() => setActiveTab('completed')}
               id="tab-completed-pharma"
             >
-              ✅ Dispensed ({completedOrders.length})
+              <CheckCircle2 size={14} className="inline mr-1.5" /> Dispensed ({completedOrders.length})
             </button>
           </div>
 
@@ -475,7 +479,9 @@ export default function PharmacistDashboard() {
               </div>
             ) : activeOrders.length === 0 ? (
               <div className="empty-state card">
-                <div className="empty-icon">🎉</div>
+                <div className="empty-icon flex items-center justify-center text-teal-600">
+                  <PartyPopper size={36} />
+                </div>
                 <div className="empty-title">No active orders!</div>
                 <div className="empty-sub">All orders have been processed.</div>
               </div>
@@ -876,7 +882,9 @@ export default function PharmacistDashboard() {
               </div>
             ) : prescriptions.length === 0 ? (
               <div className="empty-state card">
-                <div className="empty-icon">💊</div>
+                <div className="empty-icon flex items-center justify-center text-teal-600">
+                  <Pill size={36} />
+                </div>
                 <div className="empty-title">No pending prescriptions</div>
                 <div className="empty-sub">All prescriptions have been processed into orders.</div>
               </div>
@@ -957,7 +965,9 @@ export default function PharmacistDashboard() {
           {activeTab === 'completed' &&
             (completedOrders.length === 0 ? (
               <div className="empty-state card">
-                <div className="empty-icon">✅</div>
+                <div className="empty-icon flex items-center justify-center text-emerald-600">
+                  <CheckCircle2 size={36} />
+                </div>
                 <div className="empty-title">No dispensed orders yet</div>
               </div>
             ) : (

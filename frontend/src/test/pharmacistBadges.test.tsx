@@ -54,10 +54,10 @@ describe('Pharmacist Portal UI Components', () => {
 
   describe('PharmacistStatCard', () => {
     it('renders metric label, value, and custom icon', () => {
-      render(<PharmacistStatCard label="Pending Orders" value={14} icon="📦" />);
+      render(<PharmacistStatCard label="Pending Orders" value={14} icon={<span data-testid="custom-icon">📦</span>} />);
       expect(screen.getByText('Pending Orders')).toBeInTheDocument();
       expect(screen.getByText('14')).toBeInTheDocument();
-      expect(screen.getByText('📦')).toBeInTheDocument();
+      expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
     });
   });
 

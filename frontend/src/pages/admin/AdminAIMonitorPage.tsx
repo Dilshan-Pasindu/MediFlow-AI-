@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Activity, Sparkles, CheckCircle2, AlertCircle, Clock, RefreshCw, Cpu, Zap, ShieldAlert, Check } from 'lucide-react';
+import { Activity, Sparkles, CheckCircle2, AlertCircle, Clock, RefreshCw, Cpu, Zap, ShieldAlert, Check, Bot, Target } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -47,9 +47,9 @@ export default function AdminAIMonitorPage() {
             subtitle="Continuous monitoring of autonomous reasoning loops and Human-in-the-Loop checkpoints"
             loading={loading}
             stats={[
-              { label: 'Active Agents', value: '4 / 4 Deployed', icon: '🤖' },
-              { label: 'Total Invocations', value: totalCalls, icon: '⚡' },
-              { label: 'Avg Acceptance', value: '92.4%', icon: '🎯' },
+              { label: 'Active Agents', value: '4 / 4 Deployed', icon: <Bot size={16} /> },
+              { label: 'Total Invocations', value: totalCalls, icon: <Zap size={16} /> },
+              { label: 'Avg Acceptance', value: '92.4%', icon: <Target size={16} /> },
             ]}
           />
 

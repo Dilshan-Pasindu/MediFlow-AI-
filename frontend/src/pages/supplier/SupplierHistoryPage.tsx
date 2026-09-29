@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Truck, Search, Calendar, CheckCircle2, Clock, PackageCheck, RefreshCw, FileText } from 'lucide-react';
+import { Truck, Search, Calendar, CheckCircle2, Clock, PackageCheck, RefreshCw, FileText, Package } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -63,9 +63,9 @@ export default function SupplierHistoryPage() {
             subtitle="Full delivery audit trail with batch traceability and completion timestamps"
             loading={loading}
             stats={[
-              { label: 'Completed Shipments', value: completedOrders.length, icon: '📦' },
-              { label: 'Total Volume Dispatched', value: `Rs. ${totalValue.toLocaleString()}`, icon: '💳' },
-              { label: 'On-Time Delivery', value: '98.4%', icon: '⏱️' },
+              { label: 'Completed Shipments', value: completedOrders.length, icon: <Package size={16} /> },
+              { label: 'Total Volume Dispatched', value: `Rs. ${totalValue.toLocaleString()}`, icon: <FileText size={16} /> },
+              { label: 'On-Time Delivery', value: '98.4%', icon: <Clock size={16} /> },
             ]}
           />
 

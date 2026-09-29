@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, X, Loader, Truck, RefreshCw, Package, AlertTriangle } from 'lucide-react';
+import { CheckCircle, CheckCircle2, X, Loader, Truck, RefreshCw, Package, AlertTriangle, History, PartyPopper } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -249,15 +249,15 @@ export default function SupplierDashboard() {
             subtitle="Review pharmacy restock requests and manage supply chain"
             loading={loading}
             stats={[
-              { label: 'Pending',  value: pending.length,  icon: '📦', highlight: pending.length > 0 },
-              { label: 'Approved', value: approved.length, icon: '✅' },
-              { label: 'History',  value: history.length,  icon: '📊' },
+              { label: 'Pending',  value: pending.length,  icon: <Package size={16} />, highlight: pending.length > 0 },
+              { label: 'Approved', value: approved.length, icon: <CheckCircle2 size={16} /> },
+              { label: 'History',  value: history.length,  icon: <History size={16} /> },
             ]}
           />
 
           {/* Human Approval Banner */}
           <div className="approval-banner" style={{ marginBottom: 20, background: 'linear-gradient(135deg,#EFF6FF,#DBEAFE)', borderColor: '#BFDBFE' }}>
-            <span className="approval-banner-icon">🚚</span>
+            <Truck className="approval-banner-icon text-blue-600 shrink-0" size={24} />
             <div>
               <div className="approval-banner-title" style={{ color: '#1E40AF' }}>Human Approval Point #4 — Supply Approval</div>
               <div className="approval-banner-sub" style={{ color: '#1D4ED8' }}>
@@ -277,13 +277,13 @@ export default function SupplierDashboard() {
           {/* Tabs */}
           <div className="tabs" style={{ marginBottom: 20 }}>
             <button className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`} onClick={() => setActiveTab('pending')} id="tab-pending-supply">
-              📦 Pending ({pending.length})
+              <Package size={14} className="inline mr-1.5" /> Pending ({pending.length})
             </button>
             <button className={`tab-btn ${activeTab === 'approved' ? 'active' : ''}`} onClick={() => setActiveTab('approved')} id="tab-approved-supply">
-              ✅ Approved — Ready to Dispatch ({approved.length})
+              <CheckCircle2 size={14} className="inline mr-1.5" /> Approved — Ready to Dispatch ({approved.length})
             </button>
             <button className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')} id="tab-history-supply">
-              📊 History ({history.length})
+              <History size={14} className="inline mr-1.5" /> History ({history.length})
             </button>
           </div>
 
@@ -291,7 +291,9 @@ export default function SupplierDashboard() {
             <div style={{ padding: 60, textAlign: 'center' }}><Loader className="spin" size={28} /></div>
           ) : display.length === 0 ? (
             <div className="empty-state card">
-              <div className="empty-icon">{activeTab === 'pending' ? '🎉' : '📦'}</div>
+              <div className="empty-icon flex justify-center text-blue-600 mb-2">
+                {activeTab === 'pending' ? <PartyPopper size={36} /> : <Package size={36} />}
+              </div>
               <div className="empty-title">{activeTab === 'pending' ? 'No pending requests!' : 'Nothing here yet'}</div>
               <div className="empty-sub">All caught up.</div>
             </div>

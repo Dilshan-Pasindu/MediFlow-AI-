@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Pill, Search, Filter, Sparkles, AlertTriangle, CheckCircle, ShieldAlert, RefreshCw } from 'lucide-react';
+import { Pill, Search, Filter, Sparkles, AlertTriangle, CheckCircle, ShieldAlert, RefreshCw, Tag, Bot } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -88,9 +88,9 @@ export default function PharmacistMedicinesPage() {
             subtitle="Verified pharmaceutical catalog with automated Drug-Drug Interaction (DDI) & allergy cross-checker"
             loading={loading}
             stats={[
-              { label: 'Catalog Items', value: medicines.length, icon: '💊' },
-              { label: 'Categories', value: '7 Active', icon: '🏷️' },
-              { label: 'DDI Intelligence', value: 'Level 2 Active', icon: '🤖' },
+              { label: 'Catalog Items', value: medicines.length, icon: <Pill size={16} /> },
+              { label: 'Categories', value: '7 Active', icon: <Tag size={16} /> },
+              { label: 'DDI Intelligence', value: 'Level 2 Active', icon: <Bot size={16} /> },
             ]}
           />
 
