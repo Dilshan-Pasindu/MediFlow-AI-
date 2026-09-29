@@ -468,67 +468,78 @@ public class OrdersController : ControllerBase
                     return BadRequest(new { message = $"Cannot dispense order {id} due to insufficient inventory stock.", errors = stockErrors });
                 }
 
-                // 3. Execution within a single database transaction (All-or-Nothing)
-                using var tx = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory"
-                    ? await _db.Database.BeginTransactionAsync()
-                    : null;
+                // 3. Execution within an execution strategy transaction (retrying-compatible)
+                var strategy = _db.Database.CreateExecutionStrategy();
                 try
                 {
-                    foreach (var (item, inv) in itemsToProcess)
+                    await strategy.ExecuteAsync(async () =>
                     {
-                        inv.CurrentStock -= item.Quantity;
-
-                        // Deduct batch quantities FIFO (oldest expiry date first)
-                        var remainingToDeduct = item.Quantity;
-                        var activeBatches = inv.Batches
-                            .Where(b => b.Quantity > 0)
-                            .OrderBy(b => b.ExpiryDate)
-                            .ThenBy(b => b.ReceivedDate)
-                            .ToList();
-
-                        foreach (var batch in activeBatches)
+                        using var tx = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory"
+                            ? await _db.Database.BeginTransactionAsync()
+                            : null;
+                        try
                         {
-                            if (remainingToDeduct <= 0) break;
+                            foreach (var (item, inv) in itemsToProcess)
+                            {
+                                inv.CurrentStock -= item.Quantity;
 
-                            if (batch.Quantity >= remainingToDeduct)
-                            {
-                                batch.Quantity -= remainingToDeduct;
-                                remainingToDeduct = 0;
+                                // Deduct batch quantities FIFO (oldest expiry date first)
+                                var remainingToDeduct = item.Quantity;
+                                var activeBatches = inv.Batches
+                                    .Where(b => b.Quantity > 0)
+                                    .OrderBy(b => b.ExpiryDate)
+                                    .ThenBy(b => b.ReceivedDate)
+                                    .ToList();
+
+                                foreach (var batch in activeBatches)
+                                {
+                                    if (remainingToDeduct <= 0) break;
+
+                                    if (batch.Quantity >= remainingToDeduct)
+                                    {
+                                        batch.Quantity -= remainingToDeduct;
+                                        remainingToDeduct = 0;
+                                    }
+                                    else
+                                    {
+                                        remainingToDeduct -= batch.Quantity;
+                                        batch.Quantity = 0;
+                                    }
+                                }
+
+                                var txLog = new InventoryTransaction
+                                {
+                                    InventoryItemId = inv.Id,
+                                    TransactionType = TransactionType.Dispense,
+                                    QuantityChanged = -item.Quantity,
+                                    StockAfter = inv.CurrentStock,
+                                    TransactionDate = DateTime.UtcNow,
+                                    Notes = $"Dispensed for Order #{id}"
+                                };
+                                _db.InventoryTransactions.Add(txLog);
                             }
-                            else
+
+                            order.Status = OrderStatus.Dispensed;
+                            order.DispensedAt = DateTime.UtcNow;
+                            var currentUserId = TryGetUserId();
+                            if (currentUserId.HasValue)
                             {
-                                remainingToDeduct -= batch.Quantity;
-                                batch.Quantity = 0;
+                                order.PharmacistId = currentUserId.Value;
                             }
+                            order.UpdatedAt = DateTime.UtcNow;
+
+                            await _db.SaveChangesAsync();
+                            if (tx != null) await tx.CommitAsync();
                         }
-
-                        var txLog = new InventoryTransaction
+                        catch
                         {
-                            InventoryItemId = inv.Id,
-                            TransactionType = TransactionType.Dispense,
-                            QuantityChanged = -item.Quantity,
-                            StockAfter = inv.CurrentStock,
-                            TransactionDate = DateTime.UtcNow,
-                            Notes = $"Dispensed for Order #{id}"
-                        };
-                        _db.InventoryTransactions.Add(txLog);
-                    }
-
-                    order.Status = OrderStatus.Dispensed;
-                    order.DispensedAt = DateTime.UtcNow;
-                    var currentUserId = TryGetUserId();
-                    if (currentUserId.HasValue)
-                    {
-                        order.PharmacistId = currentUserId.Value;
-                    }
-                    order.UpdatedAt = DateTime.UtcNow;
-
-                    await _db.SaveChangesAsync();
-                    if (tx != null) await tx.CommitAsync();
+                            if (tx != null) await tx.RollbackAsync();
+                            throw;
+                        }
+                    });
                 }
                 catch (Exception ex)
                 {
-                    if (tx != null) await tx.RollbackAsync();
                     return StatusCode(500, new { message = $"Failed to process dispensing: {ex.Message}" });
                 }
             }
@@ -1019,66 +1030,77 @@ public class OrdersController : ControllerBase
                 return BadRequest(new { message = $"Cannot record payment for order {id} due to insufficient inventory stock.", errors = stockErrors });
             }
 
-            // Deduct stock within a single atomic database transaction
-            using var tx = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory"
-                ? await _db.Database.BeginTransactionAsync()
-                : null;
+            // Deduct stock within an execution strategy transaction (retrying-compatible)
+            var strategy = _db.Database.CreateExecutionStrategy();
             try
             {
-                foreach (var (item, inv) in itemsToProcess)
+                await strategy.ExecuteAsync(async () =>
                 {
-                    inv.CurrentStock -= item.Quantity;
-
-                    // Deduct batch quantities FIFO (oldest expiry date first)
-                    var remainingToDeduct = item.Quantity;
-                    var activeBatches = inv.Batches
-                        .Where(b => b.Quantity > 0)
-                        .OrderBy(b => b.ExpiryDate)
-                        .ThenBy(b => b.ReceivedDate)
-                        .ToList();
-
-                    foreach (var batch in activeBatches)
+                    using var tx = _db.Database.ProviderName != "Microsoft.EntityFrameworkCore.InMemory"
+                        ? await _db.Database.BeginTransactionAsync()
+                        : null;
+                    try
                     {
-                        if (remainingToDeduct <= 0) break;
+                        foreach (var (item, inv) in itemsToProcess)
+                        {
+                            inv.CurrentStock -= item.Quantity;
 
-                        if (batch.Quantity >= remainingToDeduct)
-                        {
-                            batch.Quantity -= remainingToDeduct;
-                            remainingToDeduct = 0;
+                            // Deduct batch quantities FIFO (oldest expiry date first)
+                            var remainingToDeduct = item.Quantity;
+                            var activeBatches = inv.Batches
+                                .Where(b => b.Quantity > 0)
+                                .OrderBy(b => b.ExpiryDate)
+                                .ThenBy(b => b.ReceivedDate)
+                                .ToList();
+
+                            foreach (var batch in activeBatches)
+                            {
+                                if (remainingToDeduct <= 0) break;
+
+                                if (batch.Quantity >= remainingToDeduct)
+                                {
+                                    batch.Quantity -= remainingToDeduct;
+                                    remainingToDeduct = 0;
+                                }
+                                else
+                                {
+                                    remainingToDeduct -= batch.Quantity;
+                                    batch.Quantity = 0;
+                                }
+                            }
+
+                            var txLog = new InventoryTransaction
+                            {
+                                InventoryItemId = inv.Id,
+                                TransactionType = TransactionType.Dispense,
+                                QuantityChanged = -item.Quantity,
+                                StockAfter = inv.CurrentStock,
+                                TransactionDate = DateTime.UtcNow,
+                                Notes = $"Stock deducted upon payment for Order #{id}"
+                            };
+                            _db.InventoryTransactions.Add(txLog);
                         }
-                        else
+
+                        order.UpdatedAt = DateTime.UtcNow;
+                        await _db.SaveChangesAsync();
+
+                        if (tx != null)
                         {
-                            remainingToDeduct -= batch.Quantity;
-                            batch.Quantity = 0;
+                            await tx.CommitAsync();
                         }
                     }
-
-                    var txLog = new InventoryTransaction
+                    catch
                     {
-                        InventoryItemId = inv.Id,
-                        TransactionType = TransactionType.Dispense,
-                        QuantityChanged = -item.Quantity,
-                        StockAfter = inv.CurrentStock,
-                        TransactionDate = DateTime.UtcNow,
-                        Notes = $"Stock deducted upon payment for Order #{id}"
-                    };
-                    _db.InventoryTransactions.Add(txLog);
-                }
-
-                order.UpdatedAt = DateTime.UtcNow;
-                await _db.SaveChangesAsync();
-
-                if (tx != null)
-                {
-                    await tx.CommitAsync();
-                }
+                        if (tx != null)
+                        {
+                            await tx.RollbackAsync();
+                        }
+                        throw;
+                    }
+                });
             }
             catch (Exception ex)
             {
-                if (tx != null)
-                {
-                    await tx.RollbackAsync();
-                }
                 return StatusCode(500, new { message = $"Failed to record payment & deduct inventory: {ex.Message}" });
             }
         }
