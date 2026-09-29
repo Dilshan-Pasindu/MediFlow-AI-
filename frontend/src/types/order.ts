@@ -30,6 +30,7 @@ export interface Order {
   items: OrderItem[];
   totalAmount: number;
   isPaid?: boolean;
+  paymentStatus?: string;
   createdAt: string;
   updatedAt: string;
   dispensedAt?: string;
@@ -52,6 +53,7 @@ export interface Invoice {
   issuedAt: string;
   totalAmount: number;
   isPaid: boolean;
+  paymentStatus?: string;
   paidAt?: string;
   paymentMethod?: string;
   generatedByPharmacistId?: number;
