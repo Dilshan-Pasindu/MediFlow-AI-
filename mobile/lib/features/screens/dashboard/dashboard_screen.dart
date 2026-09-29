@@ -87,9 +87,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const MediFlowLogo(
-                              variant: MediFlowLogoVariant.white,
-                              height: 22,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Image.asset(
+                                'assets/images/mediflow_logo_horizontal.png',
+                                height: 18,
+                                fit: BoxFit.contain,
+                                filterQuality: FilterQuality.high,
+                              ),
                             ),
                             Row(
                               children: [
