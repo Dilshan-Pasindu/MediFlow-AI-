@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Calendar, Search, Filter, CheckCircle2, XCircle, Clock, FileText, ArrowUpDown, RefreshCw } from 'lucide-react';
+import { Calendar, Search, Filter, CheckCircle2, XCircle, Clock, FileText, ArrowUpDown, RefreshCw, CreditCard, Ban } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -49,9 +49,9 @@ export default function ReceptionistHistoryPage() {
             subtitle="Search and audit processed appointment transactions across all clinical departments"
             loading={loading}
             stats={[
-              { label: 'Confirmed Bookings', value: confirmedCount, icon: '✅' },
-              { label: 'Cancelled Requests', value: cancelledCount, icon: '🚫' },
-              { label: 'Verified Fees', value: `Rs. ${totalRevenue.toLocaleString()}`, icon: '💳' },
+              { label: 'Confirmed Bookings', value: confirmedCount, icon: <CheckCircle2 size={16} /> },
+              { label: 'Cancelled Requests', value: cancelledCount, icon: <Ban size={16} /> },
+              { label: 'Verified Fees', value: `Rs. ${totalRevenue.toLocaleString()}`, icon: <CreditCard size={16} /> },
             ]}
           />
 

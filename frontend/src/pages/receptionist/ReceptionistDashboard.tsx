@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Clock, AlertCircle, Hash, Loader, RefreshCw, XCircle, CreditCard, ExternalLink } from 'lucide-react';
+import {
+  CheckCircle, Clock, AlertCircle, Hash, Loader, RefreshCw, XCircle, CreditCard,
+  ExternalLink, CheckCircle2, Coins, ClipboardList, ShieldCheck, Lock, Stethoscope, Calendar
+} from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -16,13 +19,13 @@ const STATUS_STYLES: Record<string, { color: string; bg: string; label: string; 
   Cancelled:        { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled',        step: 4 },
 };
 
-const REFUND_STATUS_STYLES: Record<string, { color: string; bg: string; label: string }> = {
-  RefundRequested:  { color: '#B45309', bg: '#FFFBEB', label: '📋 Review Pending' },
-  RefundApproved:   { color: '#0369A1', bg: '#EFF6FF', label: '✅ Approved' },
-  RefundProcessing: { color: '#7C3AED', bg: '#F5F3FF', label: '⏳ Processing' },
-  RefundCompleted:  { color: '#059669', bg: '#ECFDF5', label: '💰 Completed' },
-  RefundRejected:   { color: '#DC2626', bg: '#FEF2F2', label: '❌ Rejected' },
-  RefundFailed:     { color: '#DC2626', bg: '#FEF2F2', label: '⚠️ Failed' },
+const REFUND_STATUS_STYLES: Record<string, { color: string; bg: string; label: string; icon: React.ReactNode }> = {
+  RefundRequested:  { color: '#B45309', bg: '#FFFBEB', label: 'Review Pending', icon: <ClipboardList size={12} /> },
+  RefundApproved:   { color: '#0369A1', bg: '#EFF6FF', label: 'Approved', icon: <CheckCircle2 size={12} /> },
+  RefundProcessing: { color: '#7C3AED', bg: '#F5F3FF', label: 'Processing', icon: <Clock size={12} /> },
+  RefundCompleted:  { color: '#059669', bg: '#ECFDF5', label: 'Completed', icon: <Coins size={12} /> },
+  RefundRejected:   { color: '#DC2626', bg: '#FEF2F2', label: 'Rejected', icon: <XCircle size={12} /> },
+  RefundFailed:     { color: '#DC2626', bg: '#FEF2F2', label: 'Failed', icon: <AlertCircle size={12} /> },
 };
 
 export default function ReceptionistDashboard() {
@@ -133,16 +136,16 @@ export default function ReceptionistDashboard() {
             subtitle="Verify payments, confirm appointments, and review patient refund requests"
             loading={loading || refundsLoading}
             stats={[
-              { label: 'Pending Payment', value: pending.length, icon: '🕐' },
-              { label: 'Awaiting Verify', value: paymentSent.length, icon: '💳', highlight: paymentSent.length > 0 },
-              { label: 'Confirmed', value: confirmed.length, icon: '✅' },
-              { label: 'Refund Requests', value: pendingRefunds.length, icon: '💰', highlight: pendingRefunds.length > 0 },
+              { label: 'Pending Payment', value: pending.length, icon: <Clock size={16} /> },
+              { label: 'Awaiting Verify', value: paymentSent.length, icon: <CreditCard size={16} />, highlight: paymentSent.length > 0 },
+              { label: 'Confirmed', value: confirmed.length, icon: <CheckCircle2 size={16} /> },
+              { label: 'Refund Requests', value: pendingRefunds.length, icon: <Coins size={16} />, highlight: pendingRefunds.length > 0 },
             ]}
           />
 
           {/* Human Approval Banner */}
-          <div className="approval-banner" style={{ background: 'linear-gradient(135deg, #FEF3C7, #FFFBEB)', border: '1.5px solid #F59E0B', padding: '16px', borderRadius: 'var(--r-lg)', marginBottom: 20, display: 'flex', gap: 12 }}>
-            <span style={{ fontSize: 22 }}>🔐</span>
+          <div className="approval-banner" style={{ background: 'linear-gradient(135deg, #FEF3C7, #FFFBEB)', border: '1.5px solid #F59E0B', padding: '16px', borderRadius: 'var(--r-lg)', marginBottom: 20, display: 'flex', gap: 12, alignItems: 'center' }}>
+            <ShieldCheck size={24} color="#92400E" />
             <div>
               <div className="approval-banner-title" style={{ color: '#92400E', fontWeight: 800, fontSize: 14 }}>Human Approval Point #1 — Payment &amp; Refund Verification</div>
               <div className="approval-banner-sub" style={{ color: '#B45309', fontSize: 12.5, marginTop: 2 }}>
@@ -153,20 +156,20 @@ export default function ReceptionistDashboard() {
 
           {/* Tabs */}
           <div className="tabs" style={{ marginBottom: 20 }}>
-            <button className={`tab-btn ${activeTab === 'PaymentSubmitted' ? 'active' : ''}`} onClick={() => setActiveTab('PaymentSubmitted')} id="tab-payment-sent">
-              💳 Payment Submitted ({paymentSent.length})
+            <button className={`tab-btn ${activeTab === 'PaymentSubmitted' ? 'active' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setActiveTab('PaymentSubmitted')} id="tab-payment-sent">
+              <CreditCard size={13} /> Payment Submitted ({paymentSent.length})
             </button>
-            <button className={`tab-btn ${activeTab === 'Pending' ? 'active' : ''}`} onClick={() => setActiveTab('Pending')} id="tab-pending">
-              🕐 Pending Payment ({pending.length})
+            <button className={`tab-btn ${activeTab === 'Pending' ? 'active' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setActiveTab('Pending')} id="tab-pending">
+              <Clock size={13} /> Pending Payment ({pending.length})
             </button>
-            <button className={`tab-btn ${activeTab === 'Confirmed' ? 'active' : ''}`} onClick={() => setActiveTab('Confirmed')} id="tab-confirmed">
-              ✅ Confirmed ({confirmed.length})
+            <button className={`tab-btn ${activeTab === 'Confirmed' ? 'active' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setActiveTab('Confirmed')} id="tab-confirmed">
+              <CheckCircle2 size={13} /> Confirmed ({confirmed.length})
             </button>
-            <button className={`tab-btn ${activeTab === 'Cancelled' ? 'active' : ''}`} onClick={() => setActiveTab('Cancelled')} id="tab-cancelled">
-              ❌ Cancelled / Rejected ({cancelled.length})
+            <button className={`tab-btn ${activeTab === 'Cancelled' ? 'active' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setActiveTab('Cancelled')} id="tab-cancelled">
+              <XCircle size={13} /> Cancelled / Rejected ({cancelled.length})
             </button>
-            <button className={`tab-btn ${activeTab === 'RefundRequests' ? 'active' : ''}`} onClick={() => setActiveTab('RefundRequests')} id="tab-refunds">
-              💰 Refund Requests ({pendingRefunds.length})
+            <button className={`tab-btn ${activeTab === 'RefundRequests' ? 'active' : ''}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => setActiveTab('RefundRequests')} id="tab-refunds">
+              <Coins size={13} /> Refund Requests ({pendingRefunds.length})
             </button>
           </div>
 
@@ -194,7 +197,9 @@ export default function ReceptionistDashboard() {
                 </div>
               ) : allRefunds.length === 0 ? (
                 <div className="empty-state card" style={{ padding: 40, textAlign: 'center' }}>
-                  <div className="empty-icon" style={{ fontSize: 36, marginBottom: 12 }}>🎉</div>
+                  <div className="empty-icon" style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+                    <CheckCircle2 size={40} color="#059669" />
+                  </div>
                   <div className="empty-title" style={{ fontWeight: 800, fontSize: 16 }}>No refund requests!</div>
                   <div className="empty-sub" style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
                     No patient cancellations with refund applications have been submitted.
@@ -219,16 +224,18 @@ export default function ReceptionistDashboard() {
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                                 <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text-primary)' }}>{refund.patientName}</div>
-                                <span className="badge" style={{ color: st.color, background: st.bg, fontSize: 11, padding: '3px 8px' }}>{st.label}</span>
+                                <span className="badge" style={{ color: st.color, background: st.bg, fontSize: 11, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  {st.icon} {st.label}
+                                </span>
                                 <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ref: {refund.refundReference}</span>
                               </div>
 
-                              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
-                                🩺 <strong>{refund.doctorName}</strong> ({refund.specialtyName}) · Appointment #{refund.appointmentNumber || refund.appointmentId}
+                              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Stethoscope size={13} /> <strong>{refund.doctorName}</strong> ({refund.specialtyName}) · Appointment #{refund.appointmentNumber || refund.appointmentId}
                               </div>
 
-                              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                                💰 Refund Amount: <strong style={{ color: '#059669', fontSize: 14 }}>Rs. {refund.amount?.toLocaleString()}</strong>
+                              <div style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Coins size={13} /> Refund Amount: <strong style={{ color: '#059669', fontSize: 14 }}>Rs. {refund.amount?.toLocaleString()}</strong>
                                 <span style={{ marginLeft: 14, color: 'var(--text-muted)', fontSize: 12 }}>
                                   Requested: {new Date(refund.requestedAt).toLocaleString()}
                                 </span>
@@ -343,7 +350,9 @@ export default function ReceptionistDashboard() {
                 </div>
               ) : display.length === 0 ? (
                 <div className="empty-state card" style={{ padding: 40, textAlign: 'center' }}>
-                  <div className="empty-icon" style={{ fontSize: 36, marginBottom: 12 }}>{activeTab === 'PaymentSubmitted' ? '🎉' : '📋'}</div>
+                  <div className="empty-icon" style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+                    {activeTab === 'PaymentSubmitted' ? <CheckCircle2 size={40} color="#059669" /> : <ClipboardList size={40} color="var(--text-muted)" />}
+                  </div>
                   <div className="empty-title" style={{ fontWeight: 800, fontSize: 16 }}>{activeTab === 'PaymentSubmitted' ? 'No pending verifications!' : 'No appointments found'}</div>
                   <div className="empty-sub" style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>All caught up for this status tab.</div>
                 </div>
@@ -367,12 +376,12 @@ export default function ReceptionistDashboard() {
                                 <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text-primary)' }}>{appt.patientName}</div>
                                 <span className="badge" style={{ color: st.color, background: st.bg, fontSize: 11, padding: '3px 8px' }}>{st.label}</span>
                               </div>
-                              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
-                                🩺 <strong>{appt.doctorName}</strong> ({appt.specialtyName}) · 🕒 {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Stethoscope size={13} /> <strong>{appt.doctorName}</strong> ({appt.specialtyName}) · <Clock size={12} /> {d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </div>
-                              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                                💰 Consultation Fee: <strong>Rs. {appt.fee?.toLocaleString()}</strong>
-                                {appt.appointmentNumber && <span style={{ marginLeft: 12, color: 'var(--med-teal)', fontWeight: 700 }}><Hash size={12} /> {appt.appointmentNumber}</span>}
+                              <div style={{ fontSize: 13, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Coins size={13} /> Consultation Fee: <strong>Rs. {appt.fee?.toLocaleString()}</strong>
+                                {appt.appointmentNumber && <span style={{ marginLeft: 12, color: 'var(--med-teal)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 2 }}><Hash size={12} /> {appt.appointmentNumber}</span>}
                               </div>
                               {appt.notes && (
                                 <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>
