@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   Brain, CheckCircle, X, Edit3, Stethoscope, AlertCircle, Loader,
   ArrowLeft, Plus, Trash2, Sparkles, ShieldAlert, Activity, UserPlus,
-  ChevronDown, ChevronUp, FileText, Printer, CheckSquare, RefreshCw, AlertTriangle, Pill
+  ChevronDown, ChevronUp, FileText, Printer, CheckSquare, RefreshCw, AlertTriangle, Pill,
+  User, Check, ClipboardList, Bot, Eye, Terminal, TestTube2, CheckCircle2, ShieldCheck
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -680,10 +681,10 @@ export default function ConsultationPage() {
   );
 
   const STEPS = [
-    { key: 'review', label: 'Patient Review', icon: '👤' },
-    { key: 'examine', label: 'Examination', icon: '🩺' },
-    { key: 'ai', label: 'AI Agent Co-Pilot', icon: '🧠' },
-    { key: 'done', label: 'Clinical Plan Record', icon: '📋' },
+    { key: 'review', label: 'Patient Review', icon: User },
+    { key: 'examine', label: 'Examination', icon: Stethoscope },
+    { key: 'ai', label: 'AI Agent Co-Pilot', icon: Brain },
+    { key: 'done', label: 'Clinical Plan Record', icon: ClipboardList },
   ];
   const currentStepIdx = STEPS.findIndex(s => s.key === step);
 
@@ -705,6 +706,7 @@ export default function ConsultationPage() {
                 {STEPS.map((s, idx) => {
                   const isDone = idx < currentStepIdx;
                   const isCurrent = idx === currentStepIdx;
+                  const StepIcon = s.icon;
                   return (
                     <div key={s.key} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: '0 0 auto' }}>
@@ -715,7 +717,7 @@ export default function ConsultationPage() {
                           boxShadow: isCurrent ? 'var(--shadow-glow)' : 'none',
                           transition: 'var(--transition)',
                         }}>
-                          {isDone ? '✓' : s.icon}
+                          {isDone ? <Check size={18} color="white" /> : <StepIcon size={16} color={isCurrent ? 'white' : 'var(--text-muted)'} />}
                         </div>
                         <div style={{ fontSize: 11, fontWeight: isCurrent ? 700 : 500, color: isCurrent ? 'var(--med-blue)' : isDone ? 'var(--success)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                           {s.label}
@@ -738,12 +740,12 @@ export default function ConsultationPage() {
                 <div className="card fade-in">
                   <div className="card-header" style={{ background: 'linear-gradient(135deg,#ECFDF5,#D1FAE5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div className="section-title">👤 Patient Details & Pre-Exam Entry</div>
+                      <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><User size={18} /> Patient Details & Pre-Exam Entry</div>
                       <div className="section-sub">Verify or manually update patient information for clinical agent processing</div>
                     </div>
                     {!appt?.patientName && (
-                      <span className="badge" style={{ background: '#FEF3C7', color: '#B45309', border: '1px solid #F59E0B', fontSize: 11 }}>
-                        ⚠️ Manual Entry Mode
+                      <span className="badge" style={{ background: '#FEF3C7', color: '#B45309', border: '1px solid #F59E0B', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <AlertTriangle size={12} /> Manual Entry Mode
                       </span>
                     )}
                   </div>
@@ -776,8 +778,8 @@ export default function ConsultationPage() {
                     </div>
 
                     <div className="form-group" style={{ marginBottom: 20 }}>
-                      <label className="form-label" style={{ fontWeight: 700, color: 'var(--danger)' }}>
-                        ⚠️ Recorded Allergies (Monitored by AI Safety Agent)
+                      <label className="form-label" style={{ fontWeight: 700, color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <AlertTriangle size={14} /> Recorded Allergies (Monitored by AI Safety Agent)
                       </label>
                       <input
                         type="text"
@@ -824,7 +826,7 @@ export default function ConsultationPage() {
                 <div className="card fade-in">
                   <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
-                      <div className="section-title">🩺 Examination & Vitals Assessment</div>
+                      <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Stethoscope size={18} /> Examination & Vitals Assessment</div>
                       <div className="section-sub">Record symptoms and vitals for autonomous ReAct agent evaluation</div>
                     </div>
                   </div>
@@ -924,7 +926,9 @@ export default function ConsultationPage() {
                         <Brain size={24} color="#A5B4FC" />
                       </div>
                       <div>
-                        <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: 16, color: '#F3F4F6' }}>🤖 Autonomous Clinical Agent & Human-in-the-Loop Workspace</div>
+                        <div style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 800, fontSize: 16, color: '#F3F4F6', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <Bot size={20} color="#A5B4FC" /> Autonomous Clinical Agent & Human-in-the-Loop Workspace
+                        </div>
                         <div style={{ fontSize: 12.5, color: '#C7D2FE', marginTop: 2 }}>
                           The agent has synthesized symptoms and tool outputs. You can edit, override, or discard any item below before finalizing.
                         </div>
@@ -965,13 +969,13 @@ export default function ConsultationPage() {
                                 <span>{t.thought}</span>
                               </div>
                               {t.toolName && (
-                                <div style={{ marginLeft: 16, marginTop: 4, color: '#F43F5E' }}>
-                                  🛠️ Executed Tool: <strong>{t.toolName}</strong> ({t.toolInput})
+                                <div style={{ marginLeft: 16, marginTop: 4, color: '#F43F5E', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <Terminal size={13} /> Executed Tool: <strong>{t.toolName}</strong> ({t.toolInput})
                                 </div>
                               )}
                               {t.observation && (
-                                <div style={{ marginLeft: 16, marginTop: 2, color: '#34D399' }}>
-                                  👁️ Observation: {t.observation}
+                                <div style={{ marginLeft: 16, marginTop: 2, color: '#34D399', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <Eye size={13} /> Observation: {t.observation}
                                 </div>
                               )}
                             </div>
@@ -1046,7 +1050,7 @@ export default function ConsultationPage() {
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                       <span style={{ fontSize: 17, fontWeight: 800, color: 'var(--text-primary)' }}>{diag.diagnosis}</span>
                                       <span className="badge badge-blue">{diag.icdCode}</span>
-                                      {diag.status === 'modified' && <span className="badge" style={{ background: '#E0E7FF', color: '#4338CA' }}>✏️ Edited by Doctor</span>}
+                                      {diag.status === 'modified' && <span className="badge" style={{ background: '#E0E7FF', color: '#4338CA', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Edit3 size={11} /> Edited by Doctor</span>}
                                     </div>
                                   )}
                                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -1118,7 +1122,9 @@ export default function ConsultationPage() {
                               }}
                             >
                               <div>
-                                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>🧪 {lab.testName}</div>
+                                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <TestTube2 size={16} color="var(--primary)" /> {lab.testName}
+                                </div>
                                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Indication: {lab.indication}</div>
                               </div>
                               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1126,7 +1132,7 @@ export default function ConsultationPage() {
                                   className={`btn btn-sm ${isApproved ? 'btn-primary' : 'btn-outline'}`}
                                   onClick={() => setLabStatus(lab.id, isApproved ? 'discarded' : 'approved')}
                                 >
-                                  {isApproved ? '✓ Approved' : 'Approve Order'}
+                                  {isApproved ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={13} /> Approved</span> : 'Approve Order'}
                                 </button>
                                 <button
                                   className="btn btn-sm btn-ghost"
@@ -1146,7 +1152,7 @@ export default function ConsultationPage() {
                         <input
                           type="text"
                           className="form-input"
-                          placeholder="➕ Add Custom Doctor Lab Order (e.g. Serum Creatinine)..."
+                          placeholder="Add Custom Doctor Lab Order (e.g. Serum Creatinine)..."
                           value={newLabName}
                           onChange={e => setNewLabName(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && addCustomLab()}
@@ -1322,11 +1328,11 @@ export default function ConsultationPage() {
                     </button>
                     <button
                       className="btn btn-primary btn-lg"
-                      style={{ flex: 1, padding: '14px', fontSize: 15, fontWeight: 800, background: 'var(--gradient-doctor)' }}
+                      style={{ flex: 1, padding: '14px', fontSize: 15, fontWeight: 800, background: 'var(--gradient-doctor)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                       onClick={finalizeClinicalCarePlan}
                       id="finalize-care-plan-btn"
                     >
-                      Finalize Approved Clinical Care Plan & Complete Consultation ✅
+                      Finalize Approved Clinical Care Plan & Complete Consultation <CheckCircle2 size={18} />
                     </button>
                   </div>
                 </div>
@@ -1394,8 +1400,8 @@ export default function ConsultationPage() {
                       {approvedPlan.approvedLabOrders.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {approvedPlan.approvedLabOrders.map(l => (
-                            <div key={l.id} style={{ fontSize: 13.5, fontWeight: 700, color: '#1E3A8A' }}>
-                              🧪 {l.testName} <span style={{ fontWeight: 400, fontSize: 12, color: '#3B82F6' }}>({l.indication})</span>
+                            <div key={l.id} style={{ fontSize: 13.5, fontWeight: 700, color: '#1E3A8A', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <TestTube2 size={14} color="#3B82F6" /> {l.testName} <span style={{ fontWeight: 400, fontSize: 12, color: '#3B82F6' }}>({l.indication})</span>
                             </div>
                           ))}
                         </div>
@@ -1414,7 +1420,7 @@ export default function ConsultationPage() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {approvedPlan.approvedMedications.map(m => (
                           <div key={m.id} style={{ padding: '10px 14px', background: 'white', borderRadius: 'var(--r-sm)', border: '1px solid #FEF08A' }}>
-                            <div style={{ fontWeight: 800, fontSize: 14, color: '#713F12' }}>💊 {m.drugName} — {m.dosage}</div>
+                            <div style={{ fontWeight: 800, fontSize: 14, color: '#713F12', display: 'flex', alignItems: 'center', gap: 6 }}><Pill size={16} color="#854D0E" /> {m.drugName} — {m.dosage}</div>
                             <div style={{ fontSize: 12.5, color: '#854D0E', marginTop: 2 }}>
                               Frequency: <strong>{m.frequency}</strong> • Duration: <strong>{m.duration}</strong>
                             </div>
@@ -1430,7 +1436,7 @@ export default function ConsultationPage() {
                   {/* Overridden Alerts Audit Log */}
                   {approvedPlan.overriddenWarnings.length > 0 && (
                     <div style={{ padding: 14, background: '#FEE2E2', borderRadius: 'var(--r-md)', border: '1px solid #FCA5A5', marginBottom: 20 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: '#991B1B', marginBottom: 4 }}>🛡️ Clinician Allergy Overrides Logged:</div>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: '#991B1B', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><ShieldCheck size={16} /> Clinician Allergy Overrides Logged:</div>
                       {approvedPlan.overriddenWarnings.map((ov, idx) => (
                         <div key={idx} style={{ fontSize: 12, color: '#B91C1C' }}>• {ov}</div>
                       ))}
@@ -1469,8 +1475,8 @@ export default function ConsultationPage() {
                       <span style={{ fontWeight: 700, color: 'var(--danger)' }}>{manualBloodGroup}</span>
                     </div>
                     {activeAllergies && (
-                      <div style={{ marginTop: 10, padding: '8px 10px', background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: 'var(--r-sm)', fontSize: 12, color: '#991B1B' }}>
-                        <strong>⚠️ Allergies:</strong> {activeAllergies}
+                      <div style={{ marginTop: 10, padding: '8px 10px', background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: 'var(--r-sm)', fontSize: 12, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <AlertTriangle size={14} style={{ flexShrink: 0 }} /> <span><strong>Allergies:</strong> {activeAllergies}</span>
                       </div>
                     )}
                   </div>

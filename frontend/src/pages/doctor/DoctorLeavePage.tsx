@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Plus, Trash2, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Calendar, Plus, Trash2, Clock, AlertTriangle, CheckCircle2, Palmtree } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import { apiGetDoctorLeaves, apiCreateDoctorLeave, apiDeleteDoctorLeave, getUser } from '../../services/api';
@@ -243,7 +243,9 @@ export default function DoctorLeavePage() {
               <div style={{ padding: 50, textAlign: 'center', color: 'var(--text-secondary)' }}>Loading leaves...</div>
             ) : leaves.length === 0 ? (
               <div className="empty-state" style={{ padding: '60px 20px', textAlign: 'center' }}>
-                <div className="empty-icon" style={{ fontSize: 40, marginBottom: 12 }}>🏖️</div>
+                <div className="empty-icon" style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+                  <Palmtree size={44} color="#0EA5E9" />
+                </div>
                 <div className="empty-title" style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>No Leaves Scheduled</div>
                 <div className="empty-sub" style={{ fontSize: 14, color: 'var(--text-secondary)', marginTop: 4 }}>
                   You don't have any active or upcoming leaves scheduled.
