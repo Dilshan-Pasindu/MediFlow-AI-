@@ -19,6 +19,7 @@ import {
   Package,
   FlaskConical,
   PartyPopper,
+  Lock,
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -622,8 +623,13 @@ export default function PharmacistDashboard() {
                                 <Pill size={14} className="text-teal-600 shrink-0" />
                                 Dispensing & Billing Editor
                               </h4>
-                              <span className={`text-[10px] border px-2.5 py-0.5 rounded-full font-medium shrink-0 ${isEditable ? 'text-teal-800 bg-teal-100/70 border-teal-200/80' : 'text-slate-700 bg-slate-100 border-slate-300 font-semibold'}`}>
-                                {isEditable ? 'Interactive Editor Mode' : '🔒 Finalized & Locked (Paid)'}
+                              <span className={`text-[10px] border px-2.5 py-0.5 rounded-full font-medium shrink-0 inline-flex items-center gap-1 ${isEditable ? 'text-teal-800 bg-teal-100/70 border-teal-200/80' : 'text-slate-700 bg-slate-100 border-slate-300 font-semibold'}`}>
+                                {isEditable ? 'Interactive Editor Mode' : (
+                                  <>
+                                    <Lock size={10} className="shrink-0" />
+                                    <span>Finalized & Locked (Paid)</span>
+                                  </>
+                                )}
                               </span>
                             </div>
 
@@ -646,7 +652,7 @@ export default function PharmacistDashboard() {
                                     ) : (
                                       <Send size={12} className="text-amber-800" />
                                     )}
-                                    <span>📩 Request Restock from Owner</span>
+                                    <span>Request Restock from Owner</span>
                                   </button>
                                 )}
                               </div>

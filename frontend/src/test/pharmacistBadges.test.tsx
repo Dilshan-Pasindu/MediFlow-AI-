@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { Package } from 'lucide-react';
 import { PrescriptionStatusBadge } from '../components/pharmacist/PrescriptionStatusBadge';
 import { OrderStatusBadge } from '../components/pharmacist/OrderStatusBadge';
 import { PharmacistStatCard } from '../components/pharmacist/PharmacistStatCard';
@@ -54,7 +55,7 @@ describe('Pharmacist Portal UI Components', () => {
 
   describe('PharmacistStatCard', () => {
     it('renders metric label, value, and custom icon', () => {
-      render(<PharmacistStatCard label="Pending Orders" value={14} icon={<span data-testid="custom-icon">📦</span>} />);
+      render(<PharmacistStatCard label="Pending Orders" value={14} icon={<Package data-testid="custom-icon" size={16} />} />);
       expect(screen.getByText('Pending Orders')).toBeInTheDocument();
       expect(screen.getByText('14')).toBeInTheDocument();
       expect(screen.getByTestId('custom-icon')).toBeInTheDocument();
