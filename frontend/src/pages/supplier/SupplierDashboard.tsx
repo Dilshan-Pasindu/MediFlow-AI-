@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, CheckCircle2, X, Loader, Truck, RefreshCw, Package, AlertTriangle, History, PartyPopper } from 'lucide-react';
+import { CheckCircle, CheckCircle2, X, Loader, Truck, RefreshCw, Package, AlertTriangle, History, PartyPopper, Building2, FileText, Landmark, Lock } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -314,8 +314,14 @@ export default function SupplierDashboard() {
                           </div>
                           <span className={`badge ${STATUS_COLOR[req.status] || 'badge-blue'}`}>{req.status}</span>
                         </div>
-                        <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>🏥 {req.pharmacyName}</div>
-                        {req.notes && <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>📝 {req.notes}</div>}
+                        <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <Building2 size={13} /> {req.pharmacyName}
+                        </div>
+                        {req.notes && (
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <FileText size={13} /> {req.notes}
+                          </div>
+                        )}
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>Order Value</div>
@@ -437,18 +443,18 @@ export default function SupplierDashboard() {
                       {req.status !== 'Pending' && req.status !== 'Rejected' && (
                         <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {!req.supplierBankName && (
-                            <button className="btn btn-ghost" onClick={() => { setBankModalReq(req); setBankDetails({ bankName: '', accountName: '', accountNumber: '', branch: '' }); }} style={{ width: '100%', fontSize: 13, background: 'var(--surface-2)' }}>
-                              🏦 Submit Bank Details
+                            <button className="btn btn-ghost" onClick={() => { setBankModalReq(req); setBankDetails({ bankName: '', accountName: '', accountNumber: '', branch: '' }); }} style={{ width: '100%', fontSize: 13, background: 'var(--surface-2)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <Landmark size={14} /> Submit Bank Details
                             </button>
                           )}
                           {req.supplierBankName && req.paymentStatus === 'Submitted' && (
-                            <button className="btn btn-success" onClick={() => setVerifyModalReq(req)} style={{ width: '100%' }}>
-                              ✅ Verify Payment (Slip Uploaded)
+                            <button className="btn btn-success" onClick={() => setVerifyModalReq(req)} style={{ width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <CheckCircle2 size={14} /> Verify Payment (Slip Uploaded)
                             </button>
                           )}
                           {req.supplierBankName && req.paymentStatus === 'Verified' && (
-                            <div style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600, textAlign: 'center', background: 'var(--surface-2)', padding: '10px', borderRadius: 'var(--r-md)' }}>
-                              ✅ Payment Verified
+                            <div style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600, textAlign: 'center', background: 'var(--surface-2)', padding: '10px', borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                              <CheckCircle2 size={14} /> Payment Verified
                             </div>
                           )}
                         </div>
@@ -470,8 +476,8 @@ export default function SupplierDashboard() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
             <div style={{ background: 'var(--surface-card)', borderRadius: 'var(--r-xl)', padding: 28, width: '100%', maxWidth: 600, maxHeight: '85vh', overflowY: 'auto', boxShadow: 'var(--shadow-xl)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 17, fontWeight: 800 }}>
-                  🚚 Dispatch Request #{dispatchingId}
+                <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 17, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Truck size={18} color="var(--primary)" /> Dispatch Request #{dispatchingId}
                 </div>
                 <button className="close-btn" onClick={() => setDispatchingId(null)}><X size={16} /></button>
               </div>
@@ -558,7 +564,7 @@ export default function SupplierDashboard() {
                 </span>
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-                🔒 Inventory will only update when the pharmacy owner confirms receipt — not at dispatch.
+                <Lock size={12} /> Inventory will only update when the pharmacy owner confirms receipt — not at dispatch.
               </div>
 
               <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
@@ -582,8 +588,8 @@ export default function SupplierDashboard() {
             </div>
 
             {bankModalError && (
-              <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16 }}>
-                ⚠️ {bankModalError}
+              <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} /> {bankModalError}
               </div>
             )}
             
@@ -630,8 +636,8 @@ export default function SupplierDashboard() {
             </div>
 
             {verifyModalError && (
-              <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16 }}>
-                ⚠️ {verifyModalError}
+              <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} /> {verifyModalError}
               </div>
             )}
             
@@ -643,7 +649,9 @@ export default function SupplierDashboard() {
               <div style={{ marginBottom: 20, textAlign: 'center', background: 'var(--surface-2)', padding: 12, borderRadius: 'var(--r-md)' }}>
                 {verifyModalReq.paymentSlipUrl.startsWith('data:application/pdf') || verifyModalReq.paymentSlipUrl.endsWith('.pdf') ? (
                   <div style={{ padding: 16 }}>
-                    <div style={{ fontSize: 36, marginBottom: 8 }}>📄</div>
+                    <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+                      <FileText size={36} color="var(--text-muted)" />
+                    </div>
                     <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>PDF Payment Receipt Attached</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>The pharmacy owner uploaded a PDF payment document.</div>
                     <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
