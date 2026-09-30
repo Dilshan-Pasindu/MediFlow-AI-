@@ -1,6 +1,7 @@
 using MediFlow.Api.Data;
 using MediFlow.Api.DTOs;
 using MediFlow.Api.Models;
+using MediFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,9 +16,9 @@ namespace MediFlow.Api.Controllers;
 public class PatientController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly IAiServiceClient _ai;
+    private readonly IAiServiceClient? _ai;
 
-    public PatientController(AppDbContext db, IAiServiceClient ai)
+    public PatientController(AppDbContext db, IAiServiceClient? ai = null)
     {
         _db = db;
         _ai = ai;
@@ -258,7 +259,7 @@ public class PatientController : ControllerBase
         string reason;
         object? systemCheckerObj = null;
 
-        var aiResult = await _ai.RecommendSpecialistAsync(request.Symptoms, request.Severity, request.Duration);
+        var aiResult = _ai != null ? await _ai.RecommendSpecialistAsync(request.Symptoms, request.Severity, request.Duration) : null;
         if (aiResult != null && !string.IsNullOrWhiteSpace(aiResult.RecommendedSpecialty))
         {
             specialty = aiResult.RecommendedSpecialty;

@@ -145,6 +145,7 @@ jobs:
           if [ -f "ai/requirements.txt" ]; then pip install -r ai/requirements.txt; fi
           if [ -f "ai/pyproject.toml" ]; then pip install .; fi
           pip install pytest flake8
+          python -c "from ai.knowledge_base.build_hybrid_knowledge_base import build_hybrid_knowledge_base; from ai.knowledge_base.enrich_idioms_and_emergencies import enrich_knowledge_base; build_hybrid_knowledge_base(target_count=300); enrich_knowledge_base()"
           flake8 ai/ --count --select=E9,F63,F7,F82 --show-source --statistics
           if [ -d "ai/tests" ]; then PYTHONPATH=. pytest ai/tests; fi
 
