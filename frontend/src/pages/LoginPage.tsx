@@ -5,7 +5,8 @@ import {
   HeartPulse, Eye, EyeOff, ArrowRight, Loader,
   CheckCircle2, XCircle, ShieldCheck, Mail, Lock,
   User, Phone, Sparkles, Activity, Users, Star,
-  Stethoscope, Brain, Pill, Clock, Plus
+  Stethoscope, Brain, Pill, Clock, Plus,
+  Briefcase, Building2, Truck, Shield, X, KeyRound
 } from 'lucide-react';
 import { apiLogin, apiRegister, apiGoogleAuth } from '../services/api';
 import { MediFlowLogo } from '../components/MediFlowLogo';
@@ -48,13 +49,13 @@ const registerSchema = z.object({
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const DEMO_PERSONAS = [
-  { role: 'Patient', label: 'Patient', email: 'dilshan@gmail.com', password: 'Test@123', icon: '👤', color: '#2A7DE1' },
-  { role: 'Doctor', label: 'Doctor', email: 'nimal.perera@mediflow.lk', password: 'Doctor@123', icon: '🩺', color: '#059669' },
-  { role: 'Receptionist', label: 'Receptionist', email: 'receptionist@mediflow.lk', password: 'Staff@123', icon: '👩‍💼', color: '#7C3AED' },
-  { role: 'Pharmacist', label: 'Pharmacist', email: 'pharmacist@mediflow.lk', password: 'Staff@123', icon: '💊', color: '#D97706' },
-  { role: 'PharmacyOwner', label: 'Owner', email: 'pharmacyowner@mediflow.lk', password: 'Staff@123', icon: '🏥', color: '#DC2626' },
-  { role: 'Supplier', label: 'Supplier', email: 'supplier@mediflow.lk', password: 'Staff@123', icon: '🚚', color: '#0891B2' },
-  { role: 'Administrator', label: 'Admin', email: 'admin@mediflow.lk', password: 'Admin@123', icon: '🛡️', color: '#475569' },
+  { role: 'Patient', label: 'Patient', email: 'dilshan@gmail.com', password: 'Test@123', icon: <User size={13} />, color: '#2A7DE1' },
+  { role: 'Doctor', label: 'Doctor', email: 'nimal.perera@mediflow.lk', password: 'Doctor@123', icon: <Stethoscope size={13} />, color: '#059669' },
+  { role: 'Receptionist', label: 'Receptionist', email: 'receptionist@mediflow.lk', password: 'Staff@123', icon: <Briefcase size={13} />, color: '#7C3AED' },
+  { role: 'Pharmacist', label: 'Pharmacist', email: 'pharmacist@mediflow.lk', password: 'Staff@123', icon: <Pill size={13} />, color: '#D97706' },
+  { role: 'PharmacyOwner', label: 'Owner', email: 'pharmacyowner@mediflow.lk', password: 'Staff@123', icon: <Building2 size={13} />, color: '#DC2626' },
+  { role: 'Supplier', label: 'Supplier', email: 'supplier@mediflow.lk', password: 'Staff@123', icon: <Truck size={13} />, color: '#0891B2' },
+  { role: 'Administrator', label: 'Admin', email: 'admin@mediflow.lk', password: 'Admin@123', icon: <Shield size={13} />, color: '#475569' },
 ];
 
 const FEATURE_ROWS = [
@@ -67,7 +68,7 @@ const FEATURE_ROWS = [
 const STATS = [
   { icon: Users, value: '10K+', label: 'Patients', color: '#2A7DE1' },
   { icon: Stethoscope, value: '500+', label: 'Doctors', color: '#059669' },
-  { icon: Star, value: '4.9★', label: 'Rating', color: '#D97706' },
+  { icon: Star, value: '4.9/5', label: 'Rating', color: '#D97706' },
   { icon: Clock, value: '24/7', label: 'Support', color: '#7C3AED' },
 ];
 
@@ -973,7 +974,7 @@ export default function LoginPage() {
               {/* ── LOGIN ── */}
               {tab === 'login' && (
                 <div className="fade-up">
-                  <div className="lp-title">Welcome back 👋</div>
+                  <div className="lp-title">Welcome Back</div>
                   <div className="lp-sub">Sign in to access your MediFlow AI portal</div>
 
                   <div className="lp-accent-bar" style={{ background: `linear-gradient(90deg, ${persona.color}, #4FD1C5)` }} />
@@ -992,7 +993,7 @@ export default function LoginPage() {
                         style={{ '--pill-color': p.color } as any}
                         onClick={() => applyPersona(p)}
                         id={`persona-${p.role.toLowerCase()}`}>
-                        <span>{p.icon}</span><span>{p.label}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center' }}>{p.icon}</span><span>{p.label}</span>
                       </button>
                     ))}
                   </div>
@@ -1066,20 +1067,20 @@ export default function LoginPage() {
               {/* ── REGISTER ── */}
               {tab === 'register' && (
                 <div className="fade-up">
-                  <div className="lp-title">Create Account ✨</div>
+                  <div className="lp-title">Create Account</div>
                   <div className="lp-sub">Register to access channeling &amp; prescriptions</div>
 
                   <label className="lp-role-lbl">Account Type</label>
                   <div className="lp-role-grid">
                     {[
-                      { role: 'Patient', icon: '👤', name: 'Patient', desc: 'Book & Prescriptions' },
-                      { role: 'Doctor', icon: '🩺', name: 'Doctor', desc: 'Consultations & CDS' },
-                      { role: 'Pharmacist', icon: '💊', name: 'Pharmacist', desc: 'Dispensing & Orders' },
+                      { role: 'Patient', icon: <User size={20} color="#2A7DE1" />, name: 'Patient', desc: 'Book & Prescriptions' },
+                      { role: 'Doctor', icon: <Stethoscope size={20} color="#059669" />, name: 'Doctor', desc: 'Consultations & CDS' },
+                      { role: 'Pharmacist', icon: <Pill size={20} color="#D97706" />, name: 'Pharmacist', desc: 'Dispensing & Orders' },
                     ].map(r => (
                       <div key={r.role} id={`role-card-${r.role.toLowerCase()}`}
                         className={`lp-role-card ${form.role === r.role ? 'active' : ''}`}
                         onClick={() => setForm({ ...form, role: r.role })}>
-                        <div className="lp-role-ico">{r.icon}</div>
+                        <div className="lp-role-ico" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{r.icon}</div>
                         <div className="lp-role-name">{r.name}</div>
                         <div className="lp-role-desc">{r.desc}</div>
                       </div>
@@ -1222,7 +1223,7 @@ export default function LoginPage() {
               {/* ── FORGOT ── */}
               {tab === 'forgot' && (
                 <div className="fade-up">
-                  <div className="lp-title">Reset Password 🔑</div>
+                  <div className="lp-title">Reset Password</div>
                   <div className="lp-sub">Enter your email to receive a secure reset link</div>
 
                   {forgotSent ? (
@@ -1266,7 +1267,9 @@ export default function LoginPage() {
           <div className="lp-modal" onClick={e => e.stopPropagation()}>
             <div className="lp-modal-head">
               <div className="lp-modal-title">Terms of Service &amp; Privacy</div>
-              <button className="lp-modal-close" onClick={() => setShowTerms(false)}>✕</button>
+              <button className="lp-modal-close" onClick={() => setShowTerms(false)} aria-label="Close">
+                <X size={16} />
+              </button>
             </div>
             <div className="lp-modal-body">
               <p style={{ marginBottom: 12 }}><strong>1. Healthcare AI Disclaimer:</strong> MediFlow AI provides recommendation assistance for doctor channeling and clinical decision support. All final medical decisions remain under the authority of certified medical professionals.</p>

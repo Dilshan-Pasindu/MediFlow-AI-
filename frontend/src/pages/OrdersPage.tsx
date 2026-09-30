@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Package, CheckCircle, Clock, Truck, AlertCircle, Star,
-  ShieldCheck, ArrowRight, Sparkles, Building2, Calendar
+  ShieldCheck, ArrowRight, Sparkles, Building2, Calendar,
+  Check, X, Stethoscope, FileText
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -25,13 +26,13 @@ const ORDER_STAGES: OrderStageMeta[] = [
 
 const ORDER_STEP_KEYS: OrderStatus[] = ['Pending', 'Confirmed', 'Dispensed'];
 
-const STATUS_STYLES: Record<string, { color: string; bg: string; label: string; icon: string }> = {
-  Pending:   { color: '#B45309', bg: '#FFFBEB', label: 'In Queue', icon: '🕐' },
-  Confirmed: { color: '#0369A1', bg: '#EFF6FF', label: 'Confirmed', icon: '✅' },
-  Preparing: { color: '#0369A1', bg: '#EFF6FF', label: 'Confirmed', icon: '✅' },
-  Ready:     { color: '#0369A1', bg: '#EFF6FF', label: 'Confirmed', icon: '✅' },
-  Dispensed: { color: '#059669', bg: '#ECFDF5', label: 'Dispensed', icon: '✓' },
-  Cancelled: { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled', icon: '✕' },
+const STATUS_STYLES: Record<string, { color: string; bg: string; label: string; icon: React.ReactNode }> = {
+  Pending:   { color: '#B45309', bg: '#FFFBEB', label: 'In Queue', icon: <Clock size={12} /> },
+  Confirmed: { color: '#0369A1', bg: '#EFF6FF', label: 'Confirmed', icon: <CheckCircle size={12} /> },
+  Preparing: { color: '#0369A1', bg: '#EFF6FF', label: 'Preparing', icon: <Clock size={12} /> },
+  Ready:     { color: '#0369A1', bg: '#EFF6FF', label: 'Ready', icon: <CheckCircle size={12} /> },
+  Dispensed: { color: '#059669', bg: '#ECFDF5', label: 'Dispensed', icon: <Check size={12} /> },
+  Cancelled: { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled', icon: <X size={12} /> },
 };
 
 export default function OrdersPage() {
@@ -112,10 +113,11 @@ export default function OrdersPage() {
             </button>
             <button
               className={`btn btn-sm ${activeTab === 'dispensed' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               onClick={() => setActiveTab('dispensed')}
               id="filter-dispensed-orders"
             >
-              ✓ Dispensed ({completedOrders.length})
+              <Check size={13} /> Dispensed ({completedOrders.length})
             </button>
           </div>
 
@@ -127,7 +129,9 @@ export default function OrdersPage() {
             </div>
           ) : orders.length === 0 ? (
             <div className="empty-state card">
-              <div className="empty-icon">📦</div>
+              <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
+                <Package size={40} color="var(--text-muted)" />
+              </div>
               <div className="empty-title">No medicine dispensing records yet</div>
               <div className="empty-sub">
                 When your doctor issues an e-prescription, the pharmacy prepares and dispenses your medications here. You can track each dispensing step in real time.
@@ -172,7 +176,9 @@ export default function OrdersPage() {
                         {selectedOrder.prescriptionId && ` • Rx #${selectedOrder.prescriptionId}`}
                       </div>
                     </div>
-                    <button className="close-btn" onClick={() => setSelectedOrder(null)} id="close-order-panel-btn">✕</button>
+                    <button className="close-btn" onClick={() => setSelectedOrder(null)} id="close-order-panel-btn" aria-label="Close">
+                      <X size={16} />
+                    </button>
                   </div>
 
                   <div className="card-body">
@@ -193,9 +199,9 @@ export default function OrdersPage() {
                           width: 40, height: 40, borderRadius: '50%',
                           background: '#059669', color: '#ffffff',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 20, fontWeight: 900, flexShrink: 0
+                          flexShrink: 0
                         }}>
-                          ✓
+                          <Check size={20} strokeWidth={2.5} />
                         </div>
                         <div>
                           <div style={{ fontWeight: 800, fontSize: 14, color: '#065F46' }}>
@@ -219,9 +225,22 @@ export default function OrdersPage() {
                       marginBottom: 20,
                       border: '1px solid var(--border)'
                     }}>
-                      <div className="info-row"><span className="info-row-label">🏥 Pharmacy:</span><strong>{selectedOrder.pharmacyName}</strong></div>
-                      <div className="info-row"><span className="info-row-label">🩺 Doctor:</span>{selectedOrder.doctorName}</div>
-                      <div className="info-row"><span className="info-row-label">📋 Status:</span>
+                      <div className="info-row">
+                        <span className="info-row-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Building2 size={13} /> Pharmacy:
+                        </span>
+                        <strong>{selectedOrder.pharmacyName}</strong>
+                      </div>
+                      <div className="info-row">
+                        <span className="info-row-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Stethoscope size={13} /> Doctor:
+                        </span>
+                        {selectedOrder.doctorName}
+                      </div>
+                      <div className="info-row">
+                        <span className="info-row-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <FileText size={13} /> Status:
+                        </span>
                         <span className={`badge ${
                           selectedOrder.status === 'Dispensed' ? 'badge-green' :
                           ['Confirmed', 'Preparing', 'Ready'].includes(selectedOrder.status) ? 'badge-blue' : 'badge-amber'
@@ -282,7 +301,7 @@ export default function OrdersPage() {
                               flexShrink: 0,
                               boxShadow: isCurrent ? '0 0 0 3px rgba(42, 125, 225, 0.2)' : 'none',
                             }}>
-                              {isCompleted ? '✓' : <StageIcon size={14} />}
+                              {isCompleted ? <Check size={14} /> : <StageIcon size={14} />}
                             </div>
 
                             {/* Node Details */}
@@ -386,17 +405,18 @@ function OrderCard({ order, onSelect, selected }: { order: Order; onSelect: () =
                 Dispense Order #{order.id}
               </div>
               {isDispensed && (
-                <span className="badge badge-green" style={{ fontSize: 11, padding: '2px 8px' }}>
-                  ✓ Dispensed
+                <span className="badge badge-green" style={{ fontSize: 11, padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Check size={11} /> Dispensed
                 </span>
               )}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3 }}>
-              🏥 {order.pharmacyName} • Appt: <strong>{order.appointmentNumber || 'N/A'}</strong>
+              <Building2 size={12} style={{ display: 'inline', verticalAlign: '-1px', marginRight: 4 }} />
+              {order.pharmacyName} • Appt: <strong>{order.appointmentNumber || 'N/A'}</strong>
               {order.prescriptionId && ` • Rx #${order.prescriptionId}`}
             </div>
           </div>
-          <span className="badge" style={{ color: st.color, background: st.bg, fontWeight: 700 }}>
+          <span className="badge" style={{ color: st.color, background: st.bg, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             {st.icon} {st.label}
           </span>
         </div>
