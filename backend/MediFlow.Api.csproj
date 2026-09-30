@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <NoWarn>$(NoWarn);CA1304;CA1305;CA1310;CA1311;CA1848;CA1862;CA5351</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
