@@ -233,9 +233,9 @@ public class PaymentSandboxAndRefundWorkflowTests : IDisposable
     }
 
     [Fact]
-    public async Task Rule4And10_PatientCancelOrRefund_AfterReceptionistApproved_RejectedByBackend()
+    public async Task PatientCanCancelAndRequestRefund_AfterReceptionistApproved_PriorToConsultation()
     {
-        // Rule 4 & 10: Once receptionist approves appointment, patient CANNOT apply for refund or cancel
+        // Patient CAN cancel and apply for refund after payment and receptionist approval (pre-consultation)
         var (patUser, _, _, appt) = await SeedAppointmentAsync(AppointmentStatus.Confirmed);
         appt.Payment = new AppointmentPayment
         {
@@ -251,15 +251,21 @@ public class PaymentSandboxAndRefundWorkflowTests : IDisposable
 
         SetUserContext(patUser.Id, "Patient");
 
-        // Attempt cancel
+        // Cancel succeeds
         var cancelResult = await _controller.PatientCancelAppointment(appt.Id, new PatientCancelRequest("Cannot attend"), CancellationToken.None);
-        var badCancel = Assert.IsType<BadRequestObjectResult>(cancelResult);
-        Assert.Contains("already been approved by the receptionist", badCancel.Value!.ToString(), StringComparison.OrdinalIgnoreCase);
+        var okCancel = Assert.IsType<OkObjectResult>(cancelResult);
+        Assert.NotNull(okCancel.Value);
 
-        // Attempt refund request directly
+        // Refund request succeeds
         var refundResult = await _controller.RequestRefund(appt.Id, new RefundRequestDto("Want refund"), CancellationToken.None);
-        var badRefund = Assert.IsType<BadRequestObjectResult>(refundResult);
-        Assert.Contains("already been approved by the receptionist", badRefund.Value!.ToString(), StringComparison.OrdinalIgnoreCase);
+        var okRefund = Assert.IsType<OkObjectResult>(refundResult);
+        Assert.NotNull(okRefund.Value);
+
+        // Verification: Cannot cancel once InConsultation or Completed
+        appt.Status = AppointmentStatus.InConsultation;
+        await _db.SaveChangesAsync();
+        var cancelInConsult = await _controller.PatientCancelAppointment(appt.Id, new PatientCancelRequest("Cannot attend"), CancellationToken.None);
+        Assert.IsType<BadRequestObjectResult>(cancelInConsult);
     }
 
     [Fact]

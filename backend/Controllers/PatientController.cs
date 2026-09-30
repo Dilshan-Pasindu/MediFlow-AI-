@@ -202,7 +202,8 @@ public class PatientController : ControllerBase
 
         if (appointment.Status == AppointmentStatus.Completed ||
             appointment.Status == AppointmentStatus.InConsultation ||
-            appointment.Status == AppointmentStatus.Cancelled)
+            appointment.Status == AppointmentStatus.Cancelled ||
+            appointment.Status == AppointmentStatus.PatientCancelled)
         {
             return BadRequest(new { message = $"Cannot cancel an appointment that is already {appointment.Status}." });
         }

@@ -151,8 +151,8 @@ export default function RefundTrackingPage() {
   const refund = data?.refund;
   const canRequestRefund = data?.canRequestRefund;
   const apptStatus = data?.appointmentStatus;
-  const isApprovedLocked = ['Confirmed', 'ReceptionistApproved', 'InConsultation', 'Completed'].includes(apptStatus ?? '');
-  const isCancellable = ['Pending', 'PaymentSubmitted', 'PaymentVerified', 'PaymentPending', 'WaitingForReceptionist'].includes(apptStatus ?? '');
+  const isApprovedLocked = ['InConsultation', 'Completed'].includes(apptStatus ?? '');
+  const isCancellable = ['Pending', 'PaymentSubmitted', 'PaymentVerified', 'PaymentPending', 'WaitingForReceptionist', 'Confirmed', 'ReceptionistApproved'].includes(apptStatus ?? '');
 
   return (
     <div className="app-shell">
@@ -197,14 +197,14 @@ export default function RefundTrackingPage() {
                   </div>
                 )}
 
-                {/* Locked post-approval message */}
+                {/* Locked post-consultation message */}
                 {isApprovedLocked && (
                   <div style={{ display: 'flex', gap: 12, padding: '16px 20px', background: '#FFFBEB', border: '1.5px solid #F59E0B', borderRadius: 'var(--r-md)' }}>
                     <Info size={20} style={{ color: '#D97706', flexShrink: 0, marginTop: 2 }} />
                     <div>
                       <div style={{ fontWeight: 700, color: '#92400E', fontSize: 14 }}>Refund Not Available</div>
                       <div style={{ color: '#B45309', fontSize: 13, marginTop: 4 }}>
-                        This appointment has already been approved by the receptionist. Refund requests are no longer available after appointment approval.
+                        This appointment is currently in consultation or has already been completed. Refunds can only be requested prior to consultation.
                       </div>
                     </div>
                   </div>
@@ -260,10 +260,10 @@ export default function RefundTrackingPage() {
                     <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 16, marginBottom: 6 }}>No Refund Request Yet</div>
                     <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
                       {canRequestRefund
-                        ? 'You can cancel this appointment and apply for a refund below.'
+                        ? 'Your appointment has been cancelled. You can apply for a consultation refund below.'
                         : isApprovedLocked
-                        ? 'Refunds are not available once the appointment is approved.'
-                        : 'Refunds can only be requested after cancelling a paid appointment.'}
+                        ? 'Refunds are not available once consultation has started or is completed.'
+                        : 'You can cancel this appointment and apply for a refund below.'}
                     </div>
 
                     {/* Cancel appointment flow (before approved) */}
@@ -367,10 +367,10 @@ export default function RefundTrackingPage() {
                 <div className="card" style={{ padding: 20 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Refund Policy</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    <div>✅ Refunds available for cancellations before receptionist approval.</div>
-                    <div>⛔ No refunds after receptionist approves the appointment.</div>
-                    <div>⚡ Receptionist rejections trigger automatic refunds.</div>
-                    <div>🕐 Processing time: <strong>2–3 working days</strong>.</div>
+                    <div>✅ Full refund eligibility if cancelled before consultation begins.</div>
+                    <div>📋 Refund applications are reviewed and approved by reception.</div>
+                    <div>⚡ Upon approval, funds are credited back to your account.</div>
+                    <div>⛔ Consultations in progress or completed are not refundable.</div>
                   </div>
                 </div>
               </div>

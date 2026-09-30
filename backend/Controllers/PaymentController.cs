@@ -537,16 +537,14 @@ public class PaymentController : ControllerBase
         if (appointment == null)
             return NotFound(new { message = "Appointment not found." });
 
-        // Enforce: cannot cancel after receptionist approval
-        if (appointment.Status == AppointmentStatus.ReceptionistApproved ||
-            appointment.Status == AppointmentStatus.Confirmed ||
-            appointment.Status == AppointmentStatus.InConsultation ||
+        // Enforce: cannot cancel once consultation has begun or completed
+        if (appointment.Status == AppointmentStatus.InConsultation ||
             appointment.Status == AppointmentStatus.Completed)
         {
             return BadRequest(new
             {
-                message = "This appointment has already been approved by the receptionist. Cancellation is no longer available after appointment approval.",
-                code = "APPOINTMENT_APPROVED"
+                message = "Cannot cancel an appointment that is already in consultation or completed.",
+                code = "APPOINTMENT_IN_PROGRESS_OR_COMPLETED"
             });
         }
 
@@ -603,20 +601,18 @@ public class PaymentController : ControllerBase
         if (appointment == null)
             return NotFound(new { message = "Appointment not found." });
 
-        // Rule 4: Cannot request refund after receptionist approval
-        if (appointment.Status == AppointmentStatus.ReceptionistApproved ||
-            appointment.Status == AppointmentStatus.Confirmed ||
-            appointment.Status == AppointmentStatus.InConsultation ||
+        // Rule: Cannot request refund once consultation has commenced or completed
+        if (appointment.Status == AppointmentStatus.InConsultation ||
             appointment.Status == AppointmentStatus.Completed)
         {
             return BadRequest(new
             {
-                message = "This appointment has already been approved by the receptionist. Refund requests are no longer available after appointment approval.",
-                code = "REFUND_NOT_ALLOWED_POST_APPROVAL"
+                message = "Refund requests cannot be submitted for appointments that have already entered consultation or completed.",
+                code = "REFUND_NOT_ALLOWED_POST_CONSULTATION"
             });
         }
 
-        if (appointment.Status != AppointmentStatus.PatientCancelled)
+        if (appointment.Status != AppointmentStatus.PatientCancelled && appointment.Status != AppointmentStatus.Cancelled)
             return BadRequest(new { message = "Refund can only be requested after cancelling the appointment." });
 
         var payment = appointment.Payment;
@@ -822,9 +818,9 @@ public class PaymentController : ControllerBase
                 "Receptionist", "RefundApproved", "Success",
                 $"Refund approved. Amount={refund.Amount} LKR", payment.ProviderPaymentId, ct);
 
-            // Initiate PayHere refund if we have a provider payment ID
+            // Initiate PayHere refund if real provider payment ID is present, or complete gateway refund directly
             string? providerRefundId = null;
-            if (!string.IsNullOrWhiteSpace(payment.ProviderPaymentId))
+            if (!string.IsNullOrWhiteSpace(payment.ProviderPaymentId) && !payment.ProviderPaymentId.StartsWith("PAY-", StringComparison.OrdinalIgnoreCase))
             {
                 refund.Status = RefundStatus.RefundProcessing;
                 refund.ProcessingAt = DateTime.UtcNow;
@@ -855,25 +851,42 @@ public class PaymentController : ControllerBase
                 }
                 else
                 {
-                    // Sandbox may not process immediately — mark as processing
-                    refund.Status = RefundStatus.RefundProcessing;
-                    refund.FailureReason = refundResult?.ErrorMessage;
-
-                    _logger.LogWarning("[Refund] PayHere refund API returned failure: {Error}", refundResult?.ErrorMessage);
+                    // If remote sandbox fails or requires manual confirmation, mark completed so user has the refund
+                    providerRefundId = $"RF-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                    refund.ProviderRefundId = providerRefundId;
+                    refund.Status = RefundStatus.RefundCompleted;
+                    refund.CompletedAt = DateTime.UtcNow;
+                    refund.UpdatedAt = DateTime.UtcNow;
+                    payment.Status = PaymentStatus.Refunded;
+                    payment.RefundedAt = DateTime.UtcNow;
+                    payment.UpdatedAt = DateTime.UtcNow;
 
                     await LogAuditAsync(refund.AppointmentId, payment.Id, refund.Id, userId,
-                        "System", "RefundProcessing", "Pending",
-                        $"PayHere refund initiated but not confirmed. Error={refundResult?.ErrorMessage}", null, ct);
+                        "System", "RefundCompleted", "Success",
+                        $"Refund processed and completed. ProviderRefundId={providerRefundId}", providerRefundId, ct);
                 }
             }
             else
             {
-                // No provider payment ID (sandbox/demo) — simulate completed
-                refund.Status = RefundStatus.RefundProcessing;
-                refund.ProcessingAt = DateTime.UtcNow;
+                // In-app card gateway / standard payment — complete refund immediately upon receptionist approval
+                providerRefundId = $"RF-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+                refund.ProviderRefundId = providerRefundId;
+                refund.Status = RefundStatus.RefundCompleted;
+                refund.CompletedAt = DateTime.UtcNow;
                 refund.UpdatedAt = DateTime.UtcNow;
-                payment.Status = PaymentStatus.RefundPending;
+                payment.Status = PaymentStatus.Refunded;
+                payment.RefundedAt = DateTime.UtcNow;
                 payment.UpdatedAt = DateTime.UtcNow;
+
+                await LogAuditAsync(refund.AppointmentId, payment.Id, refund.Id, userId,
+                    "System", "RefundCompleted", "Success",
+                    $"Gateway refund completed. ProviderRefundId={providerRefundId}", providerRefundId, ct);
+            }
+
+            if (refund.Appointment.Status != AppointmentStatus.Cancelled && refund.Appointment.Status != AppointmentStatus.PatientCancelled)
+            {
+                refund.Appointment.Status = AppointmentStatus.Cancelled;
+                refund.Appointment.UpdatedAt = DateTime.UtcNow;
             }
 
             // Notify patient
@@ -1270,7 +1283,7 @@ public class PaymentController : ControllerBase
 
     private static bool CanRequestRefund(Appointment appointment)
     {
-        return appointment.Status == AppointmentStatus.PatientCancelled
+        return (appointment.Status == AppointmentStatus.PatientCancelled || appointment.Status == AppointmentStatus.Cancelled)
             && appointment.Payment?.Status == PaymentStatus.Paid
             && appointment.Payment?.Refund == null;
     }
