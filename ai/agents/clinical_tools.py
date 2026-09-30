@@ -179,6 +179,18 @@ def query_clinical_guidelines(diagnosis_keywords: str, specialty: Optional[str] 
         if key in keywords_lower:
             matched_guidelines[key] = content
 
+    # Enrich from MediFlow Hybrid Knowledge Base (100,000+ units)
+    try:
+        from ai.knowledge_base.retrieval_service import get_hybrid_retriever
+        retriever = get_hybrid_retriever()
+        if retriever.is_available:
+            hybrid_res = retriever.get_clinical_cds_guideline_context(diagnosis_keywords, specialty)
+            for gkey, gval in hybrid_res.get("guidelines", {}).items():
+                if gkey not in matched_guidelines and gkey != "general":
+                    matched_guidelines[gkey] = gval
+    except Exception:
+        pass
+
     if not matched_guidelines:
         matched_guidelines["general"] = {
             "source": "General Clinical Practice",
