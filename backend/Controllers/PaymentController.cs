@@ -230,7 +230,6 @@ public class PaymentController : ControllerBase
         // PayHere: 2=Success, 0=Pending, -1=Cancelled, -2=Failed, -3=Charged Back
         var statusCode = int.TryParse(request.StatusCode, out var sc) ? sc : -2;
 
-        using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
             payment.ProviderPaymentId = request.PaymentId;
@@ -292,12 +291,9 @@ public class PaymentController : ControllerBase
                 action, statusCode == 2 ? "Success" : "Failure",
                 $"PayHere notify. PaymentId={request.PaymentId}, StatusCode={statusCode}, Amount={request.PayhereAmount}",
                 request.PaymentId, ct);
-
-            await tx.CommitAsync(ct);
         }
         catch (Exception ex)
         {
-            await tx.RollbackAsync(ct);
             _logger.LogError(ex, "[PayHere Notify] Database error for OrderId={OrderId}", request.OrderId);
             return StatusCode(500);
         }
@@ -805,7 +801,6 @@ public class PaymentController : ControllerBase
         if (payment.Status != PaymentStatus.RefundPending && payment.Status != PaymentStatus.Paid)
             return BadRequest(new { message = "Payment is not in a refundable state." });
 
-        using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
             // 1. Mark refund approved and completed
@@ -834,7 +829,6 @@ public class PaymentController : ControllerBase
             }
 
             await _db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
 
             // 4. Audit log (best-effort)
             await LogAuditAsync(refund.AppointmentId, payment.Id, refund.Id, userId,
@@ -865,7 +859,6 @@ public class PaymentController : ControllerBase
         }
         catch (Exception ex)
         {
-            await tx.RollbackAsync(ct);
             _logger.LogError(ex, "[Refund] ApproveRefund failed for RefundId={RefundId}", refundId);
             return StatusCode(500, new { message = "Failed to process refund. Please try again." });
         }
@@ -1056,7 +1049,6 @@ public class PaymentController : ControllerBase
         if (!eligibleStatuses.Contains(appointment.Status))
             return BadRequest(new { message = $"Appointment cannot be rejected. Status: {appointment.Status}." });
 
-        using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
             appointment.Status = AppointmentStatus.ReceptionistRejected;
@@ -1168,7 +1160,6 @@ public class PaymentController : ControllerBase
             }
 
             await _db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
 
             return Ok(new
             {
@@ -1181,7 +1172,6 @@ public class PaymentController : ControllerBase
         }
         catch (Exception ex)
         {
-            await tx.RollbackAsync(ct);
             _logger.LogError(ex, "[Reject] ReceptionistRejectAppointment failed for AppointmentId={AppointmentId}", appointmentId);
             return StatusCode(500, new { message = "Failed to reject appointment. Please try again." });
         }
