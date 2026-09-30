@@ -15,8 +15,13 @@ namespace MediFlow.Api.Controllers;
 public class PatientController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IAiServiceClient _ai;
 
-    public PatientController(AppDbContext db) => _db = db;
+    public PatientController(AppDbContext db, IAiServiceClient ai)
+    {
+        _db = db;
+        _ai = ai;
+    }
 
     /// <summary>
     /// Get the logged-in patient's profile.
@@ -245,8 +250,47 @@ public class PatientController : ControllerBase
         if (request.Severity != null && request.Severity.Length > 50)
             return BadRequest(new { message = "Severity cannot exceed 50 characters." });
 
-        // Simple keyword-based specialty recommendation engine
-        var (specialty, confidence, altSpecialty, altConfidence, reason) = AnalyzeSymptoms(request.Symptoms);
+        // 1. Call MediFlow Python AI Specialist Agent (Google Gemini + 100k Hybrid Medical KB RAG)
+        string specialty;
+        int confidence;
+        string altSpecialty;
+        int altConfidence;
+        string reason;
+        object? systemCheckerObj = null;
+
+        var aiResult = await _ai.RecommendSpecialistAsync(request.Symptoms, request.Severity, request.Duration);
+        if (aiResult != null && !string.IsNullOrWhiteSpace(aiResult.RecommendedSpecialty))
+        {
+            specialty = aiResult.RecommendedSpecialty;
+            confidence = (int)Math.Round(aiResult.ConfidenceScore * 100);
+            altSpecialty = aiResult.AlternativeSpecialty ?? "General Medicine";
+            altConfidence = (int)Math.Round((aiResult.AlternativeConfidence ?? 0.65) * 100);
+            reason = aiResult.Rationale;
+            if (aiResult.SystemChecker != null)
+            {
+                systemCheckerObj = new
+                {
+                    status = aiResult.SystemChecker.Status,
+                    checks = aiResult.SystemChecker.Checks.Select(c => new
+                    {
+                        name = c.Name,
+                        status = c.Status,
+                        detail = c.Detail
+                    }),
+                    checkedAt = aiResult.SystemChecker.CheckedAt ?? DateTime.UtcNow.ToString("o")
+                };
+            }
+        }
+        else
+        {
+            // 2. Deterministic local clinical fallback if AI microservice is temporarily offline
+            var fallback = AnalyzeSymptoms(request.Symptoms);
+            specialty = fallback.specialty;
+            confidence = fallback.confidence;
+            altSpecialty = fallback.altSpecialty;
+            altConfidence = fallback.altConfidence;
+            reason = fallback.reason;
+        }
 
         // Persist the submission
         var submission = new SymptomSubmission
@@ -263,7 +307,7 @@ public class PatientController : ControllerBase
         _db.SymptomSubmissions.Add(submission);
         await _db.SaveChangesAsync();
 
-        var isCrisis = reason.StartsWith("CRITICAL CRISIS");
+        var isCrisis = reason.StartsWith("CRITICAL CRISIS") || reason.StartsWith("CRITICAL MEDICAL EMERGENCY") || reason.Contains("🚨");
 
         return Ok(new
         {
@@ -273,14 +317,14 @@ public class PatientController : ControllerBase
             altSpecialty,
             altConfidence,
             reason,
-            systemChecker = new
+            systemChecker = systemCheckerObj ?? (object)new
             {
                 status = isCrisis ? "WARNING" : "PASSED",
                 checks = new[]
                 {
                     new { name = "Medical Domain Mapping", status = "PASSED", detail = $"Mapped to registered clinical specialty: {specialty}" },
                     new { name = "Confidence Threshold Check", status = "PASSED", detail = $"Primary confidence score {confidence}% meets clinical routing threshold" },
-                    new { name = "Emergency Red Flag Screening", status = isCrisis ? "WARNING" : "PASSED", detail = isCrisis ? "CRITICAL CRISIS / EMERGENCY FLAG: Immediate intervention and psychiatric support required." : "No acute life-threatening emergency flags detected" },
+                    new { name = "Emergency Red Flag Screening", status = isCrisis ? "WARNING" : "PASSED", detail = isCrisis ? "CRITICAL CRISIS / EMERGENCY FLAG: Immediate intervention and emergency ambulance support required." : "No acute life-threatening emergency flags detected" },
                     new { name = "Specialist Directory Match", status = "PASSED", detail = "Verified doctors with active schedules exist in the system" }
                 },
                 checkedAt = DateTime.UtcNow
@@ -288,7 +332,7 @@ public class PatientController : ControllerBase
         });
     }
 
-    // ── Symptom Analysis Engine ───────────────────────────────────────────────
+    // ── Symptom Analysis Engine (Offline Clinical Fallback) ───────────────────
 
     private static (string specialty, int confidence, string altSpecialty, int altConfidence, string reason) AnalyzeSymptoms(string symptoms)
     {
@@ -301,8 +345,15 @@ public class PatientController : ControllerBase
                 "CRITICAL CRISIS SAFETY ALERT: Thoughts of self-harm or suicide detected. Your life and well-being are paramount. Immediate crisis support and emergency psychiatric care are essential. Please reach out to emergency helplines immediately: Call or text 988, call 1926 (Sri Lanka Mental Health Helpline, 24/7) or 1990 (Suwa Seriya Ambulance), or visit the nearest hospital emergency room.");
         }
 
+        // 0.1 Life-Threatening Medical Emergencies Interceptor
+        if (ContainsAny(lower, "crushing chest pain", "elephant on chest", "crushing chest", "sudden paralysis", "facial drooping", "facial droop", "cannot speak", "cant speak", "slurred speech", "throat swelling", "tongue swelling", "choking", "blue lips", "coughing up blood", "vomiting blood", "massive bleeding", "thunderclap headache", "worst headache of life", "dengue with bleeding", "unconscious", "unresponsive", "collapsed"))
+        {
+            return ("Emergency Medicine", 100, "Cardiology", 95,
+                "CRITICAL MEDICAL EMERGENCY: Presenting symptoms include acute life-threatening red flags. Immediate emergency resuscitation and acute hospital admission are required. CALL 1990 (Suwa Seriya in Sri Lanka) or 911 immediately and proceed straight to the nearest Hospital Emergency Room.");
+        }
+
         // 1. Brain & Spine Surgery / Neurosurgery
-        if (ContainsAny(lower, "brain tumor", "spinal cord", "disk herniation", "sciatica", "lumbar spine", "neurosurg"))
+        if (ContainsAny(lower, "brain tumor", "spinal cord", "disk herniation", "lumbar spine", "neurosurg"))
             return ("Neurosurgery", 93, "Neurology", 78,
                 "Symptoms indicate structural or surgical conditions of the brain or spinal column. Evaluation by a neurosurgeon is indicated for decompressive or surgical options.");
 
@@ -311,13 +362,13 @@ public class PatientController : ControllerBase
             return ("Vascular Surgery", 90, "Cardiology", 74,
                 "Vascular and peripheral circulatory conditions warrant evaluation by a vascular surgeon specializing in arterial and venous interventions.");
 
-        // 3. Cardiology
-        if (ContainsAny(lower, "chest pain", "heart", "palpitation", "high blood pressure", "hypertension", "angina", "irregular heartbeat"))
+        // 3. Cardiology & Patient Idioms
+        if (ContainsAny(lower, "chest pain", "heart", "palpitation", "high blood pressure", "hypertension", "angina", "irregular heartbeat", "fluttering like a bird", "fluttering", "skipping beats", "skipped beat", "thumping chest", "heart racing", "racing heart", "tight chest", "swollen ankles", "puffy feet"))
             return ("Cardiology", 92, "General Medicine", 70,
                 "Chest pain, palpitations, or cardiac symptoms warrant urgent cardiac evaluation. A cardiologist can perform ECG, echocardiogram, and stress testing.");
 
-        // 4. Neurology
-        if (ContainsAny(lower, "headache", "migrain", "dizzy", "vertigo", "seizure", "numbness", "neuro", "tremor", "tingling", "nerve pain"))
+        // 4. Neurology & Patient Idioms
+        if (ContainsAny(lower, "headache", "migrain", "dizzy", "vertigo", "seizure", "numbness", "neuro", "tremor", "tingling", "nerve pain", "pins and needles", "pins & needles", "electric shocks", "room spinning", "spinning sensations", "throbbing head", "shaking hands", "numb toes", "numb fingers"))
             return ("Neurology", 89, "General Medicine", 65,
                 "Neurological symptoms such as persistent migraines, tremors, or nerve symptoms require specialist assessment to diagnose underlying central or peripheral nervous system conditions.");
 
@@ -326,43 +377,43 @@ public class PatientController : ControllerBase
             return ("Physiatry", 88, "Orthopedics", 72,
                 "Physical medicine and rehabilitation focuses on restoring functional mobility, managing chronic back pain, and post-injury musculoskeletal recovery.");
 
-        // 6. Orthopedics
-        if (ContainsAny(lower, "bone", "joint", "arthritis", "fracture", "knee", "hip", "orthop", "torn ligament", "dislocation", "shoulder pain"))
-            return ("Orthopedics", 91, "Physiatry", 68,
+        // 6. Orthopedics & Rheumatology Idioms
+        if (ContainsAny(lower, "bone", "joint", "arthritis", "fracture", "knee", "hip", "orthop", "torn ligament", "dislocation", "shoulder pain", "knuckles locked up like rusty hinges", "rusty hinges", "rusty joints", "locked knuckles", "morning stiffness", "stiff knuckles", "stiff fingers", "popping knee", "knee giving way", "sciatica", "knuckles", "locked up", "rheumatoid"))
+            return ("Orthopedics", 92, "Rheumatology", 75,
                 "Musculoskeletal conditions involving joint pain, bone injuries, ligaments, or mobility restrictions require consultation with an orthopedic surgeon.");
 
-        // 7. Dermatology
-        if (ContainsAny(lower, "skin", "rash", "itch", "acne", "eczema", "psoriasis", "hives", "dermat", "mole", "blister"))
+        // 7. Dermatology & Patient Typos
+        if (ContainsAny(lower, "skin", "rash", "itch", "acne", "eczema", "psoriasis", "hives", "dermat", "mole", "blister", "dermatoligist", "dermatolagist", "welts", "red welts"))
             return ("Dermatology", 95, "Allergy & Immunology", 62,
                 "Cutaneous symptoms including rashes, lesions, and persistent itching are best diagnosed by a dermatologist specializing in skin, hair, and nail pathology.");
 
-        // 8. Ophthalmology
-        if (ContainsAny(lower, "eye", "vision", "blur", "cataract", "glaucoma", "ophth", "retina", "cornea", "macular"))
+        // 8. Ophthalmology & Patient Typos
+        if (ContainsAny(lower, "eye", "vision", "blur", "cataract", "glaucoma", "ophth", "retina", "cornea", "macular", "opthalmologist", "optamologist", "curtain over eye", "floaters", "eye floaters", "seeing halos"))
             return ("Ophthalmology", 94, "Neurology", 50,
                 "Visual changes, blurriness, or ocular discomfort require comprehensive ophthalmic examination to evaluate intraocular pressure and retinal health.");
 
         // 9. ENT
-        if (ContainsAny(lower, "ear", "hearing", "throat", "nose", "sinus", "tonsil", "ent", "nasal", "tinnitus", "hoarseness"))
-            return ("ENT (Ear, Nose & Throat)", 91, "Pulmonology", 58,
+        if (ContainsAny(lower, "ear", "hearing", "throat", "nose", "sinus", "tonsil", "ent", "nasal", "tinnitus", "hoarseness", "buzzing in ears", "lump in throat"))
+            return ("ENT", 91, "Pulmonology", 58,
                 "Upper aerodigestive tract complaints involving ears, hearing, nasal congestion, or throat inflammation are evaluated by an Otolaryngologist (ENT specialist).");
 
-        // 10. Gastroenterology
-        if (ContainsAny(lower, "stomach", "gastric", "acid reflux", "bloat", "heartburn", "nausea", "vomit", "diarrhea", "constipat", "ulcer", "ibs", "colon"))
+        // 10. Gastroenterology & Patient Idioms
+        if (ContainsAny(lower, "stomach", "gastric", "acid reflux", "bloat", "heartburn", "nausea", "vomit", "diarrhea", "constipat", "ulcer", "ibs", "colon", "acid coming up throat", "acid coming up", "stomach burning", "burning stomach", "gnawing belly cramps", "gnawing stomach", "bloated stomach", "black stools", "indigestion"))
             return ("Gastroenterology", 93, "General Medicine", 64,
                 "Gastrointestinal symptoms like acid reflux, epigastric pain, and bowel irregularities are managed by a gastroenterologist for endoscopic and medical management.");
 
-        // 11. Nephrology
-        if (ContainsAny(lower, "kidney", "renal", "chronic kidney", "proteinuria", "creatinine", "dialysis", "nephro", "foamy urine"))
+        // 11. Nephrology & Urology
+        if (ContainsAny(lower, "kidney", "renal", "chronic kidney", "proteinuria", "creatinine", "dialysis", "nephro", "foamy urine", "kidney stone", "burning urination"))
             return ("Nephrology", 92, "General Medicine", 60,
                 "Renal complaints, elevated creatinine, proteinuria, and kidney function anomalies require dedicated evaluation by a consultant nephrologist.");
 
         // 12. Pulmonology
-        if (ContainsAny(lower, "lung", "cough", "asthma", "bronch", "pneumon", "pulmon", "wheez", "shortness of breath", "copd"))
+        if (ContainsAny(lower, "lung", "cough", "asthma", "bronch", "pneumon", "pulmon", "wheez", "shortness of breath", "copd", "gasping for air", "tight breathing"))
             return ("Pulmonology", 90, "Cardiology", 66,
                 "Lower respiratory symptoms such as persistent coughing, wheezing, or asthma exacerbation are expertly investigated by a pulmonologist.");
 
         // 13. Endocrinology
-        if (ContainsAny(lower, "diabet", "thyroid", "hormone", "endocrin", "insulin", "pcos", "metabolism", "adrenal"))
+        if (ContainsAny(lower, "diabet", "thyroid", "hormone", "endocrin", "insulin", "pcos", "metabolism", "adrenal", "drinking water all day", "drinking water like a fish", "unquenchable thirst", "peeing constantly"))
             return ("Endocrinology", 91, "General Medicine", 65,
                 "Endocrine and metabolic disorders such as diabetes mellitus, thyroid dysfunction, and hormone imbalances are managed by an endocrinologist.");
 

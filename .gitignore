@@ -30,6 +30,11 @@ __pycache__/
 venv/
 *.env
 
+# SQLite Databases & Wal Artifacts
+*.db
+*.db-shm
+*.db-wal
+
 # IDE
 .vscode/
 .idea/

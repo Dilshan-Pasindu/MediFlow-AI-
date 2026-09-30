@@ -118,4 +118,43 @@ public class AiServiceClient : IAiServiceClient
                 $"Unexpected error from AI service: {ex.Message}. Manual review required.", ex);
         }
     }
+
+    /// <summary>
+    /// POSTs to /api/ai/recommend-specialist on the Python AI microservice.
+    /// Returns the recommended clinical department, confidence score, rationale, and system checker audit.
+    /// Returns null if the AI microservice is unreachable, allowing caller to fallback to deterministic engine.
+    /// </summary>
+    public virtual async Task<SpecialistRecommendationDto?> RecommendSpecialistAsync(
+        string symptoms,
+        string? severity = null,
+        string? duration = null)
+    {
+        try
+        {
+            var payload = new
+            {
+                symptoms = new List<string> { symptoms },
+                patient_notes = string.IsNullOrWhiteSpace(duration) ? null : $"Duration: {duration}",
+                severity = string.IsNullOrWhiteSpace(severity) ? "moderate" : severity.ToLowerInvariant()
+            };
+
+            var response = await _http.PostAsJsonAsync("/api/ai/recommend-specialist", payload);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorBody = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("AI specialist-recommender returned HTTP {StatusCode}: {ErrorBody}",
+                    response.StatusCode, errorBody);
+                return null;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<SpecialistRecommendationDto>(_jsonOptions);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not reach AI specialist recommendation service. Falling back to local clinical rules.");
+            return null;
+        }
+    }
 }

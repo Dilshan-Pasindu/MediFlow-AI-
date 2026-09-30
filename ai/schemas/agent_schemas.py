@@ -1,5 +1,5 @@
-from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Optional, Union
+from pydantic import BaseModel, Field, field_validator
 
 
 class HealthCheckResponse(BaseModel):
@@ -9,9 +9,26 @@ class HealthCheckResponse(BaseModel):
 
 
 class SymptomInput(BaseModel):
-    symptoms: List[str] = Field(..., min_length=1, description="List of patient symptoms")
+    symptoms: Union[List[str], str] = Field(..., description="List of patient symptoms or single symptom string")
     patient_notes: Optional[str] = Field(None, description="Optional free-text notes from patient")
     severity: Optional[str] = Field("moderate", description="Self-reported severity: mild, moderate, severe")
+
+    @field_validator("symptoms", mode="before")
+    @classmethod
+    def parse_symptoms(cls, v):
+        if isinstance(v, str):
+            trimmed = v.strip()
+            if not trimmed:
+                raise ValueError("Symptoms cannot be empty")
+            return [trimmed]
+        if isinstance(v, list):
+            valid_items = [str(item).strip() for item in v if str(item).strip()]
+            if not valid_items:
+                raise ValueError("Symptoms list cannot be empty")
+            return valid_items
+        if not v:
+            raise ValueError("Symptoms required")
+        return v
 
 
 class SystemCheckItem(BaseModel):

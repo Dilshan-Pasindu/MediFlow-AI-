@@ -75,6 +75,7 @@ async def health_check():
 
 
 @app.post("/api/ai/recommend-specialist", response_model=SpecialistRecommendation, tags=["Agents"])
+@app.post("/recommend-specialist", response_model=SpecialistRecommendation, include_in_schema=False)
 async def get_specialist_recommendation(payload: SymptomInput):
     """
     Accepts patient symptoms and returns the recommended medical department with clinical rationale.
