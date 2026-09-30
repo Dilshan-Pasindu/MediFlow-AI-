@@ -67,7 +67,7 @@ def compute_semantic_vector(text: str, dim: int = VECTOR_DIM) -> bytes:
     vec = [0.0] * dim
     tokens = re.findall(r"\b[a-zA-Z0-9_\-\']+\b", text.lower())
     for token in tokens:
-        h = int(hashlib.md5(token.encode("utf-8")).hexdigest(), 16)
+        h = int(hashlib.sha256(token.encode("utf-8")).hexdigest()[:16], 16)
         idx = h % dim
         sign = 1.0 if ((h >> 8) & 1) == 0 else -1.0
         vec[idx] += sign
@@ -76,7 +76,7 @@ def compute_semantic_vector(text: str, dim: int = VECTOR_DIM) -> bytes:
         if len(token) >= 3:
             for i in range(len(token) - 2):
                 ng = token[i : i + 3]
-                h_ng = int(hashlib.md5(ng.encode("utf-8")).hexdigest(), 16)
+                h_ng = int(hashlib.sha256(ng.encode("utf-8")).hexdigest()[:16], 16)
                 idx_ng = h_ng % dim
                 sign_ng = 0.5 if ((h_ng >> 8) & 1) == 0 else -0.5
                 vec[idx_ng] += sign_ng

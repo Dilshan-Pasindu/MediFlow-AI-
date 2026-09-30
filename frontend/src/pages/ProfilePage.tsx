@@ -22,17 +22,14 @@ const VALID_GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'];
 function sanitizeImageUrl(url?: string | null): string {
   if (!url) return '';
   const trimmed = url.trim();
-  if (/^(https?:\/\/|\/|data:image\/(?:png|jpeg|jpg|gif|webp|svg\+xml);base64,)/i.test(trimmed)) {
-    try {
-      const parsed = new URL(trimmed, window.location.origin);
-      if (parsed.protocol === 'http:' || parsed.protocol === 'https:' || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
-        return trimmed;
-      }
-    } catch {
-      if (trimmed.startsWith('/') || trimmed.startsWith('data:image/')) {
-        return trimmed;
-      }
-    }
+  if (/^https?:\/\/[a-zA-Z0-9\-._~:/?#[\]@!$&'()*+,;=]+$/i.test(trimmed)) {
+    return encodeURI(trimmed);
+  }
+  if (/^data:image\/(?:png|jpeg|jpg|gif|webp);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^\/[a-zA-Z0-9\-_./]+$/.test(trimmed)) {
+    return encodeURI(trimmed);
   }
   return '';
 }
