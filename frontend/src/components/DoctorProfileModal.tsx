@@ -372,9 +372,13 @@ export const DoctorProfileModal: React.FC<DoctorProfileModalProps> = ({
                     </p>
                   </div>
                 </div>
-                <div style={{ fontSize: 12, color: '#065F46', lineHeight: 1.8 }}>
-                  <div style={{ fontWeight: 600 }}>✓ In-person clinical examination</div>
-                  <div>✓ Digital e-prescription issued</div>
+                <div style={{ fontSize: 12, color: '#065F46', lineHeight: 1.8, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle2 size={13} color="#059669" /> In-person clinical examination
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CheckCircle2 size={13} color="#059669" /> Digital e-prescription issued
+                  </div>
                 </div>
               </div>
 

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, CheckCircle, Clock, AlertCircle, RefreshCw,
-  Loader, Info, XCircle, CreditCard
+  ArrowLeft, CheckCircle, CheckCircle2, Clock, AlertCircle, RefreshCw,
+  Loader, Info, XCircle, CreditCard, ClipboardList, Coins, Zap, Ban
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -15,10 +15,10 @@ import {
 } from '../api/payment.api';
 
 const REFUND_STEPS = [
-  { key: 'RefundRequested', label: 'Requested', icon: '📋', desc: 'Waiting for receptionist review' },
-  { key: 'RefundApproved', label: 'Approved', icon: '✅', desc: 'Receptionist approved the refund' },
-  { key: 'RefundProcessing', label: 'Processing', icon: '⏳', desc: 'Refund initiated with payment provider' },
-  { key: 'RefundCompleted', label: 'Completed', icon: '💰', desc: 'Refund credited to your account' },
+  { key: 'RefundRequested', label: 'Requested', icon: ClipboardList, desc: 'Waiting for receptionist review' },
+  { key: 'RefundApproved', label: 'Approved', icon: CheckCircle, desc: 'Receptionist approved the refund' },
+  { key: 'RefundProcessing', label: 'Processing', icon: Clock, desc: 'Refund initiated with payment provider' },
+  { key: 'RefundCompleted', label: 'Completed', icon: Coins, desc: 'Refund credited to your account' },
 ];
 
 function RefundTimeline({ status }: { status: string }) {
@@ -67,7 +67,7 @@ function RefundTimeline({ status }: { status: string }) {
                   : 'none',
                 transition: 'all 0.3s',
               }}>
-                {isDone ? <CheckCircle size={18} /> : <span>{step.icon}</span>}
+                {isDone ? <CheckCircle size={18} /> : <step.icon size={18} />}
               </div>
               {i < REFUND_STEPS.length - 1 && (
                 <div style={{
@@ -311,7 +311,7 @@ export default function RefundTrackingPage() {
                           </div>
                           <div>
                             <div style={{ fontWeight: 800, color: '#065F46', fontSize: 15 }}>
-                              Refund Completed Successfully 🎉
+                              Refund Completed Successfully
                             </div>
                             <div style={{ color: '#047857', fontSize: 13, marginTop: 2 }}>
                               Your refund of <strong>Rs. {refund.amount?.toLocaleString()} {refund.currency}</strong> has been approved by the receptionist and credited back to your original payment method.
@@ -356,7 +356,7 @@ export default function RefundTrackingPage() {
                   </div>
                 ) : (
                   <div className="card" style={{ padding: 28 }}>
-                    <div style={{ fontSize: 36, textAlign: 'center', marginBottom: 12 }}>💳</div>
+                    <CreditCard size={44} style={{ color: 'var(--text-muted)', margin: '0 auto 12px', display: 'block' }} />
                     <div style={{ textAlign: 'center', fontWeight: 700, fontSize: 16, marginBottom: 6 }}>No Refund Request Yet</div>
                     <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
                       {canRequestRefund
@@ -468,11 +468,23 @@ export default function RefundTrackingPage() {
 
                 <div className="card" style={{ padding: 20 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Refund Policy</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    <div>✅ Full refund eligibility if cancelled before consultation begins.</div>
-                    <div>📋 Refund applications are reviewed and approved by reception.</div>
-                    <div>⚡ Upon approval, funds are credited back to your account.</div>
-                    <div>⛔ Consultations in progress or completed are not refundable.</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <CheckCircle2 size={15} style={{ color: '#059669', flexShrink: 0, marginTop: 2 }} />
+                      <span>Full refund eligibility if cancelled before consultation begins.</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <ClipboardList size={15} style={{ color: '#0284C7', flexShrink: 0, marginTop: 2 }} />
+                      <span>Refund applications are reviewed and approved by reception.</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <Zap size={15} style={{ color: '#D97706', flexShrink: 0, marginTop: 2 }} />
+                      <span>Upon approval, funds are credited back to your account.</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <Ban size={15} style={{ color: '#DC2626', flexShrink: 0, marginTop: 2 }} />
+                      <span>Consultations in progress or completed are not refundable.</span>
+                    </div>
                   </div>
                 </div>
               </div>

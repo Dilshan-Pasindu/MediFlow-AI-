@@ -5,7 +5,8 @@ import {
   Stethoscope, Brain, Pill, Activity, Users, Star,
   Clock, CheckCircle2, Shield, Zap, ChevronRight,
   Phone, Mail, Globe, MessageCircle, Camera, Link2,
-  PlayCircle, Award, TrendingUp, Lock, Menu, X
+  PlayCircle, Award, TrendingUp, Lock, Menu, X,
+  Heart, Bone, Baby, Sparkles, Eye, Smile, MessageSquare
 } from 'lucide-react';
 import heroDoctors from '../assets/hero-doctors.jpg';
 import { MediFlowLogo } from '../components/MediFlowLogo';
@@ -82,7 +83,7 @@ const WHY_CHOOSE = [
 const STATS = [
   { icon: Users,       value: '50K+',  label: 'Active Patients',     color: '#2A7DE1' },
   { icon: Stethoscope, value: '1500+', label: 'Certified Doctors',   color: '#059669' },
-  { icon: Star,        value: '4.9★',  label: 'Average Rating',      color: '#D97706' },
+  { icon: Star,        value: '4.9/5', label: 'Average Rating',      color: '#D97706' },
   { icon: TrendingUp,  value: '99.8%', label: 'Uptime Guaranteed',   color: '#7C3AED' },
 ];
 
@@ -114,14 +115,14 @@ const TESTIMONIALS = [
 ];
 
 const SPECIALTIES = [
-  { name: 'Cardiology',    icon: '❤️', color: '#EF4444', bg: '#FEF2F2' },
-  { name: 'Neurology',     icon: '🧠', color: '#7C3AED', bg: '#F3EEFF' },
-  { name: 'Orthopedics',   icon: '🦴', color: '#D97706', bg: '#FFFBEB' },
-  { name: 'Pediatrics',    icon: '👶', color: '#2A7DE1', bg: '#EBF4FF' },
-  { name: 'Dermatology',   icon: '🌿', color: '#059669', bg: '#ECFDF5' },
-  { name: 'Ophthalmology', icon: '👁️', color: '#0891B2', bg: '#ECFEFF' },
-  { name: 'Dental',        icon: '🦷', color: '#6366F1', bg: '#EEF2FF' },
-  { name: 'Psychiatry',    icon: '💬', color: '#EC4899', bg: '#FDF2F8' },
+  { name: 'Cardiology',    icon: Heart,         color: '#EF4444', bg: '#FEF2F2' },
+  { name: 'Neurology',     icon: Brain,         color: '#7C3AED', bg: '#F3EEFF' },
+  { name: 'Orthopedics',   icon: Bone,          color: '#D97706', bg: '#FFFBEB' },
+  { name: 'Pediatrics',    icon: Baby,          color: '#2A7DE1', bg: '#EBF4FF' },
+  { name: 'Dermatology',   icon: Sparkles,      color: '#059669', bg: '#ECFDF5' },
+  { name: 'Ophthalmology', icon: Eye,           color: '#0891B2', bg: '#ECFEFF' },
+  { name: 'Dental',        icon: Smile,         color: '#6366F1', bg: '#EEF2FF' },
+  { name: 'Psychiatry',    icon: MessageSquare, color: '#EC4899', bg: '#FDF2F8' },
 ];
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -280,7 +281,7 @@ export default function HomePage() {
               marginBottom: 24,
             }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22C55E', boxShadow: '0 0 0 3px rgba(34,197,94,0.2)', animation: 'pulse 2s ease-in-out infinite' }} />
-              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#2A7DE1', letterSpacing: '0.04em' }}>🇱🇰 Sri Lanka's #1 AI Healthcare Platform</span>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#2A7DE1', letterSpacing: '0.04em' }}>Sri Lanka's #1 AI Healthcare Platform</span>
             </div>
 
             <h1 style={{ fontSize: 'clamp(36px, 5vw, 60px)', fontWeight: 900, lineHeight: 1.1, color: '#1E293B', marginBottom: 8, fontFamily: 'Outfit, Inter, sans-serif' }}>
@@ -373,7 +374,7 @@ export default function HomePage() {
 
             {/* Mini stats */}
             <div style={{ display: 'flex', gap: 28, marginTop: 36, paddingTop: 28, borderTop: '1px solid rgba(0,0,0,0.07)' }}>
-              {[['50K+', 'Patients'], ['1500+', 'Doctors'], ['4.9★', 'Rating']].map(([val, lbl]) => (
+              {[['50K+', 'Patients'], ['1500+', 'Doctors'], ['4.9 / 5', 'Rating']].map(([val, lbl]) => (
                 <div key={lbl}>
                   <div style={{ fontSize: 20, fontWeight: 800, color: '#1E293B', lineHeight: 1 }}>{val}</div>
                   <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 3 }}>{lbl}</div>
@@ -446,22 +447,27 @@ export default function HomePage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 16 }}>
-            {SPECIALTIES.map(spec => (
-              <button
-                key={spec.name}
-                onClick={() => navigate('/login')}
-                style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
-                  padding: '20px 12px', borderRadius: 16, border: `1.5px solid ${spec.bg}`,
-                  background: spec.bg, cursor: 'pointer', transition: 'all 0.25s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${spec.color}28`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
-              >
-                <span style={{ fontSize: 28 }}>{spec.icon}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: spec.color }}>{spec.name}</span>
-              </button>
-            ))}
+            {SPECIALTIES.map(spec => {
+              const SpecIcon = spec.icon;
+              return (
+                <button
+                  key={spec.name}
+                  onClick={() => navigate('/login')}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+                    padding: '20px 12px', borderRadius: 16, border: `1.5px solid ${spec.bg}`,
+                    background: spec.bg, cursor: 'pointer', transition: 'all 0.25s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = `0 8px 24px ${spec.color}28`; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.85)' }}>
+                    <SpecIcon size={24} color={spec.color} />
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: spec.color }}>{spec.name}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -791,8 +797,8 @@ export default function HomePage() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 24 }}>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)' }}>
-              © 2026 MediFlow AI. All rights reserved. Made with ❤️ in Sri Lanka.
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center' }}>
+              © 2026 MediFlow AI. All rights reserved. Made with <Heart size={12} color="#EF4444" fill="#EF4444" style={{ display: 'inline', margin: '0 5px' }} /> in Sri Lanka.
             </div>
             <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
               <Lock size={12} color="rgba(255,255,255,0.3)" />

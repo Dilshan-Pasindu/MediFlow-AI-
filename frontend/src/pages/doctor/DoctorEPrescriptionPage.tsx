@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Pill, User, UserPlus, Building2, Send, Printer, Plus, Trash2, Edit2,
   CheckCircle2, Sparkles, AlertCircle, AlertTriangle, Search, ArrowLeft, ShieldCheck,
-  FileText, X, RefreshCw, Clock
+  FileText, X, RefreshCw, Clock, Zap, Globe, ClipboardList
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -456,8 +456,8 @@ export default function DoctorEPrescriptionPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Sparkles size={20} color="#059669" />
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: 14 }}>
-                    ⚡ Auto-Populated from Active Consultation Workspace (Appointment #{selectedApptId})
+                  <div style={{ fontWeight: 800, fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Zap size={15} /> Auto-Populated from Active Consultation Workspace (Appointment #{selectedApptId})
                   </div>
                   <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 500 }}>
                     Approved AI medications, primary diagnosis, and diagnostic lab orders have been pre-filled.
@@ -807,8 +807,8 @@ export default function DoctorEPrescriptionPage() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: fulfillmentSource === 'InHouse' ? '#065F46' : 'var(--text-primary)' }}>
-                        🏥 MediFlow Medical Center Pharmacy
+                      <span style={{ fontSize: 15, fontWeight: 800, color: fulfillmentSource === 'InHouse' ? '#065F46' : 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Building2 size={16} /> MediFlow Medical Center Pharmacy
                       </span>
                       {fulfillmentSource === 'InHouse' && <CheckCircle2 size={18} color="#059669" />}
                     </div>
@@ -836,8 +836,8 @@ export default function DoctorEPrescriptionPage() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: fulfillmentSource === 'External' ? '#0C4A6E' : 'var(--text-primary)' }}>
-                        🌐 External / Patient Choice Pharmacy
+                      <span style={{ fontSize: 15, fontWeight: 800, color: fulfillmentSource === 'External' ? '#0C4A6E' : 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <Globe size={16} /> External / Patient Choice Pharmacy
                       </span>
                       {fulfillmentSource === 'External' && <CheckCircle2 size={18} color="#0369A1" />}
                     </div>
@@ -1115,7 +1115,9 @@ export default function DoctorEPrescriptionPage() {
                 </div>
               ) : issuedPrescriptions.length === 0 ? (
                 <div className="empty-state card">
-                  <div className="empty-icon">📋</div>
+                  <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
+                    <ClipboardList size={40} color="var(--text-muted)" />
+                  </div>
                   <div className="empty-title">No issued prescriptions found</div>
                   <div className="empty-sub">Prescriptions you issue to patients will be listed here.</div>
                   <button className="btn btn-primary" onClick={() => setActiveConsoleTab('create')}>
@@ -1423,8 +1425,8 @@ export default function DoctorEPrescriptionPage() {
               padding: '14px 16px', fontSize: 13.5, color: '#334155', lineHeight: 1.5
             }}>
               Are you sure you want to delete this prescription issued for <strong>{deleteConfirmRx.patientName || 'the patient'}</strong>?
-              <div style={{ marginTop: 8, fontSize: 12.5, color: '#DC2626', fontWeight: 600 }}>
-                ⚠️ This action cannot be undone and will remove the prescription record from the system.
+              <div style={{ marginTop: 8, fontSize: 12.5, color: '#DC2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <AlertTriangle size={14} /> This action cannot be undone and will remove the prescription record from the system.
               </div>
             </div>
 

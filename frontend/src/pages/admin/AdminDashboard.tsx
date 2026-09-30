@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Activity, ShieldCheck, BarChart3, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Clock, Mail, Calendar } from 'lucide-react';
+import { Users, Activity, ShieldCheck, BarChart3, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Clock, Mail, Calendar, Stethoscope, Brain, Pill, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PortalHeader from '../../components/PortalHeader';
 import Sidebar from '../../components/Sidebar';
@@ -49,10 +49,10 @@ export default function AdminDashboard() {
   }
 
   const agentStats = [
-    { agent: '🩺 Specialist Recommender', calls: 47, accepted: '94%', color: '#0369A1' },
-    { agent: '🧠 Clinical Decision Support', calls: 26, accepted: '91%', color: '#059669' },
-    { agent: '💊 Medication Intelligence', calls: 34, accepted: '98%', color: '#B45309' },
-    { agent: '📦 Inventory Intelligence', calls: 12, accepted: '83%', color: '#DC2626' },
+    { agent: 'Specialist Recommender', icon: <Stethoscope size={14} />, calls: 47, accepted: '94%', color: '#0369A1' },
+    { agent: 'Clinical Decision Support', icon: <Brain size={14} />, calls: 26, accepted: '91%', color: '#059669' },
+    { agent: 'Medication Intelligence', icon: <Pill size={14} />, calls: 34, accepted: '98%', color: '#B45309' },
+    { agent: 'Inventory Intelligence', icon: <Package size={14} />, calls: 12, accepted: '83%', color: '#DC2626' },
   ];
 
   return (
@@ -152,7 +152,8 @@ export default function AdminDashboard() {
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600, marginTop: 2 }}>
                     API Calls Today
                   </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--text-primary)', fontWeight: 600, marginTop: 4 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ color: a.color, display: 'inline-flex', alignItems: 'center' }}>{a.icon}</span>
                     {a.agent}
                   </div>
                   <span className="badge badge-green" style={{ marginTop: 8, fontSize: 11 }}>

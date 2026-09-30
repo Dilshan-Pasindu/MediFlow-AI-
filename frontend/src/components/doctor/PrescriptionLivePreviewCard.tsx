@@ -1,7 +1,8 @@
 import React from 'react';
 import { 
   Pill, TestTube, Sparkles, 
-  ShieldCheck, ArrowRight, Activity
+  ShieldCheck, ArrowRight, Activity,
+  Zap, Lightbulb, FlaskConical
 } from 'lucide-react';
 import type { AutoFilledPrescriptionDraft } from '../../types/consultation';
 
@@ -83,8 +84,8 @@ export const PrescriptionLivePreviewCard: React.FC<PrescriptionLivePreviewCardPr
             <Sparkles size={18} color="#FFFFFF" />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: '14px', letterSpacing: '0.2px' }}>
-              ⚡ E-Prescription Auto-Filled Draft
+            <div style={{ fontWeight: 800, fontSize: '14px', letterSpacing: '0.2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Zap size={15} /> E-Prescription Auto-Filled Draft
             </div>
             <div style={{ fontSize: '11.5px', opacity: 0.9 }}>
               Synchronized from Doctor Approved AI Recommendations ({draft.lastSyncedAt})
@@ -166,8 +167,8 @@ export const PrescriptionLivePreviewCard: React.FC<PrescriptionLivePreviewCardPr
                     </div>
 
                     {item.instructions && (
-                      <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '4px', fontStyle: 'italic' }}>
-                        💡 {item.instructions}
+                      <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '4px', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Lightbulb size={12} color="#F59E0B" /> {item.instructions}
                       </div>
                     )}
                   </div>
@@ -203,8 +204,8 @@ export const PrescriptionLivePreviewCard: React.FC<PrescriptionLivePreviewCardPr
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 700, fontSize: '13px', color: '#1E40AF' }}>
-                        🔬 {lab.testName}
+                      <span style={{ fontWeight: 700, fontSize: '13px', color: '#1E40AF', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <FlaskConical size={14} color="#2563EB" /> {lab.testName}
                       </span>
                       <span style={{ 
                         fontSize: '10.5px', 

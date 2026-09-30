@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   FileText, Pill, Sparkles, CheckCircle2, AlertTriangle, ShieldCheck,
   RefreshCw, ArrowRight, Loader2, ShoppingCart, Package, Clock, X,
-  AlertCircle, Check, Info, PackageCheck, Bot
+  AlertCircle, Check, Info, PackageCheck, Bot, Lightbulb, Ban, Scale, Mail
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -335,8 +335,8 @@ export default function PharmacistPrescriptionsPage() {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span className={`badge ${isConverted ? 'badge-green' : blockedByHigh ? 'badge-red' : 'badge-amber'}`}>
-                          {isConverted ? '✓ Converted' : blockedByHigh ? '⚠️ Blocked (High Risk)' : 'Active'}
+                        <span className={`badge ${isConverted ? 'badge-green' : blockedByHigh ? 'badge-red' : 'badge-amber'}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          {isConverted ? <><Check size={11} /> Converted</> : blockedByHigh ? <><AlertTriangle size={11} /> Blocked (High Risk)</> : 'Active'}
                         </span>
 
                         {/* Convert to Order Button */}
@@ -444,8 +444,8 @@ export default function PharmacistPrescriptionsPage() {
 
                             {screenRes && (
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span className={`badge ${isSafe ? 'badge-green' : 'badge-red'}`} style={{ fontSize: 12, fontWeight: 700 }}>
-                                  {isSafe ? '✓ Safe to Dispense' : '⚠️ Warnings Detected'}
+                                <span className={`badge ${isSafe ? 'badge-green' : 'badge-red'}`} style={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                  {isSafe ? <><CheckCircle2 size={12} /> Safe to Dispense</> : <><AlertTriangle size={12} /> Warnings Detected</>}
                                 </span>
                                 <span className="badge badge-teal" style={{ fontSize: 12, fontWeight: 700 }}>
                                   Safety Score: {score}/100
@@ -479,9 +479,13 @@ export default function PharmacistPrescriptionsPage() {
                               {summaryText && (
                                 <div style={{
                                   padding: '10px 14px', borderRadius: 8, background: 'rgba(14,165,233,0.06)',
-                                  borderLeft: '4px solid #0EA5E9', fontSize: 12.5, fontWeight: 600, color: '#0369A1', marginBottom: 12
+                                  borderLeft: '4px solid #0EA5E9', fontSize: 12.5, fontWeight: 600, color: '#0369A1', marginBottom: 12,
+                                  display: 'flex', alignItems: 'flex-start', gap: 8
                                 }}>
-                                  🤖 <strong>AI Clinical Summary:</strong> {summaryText}
+                                  <Bot size={16} color="#0EA5E9" style={{ flexShrink: 0, marginTop: 1 }} />
+                                  <div>
+                                    <strong>AI Clinical Summary:</strong> {summaryText}
+                                  </div>
                                 </div>
                               )}
 
@@ -502,8 +506,8 @@ export default function PharmacistPrescriptionsPage() {
                                           border: `1px solid ${isHigh ? '#FCA5A5' : '#FED7AA'}`, fontSize: 12
                                         }}>
                                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                            <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
-                                              💊 {pairStr || 'Drug Pair'}
+                                            <span style={{ fontWeight: 800, color: 'var(--text-primary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                              <Pill size={13} color="var(--primary)" /> {pairStr || 'Drug Pair'}
                                             </span>
                                             <span className={`badge ${isHigh ? 'badge-red' : 'badge-amber'}`} style={{ fontSize: 10.5 }}>
                                               {item.severity} Severity
@@ -511,8 +515,8 @@ export default function PharmacistPrescriptionsPage() {
                                           </div>
                                           <div style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>{item.description}</div>
                                           {(item.recommendation || item.clinicalGuidance) && (
-                                            <div style={{ fontSize: 11.5, color: '#0369A1', fontWeight: 600 }}>
-                                              💡 Recommendation: {item.recommendation || item.clinicalGuidance}
+                                            <div style={{ fontSize: 11.5, color: '#0369A1', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                              <Lightbulb size={12} color="#0284C7" /> Recommendation: {item.recommendation || item.clinicalGuidance}
                                             </div>
                                           )}
                                         </div>
@@ -529,8 +533,8 @@ export default function PharmacistPrescriptionsPage() {
                                     Allergy Contraindications ({allergyWarnings.length}):
                                   </div>
                                   {allergyWarnings.map((w, i) => (
-                                    <div key={i} style={{ padding: '8px 12px', borderRadius: 6, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
-                                      🚫 {w}
+                                    <div key={i} style={{ padding: '8px 12px', borderRadius: 6, background: '#FEF2F2', border: '1px solid #FECACA', color: '#991B1B', fontSize: 12, fontWeight: 600, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <Ban size={13} /> {w}
                                     </div>
                                   ))}
                                 </div>
@@ -543,8 +547,8 @@ export default function PharmacistPrescriptionsPage() {
                                     Dosage & Age Warnings ({dosageWarnings.length}):
                                   </div>
                                   {dosageWarnings.map((w, i) => (
-                                    <div key={i} style={{ padding: '8px 12px', borderRadius: 6, background: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', fontSize: 12, fontWeight: 600, marginTop: 4 }}>
-                                      ⚖️ {w}
+                                    <div key={i} style={{ padding: '8px 12px', borderRadius: 6, background: '#FFFBEB', border: '1px solid #FDE68A', color: '#B45309', fontSize: 12, fontWeight: 600, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <Scale size={13} /> {w}
                                     </div>
                                   ))}
                                 </div>
@@ -562,7 +566,7 @@ export default function PharmacistPrescriptionsPage() {
                                     const guidance = alt.dosage_guidance || alt.dosageGuidance;
                                     return (
                                       <div key={i} style={{ padding: '8px 12px', borderRadius: 6, background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: 12, marginTop: 4 }}>
-                                        <strong>🔄 {orig}</strong> → <span style={{ textDecoration: 'underline' }}>{repl}</span>
+                                        <strong style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><RefreshCw size={12} /> {orig}</strong> → <span style={{ textDecoration: 'underline' }}>{repl}</span>
                                         {alt.reason && <div style={{ fontSize: 11.5, color: '#047857', marginTop: 2 }}>Reason: {alt.reason}</div>}
                                         {guidance && <div style={{ fontSize: 11, color: '#065F46', fontWeight: 600, marginTop: 2 }}>Guidance: {guidance}</div>}
                                       </div>
@@ -589,15 +593,15 @@ export default function PharmacistPrescriptionsPage() {
                                     }}
                                     disabled={notifyingDoctor[rxId]}
                                   >
-                                    {notifyingDoctor[rxId] ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Info size={13} />}
-                                    {notifyingDoctor[rxId] ? 'Notifying Doctor…' : '📩 Notify Doctor for Revision'}
+                                    {notifyingDoctor[rxId] ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Mail size={13} />}
+                                    {notifyingDoctor[rxId] ? 'Notifying Doctor…' : 'Notify Doctor for Revision'}
                                   </button>
                                 </div>
                               )}
 
                               {notifySuccessMsg[rxId] && (
-                                <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF', fontSize: 12, fontWeight: 600 }}>
-                                  ✅ {notifySuccessMsg[rxId]}
+                                <div style={{ marginTop: 8, padding: '8px 12px', borderRadius: 6, background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <CheckCircle2 size={13} /> {notifySuccessMsg[rxId]}
                                 </div>
                               )}
                             </div>
@@ -642,8 +646,8 @@ export default function PharmacistPrescriptionsPage() {
                                             <CheckCircle2 size={13} /> Acknowledged
                                           </span>
                                         ) : (
-                                          <span style={{ fontSize: 11, fontWeight: 700, color: isHigh ? '#DC2626' : '#D97706' }}>
-                                            {isHigh ? '⚠️ Requires Written Justification' : 'Optional Acknowledgment'}
+                                          <span style={{ fontSize: 11, fontWeight: 700, color: isHigh ? '#DC2626' : '#D97706', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                            {isHigh ? <><AlertTriangle size={12} /> Requires Written Justification</> : 'Optional Acknowledgment'}
                                           </span>
                                         )}
                                       </div>

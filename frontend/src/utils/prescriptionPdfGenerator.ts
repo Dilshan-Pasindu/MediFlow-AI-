@@ -716,7 +716,10 @@ export function generatePrescriptionHtml(rx: Prescription): string {
         </svg>
         Save as PDF / Print
       </button>
-      <button class="btn-action btn-close" onclick="window.close()">✕ Close</button>
+      <button class="btn-action btn-close" onclick="window.close()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-2px;margin-right:4px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        Close
+      </button>
     </div>
   </div>
 
@@ -888,7 +891,7 @@ export function generatePrescriptionHtml(rx: Prescription): string {
         <div class="doctor-sign-box">
           <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
             <div class="official-stamp">
-              MEDIFLOW<br>AI HEALTH<br>★ VERIFIED ★
+              MEDIFLOW<br>AI HEALTH<br>OFFICIAL VERIFIED
             </div>
             <div>
               <div class="signature-svg">Dr. ${rx.doctorName.replace(/^Dr\.\s*/i, '')}</div>

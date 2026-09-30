@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  ArrowLeft, CreditCard, Shield, CheckCircle, AlertCircle,
-  Loader, RefreshCw, Info, Lock, Check, ExternalLink
+  ArrowLeft, CreditCard, Shield, CheckCircle, CheckCircle2, AlertCircle,
+  Loader, RefreshCw, Info, Lock, Check, ExternalLink, Stethoscope,
+  ClipboardList, Clock, Coins, XCircle, Zap, Ban, LucideIcon
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -15,13 +16,13 @@ import {
   type PaymentStatusResponse,
 } from '../api/payment.api';
 
-const REFUND_STATUS_META: Record<string, { color: string; bg: string; icon: string; label: string }> = {
-  RefundRequested:  { color: '#B45309', bg: '#FFFBEB', icon: '📋', label: 'Refund Requested' },
-  RefundApproved:   { color: '#0369A1', bg: '#EFF6FF', icon: '✅', label: 'Refund Approved' },
-  RefundProcessing: { color: '#7C3AED', bg: '#F5F3FF', icon: '⏳', label: 'Refund Processing' },
-  RefundCompleted:  { color: '#059669', bg: '#ECFDF5', icon: '💰', label: 'Refund Completed' },
-  RefundRejected:   { color: '#DC2626', bg: '#FEF2F2', icon: '❌', label: 'Refund Rejected' },
-  RefundFailed:     { color: '#DC2626', bg: '#FEF2F2', icon: '⚠️', label: 'Refund Failed' },
+const REFUND_STATUS_META: Record<string, { color: string; bg: string; icon: LucideIcon; label: string }> = {
+  RefundRequested:  { color: '#B45309', bg: '#FFFBEB', icon: ClipboardList, label: 'Refund Requested' },
+  RefundApproved:   { color: '#0369A1', bg: '#EFF6FF', icon: CheckCircle2, label: 'Refund Approved' },
+  RefundProcessing: { color: '#7C3AED', bg: '#F5F3FF', icon: Clock, label: 'Refund Processing' },
+  RefundCompleted:  { color: '#059669', bg: '#ECFDF5', icon: Coins, label: 'Refund Completed' },
+  RefundRejected:   { color: '#DC2626', bg: '#FEF2F2', icon: XCircle, label: 'Refund Rejected' },
+  RefundFailed:     { color: '#DC2626', bg: '#FEF2F2', icon: AlertCircle, label: 'Refund Failed' },
 };
 
 export default function PaymentCheckoutPage() {
@@ -624,7 +625,14 @@ export default function PaymentCheckoutPage() {
                       padding: '32px 28px', borderRadius: 'var(--r-lg) var(--r-lg) 0 0',
                       color: 'white', textAlign: 'center'
                     }}>
-                      <div style={{ fontSize: 44, marginBottom: 8 }}>🩺</div>
+                      <div style={{
+                        width: 64, height: 64, borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.2)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        margin: '0 auto 12px'
+                      }}>
+                        <Stethoscope size={36} color="white" />
+                      </div>
                       <div style={{ fontWeight: 800, fontSize: 22 }}>Appointment Confirmed!</div>
                       <div style={{ fontSize: 14, opacity: 0.9, marginTop: 6 }}>
                         Payment verified and approved by the clinic receptionist
@@ -652,7 +660,7 @@ export default function PaymentCheckoutPage() {
                       padding: '18px 24px', display: 'flex', alignItems: 'center',
                       gap: 12, borderBottom: '1px solid var(--border)'
                     }}>
-                      <span style={{ fontSize: 22 }}>{refundMeta.icon}</span>
+                      <refundMeta.icon size={22} style={{ color: refundMeta.color, flexShrink: 0 }} />
                       <div>
                         <div style={{ fontWeight: 800, fontSize: 15 }}>Refund Status</div>
                         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
@@ -746,11 +754,23 @@ export default function PaymentCheckoutPage() {
 
                 <div className="card" style={{ padding: 20 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Payment Policy</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                    <div>✅ Refunds are available for cancellations made <strong>before receptionist approval</strong>.</div>
-                    <div>⛔ Once your appointment is approved by the receptionist, refunds are no longer available.</div>
-                    <div>⚡ Rejections by the receptionist trigger an <strong>automatic refund</strong>.</div>
-                    <div>🕐 Refunds are typically credited within <strong>2–3 working days</strong>.</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <CheckCircle2 size={15} style={{ color: '#059669', flexShrink: 0, marginTop: 2 }} />
+                      <span>Refunds are available for cancellations made <strong>before receptionist approval</strong>.</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <Ban size={15} style={{ color: '#DC2626', flexShrink: 0, marginTop: 2 }} />
+                      <span>Once your appointment is approved by the receptionist, refunds are no longer available.</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <Zap size={15} style={{ color: '#D97706', flexShrink: 0, marginTop: 2 }} />
+                      <span>Rejections by the receptionist trigger an <strong>automatic refund</strong>.</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <Clock size={15} style={{ color: '#0284C7', flexShrink: 0, marginTop: 2 }} />
+                      <span>Refunds are typically credited within <strong>2–3 working days</strong>.</span>
+                    </div>
                   </div>
                 </div>
 

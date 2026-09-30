@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Pill, Search, Filter, Sparkles, AlertTriangle, CheckCircle, ShieldAlert, RefreshCw, Tag, Bot } from 'lucide-react';
+import { Pill, Search, Filter, Sparkles, AlertTriangle, CheckCircle, ShieldAlert, RefreshCw, Tag, Bot, Lightbulb, Check } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
 import PortalHeader from '../../components/PortalHeader';
@@ -185,7 +185,9 @@ export default function PharmacistMedicinesPage() {
                             [{inter.severity} Risk] {(inter.drug_pair || inter.drugPair || []).join(' + ')}
                           </div>
                           <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{inter.description}</div>
-                          <div style={{ fontSize: 11.5, color: '#0369A1', marginTop: 4, fontWeight: 600 }}>💡 Rationale: {inter.recommendation || inter.clinicalGuidance}</div>
+                          <div style={{ fontSize: 11.5, color: '#0369A1', marginTop: 4, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <Lightbulb size={12} color="#0284C7" /> Rationale: {inter.recommendation || inter.clinicalGuidance}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -287,13 +289,20 @@ export default function PharmacistMedicinesPage() {
                         <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Unit: {med.unitOfMeasure}</span>
                         <button
                           className={`btn btn-xs ${isSelected ? 'btn-primary' : 'btn-ghost'}`}
-                          style={{ fontSize: 11.5 }}
+                          style={{ fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                           onClick={e => {
                             e.stopPropagation();
                             toggleSelectDrug(med.medicineName);
                           }}
                         >
-                          {isSelected ? '✓ Added to Check' : '+ Check Interactions'}
+                          {isSelected ? (
+                            <>
+                              <Check size={12} />
+                              <span>Added to Check</span>
+                            </>
+                          ) : (
+                            '+ Check Interactions'
+                          )}
                         </button>
                       </div>
                     </div>

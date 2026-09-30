@@ -12,14 +12,14 @@ export const currentPatient = {
 };
 
 export const specialties = [
-  { id: 1, name: "Cardiology", icon: "🫀", description: "Heart and cardiovascular system", doctorCount: 8 },
-  { id: 2, name: "Neurology", icon: "🧠", description: "Brain, spinal cord and nervous system", doctorCount: 6 },
-  { id: 3, name: "Gastroenterology", icon: "🫁", description: "Digestive system disorders", doctorCount: 5 },
-  { id: 4, name: "Orthopedics", icon: "🦴", description: "Bones, joints and muscles", doctorCount: 7 },
-  { id: 5, name: "Dermatology", icon: "🩺", description: "Skin, hair and nail conditions", doctorCount: 4 },
-  { id: 6, name: "Ophthalmology", icon: "👁️", description: "Eye disorders and vision", doctorCount: 5 },
-  { id: 7, name: "ENT", icon: "👂", description: "Ear, nose and throat conditions", doctorCount: 4 },
-  { id: 8, name: "General Medicine", icon: "💊", description: "General health and primary care", doctorCount: 12 },
+  { id: 1, name: "Cardiology", icon: "Heart", description: "Heart and cardiovascular system", doctorCount: 8 },
+  { id: 2, name: "Neurology", icon: "Brain", description: "Brain, spinal cord and nervous system", doctorCount: 6 },
+  { id: 3, name: "Gastroenterology", icon: "Activity", description: "Digestive system disorders", doctorCount: 5 },
+  { id: 4, name: "Orthopedics", icon: "Bone", description: "Bones, joints and muscles", doctorCount: 7 },
+  { id: 5, name: "Dermatology", icon: "Stethoscope", description: "Skin, hair and nail conditions", doctorCount: 4 },
+  { id: 6, name: "Ophthalmology", icon: "Eye", description: "Eye disorders and vision", doctorCount: 5 },
+  { id: 7, name: "ENT", icon: "Ear", description: "Ear, nose and throat conditions", doctorCount: 4 },
+  { id: 8, name: "General Medicine", icon: "Pill", description: "General health and primary care", doctorCount: 12 },
 ];
 
 export const doctors = [

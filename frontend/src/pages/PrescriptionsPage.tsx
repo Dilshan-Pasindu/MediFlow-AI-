@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Download, Eye, ChevronRight, Pill, Printer, X, Truck, CheckCircle, Clock } from 'lucide-react';
+import { FileText, Download, Eye, ChevronRight, Pill, Printer, X, Truck, CheckCircle, Clock, Check } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { useMyPrescriptions, useMyOrders } from '../hooks';
@@ -32,7 +32,9 @@ export default function PrescriptionsPage() {
             </div>
           ) : prescriptions.length === 0 ? (
             <div className="empty-state card">
-              <div className="empty-icon">💊</div>
+              <div className="empty-icon" style={{ display: 'flex', justifyContent: 'center' }}>
+                <Pill size={40} color="var(--text-muted)" />
+              </div>
               <div className="empty-title">No prescriptions yet</div>
               <div className="empty-sub">Your e-prescriptions from doctors will appear here after a consultation.</div>
               <button className="btn btn-primary" onClick={() => navigate('/find-doctor')} id="book-for-rx-btn">
@@ -105,7 +107,9 @@ export default function PrescriptionsPage() {
                       <div className="rx-id">Rx #{selectedPrescription.id}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selectedPrescription.appointmentNumber}</div>
                     </div>
-                    <button className="close-btn" onClick={() => setSelectedPrescription(null)} id="close-rx-panel-btn">✕</button>
+                    <button className="close-btn" onClick={() => setSelectedPrescription(null)} id="close-rx-panel-btn" aria-label="Close">
+                      <X size={16} />
+                    </button>
                   </div>
                   <div className="card-body">
                     <div style={{ marginBottom: 16 }}>
@@ -164,17 +168,19 @@ export default function PrescriptionsPage() {
                               linkedOrder?.status === 'Dispensed' ? 'badge-green' :
                               ['Confirmed', 'Preparing', 'Ready'].includes(linkedOrder?.status || '') ? 'badge-blue' :
                               linkedOrder?.status === 'Pending' ? 'badge-amber' : 'badge-amber'
-                            }`}>
-                              {linkedOrder?.status === 'Dispensed' ? '✓ Dispensed' :
-                               ['Confirmed', 'Preparing', 'Ready'].includes(linkedOrder?.status || '') ? '✅ Confirmed' :
-                               linkedOrder?.status === 'Pending' ? '🕐 In Queue' : '⏳ Awaiting Dispense'}
+                            }`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                              {linkedOrder?.status === 'Dispensed' ? <><Check size={11} /> Dispensed</> :
+                               ['Confirmed', 'Preparing', 'Ready'].includes(linkedOrder?.status || '') ? <><CheckCircle size={11} /> Confirmed</> :
+                               linkedOrder?.status === 'Pending' ? <><Clock size={11} /> In Queue</> : <><Clock size={11} /> Awaiting Dispense</>}
                             </span>
                           </div>
 
                           <div style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>
                             {linkedOrder?.status === 'Dispensed' ? (
                               <div>
-                                <div style={{ color: '#065F46', fontWeight: 700 }}>✓ Medications Dispensed</div>
+                                <div style={{ color: '#065F46', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <CheckCircle size={14} color="#059669" /> Medications Dispensed
+                                </div>
                                 <div style={{ fontSize: 11.5, color: '#047857', marginTop: 2 }}>
                                   Dispensed by <strong>{linkedOrder?.pharmacyName || 'Pharmacy'}</strong>
                                   {linkedOrder?.dispensedAt && ` on ${new Date(linkedOrder.dispensedAt).toLocaleDateString()}`}
@@ -182,7 +188,9 @@ export default function PrescriptionsPage() {
                               </div>
                             ) : ['Confirmed', 'Preparing', 'Ready'].includes(linkedOrder?.status || '') ? (
                               <div>
-                                <div style={{ color: '#0369a1', fontWeight: 700 }}>✅ Pharmacist Confirmed</div>
+                                <div style={{ color: '#0369a1', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <CheckCircle size={14} color="#0284C7" /> Pharmacist Confirmed
+                                </div>
                                 <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 2 }}>
                                   Prescription verified by {linkedOrder?.pharmacyName || 'pharmacy'}.
                                 </div>
