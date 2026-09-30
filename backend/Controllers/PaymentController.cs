@@ -328,7 +328,34 @@ public class PaymentController : ControllerBase
             return NotFound(new { message = "Appointment not found." });
 
         var payment = appointment.Payment;
-        var refund = payment?.Refund;
+        var refund = await _db.AppointmentRefunds
+            .AsNoTracking()
+            .Where(r => r.AppointmentId == appointmentId || (payment != null && r.PaymentId == payment.Id))
+            .OrderByDescending(r => r.Id)
+            .FirstOrDefaultAsync(ct)
+            ?? payment?.Refund;
+
+        if (refund == null && payment?.Status == PaymentStatus.Refunded)
+        {
+            refund = new AppointmentRefund
+            {
+                Id = payment.Id,
+                AppointmentId = appointment.Id,
+                PaymentId = payment.Id,
+                PatientId = appointment.PatientId,
+                Amount = payment.Amount,
+                Currency = payment.Currency,
+                Reason = "PatientCancellation",
+                Status = RefundStatus.RefundCompleted,
+                RequestedAt = payment.CreatedAt,
+                ApprovedAt = payment.RefundedAt ?? DateTime.UtcNow,
+                ProcessingAt = payment.RefundedAt ?? DateTime.UtcNow,
+                CompletedAt = payment.RefundedAt ?? DateTime.UtcNow,
+                RefundReference = $"RF-{appointment.Id}-{payment.Id}",
+                CreatedAt = payment.CreatedAt,
+                UpdatedAt = payment.RefundedAt ?? DateTime.UtcNow,
+            };
+        }
 
         var rawDocName = appointment.Doctor?.FullName?.Trim();
         if (string.IsNullOrWhiteSpace(rawDocName))
@@ -616,13 +643,17 @@ public class PaymentController : ControllerBase
             return BadRequest(new { message = "No verified payment found for this appointment." });
 
         // Idempotency: already requested?
-        if (payment.Refund != null)
+        var existingRefund = await _db.AppointmentRefunds
+            .FirstOrDefaultAsync(r => r.AppointmentId == appointment.Id || (payment != null && r.PaymentId == payment.Id), ct)
+            ?? payment.Refund;
+
+        if (existingRefund != null)
         {
             return BadRequest(new
             {
-                message = $"A refund request already exists (status: {payment.Refund.Status}).",
-                refundId = payment.Refund.Id,
-                refundStatus = payment.Refund.Status.ToString(),
+                message = $"A refund request already exists (status: {existingRefund.Status}).",
+                refundId = existingRefund.Id,
+                refundStatus = existingRefund.Status.ToString(),
             });
         }
 
@@ -687,7 +718,36 @@ public class PaymentController : ControllerBase
         if (appointment == null)
             return NotFound(new { message = "Appointment not found." });
 
-        var refund = appointment.Payment?.Refund;
+        var refund = await _db.AppointmentRefunds
+            .AsNoTracking()
+            .Where(r => r.AppointmentId == appointmentId || (appointment.Payment != null && r.PaymentId == appointment.Payment.Id))
+            .OrderByDescending(r => r.Id)
+            .FirstOrDefaultAsync(ct)
+            ?? appointment.Payment?.Refund;
+
+        if (refund == null && appointment.Payment?.Status == PaymentStatus.Refunded)
+        {
+            refund = new AppointmentRefund
+            {
+                Id = appointment.Payment.Id,
+                AppointmentId = appointment.Id,
+                PaymentId = appointment.Payment.Id,
+                PatientId = appointment.PatientId,
+                Amount = appointment.Payment.Amount,
+                Currency = appointment.Payment.Currency,
+                Reason = "PatientCancellation",
+                Status = RefundStatus.RefundCompleted,
+                RequestedAt = appointment.Payment.CreatedAt,
+                ApprovedAt = appointment.Payment.RefundedAt ?? DateTime.UtcNow,
+                ProcessingAt = appointment.Payment.RefundedAt ?? DateTime.UtcNow,
+                CompletedAt = appointment.Payment.RefundedAt ?? DateTime.UtcNow,
+                RefundReference = $"RF-{appointment.Id}-{appointment.Payment.Id}",
+                CreatedAt = appointment.Payment.CreatedAt,
+                UpdatedAt = appointment.Payment.RefundedAt ?? DateTime.UtcNow,
+            };
+        }
+
+        var hasExistingRefund = refund != null;
 
         return Ok(new
         {
@@ -695,7 +755,7 @@ public class PaymentController : ControllerBase
             appointmentNumber = appointment.AppointmentNumber,
             doctorName = appointment.Doctor?.FullName,
             appointmentStatus = appointment.Status.ToString(),
-            canRequestRefund = CanRequestRefund(appointment),
+            canRequestRefund = CanRequestRefund(appointment, hasExistingRefund),
             refund = refund == null ? null : new
             {
                 id = refund.Id,
@@ -791,26 +851,52 @@ public class PaymentController : ControllerBase
         if (refund == null)
             return NotFound(new { message = "Refund not found." });
 
-        if (refund.Status != RefundStatus.RefundRequested)
-            return BadRequest(new { message = $"Refund cannot be approved. Current status: {refund.Status}." });
+        if (refund.Status == RefundStatus.RefundCompleted)
+        {
+            return Ok(new
+            {
+                refundId = refund.Id,
+                status = refund.Status.ToString(),
+                message = "Refund has already been approved and completed.",
+            });
+        }
 
-        var payment = refund.Payment;
+        if (refund.Status != RefundStatus.RefundRequested &&
+            refund.Status != RefundStatus.RefundApproved &&
+            refund.Status != RefundStatus.RefundProcessing)
+        {
+            return BadRequest(new { message = $"Refund cannot be approved. Current status: {refund.Status}." });
+        }
+
+        var payment = refund.Payment ?? await _db.AppointmentPayments.FirstOrDefaultAsync(p => p.Id == refund.PaymentId, ct);
         if (payment == null)
             return BadRequest(new { message = "Associated payment record not found." });
 
-        if (payment.Status != PaymentStatus.RefundPending && payment.Status != PaymentStatus.Paid)
+        if (payment.Status != PaymentStatus.RefundPending && payment.Status != PaymentStatus.Paid && payment.Status != PaymentStatus.Refunded)
             return BadRequest(new { message = "Payment is not in a refundable state." });
 
         try
         {
+            if (refund.Appointment == null)
+            {
+                refund.Appointment = (await _db.Appointments
+                    .Include(a => a.Patient)
+                    .FirstOrDefaultAsync(a => a.Id == refund.AppointmentId, ct))!;
+            }
+
             // 1. Mark refund approved and completed
-            var providerRefundId = $"RF-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            var providerRefundId = string.IsNullOrWhiteSpace(refund.ProviderRefundId)
+                ? $"RF-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}"
+                : refund.ProviderRefundId;
             refund.Status = RefundStatus.RefundCompleted;
-            refund.ApprovedAt = DateTime.UtcNow;
-            refund.ProcessingAt = DateTime.UtcNow;
+            refund.ApprovedAt ??= DateTime.UtcNow;
+            refund.ProcessingAt ??= DateTime.UtcNow;
             refund.CompletedAt = DateTime.UtcNow;
-            refund.ApprovedByUserId = userId > 0 ? userId : null;
-            refund.AdminNotes = request?.Notes;
+            refund.ApprovedByUserId = userId > 0 ? userId : refund.ApprovedByUserId;
+            if (!string.IsNullOrWhiteSpace(request?.Notes))
+            {
+                refund.AdminNotes = request.Notes;
+            }
             refund.ProviderRefundId = providerRefundId;
             refund.UpdatedAt = DateTime.UtcNow;
 
@@ -1269,11 +1355,14 @@ public class PaymentController : ControllerBase
         }
     }
 
-    private static bool CanRequestRefund(Appointment appointment)
+    private static bool CanRequestRefund(Appointment appointment, bool hasExistingRefund = false)
     {
+        if (hasExistingRefund) return false;
+        if (appointment.Payment == null) return false;
+        if (appointment.Payment.Status == PaymentStatus.Refunded || appointment.Payment.Status == PaymentStatus.RefundPending) return false;
+
         return (appointment.Status == AppointmentStatus.PatientCancelled || appointment.Status == AppointmentStatus.Cancelled)
-            && appointment.Payment?.Status == PaymentStatus.Paid
-            && appointment.Payment?.Refund == null;
+            && (appointment.Payment.Status == PaymentStatus.Paid || appointment.Payment.Status == PaymentStatus.Verified);
     }
 
     private string GetFrontendOrigin()

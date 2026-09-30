@@ -202,6 +202,11 @@ public class AppDbContext : DbContext
             // Unique index on provider payment id to prevent duplicate processing
             entity.HasIndex(ap => ap.ProviderPaymentId);
             entity.HasIndex(ap => ap.TransactionReference);
+
+            entity.HasOne(ap => ap.Refund)
+                .WithOne(r => r.Payment)
+                .HasForeignKey<AppointmentRefund>(r => r.PaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ── AppointmentRefund ─────────────────────────────────────────────

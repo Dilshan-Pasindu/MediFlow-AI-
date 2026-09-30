@@ -6,7 +6,13 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
-import { apiGetRefundStatus, apiRequestRefund, apiCancelAppointmentForRefund, type RefundStatusResponse } from '../api/payment.api';
+import {
+  apiGetRefundStatus,
+  apiGetPaymentStatus,
+  apiRequestRefund,
+  apiCancelAppointmentForRefund,
+  type RefundStatusResponse
+} from '../api/payment.api';
 
 const REFUND_STEPS = [
   { key: 'RefundRequested', label: 'Requested', icon: '📋', desc: 'Waiting for receptionist review' },
@@ -16,7 +22,8 @@ const REFUND_STEPS = [
 ];
 
 function RefundTimeline({ status }: { status: string }) {
-  const currentIdx = REFUND_STEPS.findIndex(s => s.key === status);
+  const isCompleted = status === 'RefundCompleted';
+  const currentIdx = isCompleted ? 3 : REFUND_STEPS.findIndex(s => s.key === status);
   const failed = status === 'RefundRejected' || status === 'RefundFailed';
 
   if (failed) {
@@ -38,9 +45,11 @@ function RefundTimeline({ status }: { status: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 24 }}>
       {REFUND_STEPS.map((step, i) => {
-        const isDone = i < currentIdx;
-        const isActive = i === currentIdx;
-        const isFuture = i > currentIdx;
+        const isDone = isCompleted ? true : i < currentIdx;
+        const isActive = isCompleted ? false : i === currentIdx;
+        const isFuture = !isCompleted && i > currentIdx;
+        const isCompletedStep = isCompleted && i === 3;
+
         return (
           <div key={step.key} style={{ display: 'flex', gap: 16 }}>
             {/* Left: dot + line */}
@@ -50,7 +59,12 @@ function RefundTimeline({ status }: { status: string }) {
                 background: isDone ? '#059669' : isActive ? 'var(--med-blue)' : 'var(--border)',
                 color: isDone || isActive ? 'white' : 'var(--text-muted)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontWeight: 700, fontSize: 15, boxShadow: isActive ? '0 0 0 4px rgba(2,132,199,0.15)' : 'none',
+                fontWeight: 700, fontSize: 15,
+                boxShadow: isCompletedStep
+                  ? '0 0 0 4px rgba(16,185,129,0.2)'
+                  : isActive
+                  ? '0 0 0 4px rgba(2,132,199,0.15)'
+                  : 'none',
                 transition: 'all 0.3s',
               }}>
                 {isDone ? <CheckCircle size={18} /> : <span>{step.icon}</span>}
@@ -58,7 +72,7 @@ function RefundTimeline({ status }: { status: string }) {
               {i < REFUND_STEPS.length - 1 && (
                 <div style={{
                   width: 2, flex: 1, minHeight: 28,
-                  background: isDone ? '#059669' : 'var(--border)',
+                  background: (isCompleted || i < currentIdx) ? '#059669' : 'var(--border)',
                   margin: '4px 0',
                   transition: 'background 0.3s',
                 }} />
@@ -67,15 +81,26 @@ function RefundTimeline({ status }: { status: string }) {
 
             {/* Right: content */}
             <div style={{ padding: '6px 0 24px 0', flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: isFuture ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+              <div style={{
+                fontWeight: 700,
+                fontSize: 14,
+                color: isDone ? '#065F46' : isFuture ? 'var(--text-muted)' : 'var(--text-primary)'
+              }}>
                 {step.label}
               </div>
-              <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginTop: 2 }}>
+              <div style={{ fontSize: 12.5, color: isDone ? '#047857' : 'var(--text-muted)', marginTop: 2 }}>
                 {step.desc}
               </div>
+
               {isActive && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, padding: '4px 10px', background: '#EFF6FF', borderRadius: 20, fontSize: 12, fontWeight: 600, color: '#0369A1' }}>
                   <Clock size={11} /> In Progress
+                </div>
+              )}
+
+              {isCompletedStep && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 6, padding: '4px 10px', background: '#ECFDF5', borderRadius: 20, fontSize: 12, fontWeight: 700, color: '#065F46' }}>
+                  <CheckCircle size={12} /> Successfully Completed · Funds Credited
                 </div>
               )}
             </div>
@@ -105,6 +130,45 @@ export default function RefundTrackingPage() {
     if (!appointmentId) return;
     try {
       const d = await apiGetRefundStatus(appointmentId);
+      if (!d.refund) {
+        // Fallback: check payment status to see if already refunded
+        try {
+          const p = await apiGetPaymentStatus(appointmentId);
+          if (p.refund) {
+            d.refund = {
+              id: p.refund.id,
+              refundReference: p.refund.refundReference,
+              amount: p.refund.amount,
+              currency: 'LKR',
+              status: p.refund.status,
+              reason: 'PatientCancellation',
+              requestedAt: p.refund.requestedAt,
+              approvedAt: p.refund.approvedAt,
+              processingAt: p.refund.processingAt,
+              completedAt: p.refund.completedAt,
+              failedAt: p.refund.failedAt,
+              rejectionReason: p.refund.rejectionReason,
+            };
+          } else if (p.payment?.status === 'Refunded') {
+            d.refund = {
+              id: p.payment.id,
+              refundReference: `RF-${appointmentId}-${p.payment.id}`,
+              amount: p.payment.amount,
+              currency: p.payment.currency || 'LKR',
+              status: 'RefundCompleted',
+              reason: 'PatientCancellation',
+              requestedAt: p.payment.paidAt || new Date().toISOString(),
+              approvedAt: new Date().toISOString(),
+              processingAt: new Date().toISOString(),
+              completedAt: new Date().toISOString(),
+              failedAt: null,
+              rejectionReason: null,
+            };
+          }
+        } catch {
+          // ignore fallback error
+        }
+      }
       setData(d);
     } catch (err: any) {
       setError(err?.message || 'Failed to load refund status.');
@@ -220,9 +284,45 @@ export default function RefundTrackingPage() {
                       </div>
                     </div>
                     <div className="card-body" style={{ padding: '24px 28px' }}>
+                      {refund.status === 'RefundCompleted' && (
+                        <div style={{
+                          display: 'flex',
+                          gap: 14,
+                          alignItems: 'center',
+                          padding: '16px 20px',
+                          background: '#ECFDF5',
+                          border: '1.5px solid #6EE7B7',
+                          borderRadius: 'var(--r-md)',
+                          marginBottom: 20,
+                          boxShadow: '0 2px 8px rgba(16, 185, 129, 0.08)'
+                        }}>
+                          <div style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: '50%',
+                            background: '#059669',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <CheckCircle size={22} />
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 800, color: '#065F46', fontSize: 15 }}>
+                              Refund Completed Successfully 🎉
+                            </div>
+                            <div style={{ color: '#047857', fontSize: 13, marginTop: 2 }}>
+                              Your refund of <strong>Rs. {refund.amount?.toLocaleString()} {refund.currency}</strong> has been approved by the receptionist and credited back to your original payment method.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <RefundTimeline status={refund.status} />
 
-                      {refund.expectedProcessingInfo && (
+                      {refund.expectedProcessingInfo && refund.status !== 'RefundCompleted' && (
                         <div style={{ display: 'flex', gap: 8, padding: '12px 16px', background: '#EFF6FF', borderRadius: 'var(--r-md)', fontSize: 12.5, color: '#1D4ED8' }}>
                           <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
                           {refund.expectedProcessingInfo}
@@ -263,6 +363,8 @@ export default function RefundTrackingPage() {
                         ? 'Your appointment has been cancelled. You can apply for a consultation refund below.'
                         : isApprovedLocked
                         ? 'Refunds are not available once consultation has started or is completed.'
+                        : (apptStatus === 'Cancelled' || apptStatus === 'PatientCancelled')
+                        ? 'This appointment has been cancelled. If you made a payment that requires a refund, please contact reception.'
                         : 'You can cancel this appointment and apply for a refund below.'}
                     </div>
 
