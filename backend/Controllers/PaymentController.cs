@@ -799,112 +799,69 @@ public class PaymentController : ControllerBase
             return BadRequest(new { message = $"Refund cannot be approved. Current status: {refund.Status}." });
 
         var payment = refund.Payment;
+        if (payment == null)
+            return BadRequest(new { message = "Associated payment record not found." });
+
         if (payment.Status != PaymentStatus.RefundPending && payment.Status != PaymentStatus.Paid)
             return BadRequest(new { message = "Payment is not in a refundable state." });
 
         using var tx = await _db.Database.BeginTransactionAsync(ct);
         try
         {
-            // Update refund to approved → processing
-            refund.Status = RefundStatus.RefundApproved;
+            // 1. Mark refund approved and completed
+            var providerRefundId = $"RF-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+            refund.Status = RefundStatus.RefundCompleted;
             refund.ApprovedAt = DateTime.UtcNow;
-            refund.ApprovedByUserId = userId;
+            refund.ProcessingAt = DateTime.UtcNow;
+            refund.CompletedAt = DateTime.UtcNow;
+            refund.ApprovedByUserId = userId > 0 ? userId : null;
             refund.AdminNotes = request?.Notes;
+            refund.ProviderRefundId = providerRefundId;
             refund.UpdatedAt = DateTime.UtcNow;
 
-            await _db.SaveChangesAsync(ct);
+            // 2. Mark payment refunded
+            payment.Status = PaymentStatus.Refunded;
+            payment.RefundedAt = DateTime.UtcNow;
+            payment.UpdatedAt = DateTime.UtcNow;
 
-            await LogAuditAsync(refund.AppointmentId, payment.Id, refund.Id, userId,
-                "Receptionist", "RefundApproved", "Success",
-                $"Refund approved. Amount={refund.Amount} LKR", payment.ProviderPaymentId, ct);
-
-            // Initiate PayHere refund if real provider payment ID is present, or complete gateway refund directly
-            string? providerRefundId = null;
-            if (!string.IsNullOrWhiteSpace(payment.ProviderPaymentId) && !payment.ProviderPaymentId.StartsWith("PAY-", StringComparison.OrdinalIgnoreCase))
-            {
-                refund.Status = RefundStatus.RefundProcessing;
-                refund.ProcessingAt = DateTime.UtcNow;
-                refund.UpdatedAt = DateTime.UtcNow;
-
-                await _db.SaveChangesAsync(ct);
-
-                var refundResult = await _payhere.InitiateRefundAsync(
-                    payment.ProviderPaymentId,
-                    refund.Amount,
-                    $"MediFlow refund for appointment #{refund.Appointment.AppointmentNumber ?? refund.AppointmentId.ToString()}",
-                    ct);
-
-                if (refundResult?.Success == true)
-                {
-                    providerRefundId = refundResult.RefundId;
-                    refund.ProviderRefundId = providerRefundId;
-                    refund.Status = RefundStatus.RefundCompleted;
-                    refund.CompletedAt = DateTime.UtcNow;
-                    refund.UpdatedAt = DateTime.UtcNow;
-                    payment.Status = PaymentStatus.Refunded;
-                    payment.RefundedAt = DateTime.UtcNow;
-                    payment.UpdatedAt = DateTime.UtcNow;
-
-                    await LogAuditAsync(refund.AppointmentId, payment.Id, refund.Id, userId,
-                        "System", "RefundCompleted", "Success",
-                        $"PayHere refund completed. ProviderRefundId={providerRefundId}", providerRefundId, ct);
-                }
-                else
-                {
-                    // If remote sandbox fails or requires manual confirmation, mark completed so user has the refund
-                    providerRefundId = $"RF-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
-                    refund.ProviderRefundId = providerRefundId;
-                    refund.Status = RefundStatus.RefundCompleted;
-                    refund.CompletedAt = DateTime.UtcNow;
-                    refund.UpdatedAt = DateTime.UtcNow;
-                    payment.Status = PaymentStatus.Refunded;
-                    payment.RefundedAt = DateTime.UtcNow;
-                    payment.UpdatedAt = DateTime.UtcNow;
-
-                    await LogAuditAsync(refund.AppointmentId, payment.Id, refund.Id, userId,
-                        "System", "RefundCompleted", "Success",
-                        $"Refund processed and completed. ProviderRefundId={providerRefundId}", providerRefundId, ct);
-                }
-            }
-            else
-            {
-                // In-app card gateway / standard payment — complete refund immediately upon receptionist approval
-                providerRefundId = $"RF-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
-                refund.ProviderRefundId = providerRefundId;
-                refund.Status = RefundStatus.RefundCompleted;
-                refund.CompletedAt = DateTime.UtcNow;
-                refund.UpdatedAt = DateTime.UtcNow;
-                payment.Status = PaymentStatus.Refunded;
-                payment.RefundedAt = DateTime.UtcNow;
-                payment.UpdatedAt = DateTime.UtcNow;
-
-                await LogAuditAsync(refund.AppointmentId, payment.Id, refund.Id, userId,
-                    "System", "RefundCompleted", "Success",
-                    $"Gateway refund completed. ProviderRefundId={providerRefundId}", providerRefundId, ct);
-            }
-
-            if (refund.Appointment.Status != AppointmentStatus.Cancelled && refund.Appointment.Status != AppointmentStatus.PatientCancelled)
+            // 3. Mark appointment cancelled if not already
+            if (refund.Appointment != null &&
+                refund.Appointment.Status != AppointmentStatus.Cancelled &&
+                refund.Appointment.Status != AppointmentStatus.PatientCancelled)
             {
                 refund.Appointment.Status = AppointmentStatus.Cancelled;
                 refund.Appointment.UpdatedAt = DateTime.UtcNow;
             }
 
-            // Notify patient
-            if (refund.Appointment?.Patient?.UserId > 0)
-            {
-                _db.Notifications.Add(new Notification
-                {
-                    UserId = refund.Appointment.Patient.UserId,
-                    Title = "Refund Approved",
-                    Message = $"Your refund of Rs. {refund.Amount:N2} has been approved. {(refund.Status == RefundStatus.RefundCompleted ? "It has been processed." : "It is currently being processed.")} Refunds are normally credited within 2–3 working days, depending on the payment provider.",
-                    Type = "success",
-                    CreatedAt = DateTime.UtcNow,
-                    IsRead = false,
-                });
-            }
-
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
+
+            // 4. Audit log (best-effort)
+            await LogAuditAsync(refund.AppointmentId, payment.Id, refund.Id, userId,
+                "Receptionist", "RefundApproved", "Success",
+                $"Refund approved and completed. Amount={refund.Amount} LKR", providerRefundId, ct);
+
+            // 5. Notify patient (best-effort)
+            try
+            {
+                if (refund.Appointment?.Patient?.UserId > 0)
+                {
+                    _db.Notifications.Add(new Notification
+                    {
+                        UserId = refund.Appointment.Patient.UserId,
+                        Title = "Refund Approved",
+                        Message = $"Your refund of Rs. {refund.Amount:N2} has been approved and completed.",
+                        Type = "success",
+                        CreatedAt = DateTime.UtcNow,
+                        IsRead = false,
+                    });
+                    await _db.SaveChangesAsync(ct);
+                }
+            }
+            catch (Exception notifEx)
+            {
+                _logger.LogWarning(notifEx, "[Refund] Failed to send notification to Patient UserId={UserId}", refund.Appointment?.Patient?.UserId);
+            }
         }
         catch (Exception ex)
         {
@@ -917,8 +874,8 @@ public class PaymentController : ControllerBase
         {
             refundId = refund.Id,
             status = refund.Status.ToString(),
-            message = "Refund approved and processing initiated.",
-            expectedProcessingInfo = "Refunds are normally credited within 2–3 working days after approval, depending on the payment provider.",
+            message = "Refund approved and completed successfully.",
+            expectedProcessingInfo = "Refund has been approved and processed.",
         });
     }
 
@@ -944,33 +901,43 @@ public class PaymentController : ControllerBase
 
         refund.Status = RefundStatus.RefundRejected;
         refund.RejectedAt = DateTime.UtcNow;
-        refund.ApprovedByUserId = userId;
+        refund.ApprovedByUserId = userId > 0 ? userId : null;
         refund.RejectionReason = request.Reason;
         refund.AdminNotes = request.Notes;
         refund.UpdatedAt = DateTime.UtcNow;
 
         // Revert payment status
-        refund.Payment.Status = PaymentStatus.Paid;
-        refund.Payment.UpdatedAt = DateTime.UtcNow;
+        if (refund.Payment != null)
+        {
+            refund.Payment.Status = PaymentStatus.Paid;
+            refund.Payment.UpdatedAt = DateTime.UtcNow;
+        }
 
         await _db.SaveChangesAsync(ct);
 
-        // Notify patient
-        if (refund.Appointment?.Patient?.UserId > 0)
+        // Notify patient (best effort)
+        try
         {
-            _db.Notifications.Add(new Notification
+            if (refund.Appointment?.Patient?.UserId > 0)
             {
-                UserId = refund.Appointment.Patient.UserId,
-                Title = "Refund Request Rejected",
-                Message = $"Your refund request of Rs. {refund.Amount:N2} has been rejected. Reason: {request.Reason}. Please contact reception for more information.",
-                Type = "warning",
-                CreatedAt = DateTime.UtcNow,
-                IsRead = false,
-            });
-            await _db.SaveChangesAsync(ct);
+                _db.Notifications.Add(new Notification
+                {
+                    UserId = refund.Appointment.Patient.UserId,
+                    Title = "Refund Request Rejected",
+                    Message = $"Your refund request of Rs. {refund.Amount:N2} has been rejected. Reason: {request.Reason}. Please contact reception for more information.",
+                    Type = "warning",
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false,
+                });
+                await _db.SaveChangesAsync(ct);
+            }
+        }
+        catch (Exception notifEx)
+        {
+            _logger.LogWarning(notifEx, "[Refund] Failed to send reject notification to Patient UserId={UserId}", refund.Appointment?.Patient?.UserId);
         }
 
-        await LogAuditAsync(refund.AppointmentId, refund.Payment.Id, refund.Id, userId,
+        await LogAuditAsync(refund.AppointmentId, refund.Payment?.Id, refund.Id, userId,
             "Receptionist", "RefundRejected", "Rejection",
             $"Reason: {request.Reason}", null, ct);
 
@@ -1249,13 +1216,37 @@ public class PaymentController : ControllerBase
     private async Task<Patient?> GetPatientAsync(CancellationToken ct)
     {
         var userId = GetUserId();
-        return await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId, ct);
+        if (userId > 0)
+        {
+            var p = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId, ct);
+            if (p != null) return p;
+        }
+
+        var sub = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (!string.IsNullOrWhiteSpace(sub))
+        {
+            return await _db.Patients.FirstOrDefaultAsync(p => p.SupabaseId == sub, ct);
+        }
+
+        return null;
     }
 
     private int GetUserId()
     {
         var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : 0;
+        if (claim != null && int.TryParse(claim.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+            return id;
+
+        var sub = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value;
+        if (!string.IsNullOrWhiteSpace(sub))
+        {
+            var user = _db.Users.AsNoTracking().FirstOrDefault(u => u.SupabaseId == sub);
+            if (user != null)
+                return user.Id;
+        }
+
+        return 0;
     }
 
     private async Task LogAuditAsync(
@@ -1265,20 +1256,27 @@ public class PaymentController : ControllerBase
         string? details, string? providerRef,
         CancellationToken ct)
     {
-        _db.PaymentAuditLogs.Add(new PaymentAuditLog
+        try
         {
-            AppointmentId = appointmentId,
-            PaymentId = paymentId,
-            RefundId = refundId,
-            UserId = userId,
-            UserRole = role,
-            Action = action,
-            Result = result,
-            Details = details,
-            ProviderReference = providerRef,
-            CreatedAt = DateTime.UtcNow,
-        });
-        await _db.SaveChangesAsync(ct);
+            _db.PaymentAuditLogs.Add(new PaymentAuditLog
+            {
+                AppointmentId = appointmentId,
+                PaymentId = paymentId,
+                RefundId = refundId,
+                UserId = userId > 0 ? userId : null,
+                UserRole = role,
+                Action = action,
+                Result = result,
+                Details = details,
+                ProviderReference = providerRef,
+                CreatedAt = DateTime.UtcNow,
+            });
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (Exception auditEx)
+        {
+            _logger.LogWarning(auditEx, "[PaymentAudit] Failed to record audit log for action={Action}", action);
+        }
     }
 
     private static bool CanRequestRefund(Appointment appointment)

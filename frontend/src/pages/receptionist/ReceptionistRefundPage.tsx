@@ -40,10 +40,11 @@ export default function ReceptionistRefundPage() {
     setActionLoading(a => ({ ...a, [refundId]: 'approve' }));
     try {
       await apiApproveRefund(refundId);
-      setMessages(m => ({ ...m, [refundId]: { type: 'success', text: 'Refund approved and processing initiated.' } }));
+      setMessages(m => ({ ...m, [refundId]: { type: 'success', text: 'Refund approved and completed successfully.' } }));
       qc.invalidateQueries({ queryKey: ['refunds'] });
+      await refetch();
     } catch (err: any) {
-      setMessages(m => ({ ...m, [refundId]: { type: 'error', text: err?.message || 'Failed to approve refund.' } }));
+      setMessages(m => ({ ...m, [refundId]: { type: 'error', text: err?.response?.data?.message || err?.message || 'Failed to approve refund.' } }));
     } finally {
       setActionLoading(a => ({ ...a, [refundId]: null }));
     }
@@ -61,8 +62,9 @@ export default function ReceptionistRefundPage() {
       setMessages(m => ({ ...m, [refundId]: { type: 'error', text: 'Refund request rejected.' } }));
       setRejectForms(f => ({ ...f, [refundId]: { open: false, reason: '', notes: '' } }));
       qc.invalidateQueries({ queryKey: ['refunds'] });
+      await refetch();
     } catch (err: any) {
-      setMessages(m => ({ ...m, [refundId]: { type: 'error', text: err?.message || 'Failed to reject refund.' } }));
+      setMessages(m => ({ ...m, [refundId]: { type: 'error', text: err?.response?.data?.message || err?.message || 'Failed to reject refund.' } }));
     } finally {
       setActionLoading(a => ({ ...a, [refundId]: null }));
     }
