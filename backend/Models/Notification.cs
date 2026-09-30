@@ -6,7 +6,7 @@ public class Notification
     public int UserId { get; set; }          // recipient user id
     public string Title { get; set; } = "";
     public string Message { get; set; } = "";
-    public bool IsRead { get; set; } = false;
+    public bool IsRead { get; set; }
     public string Type { get; set; } = "info"; // info | warning | success
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

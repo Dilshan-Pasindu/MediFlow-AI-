@@ -137,7 +137,7 @@ public class DoctorLeaveController : ControllerBase
             }
         }
 
-        if (overlappingAppointments.Any())
+        if (overlappingAppointments.Count > 0)
         {
             await _context.SaveChangesAsync();
         }
@@ -146,7 +146,7 @@ public class DoctorLeaveController : ControllerBase
         { 
             Leave = new { leave.Id, leave.DoctorId, leave.StartDate, leave.EndDate, leave.Reason, leave.CreatedAt }, 
             CancelledAppointmentsCount = overlappingAppointments.Count,
-            Message = overlappingAppointments.Any() 
+            Message = overlappingAppointments.Count > 0 
                         ? $"Leave added successfully. {overlappingAppointments.Count} overlapping appointment(s) were cancelled and patients notified." 
                         : "Leave added successfully."
         });

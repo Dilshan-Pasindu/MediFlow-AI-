@@ -83,6 +83,15 @@ builder.Services.AddHttpClient("AiService", client =>
 builder.Services.AddScoped<IAiServiceClient, AiServiceClient>();
 builder.Services.AddScoped<AiServiceClient>();
 
+// ─── PayHere Sandbox HTTP Client & Service ────────────────────────────────────
+builder.Services.AddHttpClient("PayHere", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
+builder.Services.AddScoped<PayHereService>();
+
 // ─── Supabase & JWT Authentication ───────────────────────────────────────────
 var signingKeys = new List<SecurityKey>();
 
@@ -236,7 +245,7 @@ app.Run();
 static string ParsePostgreSqlConnectionString(string raw)
 {
     Npgsql.NpgsqlConnectionStringBuilder builder;
-    if (!string.IsNullOrWhiteSpace(raw) && (raw.StartsWith("postgres://") || raw.StartsWith("postgresql://")))
+    if (!string.IsNullOrWhiteSpace(raw) && (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
     {
         try
         {
@@ -250,7 +259,6 @@ static string ParsePostgreSqlConnectionString(string raw)
                 Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "",
                 Database = uri.AbsolutePath.TrimStart('/'),
                 SslMode = Npgsql.SslMode.Prefer,
-                TrustServerCertificate = true,
             };
         }
         catch

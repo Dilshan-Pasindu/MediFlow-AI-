@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/appointment_provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
+import 'payment_screens.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -127,74 +128,142 @@ class HomeScreen extends ConsumerWidget {
                           DateFormat('EEE, MMM d, yyyy • h:mm a')
                               .format(appt.appointmentDateTime);
 
+                      final bool isPendingPayment = [
+                            'Pending', 'PaymentFailed'
+                          ].contains(appt.status);
+                      final bool hasPaidPayment = [
+                            'PaymentPending', 'PaymentSubmitted', 'PaymentVerified',
+                            'WaitingForReceptionist'
+                          ].contains(appt.status);
+                      final bool isCancelledWithRefund = [
+                            'Cancelled', 'PatientCancelled', 'ReceptionistRejected',
+                            'RefundRequested'
+                          ].contains(appt.status);
+
+                      Color chipColor = const Color(0xFF0F172A);
+                      Color chipBg = const Color(0xFFF1F5F9);
+                      if (appt.status == 'Confirmed' || appt.status == 'ReceptionistApproved') {
+                        chipColor = const Color(0xFF166534); chipBg = const Color(0xFFDCFCE7);
+                      } else if (appt.status == 'Pending' || isPendingPayment) {
+                        chipColor = const Color(0xFF854D0E); chipBg = const Color(0xFFFEF3C7);
+                      } else if (isCancelledWithRefund) {
+                        chipColor = const Color(0xFF991B1B); chipBg = const Color(0xFFFEF2F2);
+                      } else if (hasPaidPayment) {
+                        chipColor = const Color(0xFF0369A1); chipBg = const Color(0xFFEFF6FF);
+                      }
+
                       return Card(
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                          side: const BorderSide(color: Color(0xFFE2E8F0)),
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: chipBg, width: 1.5),
                         ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.all(12),
-                          title: Text(
-                            appt.doctorName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          subtitle: Column(
+                        elevation: 1.5,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const SizedBox(height: 4),
-                              Text(
-                                appt.specialty,
-                                style: const TextStyle(
-                                  color: Color(0xFF0284C7),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                dateFormatted,
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                          trailing: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Chip(
-                                label: Text(
-                                  appt.status,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: appt.status == 'Confirmed'
-                                        ? const Color(0xFF166534)
-                                        : const Color(0xFF854D0E),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor: Color(0xFFE0F2FE),
+                                    child: Icon(Icons.person, color: Color(0xFF0284C7), size: 20),
                                   ),
-                                ),
-                                padding: EdgeInsets.zero,
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                backgroundColor: appt.status == 'Confirmed'
-                                    ? const Color(0xFFDCFCE7)
-                                    : const Color(0xFFFEF3C7),
-                              ),
-                              if (appt.appointmentNumber != null &&
-                                  appt.appointmentNumber!.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  '#${appt.appointmentNumber}',
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF64748B),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(appt.doctorName,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                        const SizedBox(height: 2),
+                                        Text(appt.specialty,
+                                            style: const TextStyle(color: Color(0xFF0284C7), fontSize: 12.5, fontWeight: FontWeight.w500)),
+                                        const SizedBox(height: 3),
+                                        Text(dateFormatted,
+                                            style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5)),
+                                      ],
+                                    ),
                                   ),
-                                ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: chipBg, borderRadius: BorderRadius.circular(20)),
+                                    child: Text(appt.status,
+                                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: chipColor)),
+                                  ),
+                                ],
+                              ),
+                              if (appt.appointmentNumber != null && appt.appointmentNumber!.isNotEmpty) ...[  
+                                const SizedBox(height: 6),
+                                Text('Appointment: #${appt.appointmentNumber}',
+                                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF64748B))),
                               ],
+                              // Payment action buttons
+                              if (isPendingPayment || hasPaidPayment || isCancelledWithRefund) ...
+                                [const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    if (isPendingPayment)
+                                      Expanded(
+                                        child: ElevatedButton.icon(
+                                          onPressed: () => Navigator.of(context).push(
+                                            MaterialPageRoute(builder: (_) => PaymentCheckoutScreen(
+                                              appointmentId: appt.id,
+                                              doctorName: appt.doctorName,
+                                              fee: appt.fee,
+                                            )),
+                                          ).then((_) => ref.invalidate(myAppointmentsProvider)),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF0284C7),
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          icon: const Icon(Icons.credit_card, size: 15),
+                                          label: Text('Pay Rs. ${(appt.fee > 0 ? appt.fee : 2500.0).toStringAsFixed(0)}',
+                                              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+                                        ),
+                                      ),
+                                    if (hasPaidPayment)
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => Navigator.of(context).push(
+                                            MaterialPageRoute(builder: (_) => PaymentCheckoutScreen(
+                                              appointmentId: appt.id,
+                                              doctorName: appt.doctorName,
+                                              fee: appt.fee,
+                                            )),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          icon: const Icon(Icons.payment_outlined, size: 14),
+                                          label: const Text('Payment Status', style: TextStyle(fontSize: 12.5)),
+                                        ),
+                                      ),
+                                    if (isCancelledWithRefund)
+                                      Expanded(
+                                        child: OutlinedButton.icon(
+                                          onPressed: () => Navigator.of(context).push(
+                                            MaterialPageRoute(builder: (_) => RefundTrackingScreen(
+                                              appointmentId: appt.id,
+                                            )),
+                                          ),
+                                          style: OutlinedButton.styleFrom(
+                                            foregroundColor: const Color(0xFFDC2626),
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          icon: const Icon(Icons.monetization_on_outlined, size: 14),
+                                          label: const Text('Track Refund', style: TextStyle(fontSize: 12.5)),
+                                        ),
+                                      ),
+                                  ],
+                                )],
                             ],
                           ),
                         ),

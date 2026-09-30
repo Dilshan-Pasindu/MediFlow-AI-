@@ -12,13 +12,24 @@ import NowConsultingCard from '../components/NowConsultingCard';
 import DoctorProfileModal from '../components/DoctorProfileModal';
 import { useMyAppointments, useRateAppointment } from '../hooks';
 
-const STATUS = {
+const STATUS: Record<string, { color: string; bg: string; label: string }> = {
   Pending:          { color: '#B45309', bg: '#FFFBEB', label: 'Pending' },
+  PaymentPending:   { color: '#B45309', bg: '#FFFBEB', label: 'Payment Pending' },
   PaymentSubmitted: { color: '#0369A1', bg: '#EFF6FF', label: 'Payment Sent' },
+  PaymentVerified:  { color: '#0369A1', bg: '#EFF6FF', label: 'Payment Verified' },
+  WaitingForReceptionist: { color: '#0369A1', bg: '#EFF6FF', label: 'Awaiting Reception' },
   Confirmed:        { color: '#059669', bg: '#ECFDF5', label: 'Confirmed' },
+  ReceptionistApproved: { color: '#059669', bg: '#ECFDF5', label: 'Confirmed' },
   InConsultation:   { color: '#DC2626', bg: '#FEF2F2', label: '🔴 In Consultation' },
   Completed:        { color: '#6366F1', bg: '#EEF2FF', label: 'Completed' },
   Cancelled:        { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled' },
+  PatientCancelled: { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled' },
+  RefundRequested:  { color: '#D97706', bg: '#FFFBEB', label: '💰 Refund Requested' },
+  RefundApproved:   { color: '#2563EB', bg: '#EFF6FF', label: '💰 Refund Approved' },
+  RefundProcessing: { color: '#2563EB', bg: '#EFF6FF', label: '⏳ Refund Processing' },
+  RefundCompleted:  { color: '#059669', bg: '#ECFDF5', label: '✅ Refund Completed' },
+  RefundRejected:   { color: '#DC2626', bg: '#FEF2F2', label: '❌ Refund Declined' },
+  ReceptionistRejected: { color: '#DC2626', bg: '#FEF2F2', label: 'Rejected' },
   NoShow:           { color: '#64748B', bg: '#F1F5F9', label: 'No Show' },
 };
 
@@ -57,8 +68,15 @@ export default function AppointmentsPage() {
   const [ratingError, setRatingError] = useState<string | null>(null);
   const [ratedApptIds, setRatedApptIds] = useState<Set<number>>(new Set());
 
-  const upcomingAppts = appointments.filter(a => ['Confirmed', 'InConsultation', 'PaymentSubmitted', 'Pending'].includes(a.status));
-  const pastAppts = appointments.filter(a => ['Completed', 'Cancelled', 'NoShow'].includes(a.status));
+  const upcomingAppts = appointments.filter(a => [
+    'Pending', 'PaymentPending', 'PaymentSubmitted', 'PaymentVerified',
+    'WaitingForReceptionist', 'Confirmed', 'ReceptionistApproved', 'InConsultation'
+  ].includes(a.status));
+  const pastAppts = appointments.filter(a => [
+    'Completed', 'Cancelled', 'PatientCancelled', 'RefundRequested',
+    'RefundApproved', 'RefundProcessing', 'RefundCompleted', 'RefundRejected',
+    'ReceptionistRejected', 'NoShow'
+  ].includes(a.status));
   const displayAppts = activeTab === 'upcoming' ? upcomingAppts : pastAppts;
 
   const handleOpenRatingModal = (appt: any, e: React.MouseEvent) => {
@@ -289,6 +307,37 @@ export default function AppointmentsPage() {
                               <Star size={12} fill="#F59E0B" color="#F59E0B" /> Rate &amp; Review
                             </button>
                           )}
+                        </div>
+                      )}
+
+                      {/* Refund Tracking Action */}
+                      {['Cancelled', 'PatientCancelled', 'RefundRequested', 'RefundApproved', 'RefundProcessing', 'RefundCompleted', 'RefundRejected', 'ReceptionistRejected'].includes(appt.status) && (
+                        <div>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{
+                              fontSize: 11,
+                              padding: '3px 9px',
+                              background: '#EFF6FF',
+                              color: '#1D4ED8',
+                              border: '1px solid #BFDBFE',
+                              borderRadius: 6,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              cursor: 'pointer',
+                              fontWeight: 600,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/appointments/${appt.id}/refund`);
+                            }}
+                            id={`track-refund-btn-${appt.id}`}
+                            title="Track or apply for consultation refund"
+                          >
+                            💰 Track Refund
+                          </button>
                         </div>
                       )}
                     </div>

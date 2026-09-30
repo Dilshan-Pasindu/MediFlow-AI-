@@ -965,7 +965,7 @@ public static class DatabaseSeeder
         }
     }
 
-    private record DoctorSeedDefinition(
+    private sealed record DoctorSeedDefinition(
         string FullName,
         string Email,
         string Phone,

@@ -13,6 +13,10 @@ import {
   apiPatientCancelAppointment,
   apiRateAppointment
 } from '../services/api';
+import {
+  apiCancelAppointmentForRefund,
+  apiRequestRefund,
+} from '../api/payment.api';
 import { consultationHubService } from '../services/consultationHubService';
 
 const STATUS_STEPS = [
@@ -23,13 +27,23 @@ const STATUS_STEPS = [
   { key: 'Completed',        label: 'Consultation Done',    icon: '🎉', desc: 'Appointment completed' },
 ];
 
-const STATUS_META = {
-  Pending:          { color: '#B45309', bg: '#FFFBEB', label: 'Pending' },
+const STATUS_META: Record<string, { color: string; bg: string; label: string }> = {
+  Pending:          { color: '#B45309', bg: '#FFFBEB', label: 'Pending Payment' },
+  PaymentPending:   { color: '#B45309', bg: '#FFFBEB', label: 'Payment Pending' },
   PaymentSubmitted: { color: '#0369A1', bg: '#EFF6FF', label: 'Payment Sent' },
+  PaymentVerified:  { color: '#0369A1', bg: '#EFF6FF', label: 'Payment Verified' },
+  WaitingForReceptionist: { color: '#0369A1', bg: '#EFF6FF', label: 'Awaiting Receptionist' },
   Confirmed:        { color: '#059669', bg: '#ECFDF5', label: 'Confirmed' },
+  ReceptionistApproved: { color: '#059669', bg: '#ECFDF5', label: 'Confirmed' },
   InConsultation:   { color: '#DC2626', bg: '#FEF2F2', label: '🔴 In Consultation' },
   Completed:        { color: '#6366F1', bg: '#EEF2FF', label: 'Completed' },
   Cancelled:        { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled' },
+  PatientCancelled: { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled by Patient' },
+  RefundRequested:  { color: '#D97706', bg: '#FFFBEB', label: 'Refund Requested' },
+  RefundApproved:   { color: '#0369A1', bg: '#EFF6FF', label: 'Refund Approved' },
+  RefundProcessing: { color: '#7C3AED', bg: '#F5F3FF', label: 'Refund Processing' },
+  RefundCompleted:  { color: '#059669', bg: '#ECFDF5', label: 'Refund Completed' },
+  RefundRejected:   { color: '#DC2626', bg: '#FEF2F2', label: 'Refund Declined' },
 };
 
 const CANCEL_REASONS = [
@@ -48,6 +62,7 @@ export default function AppointmentDetailsPage() {
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [payError, setPayError] = useState('');
+  const [applyForRefund, setApplyForRefund] = useState(true);
 
   // Doctor Profile modal state
   const [showDoctorModal, setShowDoctorModal] = useState(false);
@@ -166,7 +181,7 @@ export default function AppointmentDetailsPage() {
       return;
     }
 
-    if (['Completed', 'InConsultation', 'Cancelled'].includes(appt.status)) {
+    if (['Completed', 'InConsultation', 'Cancelled', 'PatientCancelled'].includes(appt.status)) {
       setCancelError(`Cannot cancel an appointment that is already ${appt.status}.`);
       return;
     }
@@ -185,10 +200,28 @@ export default function AppointmentDetailsPage() {
     setCancelError('');
 
     try {
-      await apiPatientCancelAppointment(id || '', fullReason);
+      // 1. Cancel the appointment
+      try {
+        await apiCancelAppointmentForRefund(id || '', fullReason);
+      } catch {
+        await apiPatientCancelAppointment(id || '', fullReason);
+      }
+
+      // 2. If appointment has payment and patient requested refund, submit refund application
+      if (isPaidAppointment && applyForRefund) {
+        try {
+          await apiRequestRefund(id || '', fullReason);
+          setAppt((prev: any) => ({ ...prev, status: 'RefundRequested' }));
+        } catch (refErr: any) {
+          console.warn('Refund request failed after cancel:', refErr);
+          setAppt((prev: any) => ({ ...prev, status: 'PatientCancelled' }));
+        }
+      } else {
+        setAppt((prev: any) => ({ ...prev, status: 'PatientCancelled' }));
+      }
+
       setCancelled(true);
       setShowCancelModal(false);
-      setAppt((prev: any) => ({ ...prev, status: 'Cancelled' }));
     } catch (err: any) {
       setCancelError(err?.message || 'Failed to cancel appointment. Please try again.');
     } finally {
@@ -219,7 +252,25 @@ export default function AppointmentDetailsPage() {
   const isPast = d.getTime() <= Date.now();
   const st = (STATUS_META as any)[appt.status] || STATUS_META.Pending;
   const currentStepIdx = STATUS_STEPS.findIndex(s => s.key === appt.status);
-  const canCancel = !cancelled && ['Pending', 'PaymentSubmitted', 'Confirmed'].includes(appt?.status) && !isPast;
+
+  const isPaidAppointment = Boolean(
+    ['PaymentVerified', 'WaitingForReceptionist', 'Confirmed', 'ReceptionistApproved', 'PaymentSubmitted'].includes(appt?.status) ||
+    appt?.paymentStatus === 'Paid' ||
+    appt?.payment?.status === 'Paid' ||
+    appt?.isPaid ||
+    paid
+  );
+
+  const cancellableStatuses = [
+    'Pending',
+    'PaymentPending',
+    'PaymentSubmitted',
+    'PaymentVerified',
+    'WaitingForReceptionist',
+    'Confirmed',
+    'ReceptionistApproved',
+  ];
+  const canCancel = !cancelled && cancellableStatuses.includes(appt?.status) && !isPast;
 
   return (
     <div className="app-shell">
@@ -300,39 +351,64 @@ export default function AppointmentDetailsPage() {
                   <div className="info-row"><span className="info-row-label">💰 Consultation Fee:</span>Rs. {appt.fee?.toLocaleString()}</div>
                   {appt.notes && <div className="info-row"><span className="info-row-label">📝 Notes:</span>{appt.notes}</div>}
 
-                  {/* Payment Action */}
+                  {/* Payment Action — Pending: payment checkout */}
                   {appt.status === 'Pending' && !paid && (
                     <div style={{ marginTop: 24, padding: '20px', background: 'var(--warning-bg)', border: '1.5px solid var(--warning-border)', borderRadius: 'var(--r-lg)' }}>
                       <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
                         <AlertCircle size={20} color="#B45309" style={{ flexShrink: 0 }} />
                         <div>
                           <div style={{ fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Payment Required</div>
-                          <div style={{ fontSize: 13, color: '#B45309' }}>Please complete your payment of <strong>Rs. {appt.fee?.toLocaleString()}</strong> to confirm your appointment. The receptionist will then verify and generate your appointment number.</div>
+                          <div style={{ fontSize: 13, color: '#B45309' }}>Complete your payment of <strong>Rs. {appt.fee?.toLocaleString()}</strong> to confirm your appointment. Once payment is verified, the receptionist will review and assign your token number.</div>
                         </div>
                       </div>
-                      {payError && <div className="form-error" style={{ marginBottom: 14 }}><AlertCircle size={14} />{payError}</div>}
-                      <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={handlePay} disabled={paying} id="pay-appointment-btn">
-                        {paying ? <><Loader size={16} className="spin" /> Processing...</> : <><CreditCard size={16} /> Pay Rs. {appt.fee?.toLocaleString()} Now</>}
-                      </button>
-                    </div>
-                  )}
-
-                  {(appt.status === 'PaymentSubmitted' || paid) && (
-                    <div style={{ marginTop: 24, padding: '16px 18px', background: 'var(--med-blue-50)', border: '1.5px solid var(--med-blue-200)', borderRadius: 'var(--r-md)', display: 'flex', gap: 12 }}>
-                      <CheckCircle size={18} color="var(--med-blue)" style={{ flexShrink: 0, marginTop: 1 }} />
-                      <div>
-                        <div style={{ fontWeight: 700, color: 'var(--med-blue)', marginBottom: 3 }}>Payment Submitted</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your payment is pending verification by the receptionist. You'll receive your appointment number once confirmed.</div>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          className="btn btn-primary btn-lg"
+                          style={{ flex: 1 }}
+                          onClick={() => navigate(`/appointments/${appt.id}/pay`)}
+                          id="pay-appointment-btn"
+                        >
+                          <CreditCard size={16} /> Pay Now · Rs. {appt.fee?.toLocaleString()}
+                        </button>
                       </div>
                     </div>
                   )}
 
-                  {appt.status === 'Confirmed' && (
+                  {/* PaymentPending: redirected to PayHere */}
+                  {(appt.status === 'PaymentPending' || appt.status === 'PaymentSubmitted' || paid) && (
+                    <div style={{ marginTop: 24, padding: '16px 18px', background: 'var(--med-blue-50)', border: '1.5px solid var(--med-blue-200)', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <CheckCircle size={18} color="var(--med-blue)" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--med-blue)', marginBottom: 3 }}>Payment Submitted</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>Your payment is pending receptionist verification. You'll receive your appointment number once confirmed.</div>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => navigate(`/appointments/${appt.id}/pay`)}
+                          id="check-payment-status-btn"
+                        >
+                          <CreditCard size={13} /> Check Payment Status
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PaymentVerified / WaitingForReceptionist */}
+                  {(appt.status === 'PaymentVerified' || appt.status === 'WaitingForReceptionist') && (
+                    <div style={{ marginTop: 24, padding: '16px 18px', background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <CheckCircle size={18} color="#0369A1" style={{ flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#1E40AF', marginBottom: 2 }}>Payment Verified ✅</div>
+                        <div style={{ fontSize: 13, color: '#1D4ED8' }}>Payment received and verified. Awaiting receptionist approval to confirm your appointment.</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {(appt.status === 'Confirmed' || appt.status === 'ReceptionistApproved') && (
                     <div style={{ marginTop: 24, padding: '16px 18px', background: 'var(--success-bg)', border: '1.5px solid var(--success-border)', borderRadius: 'var(--r-md)', display: 'flex', gap: 12 }}>
                       <CheckCircle size={18} color="var(--success)" style={{ flexShrink: 0, marginTop: 1 }} />
                       <div>
                         <div style={{ fontWeight: 700, color: '#065F46', marginBottom: 3 }}>Appointment Confirmed! ✅</div>
-                        <div style={{ fontSize: 13, color: '#047857' }}>Your appointment has been verified and confirmed. Please arrive 10 minutes early. Appointment Number: <strong>{appt.appointmentNumber}</strong></div>
+                        <div style={{ fontSize: 13, color: '#047857' }}>Verified and confirmed. Please arrive 10 minutes early. Appointment Number: <strong>{appt.appointmentNumber}</strong></div>
                       </div>
                     </div>
                   )}
@@ -347,17 +423,54 @@ export default function AppointmentDetailsPage() {
                     </div>
                   )}
 
-                  {appt.status === 'Cancelled' && (
-                    <div style={{ marginTop: 24, padding: '16px 18px', background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
-                      <XCircle size={18} color="#DC2626" style={{ flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#991B1B', marginBottom: 2 }}>Appointment Cancelled</div>
-                        <div style={{ fontSize: 13, color: '#B91C1C' }}>This appointment has been cancelled and is no longer active.</div>
+                  {/* Cancelled / Rejected / Refund in progress — show refund tracking */}
+                  {(appt.status === 'Cancelled' || appt.status === 'PatientCancelled' || appt.status === 'ReceptionistRejected' || appt.status === 'RefundRequested' || appt.status === 'RefundApproved' || appt.status === 'RefundProcessing' || appt.status === 'RefundCompleted' || appt.status === 'RefundRejected') && (
+                    <div style={{ marginTop: 24, padding: '18px 20px', background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 'var(--r-md)', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                      <XCircle size={20} color="#DC2626" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 800, color: '#991B1B', fontSize: 15, marginBottom: 4 }}>
+                          {appt.status === 'ReceptionistRejected'
+                            ? 'Appointment Rejected by Receptionist'
+                            : appt.status === 'RefundRequested'
+                            ? 'Appointment Cancelled · Refund Review Pending'
+                            : appt.status === 'RefundApproved' || appt.status === 'RefundProcessing'
+                            ? 'Appointment Cancelled · Refund Approved & Processing'
+                            : appt.status === 'RefundCompleted'
+                            ? 'Appointment Cancelled · Refund Completed'
+                            : appt.status === 'RefundRejected'
+                            ? 'Appointment Cancelled · Refund Declined'
+                            : 'Appointment Cancelled'}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#B91C1C', marginBottom: 12, lineHeight: 1.5 }}>
+                          {appt.status === 'ReceptionistRejected'
+                            ? 'Your appointment was rejected. If you paid, an automatic refund has been initiated.'
+                            : appt.status === 'RefundRequested'
+                            ? `Your cancellation has been recorded and your refund application for Rs. ${(appt.fee || 0).toLocaleString()} is awaiting receptionist review.`
+                            : appt.status === 'RefundApproved' || appt.status === 'RefundProcessing'
+                            ? `Your refund for Rs. ${(appt.fee || 0).toLocaleString()} has been approved by the receptionist and is being processed.`
+                            : appt.status === 'RefundCompleted'
+                            ? `Your refund of Rs. ${(appt.fee || 0).toLocaleString()} has been completed and credited back to your account.`
+                            : appt.status === 'RefundRejected'
+                            ? 'Your refund request was declined. You can view the receptionist feedback and explanation.'
+                            : `This appointment has been cancelled. ${isPaidAppointment ? `You can apply for or track your consultation refund of Rs. ${(appt.fee || 0).toLocaleString()}.` : ''}`}
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => navigate(`/appointments/${appt.id}/refund`)}
+                            id="track-refund-btn"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+                          >
+                            <CreditCard size={14} /> 💰 Track / Apply for Refund
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
+
 
               {/* Consultation Rating & Feedback Section */}
               {appt.status === 'Completed' && (
@@ -638,6 +751,27 @@ export default function AppointmentDetailsPage() {
                 disabled={cancelling}
               />
             </div>
+
+            {isPaidAppointment && (
+              <div style={{ padding: '14px 16px', background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 'var(--r-md)', marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, color: '#1E40AF', fontSize: 13.5 }}>
+                  <CreditCard size={16} /> Paid Appointment · Refund Request
+                </div>
+                <div style={{ fontSize: 12.5, color: '#1D4ED8', marginTop: 4, lineHeight: 1.4 }}>
+                  A consultation fee of <strong>Rs. {appt.fee?.toLocaleString()}</strong> was recorded for this appointment.
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, cursor: 'pointer', fontWeight: 600, fontSize: 13, color: '#1E3A8A' }}>
+                  <input
+                    type="checkbox"
+                    id="apply-refund-checkbox"
+                    checked={applyForRefund}
+                    onChange={e => setApplyForRefund(e.target.checked)}
+                    style={{ width: 16, height: 16, accentColor: '#2563EB', cursor: 'pointer' }}
+                  />
+                  <span>Apply for a full refund of Rs. {appt.fee?.toLocaleString()} (reviewed by receptionist)</span>
+                </label>
+              </div>
+            )}
 
             {cancelError && (
               <div className="form-error" style={{ marginBottom: 14 }}>
