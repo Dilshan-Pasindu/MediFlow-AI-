@@ -815,10 +815,14 @@ def _rule_based_recommendation(input_data: SymptomInput) -> SpecialistRecommenda
             )
             kb_candidate = hybrid_context.get("primary_specialty_candidate")
             kb_confidence = hybrid_context.get("specialty_confidence", 0.70)
-            if kb_candidate and kb_candidate in SPECIALTY_RULES and kb_candidate != "General Medicine":
-                # Knowledge Base hybrid retrieval vote strongly powers rule engine ranking
-                scores[kb_candidate] += max(5, int(kb_confidence * 8))
-                matched_symptoms[kb_candidate].append(f"Knowledge Base Grounding ({int(kb_confidence * 100)}%)")
+            has_specific_keyword_match = any(
+                scores[s] > 0 for s in scores if s not in ("General Medicine", "Emergency Medicine")
+            )
+            if kb_candidate and kb_candidate in SPECIALTY_RULES and kb_candidate not in ("General Medicine", "Emergency Medicine"):
+                if has_specific_keyword_match or kb_confidence >= 0.85:
+                    # Knowledge Base hybrid retrieval vote strongly powers rule engine ranking
+                    scores[kb_candidate] += max(5, int(kb_confidence * 8))
+                    matched_symptoms[kb_candidate].append(f"Knowledge Base Grounding ({int(kb_confidence * 100)}%)")
     except Exception as e:
         logger.debug(f"Hybrid context retrieval error in rule recommender: {e}")
 
@@ -828,7 +832,12 @@ def _rule_based_recommendation(input_data: SymptomInput) -> SpecialistRecommenda
     alt_spec, alt_score = sorted_specs[1] if len(sorted_specs) > 1 else ("General Medicine", 0)
 
     if best_score == 0:
-        if hybrid_context and hybrid_context.get("primary_specialty_candidate") and hybrid_context["primary_specialty_candidate"] != "General Medicine":
+        if (
+            hybrid_context
+            and hybrid_context.get("primary_specialty_candidate")
+            and hybrid_context["primary_specialty_candidate"] not in ("General Medicine", "Emergency Medicine")
+            and hybrid_context.get("specialty_confidence", 0) >= 0.85
+        ):
             best_spec = hybrid_context["primary_specialty_candidate"]
             confidence = hybrid_context.get("specialty_confidence", 0.85)
             alt_spec = hybrid_context.get("alternative_specialty_candidate") or "General Medicine"

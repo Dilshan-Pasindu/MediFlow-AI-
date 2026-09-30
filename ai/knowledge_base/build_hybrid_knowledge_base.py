@@ -491,8 +491,8 @@ def generate_synthetic_units(
                 "metadata": {
                     "grounded_source_ids": source_ids,
                     "target_concept": concept,
-                    "urgency": "emergency",
-                    "specialty": "Emergency Medicine",
+                    "specialty": specialty,
+                    "escalation_specialty": "Emergency Medicine",
                 }
             })
 
