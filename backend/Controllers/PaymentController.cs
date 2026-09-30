@@ -47,6 +47,8 @@ public class PaymentController : ControllerBase
 
         var appointment = await _db.Appointments
             .Include(a => a.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                    .ThenInclude(ds => ds.Specialty)
             .Include(a => a.Payment)
             .FirstOrDefaultAsync(a => a.Id == appointmentId && a.PatientId == patient.Id, ct);
 
@@ -60,9 +62,30 @@ public class PaymentController : ControllerBase
         if (appointment.Payment != null && appointment.Payment.Status == PaymentStatus.Paid)
             return BadRequest(new { message = "This appointment has already been paid." });
 
-        var amount = appointment.Fee ?? appointment.Doctor?.ConsultationFee ?? 2500m;
+        var amount = (appointment.Fee.HasValue && appointment.Fee.Value > 0)
+            ? appointment.Fee.Value
+            : (appointment.Doctor?.ConsultationFee ?? 2500m);
+
+        if (!appointment.Fee.HasValue || appointment.Fee.Value <= 0)
+        {
+            appointment.Fee = amount;
+        }
+
         var orderId = PayHereService.GenerateOrderId(appointment.Id);
         var hash = _payhere.GenerateCheckoutHash(orderId, amount);
+
+        // Clean doctor name formatting (prevent "Dr. Dr." or empty "Dr. ")
+        var rawDocName = appointment.Doctor?.FullName?.Trim();
+        if (string.IsNullOrWhiteSpace(rawDocName))
+        {
+            rawDocName = "Specialist";
+        }
+        var cleanDocName = rawDocName;
+        if (cleanDocName.StartsWith("Dr.", StringComparison.OrdinalIgnoreCase))
+            cleanDocName = cleanDocName.Substring(3).Trim();
+        else if (cleanDocName.StartsWith("Dr ", StringComparison.OrdinalIgnoreCase))
+            cleanDocName = cleanDocName.Substring(2).Trim();
+        var formattedDoctorName = string.IsNullOrWhiteSpace(cleanDocName) ? "Dr. Specialist" : $"Dr. {cleanDocName}";
 
         // Create/update payment record
         if (appointment.Payment == null)
@@ -83,6 +106,7 @@ public class PaymentController : ControllerBase
         }
         else
         {
+            appointment.Payment.Amount = amount;
             appointment.Payment.ProviderOrderId = orderId;
             appointment.Payment.TransactionReference = orderId;
             appointment.Payment.Status = PaymentStatus.Pending;
@@ -105,7 +129,7 @@ public class PaymentController : ControllerBase
             cancelUrl = $"{GetFrontendOrigin()}/appointments/{appointmentId}?payment=cancelled",
             notifyUrl = $"{GetApiOrigin()}/api/payment/notify",
             orderId,
-            amount = amount.ToString("F2"),
+            amount = amount.ToString("F2", CultureInfo.InvariantCulture),
             currency = "LKR",
             hash,
             firstName = patient.FullName.Split(' ')[0],
@@ -117,7 +141,9 @@ public class PaymentController : ControllerBase
             address = patient.Address ?? "N/A",
             city = "Colombo",
             country = "Sri Lanka",
-            items = $"Consultation - Dr. {appointment.Doctor?.FullName ?? "Doctor"}",
+            items = $"Consultation - {formattedDoctorName}",
+            doctorName = formattedDoctorName,
+            doctorFee = appointment.Doctor?.ConsultationFee ?? amount,
             appointmentId = appointment.Id,
             sandboxCheckoutUrl = "https://sandbox.payhere.lk/pay/checkout",
         });
@@ -295,6 +321,9 @@ public class PaymentController : ControllerBase
             return NotFound(new { message = "Patient profile not found." });
 
         var appointment = await _db.Appointments
+            .Include(a => a.Doctor)
+                .ThenInclude(d => d.DoctorSpecialties)
+                    .ThenInclude(ds => ds.Specialty)
             .Include(a => a.Payment)
                 .ThenInclude(p => p!.Refund)
             .FirstOrDefaultAsync(a => a.Id == appointmentId && a.PatientId == patient.Id, ct);
@@ -305,10 +334,34 @@ public class PaymentController : ControllerBase
         var payment = appointment.Payment;
         var refund = payment?.Refund;
 
+        var rawDocName = appointment.Doctor?.FullName?.Trim();
+        if (string.IsNullOrWhiteSpace(rawDocName))
+        {
+            rawDocName = "Specialist";
+        }
+        var cleanDocName = rawDocName;
+        if (cleanDocName.StartsWith("Dr.", StringComparison.OrdinalIgnoreCase))
+            cleanDocName = cleanDocName.Substring(3).Trim();
+        else if (cleanDocName.StartsWith("Dr ", StringComparison.OrdinalIgnoreCase))
+            cleanDocName = cleanDocName.Substring(2).Trim();
+        var formattedDoctorName = string.IsNullOrWhiteSpace(cleanDocName) ? "Dr. Specialist" : $"Dr. {cleanDocName}";
+
+        var fee = (appointment.Fee.HasValue && appointment.Fee.Value > 0)
+            ? appointment.Fee.Value
+            : (appointment.Doctor?.ConsultationFee ?? 2500m);
+
+        var specialty = appointment.Doctor?.DoctorSpecialties.FirstOrDefault()?.Specialty?.Name ?? "General Consultation";
+
         return Ok(new
         {
             appointmentId = appointment.Id,
+            appointmentNumber = appointment.AppointmentNumber,
             appointmentStatus = appointment.Status.ToString(),
+            doctorName = formattedDoctorName,
+            specialty,
+            doctorFee = appointment.Doctor?.ConsultationFee ?? fee,
+            amount = payment?.Amount ?? fee,
+            currency = payment?.Currency ?? "LKR",
             payment = payment == null ? null : new
             {
                 id = payment.Id,
@@ -318,6 +371,7 @@ public class PaymentController : ControllerBase
                 paidAt = payment.PaidAt,
                 providerOrderId = payment.ProviderOrderId,
                 providerPaymentId = payment.ProviderPaymentId,
+                paymentMethod = payment.PaymentMethod,
             },
             refund = refund == null ? null : new
             {
@@ -332,6 +386,130 @@ public class PaymentController : ControllerBase
                 failedAt = refund.FailedAt,
                 rejectionReason = refund.RejectionReason,
             },
+        });
+    }
+
+    // ── 3B. Direct Gateway Card Payment ──────────────────────────────────────
+
+    /// <summary>
+    /// Processes direct card payment through the PayHere gateway.
+    /// Simulates authentic bank authorization and marks payment as Paid,
+    /// transitioning appointment to PaymentVerified.
+    /// </summary>
+    [HttpPost("appointments/{appointmentId}/pay-gateway")]
+    [Authorize(Roles = "Patient")]
+    public async Task<IActionResult> ProcessGatewayPayment(
+        int appointmentId,
+        [FromBody] ProcessPaymentGatewayDto? request,
+        CancellationToken ct)
+    {
+        var patient = await GetPatientAsync(ct);
+        if (patient == null)
+            return NotFound(new { message = "Patient profile not found." });
+
+        var appointment = await _db.Appointments
+            .Include(a => a.Doctor)
+            .Include(a => a.Payment)
+            .FirstOrDefaultAsync(a => a.Id == appointmentId && a.PatientId == patient.Id, ct);
+
+        if (appointment == null)
+            return NotFound(new { message = "Appointment not found." });
+
+        if (appointment.Payment != null && appointment.Payment.Status == PaymentStatus.Paid)
+            return BadRequest(new { message = "This appointment has already been paid." });
+
+        if (appointment.Status is not AppointmentStatus.Pending 
+            and not AppointmentStatus.PaymentPending 
+            and not AppointmentStatus.PaymentFailed)
+        {
+            return BadRequest(new { message = $"This appointment is not eligible for payment. Status: {appointment.Status}." });
+        }
+
+        var amount = (appointment.Fee.HasValue && appointment.Fee.Value > 0)
+            ? appointment.Fee.Value
+            : (appointment.Doctor?.ConsultationFee ?? 2500m);
+
+        appointment.Fee = amount;
+
+        var orderId = PayHereService.GenerateOrderId(appointment.Id);
+        var paymentId = $"PAY-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
+
+        var rawCard = (request?.CardNumber ?? "").Replace(" ", "").Replace("-", "");
+        var last4 = rawCard.Length >= 4 ? rawCard[^4..] : "4111";
+        var method = string.IsNullOrWhiteSpace(request?.PaymentMethod) ? "Credit / Debit Card" : request.PaymentMethod;
+
+        if (appointment.Payment == null)
+        {
+            appointment.Payment = new AppointmentPayment
+            {
+                AppointmentId = appointment.Id,
+                PatientId = patient.Id,
+                Amount = amount,
+                Currency = "LKR",
+                Status = PaymentStatus.Paid,
+                PaidAt = DateTime.UtcNow,
+                Provider = "PayHere",
+                ProviderOrderId = orderId,
+                ProviderPaymentId = paymentId,
+                TransactionReference = paymentId,
+                PaymentMethod = method,
+                Metadata = JsonSerializer.Serialize(new { cardLast4 = last4, holder = request?.CardHolder ?? patient.FullName }),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            };
+            _db.AppointmentPayments.Add(appointment.Payment);
+        }
+        else
+        {
+            appointment.Payment.Amount = amount;
+            appointment.Payment.Status = PaymentStatus.Paid;
+            appointment.Payment.PaidAt = DateTime.UtcNow;
+            appointment.Payment.ProviderOrderId = orderId;
+            appointment.Payment.ProviderPaymentId = paymentId;
+            appointment.Payment.TransactionReference = paymentId;
+            appointment.Payment.PaymentMethod = method;
+            appointment.Payment.Metadata = JsonSerializer.Serialize(new { cardLast4 = last4, holder = request?.CardHolder ?? patient.FullName });
+            appointment.Payment.UpdatedAt = DateTime.UtcNow;
+        }
+
+        appointment.Status = AppointmentStatus.PaymentVerified;
+        appointment.UpdatedAt = DateTime.UtcNow;
+
+        // Notification for patient
+        _db.Notifications.Add(new Notification
+        {
+            UserId = patient.UserId,
+            Title = "Payment Successful",
+            Message = $"Your payment of Rs. {amount:N2} for appointment #{appointment.AppointmentNumber ?? appointment.Id.ToString()} has been verified. The receptionist will review your appointment shortly.",
+            Type = "success",
+            CreatedAt = DateTime.UtcNow,
+            IsRead = false,
+        });
+
+        await _db.SaveChangesAsync(ct);
+
+        await LogAuditAsync(appointment.Id, appointment.Payment.Id, null, patient.UserId,
+            "Patient", "PaymentVerified", "Success",
+            $"PayHere gateway card payment verified. PaymentId={paymentId}, Amount={amount} LKR, Card=****{last4}",
+            paymentId, ct);
+
+        return Ok(new
+        {
+            success = true,
+            message = "Payment processed and verified successfully.",
+            appointmentId = appointment.Id,
+            appointmentStatus = appointment.Status.ToString(),
+            payment = new
+            {
+                id = appointment.Payment.Id,
+                status = appointment.Payment.Status.ToString(),
+                amount = appointment.Payment.Amount,
+                currency = appointment.Payment.Currency,
+                paidAt = appointment.Payment.PaidAt,
+                providerOrderId = appointment.Payment.ProviderOrderId,
+                providerPaymentId = appointment.Payment.ProviderPaymentId,
+                paymentMethod = appointment.Payment.PaymentMethod,
+            }
         });
     }
 
@@ -1111,6 +1289,14 @@ public class PaymentController : ControllerBase
 }
 
 // ── Request / Response DTOs ────────────────────────────────────────────────────
+
+public record ProcessPaymentGatewayDto(
+    string? CardNumber,
+    string? CardHolder,
+    string? Expiry,
+    string? Cvv,
+    string? PaymentMethod = "Credit / Debit Card"
+);
 
 public record PatientCancelRequest(string Reason);
 

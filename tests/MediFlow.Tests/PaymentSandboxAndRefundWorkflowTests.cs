@@ -93,6 +93,7 @@ public class PaymentSandboxAndRefundWorkflowTests : IDisposable
         var doctor = new Doctor
         {
             UserId = docUser.Id,
+            FullName = "Dr. Test Specialist",
             ConsultationFee = fee
         };
         _db.Doctors.Add(doctor);
@@ -341,5 +342,77 @@ public class PaymentSandboxAndRefundWorkflowTests : IDisposable
         var refundObj = root.GetProperty("refund");
         Assert.Equal("RF-10023", refundObj.GetProperty("refundReference").GetString());
         Assert.Contains("2–3 working days", refundObj.GetProperty("expectedProcessingInfo").GetString());
+    }
+
+    [Fact]
+    public async Task GetPaymentStatus_UnpaidAppointment_ReturnsDoctorDetailsAndExactConsultationFee()
+    {
+        var (patUser, _, doctor, appt) = await SeedAppointmentAsync(AppointmentStatus.Pending, fee: 3500m);
+        SetUserContext(patUser.Id, "Patient");
+
+        var result = await _controller.GetPaymentStatus(appt.Id, CancellationToken.None);
+        var root = ParseResult(result);
+
+        Assert.Equal(appt.Id, root.GetProperty("appointmentId").GetInt32());
+        Assert.Equal(3500m, root.GetProperty("amount").GetDecimal());
+        Assert.Equal(3500m, root.GetProperty("doctorFee").GetDecimal());
+        Assert.Equal("LKR", root.GetProperty("currency").GetString());
+        Assert.Contains("Test Specialist", root.GetProperty("doctorName").GetString());
+    }
+
+    [Fact]
+    public async Task ProcessGatewayPayment_PendingAppointment_SetsPaymentVerifiedAndPaidWithDoctorFee()
+    {
+        var (patUser, _, doctor, appt) = await SeedAppointmentAsync(AppointmentStatus.Pending, fee: 3500m);
+        SetUserContext(patUser.Id, "Patient");
+
+        var cardReq = new ProcessPaymentGatewayDto(
+            CardNumber: "4111 1111 1111 1111",
+            CardHolder: "Test Patient",
+            Expiry: "12/28",
+            Cvv: "123",
+            PaymentMethod: "Credit / Debit Card"
+        );
+
+        var result = await _controller.ProcessGatewayPayment(appt.Id, cardReq, CancellationToken.None);
+        var root = ParseResult(result);
+
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.Equal(AppointmentStatus.PaymentVerified.ToString(), root.GetProperty("appointmentStatus").GetString());
+
+        var paymentObj = root.GetProperty("payment");
+        Assert.Equal(PaymentStatus.Paid.ToString(), paymentObj.GetProperty("status").GetString());
+        Assert.Equal(3500m, paymentObj.GetProperty("amount").GetDecimal());
+        Assert.StartsWith("PAY-", paymentObj.GetProperty("providerPaymentId").GetString());
+
+        // Verify in database
+        var updated = await _db.Appointments.Include(a => a.Payment).FirstAsync(a => a.Id == appt.Id);
+        Assert.Equal(AppointmentStatus.PaymentVerified, updated.Status);
+        Assert.NotNull(updated.Payment);
+        Assert.Equal(PaymentStatus.Paid, updated.Payment.Status);
+        Assert.Equal(3500m, updated.Payment.Amount);
+    }
+
+    [Fact]
+    public async Task ProcessGatewayPayment_AlreadyPaidAppointment_ReturnsBadRequest()
+    {
+        var (patUser, _, _, appt) = await SeedAppointmentAsync(AppointmentStatus.PaymentVerified, fee: 3500m);
+        appt.Payment = new AppointmentPayment
+        {
+            AppointmentId = appt.Id,
+            PatientId = appt.PatientId,
+            Amount = 3500m,
+            Currency = "LKR",
+            Status = PaymentStatus.Paid,
+            ProviderOrderId = "MF-ALREADY-PAID"
+        };
+        await _db.SaveChangesAsync();
+
+        SetUserContext(patUser.Id, "Patient");
+        var cardReq = new ProcessPaymentGatewayDto("4111111111111111", "Test Patient", "12/28", "123");
+        var result = await _controller.ProcessGatewayPayment(appt.Id, cardReq, CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result);
+        Assert.Contains("already been paid", badRequest.Value!.ToString(), StringComparison.OrdinalIgnoreCase);
     }
 }

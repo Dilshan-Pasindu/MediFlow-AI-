@@ -300,14 +300,14 @@ export default function AppointmentDetailsPage() {
                   <div className="info-row"><span className="info-row-label">💰 Consultation Fee:</span>Rs. {appt.fee?.toLocaleString()}</div>
                   {appt.notes && <div className="info-row"><span className="info-row-label">📝 Notes:</span>{appt.notes}</div>}
 
-                  {/* Payment Action — Pending: sandbox checkout */}
+                  {/* Payment Action — Pending: payment checkout */}
                   {appt.status === 'Pending' && !paid && (
                     <div style={{ marginTop: 24, padding: '20px', background: 'var(--warning-bg)', border: '1.5px solid var(--warning-border)', borderRadius: 'var(--r-lg)' }}>
                       <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
                         <AlertCircle size={20} color="#B45309" style={{ flexShrink: 0 }} />
                         <div>
                           <div style={{ fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Payment Required</div>
-                          <div style={{ fontSize: 13, color: '#B45309' }}>Complete your payment of <strong>Rs. {appt.fee?.toLocaleString()}</strong> via PayHere sandbox to confirm your appointment. The receptionist will verify payment and generate your appointment number.</div>
+                          <div style={{ fontSize: 13, color: '#B45309' }}>Complete your payment of <strong>Rs. {appt.fee?.toLocaleString()}</strong> to confirm your appointment. Once payment is verified, the receptionist will review and assign your token number.</div>
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: 10 }}>
@@ -317,7 +317,7 @@ export default function AppointmentDetailsPage() {
                           onClick={() => navigate(`/appointments/${appt.id}/pay`)}
                           id="pay-appointment-btn"
                         >
-                          <CreditCard size={16} /> Pay Rs. {appt.fee?.toLocaleString()} via PayHere
+                          <CreditCard size={16} /> Pay Now · Rs. {appt.fee?.toLocaleString()}
                         </button>
                       </div>
                     </div>

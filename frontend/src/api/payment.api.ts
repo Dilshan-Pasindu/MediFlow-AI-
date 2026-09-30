@@ -23,7 +23,13 @@ export interface PayHereCheckoutParams {
 
 export interface PaymentStatusResponse {
   appointmentId: number;
+  appointmentNumber?: string | null;
   appointmentStatus: string;
+  doctorName?: string;
+  specialty?: string;
+  doctorFee?: number;
+  amount?: number;
+  currency?: string;
   payment?: {
     id: number;
     status: string;
@@ -32,6 +38,7 @@ export interface PaymentStatusResponse {
     paidAt: string | null;
     providerOrderId: string;
     providerPaymentId: string | null;
+    paymentMethod?: string;
   };
   refund?: {
     id: number;
@@ -45,6 +52,14 @@ export interface PaymentStatusResponse {
     failedAt: string | null;
     rejectionReason: string | null;
   };
+}
+
+export interface ProcessPaymentGatewayPayload {
+  cardNumber?: string;
+  cardHolder?: string;
+  expiry?: string;
+  cvv?: string;
+  paymentMethod?: string;
 }
 
 export interface RefundStatusResponse {
@@ -75,6 +90,14 @@ export interface RefundStatusResponse {
 
 export async function apiInitiatePayment(appointmentId: number | string): Promise<PayHereCheckoutParams> {
   const res = await apiClient.post<PayHereCheckoutParams>(`/payment/appointments/${appointmentId}/initiate`);
+  return res.data;
+}
+
+export async function apiProcessGatewayPayment(
+  appointmentId: number | string,
+  payload?: ProcessPaymentGatewayPayload
+): Promise<any> {
+  const res = await apiClient.post(`/payment/appointments/${appointmentId}/pay-gateway`, payload ?? {});
   return res.data;
 }
 
