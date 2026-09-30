@@ -25,7 +25,7 @@ public class MedicineOrder
     public OrderStatus Status { get; set; } = OrderStatus.Pending;
 
     public decimal TotalAmount { get; set; }
-    public bool IsPaid { get; set; } = false;
+    public bool IsPaid { get; set; }
     public string? DeliveryAddress { get; set; }
     public string? Notes { get; set; }
 

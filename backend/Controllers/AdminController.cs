@@ -142,7 +142,7 @@ public class AdminController : ControllerBase
                 Id = $"AUD-RST-{r.Id}",
                 Timestamp = r.UpdatedAt.ToString("o"),
                 Action = $"Restock Request {r.Status}",
-                Actor = r.Pharmacy.Name,
+                Actor = r.Pharmacy != null ? r.Pharmacy.Name : "Pharmacy",
                 Role = "PharmacyOwner",
                 Details = $"Restock order #{r.Id} status updated to {r.Status}",
                 Severity = r.Status == RestockRequestStatus.Rejected ? "Warning" : "Info"

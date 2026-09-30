@@ -245,7 +245,7 @@ app.Run();
 static string ParsePostgreSqlConnectionString(string raw)
 {
     Npgsql.NpgsqlConnectionStringBuilder builder;
-    if (!string.IsNullOrWhiteSpace(raw) && (raw.StartsWith("postgres://") || raw.StartsWith("postgresql://")))
+    if (!string.IsNullOrWhiteSpace(raw) && (raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) || raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
     {
         try
         {
@@ -259,7 +259,6 @@ static string ParsePostgreSqlConnectionString(string raw)
                 Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "",
                 Database = uri.AbsolutePath.TrimStart('/'),
                 SslMode = Npgsql.SslMode.Prefer,
-                TrustServerCertificate = true,
             };
         }
         catch

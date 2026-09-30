@@ -18,7 +18,7 @@ public class Prescription
     // Required — the issuing doctor
     public int DoctorId { get; set; }
 
-    public bool IsWalkIn { get; set; } = false;
+    public bool IsWalkIn { get; set; }
 
     // Walk-in patient details (populated only when IsWalkIn = true)
     public string? WalkInPatientName { get; set; }

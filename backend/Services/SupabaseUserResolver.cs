@@ -35,126 +35,134 @@ public class SupabaseUserResolver : ISupabaseUserResolver
         if (string.IsNullOrWhiteSpace(sub))
             return null;
 
-        // 1. Try finding by SupabaseId
-        var user = await db.Users.FirstOrDefaultAsync(u => u.SupabaseId == sub);
-
-        // 2. Try finding by numeric Id (for legacy / unit test tokens)
-        if (user == null && int.TryParse(sub, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intId))
+        try
         {
-            user = await db.Users.FirstOrDefaultAsync(u => u.Id == intId);
-        }
+            // 1. Try finding by SupabaseId
+            var user = await db.Users.FirstOrDefaultAsync(u => u.SupabaseId == sub);
 
-        // 3. Try finding by Email claim if present and link SupabaseId
-        var email = principal.FindFirst(ClaimTypes.Email)?.Value
-            ?? principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value
-            ?? principal.FindFirst("email")?.Value;
-
-        if (user == null && !string.IsNullOrWhiteSpace(email))
-        {
-            var normalizedEmail = email.Trim().ToLower(CultureInfo.InvariantCulture);
-            user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
-            if (user != null)
+            // 2. Try finding by numeric Id (for legacy / unit test tokens)
+            if (user == null && int.TryParse(sub, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intId))
             {
-                user.SupabaseId = sub;
-                user.UpdatedAt = DateTime.UtcNow;
-                await db.SaveChangesAsync();
-                _logger.LogInformation("Linked existing User Id {UserId} to SupabaseId {Sub}", user.Id, sub);
-            }
-        }
-
-        // 4. If user not yet in database (e.g. freshly registered on Supabase Auth), provision them JIT
-        if (user == null)
-        {
-            var fullName = principal.FindFirst(ClaimTypes.Name)?.Value
-                ?? principal.FindFirst("full_name")?.Value
-                ?? principal.FindFirst("name")?.Value
-                ?? (email?.Split('@')[0] ?? "Patient");
-
-            var phone = principal.FindFirst("phone")?.Value
-                ?? principal.FindFirst("phone_number")?.Value
-                ?? string.Empty;
-
-            var roleClaim = principal.FindFirst(ClaimTypes.Role)?.Value
-                ?? principal.FindFirst("role")?.Value;
-
-            var role = UserRole.Patient;
-            if (!string.IsNullOrWhiteSpace(roleClaim) && Enum.TryParse<UserRole>(roleClaim, true, out var parsedRole))
-            {
-                role = parsedRole;
+                user = await db.Users.FirstOrDefaultAsync(u => u.Id == intId);
             }
 
-            var safeEmail = !string.IsNullOrWhiteSpace(email)
-                ? email.Trim().ToLower(CultureInfo.InvariantCulture)
-                : $"{sub}@supabase.local";
+            // 3. Try finding by Email claim if present and link SupabaseId
+            var email = principal.FindFirst(ClaimTypes.Email)?.Value
+                ?? principal.FindFirst(JwtRegisteredClaimNames.Email)?.Value
+                ?? principal.FindFirst("email")?.Value;
 
-            user = new User
+            if (user == null && !string.IsNullOrWhiteSpace(email))
             {
-                SupabaseId = sub,
-                Email = safeEmail,
-                FullName = fullName.Trim(),
-                PhoneNumber = phone.Trim(),
-                Role = role,
-                IsActive = true,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-            db.Users.Add(user);
-            await db.SaveChangesAsync();
-
-            _logger.LogInformation("Provisioned new application user {UserId} from Supabase {Sub}", user.Id, sub);
-        }
-
-        // 5. Ensure Patient entity exists if role is Patient
-        if (user.Role == UserRole.Patient)
-        {
-            var patient = await db.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id || (p.SupabaseId != null && p.SupabaseId == sub));
-            if (patient == null)
-            {
-                patient = new Patient
+                var normalizedEmail = email.Trim().ToLower(CultureInfo.InvariantCulture);
+                user = await db.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail);
+                if (user != null)
                 {
-                    UserId = user.Id,
+                    user.SupabaseId = sub;
+                    user.UpdatedAt = DateTime.UtcNow;
+                    await db.SaveChangesAsync();
+                    _logger.LogInformation("Linked existing User Id {UserId} to SupabaseId {Sub}", user.Id, sub);
+                }
+            }
+
+            // 4. If user not yet in database (e.g. freshly registered on Supabase Auth), provision them JIT
+            if (user == null)
+            {
+                var fullName = principal.FindFirst(ClaimTypes.Name)?.Value
+                    ?? principal.FindFirst("full_name")?.Value
+                    ?? principal.FindFirst("name")?.Value
+                    ?? (email?.Split('@')[0] ?? "Patient");
+
+                var phone = principal.FindFirst("phone")?.Value
+                    ?? principal.FindFirst("phone_number")?.Value
+                    ?? string.Empty;
+
+                var roleClaim = principal.FindFirst(ClaimTypes.Role)?.Value
+                    ?? principal.FindFirst("role")?.Value;
+
+                var role = UserRole.Patient;
+                if (!string.IsNullOrWhiteSpace(roleClaim) && Enum.TryParse<UserRole>(roleClaim, true, out var parsedRole))
+                {
+                    role = parsedRole;
+                }
+
+                var safeEmail = !string.IsNullOrWhiteSpace(email)
+                    ? email.Trim().ToLower(CultureInfo.InvariantCulture)
+                    : $"{sub}@supabase.local";
+
+                user = new User
+                {
                     SupabaseId = sub,
-                    FullName = user.FullName,
-                    Email = user.Email,
-                    PhoneNumber = user.PhoneNumber,
+                    Email = safeEmail,
+                    FullName = fullName.Trim(),
+                    PhoneNumber = phone.Trim(),
+                    Role = role,
+                    IsActive = true,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
-                db.Patients.Add(patient);
+                db.Users.Add(user);
                 await db.SaveChangesAsync();
-            }
-            else if (patient.SupabaseId == null)
-            {
-                patient.SupabaseId = sub;
-                await db.SaveChangesAsync();
-            }
-        }
 
-        // 6. Enrich ClaimsPrincipal with application context claims
-        if (principal.Identity is ClaimsIdentity identity)
+                _logger.LogInformation("Provisioned new application user {UserId} from Supabase {Sub}", user.Id, sub);
+            }
+
+            // 5. Ensure Patient entity exists if role is Patient
+            if (user.Role == UserRole.Patient)
+            {
+                var patient = await db.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id || (p.SupabaseId != null && p.SupabaseId == sub));
+                if (patient == null)
+                {
+                    patient = new Patient
+                    {
+                        UserId = user.Id,
+                        SupabaseId = sub,
+                        FullName = user.FullName,
+                        Email = user.Email,
+                        PhoneNumber = user.PhoneNumber,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    db.Patients.Add(patient);
+                    await db.SaveChangesAsync();
+                }
+                else if (patient.SupabaseId == null)
+                {
+                    patient.SupabaseId = sub;
+                    await db.SaveChangesAsync();
+                }
+            }
+
+            // 6. Enrich ClaimsPrincipal with application context claims
+            if (principal.Identity is ClaimsIdentity identity)
+            {
+                if (!identity.HasClaim(c => c.Type == "userId"))
+                {
+                    identity.AddClaim(new Claim("userId", user.Id.ToString(CultureInfo.InvariantCulture)));
+                }
+
+                if (!identity.HasClaim(c => c.Type == ClaimTypes.Role))
+                {
+                    identity.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
+                }
+
+                if (!identity.HasClaim(c => c.Type == "supabaseId"))
+                {
+                    identity.AddClaim(new Claim("supabaseId", sub));
+                }
+
+                if (!identity.HasClaim(c => c.Type == ClaimTypes.Name) && !string.IsNullOrEmpty(user.FullName))
+                {
+                    identity.AddClaim(new Claim(ClaimTypes.Name, user.FullName));
+                }
+            }
+
+            return user;
+        }
+        catch (Exception ex)
         {
-            if (!identity.HasClaim(c => c.Type == "userId"))
-            {
-                identity.AddClaim(new Claim("userId", user.Id.ToString(CultureInfo.InvariantCulture)));
-            }
-
-            if (!identity.HasClaim(c => c.Type == ClaimTypes.Role))
-            {
-                identity.AddClaim(new Claim(ClaimTypes.Role, user.Role.ToString()));
-            }
-
-            if (!identity.HasClaim(c => c.Type == "supabaseId"))
-            {
-                identity.AddClaim(new Claim("supabaseId", sub));
-            }
-
-            if (!identity.HasClaim(c => c.Type == ClaimTypes.Name) && !string.IsNullOrEmpty(user.FullName))
-            {
-                identity.AddClaim(new Claim(ClaimTypes.Name, user.FullName));
-            }
+            _logger.LogWarning(ex, "Failed to resolve or provision user from Supabase claims due to network/database error: {Message}", ex.Message);
+            return null;
         }
-
-        return user;
     }
 
     public async Task<User> SyncSupabaseUserAsync(string supabaseId, string email, string? fullName, string? phone, UserRole role)
