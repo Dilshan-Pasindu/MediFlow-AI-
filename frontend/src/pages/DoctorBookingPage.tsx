@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Star, Calendar, Clock, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight, AlertTriangle, Info, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Star, Calendar, Clock, CheckCircle, Loader, AlertCircle, ChevronLeft, ChevronRight, AlertTriangle, Info, ShieldCheck, Building2 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import { useDoctor, useBookAppointment, useMyAppointments } from '../hooks';
@@ -253,12 +253,12 @@ export default function DoctorBookingPage() {
               <div style={{ width: 72, height: 72, background: 'var(--gradient-primary)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 24px rgba(3,105,161,0.3)' }}>
                 <CheckCircle size={32} color="white" />
               </div>
-              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Appointment Booked! 🎉</div>
+              <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Appointment Booked!</div>
               <div style={{ fontSize: 14, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.7 }}>
                 Your appointment with <strong>{doctor?.fullName}</strong> on <strong>{selectedDate.toDateString()}</strong> at <strong>{selectedTime}</strong> has been requested.
               </div>
-              <div style={{ fontSize: 13, color: '#B45309', background: '#FFFBEB', borderRadius: 'var(--r-md)', padding: '12px 16px', marginBottom: 24, border: '1px solid #FDE68A' }}>
-                ⏳ Next step: Complete your payment to get a confirmed appointment number.
+              <div style={{ fontSize: 13, color: '#B45309', background: '#FFFBEB', borderRadius: 'var(--r-md)', padding: '12px 16px', marginBottom: 24, border: '1px solid #FDE68A', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Clock size={15} style={{ flexShrink: 0 }} /> Next step: Complete your payment to get a confirmed appointment number.
               </div>
               <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
                 <button className="btn btn-primary" onClick={() => navigate('/appointments')} id="view-bookings-btn">View My Appointments</button>
@@ -323,7 +323,9 @@ export default function DoctorBookingPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13 }}>
                           <Star size={13} fill="gold" color="gold" /> <strong>{doctor?.averageRating ? doctor.averageRating.toFixed(1) : '5.0'}</strong> ({doctor?.reviewCount || doctor?.reviews?.length || 0} reviews)
                         </div>
-                        <div style={{ fontSize: 13, opacity: 0.85 }}>🏥 {doctor?.hospitalClinic || `${doctor?.experienceYears} yrs exp`}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, opacity: 0.85 }}>
+                          <Building2 size={13} style={{ flexShrink: 0 }} /> {doctor?.hospitalClinic || `${doctor?.experienceYears} yrs exp`}
+                        </div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -453,8 +455,8 @@ export default function DoctorBookingPage() {
                   </div>
 
                   {timeSlots.every(s => !s.available) && (
-                    <div style={{ marginTop: 12, padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 'var(--r-md)', fontSize: 13, color: '#B45309' }}>
-                      ⚠️ No consultation slots are available for this date. Please select another day.
+                    <div style={{ marginTop: 12, padding: '10px 14px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 'var(--r-md)', fontSize: 13, color: '#B45309', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <AlertTriangle size={15} style={{ flexShrink: 0 }} /> No consultation slots are available for this date. Please select another day.
                     </div>
                   )}
 

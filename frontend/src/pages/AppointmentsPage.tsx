@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Clock, ChevronRight, Plus, FileText, Calendar,
   Star, MessageSquare, X, CheckCircle2, AlertCircle,
-  ThumbsUp, Info, User
+  ThumbsUp, Info, User, CreditCard
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -20,15 +20,15 @@ const STATUS: Record<string, { color: string; bg: string; label: string }> = {
   WaitingForReceptionist: { color: '#0369A1', bg: '#EFF6FF', label: 'Awaiting Reception' },
   Confirmed:        { color: '#059669', bg: '#ECFDF5', label: 'Confirmed' },
   ReceptionistApproved: { color: '#059669', bg: '#ECFDF5', label: 'Confirmed' },
-  InConsultation:   { color: '#DC2626', bg: '#FEF2F2', label: '🔴 In Consultation' },
+  InConsultation:   { color: '#DC2626', bg: '#FEF2F2', label: 'In Consultation' },
   Completed:        { color: '#6366F1', bg: '#EEF2FF', label: 'Completed' },
   Cancelled:        { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled' },
   PatientCancelled: { color: '#DC2626', bg: '#FEF2F2', label: 'Cancelled' },
-  RefundRequested:  { color: '#D97706', bg: '#FFFBEB', label: '💰 Refund Requested' },
-  RefundApproved:   { color: '#2563EB', bg: '#EFF6FF', label: '💰 Refund Approved' },
-  RefundProcessing: { color: '#2563EB', bg: '#EFF6FF', label: '⏳ Refund Processing' },
-  RefundCompleted:  { color: '#059669', bg: '#ECFDF5', label: '✅ Refund Completed' },
-  RefundRejected:   { color: '#DC2626', bg: '#FEF2F2', label: '❌ Refund Declined' },
+  RefundRequested:  { color: '#D97706', bg: '#FFFBEB', label: 'Refund Requested' },
+  RefundApproved:   { color: '#2563EB', bg: '#EFF6FF', label: 'Refund Approved' },
+  RefundProcessing: { color: '#2563EB', bg: '#EFF6FF', label: 'Refund Processing' },
+  RefundCompleted:  { color: '#059669', bg: '#ECFDF5', label: 'Refund Completed' },
+  RefundRejected:   { color: '#DC2626', bg: '#FEF2F2', label: 'Refund Declined' },
   ReceptionistRejected: { color: '#DC2626', bg: '#FEF2F2', label: 'Rejected' },
   NoShow:           { color: '#64748B', bg: '#F1F5F9', label: 'No Show' },
 };
@@ -142,7 +142,7 @@ export default function AppointmentsPage() {
         />
         <div className="page-body fade-in">
 
-          {/* 🔴 Real-Time Now Consulting Banner */}
+          {/* Real-Time Now Consulting Banner */}
           <NowConsultingCard style={{ marginBottom: 24 }} />
 
           {/* Stats row */}
@@ -283,7 +283,7 @@ export default function AppointmentsPage() {
                               id={`edit-rating-btn-${appt.id}`}
                               title="Click to view or edit your submitted review"
                             >
-                              <Star size={12} fill="#059669" color="#059669" /> Rated ({appt.rating?.stars || appt.rating?.Stars || 5}★) • Edit
+                              <Star size={12} fill="#059669" color="#059669" /> Rated ({appt.rating?.stars || appt.rating?.Stars || 5}/5) • Edit
                             </button>
                           ) : (
                             <button
@@ -325,7 +325,7 @@ export default function AppointmentsPage() {
                               borderRadius: 6,
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: 4,
+                              gap: 5,
                               cursor: 'pointer',
                               fontWeight: 600,
                             }}
@@ -336,7 +336,7 @@ export default function AppointmentsPage() {
                             id={`track-refund-btn-${appt.id}`}
                             title="Track or apply for consultation refund"
                           >
-                            💰 Track Refund
+                            <CreditCard size={12} /> Track Refund
                           </button>
                         </div>
                       )}

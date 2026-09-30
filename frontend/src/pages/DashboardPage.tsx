@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Activity, Pill, ArrowRight, Clock,
-  Plus, Brain, HeartPulse, ChevronRight, Sparkles, TrendingUp
+  Plus, Brain, HeartPulse, ChevronRight, Sparkles, TrendingUp, Stethoscope
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
@@ -39,10 +39,10 @@ export default function DashboardPage() {
   };
 
   const quickActions = [
-    { icon: '🩺', label: 'Find Doctor',     desc: 'Search specialists',    action: () => navigate('/find-doctor'),   color: 'var(--med-blue-50)' },
-    { icon: '🧠', label: 'AI Symptom Check',desc: 'Get AI recommendation', action: () => navigate('/symptom-check'), color: '#EEF2FF' },
-    { icon: '📋', label: 'Appointments',     desc: 'View your visits',      action: () => navigate('/appointments'),  color: 'var(--med-teal-50)' },
-    { icon: '💊', label: 'Prescriptions',    desc: 'My e-prescriptions',    action: () => navigate('/prescriptions'), color: '#FFF7ED' },
+    { icon: Stethoscope, iconColor: '#0284C7', label: 'Find Doctor',      desc: 'Search specialists',    action: () => navigate('/find-doctor'),   color: 'var(--med-blue-50)' },
+    { icon: Brain,       iconColor: '#4F46E5', label: 'AI Symptom Check', desc: 'Get AI recommendation', action: () => navigate('/symptom-check'), color: '#EEF2FF' },
+    { icon: Calendar,    iconColor: '#0D9488', label: 'Appointments',     desc: 'View your visits',      action: () => navigate('/appointments'),  color: 'var(--med-teal-50)' },
+    { icon: Pill,        iconColor: '#EA580C', label: 'Prescriptions',    desc: 'My e-prescriptions',    action: () => navigate('/prescriptions'), color: '#FFF7ED' },
   ];
 
   return (
@@ -63,7 +63,7 @@ export default function DashboardPage() {
           {/* Welcome Banner */}
           <div className="welcome-banner">
             <div className="welcome-text">
-              <h1>{greeting}, {user?.fullName?.split(' ')[0] || 'Patient'} 👋</h1>
+              <h1>{greeting}, {user?.fullName?.split(' ')[0] || 'Patient'}</h1>
               <p>
                 {upcomingAppts.length > 0
                   ? `You have ${upcomingAppts.length} upcoming appointment${upcomingAppts.length !== 1 ? 's' : ''}. Stay healthy!`
@@ -89,7 +89,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 🔴 Real-Time Now Consulting Banner */}
+          {/* Real-Time Now Consulting Banner */}
           <NowConsultingCard style={{ marginBottom: 28 }} />
 
           {/* Stats */}
@@ -169,7 +169,7 @@ export default function DashboardPage() {
                   </div>
                 ) : upcomingAppts.length === 0 ? (
                   <div className="empty-state">
-                    <div className="empty-icon">📅</div>
+                    <Calendar size={36} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
                     <div className="empty-title">No upcoming appointments</div>
                     <div className="empty-sub">Book an appointment with a specialist today</div>
                     <button className="btn btn-primary" onClick={() => navigate('/find-doctor')} id="empty-book-btn">
@@ -246,7 +246,7 @@ export default function DashboardPage() {
                         onMouseEnter={e => e.currentTarget.style.filter = 'brightness(0.97)'}
                         onMouseLeave={e => e.currentTarget.style.filter = 'none'}
                       >
-                        <span style={{ fontSize: 20 }}>{q.icon}</span>
+                        <q.icon size={20} style={{ color: q.iconColor, flexShrink: 0 }} />
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{q.label}</div>
                           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{q.desc}</div>
