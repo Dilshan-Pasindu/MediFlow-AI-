@@ -19,6 +19,8 @@ const AppointmentDetailsPage = React.lazy(() => import('./pages/AppointmentDetai
 const PrescriptionsPage = React.lazy(() => import('./pages/PrescriptionsPage'));
 const OrdersPage = React.lazy(() => import('./pages/OrdersPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
+const PaymentCheckoutPage = React.lazy(() => import('./pages/PaymentCheckoutPage'));
+const RefundTrackingPage = React.lazy(() => import('./pages/RefundTrackingPage'));
 
 // Doctor
 const DoctorDashboard = React.lazy(() => import('./pages/doctor/DoctorDashboard'));
@@ -32,6 +34,7 @@ const DoctorProfileManagementPage = React.lazy(() => import('./pages/DoctorProfi
 // Receptionist
 const ReceptionistDashboard = React.lazy(() => import('./pages/receptionist/ReceptionistDashboard'));
 const ReceptionistHistoryPage = React.lazy(() => import('./pages/receptionist/ReceptionistHistoryPage'));
+const ReceptionistRefundPage = React.lazy(() => import('./pages/receptionist/ReceptionistRefundPage'));
 
 // Pharmacist
 const PharmacistDashboard = React.lazy(() => import('./pages/pharmacist/PharmacistDashboard'));
@@ -156,6 +159,8 @@ function App() {
           <Route path="/doctors/:id/book" element={<ProtectedRoute roles={['Patient']}><DoctorBookingPage /></ProtectedRoute>} />
           <Route path="/appointments" element={<ProtectedRoute roles={['Patient']}><AppointmentsPage /></ProtectedRoute>} />
           <Route path="/appointments/:id" element={<ProtectedRoute roles={['Patient']}><AppointmentDetailsPage /></ProtectedRoute>} />
+          <Route path="/appointments/:id/pay" element={<ProtectedRoute roles={['Patient']}><PaymentCheckoutPage /></ProtectedRoute>} />
+          <Route path="/appointments/:id/refund" element={<ProtectedRoute roles={['Patient']}><RefundTrackingPage /></ProtectedRoute>} />
           <Route path="/prescriptions" element={<ProtectedRoute roles={['Patient']}><PrescriptionsPage /></ProtectedRoute>} />
           <Route path="/orders" element={<ProtectedRoute roles={['Patient']}><OrdersPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
@@ -173,6 +178,7 @@ function App() {
           <Route path="/receptionist/dashboard" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistDashboard /></ProtectedRoute>} />
           <Route path="/receptionist/queue" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistDashboard /></ProtectedRoute>} />
           <Route path="/receptionist/history" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistHistoryPage /></ProtectedRoute>} />
+          <Route path="/receptionist/refunds" element={<ProtectedRoute roles={['Receptionist']}><ReceptionistRefundPage /></ProtectedRoute>} />
 
           {/* Pharmacist Portal */}
           <Route path="/pharmacist/dashboard" element={<ProtectedRoute roles={['Pharmacist']}><PharmacistDashboard /></ProtectedRoute>} />

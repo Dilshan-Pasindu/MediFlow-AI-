@@ -83,6 +83,15 @@ builder.Services.AddHttpClient("AiService", client =>
 builder.Services.AddScoped<IAiServiceClient, AiServiceClient>();
 builder.Services.AddScoped<AiServiceClient>();
 
+// ─── PayHere Sandbox HTTP Client & Service ────────────────────────────────────
+builder.Services.AddHttpClient("PayHere", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    client.DefaultRequestHeaders.Add("Accept", "application/json");
+});
+
+builder.Services.AddScoped<PayHereService>();
+
 // ─── Supabase & JWT Authentication ───────────────────────────────────────────
 var signingKeys = new List<SecurityKey>();
 

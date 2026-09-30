@@ -300,39 +300,64 @@ export default function AppointmentDetailsPage() {
                   <div className="info-row"><span className="info-row-label">💰 Consultation Fee:</span>Rs. {appt.fee?.toLocaleString()}</div>
                   {appt.notes && <div className="info-row"><span className="info-row-label">📝 Notes:</span>{appt.notes}</div>}
 
-                  {/* Payment Action */}
+                  {/* Payment Action — Pending: sandbox checkout */}
                   {appt.status === 'Pending' && !paid && (
                     <div style={{ marginTop: 24, padding: '20px', background: 'var(--warning-bg)', border: '1.5px solid var(--warning-border)', borderRadius: 'var(--r-lg)' }}>
                       <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
                         <AlertCircle size={20} color="#B45309" style={{ flexShrink: 0 }} />
                         <div>
                           <div style={{ fontWeight: 700, color: '#92400E', marginBottom: 4 }}>Payment Required</div>
-                          <div style={{ fontSize: 13, color: '#B45309' }}>Please complete your payment of <strong>Rs. {appt.fee?.toLocaleString()}</strong> to confirm your appointment. The receptionist will then verify and generate your appointment number.</div>
+                          <div style={{ fontSize: 13, color: '#B45309' }}>Complete your payment of <strong>Rs. {appt.fee?.toLocaleString()}</strong> via PayHere sandbox to confirm your appointment. The receptionist will verify payment and generate your appointment number.</div>
                         </div>
                       </div>
-                      {payError && <div className="form-error" style={{ marginBottom: 14 }}><AlertCircle size={14} />{payError}</div>}
-                      <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={handlePay} disabled={paying} id="pay-appointment-btn">
-                        {paying ? <><Loader size={16} className="spin" /> Processing...</> : <><CreditCard size={16} /> Pay Rs. {appt.fee?.toLocaleString()} Now</>}
-                      </button>
-                    </div>
-                  )}
-
-                  {(appt.status === 'PaymentSubmitted' || paid) && (
-                    <div style={{ marginTop: 24, padding: '16px 18px', background: 'var(--med-blue-50)', border: '1.5px solid var(--med-blue-200)', borderRadius: 'var(--r-md)', display: 'flex', gap: 12 }}>
-                      <CheckCircle size={18} color="var(--med-blue)" style={{ flexShrink: 0, marginTop: 1 }} />
-                      <div>
-                        <div style={{ fontWeight: 700, color: 'var(--med-blue)', marginBottom: 3 }}>Payment Submitted</div>
-                        <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your payment is pending verification by the receptionist. You'll receive your appointment number once confirmed.</div>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          className="btn btn-primary btn-lg"
+                          style={{ flex: 1 }}
+                          onClick={() => navigate(`/appointments/${appt.id}/pay`)}
+                          id="pay-appointment-btn"
+                        >
+                          <CreditCard size={16} /> Pay Rs. {appt.fee?.toLocaleString()} via PayHere
+                        </button>
                       </div>
                     </div>
                   )}
 
-                  {appt.status === 'Confirmed' && (
+                  {/* PaymentPending: redirected to PayHere */}
+                  {(appt.status === 'PaymentPending' || appt.status === 'PaymentSubmitted' || paid) && (
+                    <div style={{ marginTop: 24, padding: '16px 18px', background: 'var(--med-blue-50)', border: '1.5px solid var(--med-blue-200)', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      <CheckCircle size={18} color="var(--med-blue)" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: 'var(--med-blue)', marginBottom: 3 }}>Payment Submitted</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10 }}>Your payment is pending receptionist verification. You'll receive your appointment number once confirmed.</div>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => navigate(`/appointments/${appt.id}/pay`)}
+                          id="check-payment-status-btn"
+                        >
+                          <CreditCard size={13} /> Check Payment Status
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* PaymentVerified / WaitingForReceptionist */}
+                  {(appt.status === 'PaymentVerified' || appt.status === 'WaitingForReceptionist') && (
+                    <div style={{ marginTop: 24, padding: '16px 18px', background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <CheckCircle size={18} color="#0369A1" style={{ flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontWeight: 700, color: '#1E40AF', marginBottom: 2 }}>Payment Verified ✅</div>
+                        <div style={{ fontSize: 13, color: '#1D4ED8' }}>Payment received and verified. Awaiting receptionist approval to confirm your appointment.</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {(appt.status === 'Confirmed' || appt.status === 'ReceptionistApproved') && (
                     <div style={{ marginTop: 24, padding: '16px 18px', background: 'var(--success-bg)', border: '1.5px solid var(--success-border)', borderRadius: 'var(--r-md)', display: 'flex', gap: 12 }}>
                       <CheckCircle size={18} color="var(--success)" style={{ flexShrink: 0, marginTop: 1 }} />
                       <div>
                         <div style={{ fontWeight: 700, color: '#065F46', marginBottom: 3 }}>Appointment Confirmed! ✅</div>
-                        <div style={{ fontSize: 13, color: '#047857' }}>Your appointment has been verified and confirmed. Please arrive 10 minutes early. Appointment Number: <strong>{appt.appointmentNumber}</strong></div>
+                        <div style={{ fontSize: 13, color: '#047857' }}>Verified and confirmed. Please arrive 10 minutes early. Appointment Number: <strong>{appt.appointmentNumber}</strong></div>
                       </div>
                     </div>
                   )}
@@ -347,17 +372,32 @@ export default function AppointmentDetailsPage() {
                     </div>
                   )}
 
-                  {appt.status === 'Cancelled' && (
-                    <div style={{ marginTop: 24, padding: '16px 18px', background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'center' }}>
+                  {/* Cancelled / Rejected — show refund tracking */}
+                  {(appt.status === 'Cancelled' || appt.status === 'PatientCancelled' || appt.status === 'ReceptionistRejected' || appt.status === 'RefundRequested') && (
+                    <div style={{ marginTop: 24, padding: '16px 18px', background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 'var(--r-md)', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                       <XCircle size={18} color="#DC2626" style={{ flexShrink: 0 }} />
-                      <div>
-                        <div style={{ fontWeight: 700, color: '#991B1B', marginBottom: 2 }}>Appointment Cancelled</div>
-                        <div style={{ fontSize: 13, color: '#B91C1C' }}>This appointment has been cancelled and is no longer active.</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: '#991B1B', marginBottom: 2 }}>
+                          {appt.status === 'ReceptionistRejected' ? 'Appointment Rejected by Receptionist' : 'Appointment Cancelled'}
+                        </div>
+                        <div style={{ fontSize: 13, color: '#B91C1C', marginBottom: 10 }}>
+                          {appt.status === 'ReceptionistRejected'
+                            ? 'Your appointment has been rejected. If you made a payment, an automatic refund has been initiated.'
+                            : 'This appointment has been cancelled. If you paid, you can apply for a refund.'}
+                        </div>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => navigate(`/appointments/${appt.id}/refund`)}
+                          id="track-refund-btn"
+                        >
+                          💰 Track Refund Status
+                        </button>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
+
 
               {/* Consultation Rating & Feedback Section */}
               {appt.status === 'Completed' && (

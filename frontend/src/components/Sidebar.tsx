@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Search, Calendar, FileText,
   User, LogOut, HeartPulse, Pill, PackageSearch,
   ClipboardList, BarChart3, Truck,
-  ShieldCheck, Activity, Users, type LucideIcon
+  ShieldCheck, Activity, Users, CreditCard, type LucideIcon
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import type { UserRole } from '../types/auth';
@@ -55,6 +55,7 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
       { to: '/receptionist/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
       { to: '/receptionist/queue',     icon: ClipboardList,   label: 'Appointment Queue' },
       { to: '/receptionist/history',   icon: Calendar,        label: 'History' },
+      { to: '/receptionist/refunds',   icon: CreditCard,      label: 'Refund Management' },
     ]},
     { section: 'Account', items: [
       { to: '/profile', icon: User, label: 'My Profile' },

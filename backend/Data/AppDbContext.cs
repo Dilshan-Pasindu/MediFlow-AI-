@@ -24,6 +24,8 @@ public class AppDbContext : DbContext
     public DbSet<DoctorRating> DoctorRatings => Set<DoctorRating>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
     public DbSet<AppointmentPayment> AppointmentPayments => Set<AppointmentPayment>();
+    public DbSet<AppointmentRefund> AppointmentRefunds => Set<AppointmentRefund>();
+    public DbSet<PaymentAuditLog> PaymentAuditLogs => Set<PaymentAuditLog>();
     public DbSet<SymptomSubmission> SymptomSubmissions => Set<SymptomSubmission>();
     public DbSet<DoctorLeave> DoctorLeaves => Set<DoctorLeave>();
 
@@ -190,6 +192,59 @@ public class AppDbContext : DbContext
             entity.HasKey(ap => ap.Id);
             entity.Property(ap => ap.Amount).HasColumnType("decimal(10,2)");
             entity.Property(ap => ap.Status).HasConversion<string>();
+            entity.Property(ap => ap.Currency).HasMaxLength(10);
+            entity.Property(ap => ap.Provider).HasMaxLength(50);
+            entity.Property(ap => ap.TransactionReference).HasMaxLength(200);
+            entity.Property(ap => ap.ProviderPaymentId).HasMaxLength(200);
+            entity.Property(ap => ap.ProviderOrderId).HasMaxLength(200);
+            // Unique index: only one payment per appointment
+            entity.HasIndex(ap => ap.AppointmentId).IsUnique();
+            // Unique index on provider payment id to prevent duplicate processing
+            entity.HasIndex(ap => ap.ProviderPaymentId);
+            entity.HasIndex(ap => ap.TransactionReference);
+        });
+
+        // ── AppointmentRefund ─────────────────────────────────────────────
+        modelBuilder.Entity<AppointmentRefund>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Amount).HasColumnType("decimal(10,2)");
+            entity.Property(r => r.Status).HasConversion<string>();
+            entity.Property(r => r.Currency).HasMaxLength(10);
+            entity.Property(r => r.Reason).HasMaxLength(500);
+            entity.Property(r => r.ProviderRefundId).HasMaxLength(200);
+            entity.Property(r => r.RefundReference).HasMaxLength(200);
+            // One refund per payment (idempotency)
+            entity.HasIndex(r => r.PaymentId).IsUnique();
+            entity.HasIndex(r => r.AppointmentId);
+
+            entity.HasOne(r => r.Payment)
+                .WithOne(ap => ap.Refund)
+                .HasForeignKey<AppointmentRefund>(r => r.PaymentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.Appointment)
+                .WithMany()
+                .HasForeignKey(r => r.AppointmentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(r => r.Patient)
+                .WithMany()
+                .HasForeignKey(r => r.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ── PaymentAuditLog ───────────────────────────────────────────────
+        modelBuilder.Entity<PaymentAuditLog>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Action).IsRequired().HasMaxLength(100);
+            entity.Property(a => a.UserRole).HasMaxLength(50);
+            entity.Property(a => a.Result).HasMaxLength(50);
+            entity.HasIndex(a => a.AppointmentId);
+            entity.HasIndex(a => a.PaymentId);
+            entity.HasIndex(a => a.RefundId);
+            entity.HasIndex(a => a.CreatedAt);
         });
 
         // ── SymptomSubmission ─────────────────────────────────────────────
