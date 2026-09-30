@@ -509,9 +509,9 @@ class HybridKnowledgeRetriever:
             dt = item.get("data_type")
             score = item.get("score", 0.1)
 
-            # Check specialty recommendation with rank-weighted voting
-            spec = meta.get("recommended_specialty") or meta.get("specialty")
-            if spec:
+            # Check specialty recommendation with rank-weighted voting (excluding Emergency Medicine which is acute triage)
+            spec = meta.get("recommended_specialty") or meta.get("intended_specialty") or meta.get("specialty")
+            if spec and spec != "Emergency Medicine":
                 weight = 1.0 / (idx + 1)
                 specialty_votes[spec] = specialty_votes.get(spec, 0.0) + (score * weight)
 
