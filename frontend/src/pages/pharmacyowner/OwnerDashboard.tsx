@@ -3,7 +3,7 @@ import {
   CheckCircle, X, AlertTriangle, Package, Loader, Sparkles,
   RefreshCw, Search, Filter, ChevronDown, ChevronUp, Truck, Plus, Eye,
   Calendar, Clock, Edit3, AlertCircle, Pill, ShieldAlert, Bot, FileText,
-  CheckCircle2, Siren, Hourglass
+  CheckCircle2, Siren, Hourglass, Trash2, Check, Lightbulb
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -635,7 +635,7 @@ export default function OwnerDashboard() {
                 <div style={{ padding: 40, textAlign: 'center' }}><Loader className="spin" size={28} /></div>
               ) : inventory.length === 0 ? (
                 <div className="empty-state" style={{ padding: 40 }}>
-                  <div className="empty-icon">📦</div>
+                  <div className="empty-icon"><Package size={40} /></div>
                   <div className="empty-title">No inventory items found</div>
                 </div>
               ) : (
@@ -684,14 +684,14 @@ export default function OwnerDashboard() {
                               </td>
                               <td>Rs. {item.unitPrice.toFixed(2)}</td>
                               <td>
-                                {item.stockStatus === 'OutOfStock' ? <span className="low-stock-badge" style={{ background: '#7C3AED', color: 'white', borderColor: '#7C3AED' }}>🔴 Out of Stock</span>
-                                  : item.stockStatus === 'Critical' ? <span className="low-stock-badge">🚨 Critical</span>
-                                  : item.stockStatus === 'Low' ? <span className="low-stock-badge">⚠️ Low</span>
-                                  : <span className="badge badge-green">✓ OK</span>}
+                                {item.stockStatus === 'OutOfStock' ? <span className="low-stock-badge" style={{ background: '#7C3AED', color: 'white', borderColor: '#7C3AED', display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertCircle size={12} /> Out of Stock</span>
+                                  : item.stockStatus === 'Critical' ? <span className="low-stock-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} color="#DC2626" /> Critical</span>
+                                  : item.stockStatus === 'Low' ? <span className="low-stock-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} color="#D97706" /> Low</span>
+                                  : <span className="badge badge-green" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Check size={12} /> OK</span>}
                               </td>
                               <td>
-                                {expired ? <span className="low-stock-badge">🔴 Batch Expired</span>
-                                  : expiringSoon ? <span className="low-stock-badge" style={{ background: '#FFF7ED', borderColor: '#FED7AA', color: '#C2410C' }}>⏰ Expiring Soon</span>
+                                {expired ? <span className="low-stock-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertCircle size={12} color="#DC2626" /> Batch Expired</span>
+                                  : expiringSoon ? <span className="low-stock-badge" style={{ background: '#FFF7ED', borderColor: '#FED7AA', color: '#C2410C', display: 'inline-flex', alignItems: 'center', gap: 4 }}><Clock size={12} /> Expiring Soon</span>
                                   : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}
                               </td>
                               <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
@@ -780,29 +780,29 @@ export default function OwnerDashboard() {
                                                     {isExp ? (
                                                       <span style={{ color: 'var(--danger)', fontWeight: 700 }}>Expired ({Math.abs(diffDays)}d ago)</span>
                                                     ) : isCrit ? (
-                                                      <span style={{ color: '#DC2626', fontWeight: 700 }}>🚨 {diffDays} days left!</span>
+                                                      <span style={{ color: '#DC2626', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={13} /> {diffDays} days left!</span>
                                                     ) : isSoon ? (
-                                                      <span style={{ color: '#C2410C', fontWeight: 700 }}>⚠️ {diffDays} days left</span>
+                                                      <span style={{ color: '#C2410C', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={13} /> {diffDays} days left</span>
                                                     ) : (
-                                                      <span style={{ color: 'var(--success)', fontWeight: 600 }}>✅ {diffDays} days left</span>
+                                                      <span style={{ color: 'var(--success)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={13} /> {diffDays} days left</span>
                                                     )}
                                                   </td>
                                                   <td style={{ padding: '10px 8px' }}>
                                                     {isExp ? (
-                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FEE2E2', color: '#991B1B', borderColor: '#FCA5A5' }}>
-                                                        🔴 Expired
+                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FEE2E2', color: '#991B1B', borderColor: '#FCA5A5', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                        <AlertCircle size={11} /> Expired
                                                       </span>
                                                     ) : isCrit ? (
-                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FEF2F2', color: '#B91C1C', borderColor: '#F87171' }}>
-                                                        🚨 Critical (&le;30d)
+                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FEF2F2', color: '#B91C1C', borderColor: '#F87171', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                        <AlertTriangle size={11} /> Critical (&le;30d)
                                                       </span>
                                                     ) : isSoon ? (
-                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FFF7ED', color: '#C2410C', borderColor: '#FED7AA' }}>
-                                                        ⏰ Expiring (&le;60d)
+                                                      <span className="low-stock-badge" style={{ fontSize: 11, background: '#FFF7ED', color: '#C2410C', borderColor: '#FED7AA', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                        <Clock size={11} /> Expiring (&le;60d)
                                                       </span>
                                                     ) : (
-                                                      <span className="badge badge-green" style={{ fontSize: 11 }}>
-                                                        ✓ Good
+                                                      <span className="badge badge-green" style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                        <Check size={11} /> Good
                                                       </span>
                                                     )}
                                                   </td>
@@ -836,13 +836,13 @@ export default function OwnerDashboard() {
                                                         <button
                                                           type="button"
                                                           className="btn btn-ghost btn-sm"
-                                                          style={{ fontSize: 11.5, padding: '3px 8px', color: '#DC2626', border: '1px solid #FCA5A5' }}
+                                                          style={{ fontSize: 11.5, padding: '3px 8px', color: '#DC2626', border: '1px solid #FCA5A5', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                                                           onClick={() => setConfirmDeleteBatch({ item, batch })}
                                                           disabled={deletingBatchId === batch.id}
                                                           id={`delete-batch-${batch.id}`}
                                                           title="Remove this expired batch and write off stock"
                                                         >
-                                                          🗑 Delete
+                                                          <Trash2 size={11.5} /> Delete
                                                         </button>
                                                       )
                                                     )}
@@ -935,8 +935,9 @@ export default function OwnerDashboard() {
                           </div>
                         </div>
                         <div className="card-body">
-                          <div style={{ padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.6 }}>
-                            💡 {rec.reason}
+                          <div style={{ padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 'var(--r-md)', fontSize: 13, color: 'var(--text-secondary)', marginBottom: 14, lineHeight: 1.6, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                            <Lightbulb size={16} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: 2 }} />
+                            <span>{rec.reason}</span>
                           </div>
                           {msg && (
                             <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 'var(--r-md)', background: approved ? 'var(--success-bg)' : '#FEF2F2', color: approved ? 'var(--success)' : 'var(--danger)', fontSize: 12.5, fontWeight: 600, display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -1172,7 +1173,9 @@ export default function OwnerDashboard() {
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 14 }}>
                   <div>
-                    <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 20, fontWeight: 800, color: 'var(--text-primary)' }}>💊 Add New Medicine</div>
+                    <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 20, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Pill size={20} color="var(--primary)" /> Add New Medicine
+                    </div>
                     <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>Creates a medicine record, inventory item, and optional initial stock batch.</div>
                   </div>
                   <button onClick={() => setAddMedicineModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={20} /></button>
@@ -1236,9 +1239,9 @@ export default function OwnerDashboard() {
                         <div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                             <label style={{ fontSize: 12.5, fontWeight: 600 }}>Batch Number *</label>
-                            <button type="button" style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                            <button type="button" style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11, cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                               onClick={() => setAmBatchNumber(`B-NEW-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`)}>
-                              🔄 Auto
+                              <RefreshCw size={11} /> Auto
                             </button>
                           </div>
                           <input type="text" className="form-input" value={amBatchNumber} onChange={e => setAmBatchNumber(e.target.value)} placeholder="e.g. BATCH-2026-A01" id="am-batch-number" />
@@ -1285,8 +1288,8 @@ export default function OwnerDashboard() {
               <div className="card scale-in" style={{ width: '100%', maxWidth: 520, background: 'white', borderRadius: 'var(--r-lg)', padding: 24, boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
                   <div>
-                    <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
-                      📦 Add New Batch
+                    <div style={{ fontFamily: 'Outfit, sans-serif', fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Package size={18} color="var(--primary)" /> Add New Batch
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                       {addBatchModalItem.medicineName} ({addBatchModalItem.category})
@@ -1309,10 +1312,10 @@ export default function OwnerDashboard() {
                       <label style={{ fontSize: 12.5, fontWeight: 600 }}>Batch Number *</label>
                       <button
                         type="button"
-                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11, cursor: 'pointer', fontWeight: 600 }}
+                        style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 11, cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
                         onClick={() => setBatchNumber(`B-${addBatchModalItem.medicineId}-${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}-${Math.floor(100 + Math.random() * 900)}`)}
                       >
-                        🔄 Auto-Generate
+                        <RefreshCw size={11} /> Auto-Generate
                       </button>
                     </div>
                     <input
@@ -1422,8 +1425,8 @@ export default function OwnerDashboard() {
                 </div>
 
                 {paymentModalError && (
-                  <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16 }}>
-                    ⚠️ {paymentModalError}
+                  <div style={{ padding: '10px 14px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--r-md)', color: '#DC2626', fontSize: 12.5, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={15} /> {paymentModalError}
                   </div>
                 )}
                 
@@ -1462,7 +1465,7 @@ export default function OwnerDashboard() {
                     paymentSlipBase64.startsWith('data:application/pdf') || paymentFileType === 'application/pdf' ? (
                       <div style={{ marginTop: 12, border: '1px solid var(--border)', borderRadius: 'var(--r-md)', padding: 12, background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 24 }}>📄</span>
+                          <FileText size={24} color="var(--primary)" />
                           <div>
                             <div style={{ fontWeight: 600, fontSize: 13 }}>{paymentFileName || 'Payment Slip PDF'}</div>
                             <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>PDF document attached</div>
