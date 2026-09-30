@@ -356,11 +356,11 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
             border: Border.all(color: const Color(0xFFBFDBFE), width: 1.5),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(Icons.shield_outlined, color: Color(0xFF0369A1), size: 20),
-              const SizedBox(width: 10),
-              const Expanded(
+              Icon(Icons.shield_outlined, color: Color(0xFF0369A1), size: 20),
+              SizedBox(width: 10),
+              Expanded(
                 child: Text(
                   'Sandbox environment — no real money charged. Use PayHere test cards.',
                   style: TextStyle(color: Color(0xFF1E40AF), fontSize: 12.5, fontWeight: FontWeight.w600),
@@ -399,9 +399,9 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
             border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
+          child: const Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Row(
                 children: [
                   Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 16),
@@ -616,11 +616,11 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
   Widget _buildPolicyCard() {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+      child: const Padding(
+        padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
+          children: [
             Text('Payment Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
             SizedBox(height: 10),
             Text('✅ Refunds available before receptionist approval.', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
@@ -958,7 +958,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                   border: Border.all(color: const Color(0xFFF59E0B)),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text('This appointment has been approved. Refund requests are no longer available.',
+                child: const Text('This appointment has already been approved by the receptionist. Refund requests are no longer available after appointment approval.',
                     style: TextStyle(color: Color(0xFFB45309), fontSize: 12.5)),
               ),
 

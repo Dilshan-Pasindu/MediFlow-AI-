@@ -166,10 +166,10 @@ class HomeScreen extends ConsumerWidget {
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  CircleAvatar(
+                                  const CircleAvatar(
                                     radius: 20,
-                                    backgroundColor: const Color(0xFFE0F2FE),
-                                    child: const Icon(Icons.person, color: Color(0xFF0284C7), size: 20),
+                                    backgroundColor: Color(0xFFE0F2FE),
+                                    child: Icon(Icons.person, color: Color(0xFF0284C7), size: 20),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -223,7 +223,7 @@ class HomeScreen extends ConsumerWidget {
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                           ),
                                           icon: const Icon(Icons.credit_card, size: 15),
-                                          label: Text('Pay Rs. ${(appt.fee ?? 2500).toStringAsFixed(0)}',
+                                          label: Text('Pay Rs. ${(appt.fee > 0 ? appt.fee : 2500.0).toStringAsFixed(0)}',
                                               style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
                                         ),
                                       ),

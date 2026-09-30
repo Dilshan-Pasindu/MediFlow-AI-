@@ -594,6 +594,12 @@ export default function AppointmentDetailsPage() {
                       </div>
                     )}
 
+                    {!canCancel && !cancelled && !isPast && (appt?.status === 'Confirmed' || appt?.status === 'ReceptionistApproved') && (
+                      <div style={{ fontSize: 12, color: '#92400E', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, padding: '8px 10px', marginTop: 4, lineHeight: 1.4 }} id="approved-no-refund-msg">
+                        This appointment has already been approved by the receptionist. Refund requests are no longer available after appointment approval.
+                      </div>
+                    )}
+
                     {cancelled && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--danger)', fontWeight: 600, padding: '8px 12px', background: '#FEF2F2', borderRadius: 'var(--r-md)' }}>
                         <XCircle size={14} /> Appointment Cancelled

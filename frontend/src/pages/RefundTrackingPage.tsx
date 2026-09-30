@@ -204,7 +204,7 @@ export default function RefundTrackingPage() {
                     <div>
                       <div style={{ fontWeight: 700, color: '#92400E', fontSize: 14 }}>Refund Not Available</div>
                       <div style={{ color: '#B45309', fontSize: 13, marginTop: 4 }}>
-                        This appointment has been approved by the receptionist. Patient-initiated refund requests are no longer available after approval.
+                        This appointment has already been approved by the receptionist. Refund requests are no longer available after appointment approval.
                       </div>
                     </div>
                   </div>
