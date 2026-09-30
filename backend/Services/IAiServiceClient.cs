@@ -10,4 +10,9 @@ public interface IAiServiceClient
         int? pharmacyId,
         int? patientAge,
         List<string>? outOfStockMedications);
+
+    Task<SpecialistRecommendationDto?> RecommendSpecialistAsync(
+        string symptoms,
+        string? severity = null,
+        string? duration = null);
 }
