@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   CheckCircle, XCircle, Loader, RefreshCw, AlertCircle, Clock, Eye,
-  ClipboardList, CheckCircle2, Coins, BarChart3, Zap, Stethoscope, Calendar
+  ClipboardList, CheckCircle2, Coins, BarChart3, Zap, Stethoscope, Calendar, CreditCard
 } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -23,6 +24,7 @@ const STATUS_META: Record<string, { color: string; bg: string; label: string; ic
 };
 
 export default function ReceptionistRefundPage() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [tab, setTab] = useState('RefundRequested');
   const [actionLoading, setActionLoading] = useState<Record<number, string | null>>({});
@@ -161,11 +163,35 @@ export default function ReceptionistRefundPage() {
                         {/* Info */}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                            <div style={{ fontWeight: 800, fontSize: 16 }}>{refund.patientName}</div>
+                            <div
+                              style={{ fontWeight: 800, fontSize: 16, cursor: 'pointer', color: 'var(--text-primary)' }}
+                              onClick={() => navigate(`/appointments/${refund.appointmentId}/refund`)}
+                              title="Click to view live refund tracking"
+                            >
+                              {refund.patientName}
+                            </div>
                             <span className="badge" style={{ color: meta.color, background: meta.bg, fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                               {meta.icon} {meta.label}
                             </span>
-                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{refund.refundReference}</span>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/appointments/${refund.appointmentId}/refund`)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                fontSize: 12,
+                                color: 'var(--med-blue)',
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4
+                              }}
+                              title="Click to view refund tracking"
+                            >
+                              {refund.refundReference}
+                            </button>
                           </div>
 
                           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
@@ -243,6 +269,29 @@ export default function ReceptionistRefundPage() {
 
                         {/* Actions */}
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              fontSize: 12.5,
+                              padding: '7px 12px',
+                              borderRadius: 'var(--r-md)',
+                              color: 'var(--med-blue)',
+                              borderColor: 'var(--border)',
+                              background: 'var(--surface)',
+                              cursor: 'pointer',
+                              fontWeight: 600
+                            }}
+                            onClick={() => navigate(`/appointments/${refund.appointmentId}/refund`)}
+                            id={`track-refund-${refund.id}`}
+                            title="Open live refund tracking timeline"
+                          >
+                            <CreditCard size={13} /> View Tracking
+                          </button>
+
                           {refund.refundStatus === 'RefundRequested' && (
                             <>
                               <button

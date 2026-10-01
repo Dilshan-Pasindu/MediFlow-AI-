@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Search, Filter, CheckCircle2, XCircle, Clock, FileText, ArrowUpDown, RefreshCw, CreditCard, Ban } from 'lucide-react';
 import Sidebar from '../../components/Sidebar';
 import TopBar from '../../components/TopBar';
@@ -6,6 +7,7 @@ import PortalHeader from '../../components/PortalHeader';
 import { usePendingAppointments } from '../../hooks';
 
 export default function ReceptionistHistoryPage() {
+  const navigate = useNavigate();
   const { data: appointments = [], isLoading: loading, refetch } = usePendingAppointments();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
@@ -117,12 +119,14 @@ export default function ReceptionistHistoryPage() {
                       <th>Fee</th>
                       <th>Status</th>
                       <th>Payment</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredAppointments.map((appt: any) => {
                       const isConfirmed = appt.status === 'Confirmed';
                       const isCancelled = appt.status === 'Cancelled';
+                      const isRefundTrackable = ['Cancelled', 'PatientCancelled', 'RefundRequested', 'RefundApproved', 'RefundProcessing', 'RefundCompleted', 'RefundRejected'].includes(appt.status);
                       const formattedDate = appt.appointmentDateTime
                         ? new Date(appt.appointmentDateTime).toLocaleString('en-US', {
                             month: 'short',
@@ -141,7 +145,15 @@ export default function ReceptionistHistoryPage() {
                             </strong>
                           </td>
                           <td>
-                            <div style={{ fontWeight: 600 }}>{appt.patientName}</div>
+                            <div
+                              style={{ fontWeight: 600, cursor: isRefundTrackable ? 'pointer' : 'default', color: isRefundTrackable ? 'var(--med-blue)' : 'inherit' }}
+                              onClick={() => {
+                                if (isRefundTrackable) navigate(`/appointments/${appt.id}/refund`);
+                              }}
+                              title={isRefundTrackable ? 'Click to view refund tracking' : undefined}
+                            >
+                              {appt.patientName}
+                            </div>
                             <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>Blood Group: {appt.patientBloodGroup || 'O+'}</div>
                           </td>
                           <td>
@@ -166,6 +178,22 @@ export default function ReceptionistHistoryPage() {
                             <span className={`badge ${appt.paymentStatus === 'Verified' ? 'badge-green' : 'badge-blue'}`}>
                               {appt.paymentStatus || 'Pending'} ({appt.paymentMethod || 'Card'})
                             </span>
+                          </td>
+                          <td>
+                            {isRefundTrackable ? (
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-xs"
+                                onClick={() => navigate(`/appointments/${appt.id}/refund`)}
+                                id={`history-track-refund-${appt.id}`}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600, color: 'var(--med-blue)', padding: '4px 8px', fontSize: 11.5 }}
+                                title="View live refund tracking timeline"
+                              >
+                                <CreditCard size={12} /> Refund Tracking
+                              </button>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+                            )}
                           </td>
                         </tr>
                       );

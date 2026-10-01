@@ -309,20 +309,36 @@ public class PaymentController : ControllerBase
     /// If webhook hasn't arrived yet, optionally performs a server-side verify call.
     /// </summary>
     [HttpGet("appointments/{appointmentId}/status")]
-    [Authorize(Roles = "Patient")]
+    [Authorize(Roles = "Patient,Receptionist,Administrator,Admin")]
     public async Task<IActionResult> GetPaymentStatus(int appointmentId, CancellationToken ct)
     {
-        var patient = await GetPatientAsync(ct);
-        if (patient == null)
-            return NotFound(new { message = "Patient profile not found." });
+        var isStaff = User.IsInRole("Receptionist") || User.IsInRole("Administrator") || User.IsInRole("Admin");
+        Appointment? appointment;
 
-        var appointment = await _db.Appointments
-            .Include(a => a.Doctor)
-                .ThenInclude(d => d.DoctorSpecialties)
-                    .ThenInclude(ds => ds.Specialty)
-            .Include(a => a.Payment)
-                .ThenInclude(p => p!.Refund)
-            .FirstOrDefaultAsync(a => a.Id == appointmentId && a.PatientId == patient.Id, ct);
+        if (isStaff)
+        {
+            appointment = await _db.Appointments
+                .Include(a => a.Doctor)
+                    .ThenInclude(d => d.DoctorSpecialties)
+                        .ThenInclude(ds => ds.Specialty)
+                .Include(a => a.Payment)
+                    .ThenInclude(p => p!.Refund)
+                .FirstOrDefaultAsync(a => a.Id == appointmentId, ct);
+        }
+        else
+        {
+            var patient = await GetPatientAsync(ct);
+            if (patient == null)
+                return NotFound(new { message = "Patient profile not found." });
+
+            appointment = await _db.Appointments
+                .Include(a => a.Doctor)
+                    .ThenInclude(d => d.DoctorSpecialties)
+                        .ThenInclude(ds => ds.Specialty)
+                .Include(a => a.Payment)
+                    .ThenInclude(p => p!.Refund)
+                .FirstOrDefaultAsync(a => a.Id == appointmentId && a.PatientId == patient.Id, ct);
+        }
 
         if (appointment == null)
             return NotFound(new { message = "Appointment not found." });
@@ -702,18 +718,32 @@ public class PaymentController : ControllerBase
     /// Patient views current refund tracking status.
     /// </summary>
     [HttpGet("appointments/{appointmentId}/refund")]
-    [Authorize(Roles = "Patient")]
+    [Authorize(Roles = "Patient,Receptionist,Administrator,Admin")]
     public async Task<IActionResult> GetRefundStatus(int appointmentId, CancellationToken ct)
     {
-        var patient = await GetPatientAsync(ct);
-        if (patient == null)
-            return NotFound(new { message = "Patient profile not found." });
+        var isStaff = User.IsInRole("Receptionist") || User.IsInRole("Administrator") || User.IsInRole("Admin");
+        Appointment? appointment;
 
-        var appointment = await _db.Appointments
-            .Include(a => a.Payment)
-                .ThenInclude(p => p!.Refund)
-            .Include(a => a.Doctor)
-            .FirstOrDefaultAsync(a => a.Id == appointmentId && a.PatientId == patient.Id, ct);
+        if (isStaff)
+        {
+            appointment = await _db.Appointments
+                .Include(a => a.Payment)
+                    .ThenInclude(p => p!.Refund)
+                .Include(a => a.Doctor)
+                .FirstOrDefaultAsync(a => a.Id == appointmentId, ct);
+        }
+        else
+        {
+            var patient = await GetPatientAsync(ct);
+            if (patient == null)
+                return NotFound(new { message = "Patient profile not found." });
+
+            appointment = await _db.Appointments
+                .Include(a => a.Payment)
+                    .ThenInclude(p => p!.Refund)
+                .Include(a => a.Doctor)
+                .FirstOrDefaultAsync(a => a.Id == appointmentId && a.PatientId == patient.Id, ct);
+        }
 
         if (appointment == null)
             return NotFound(new { message = "Appointment not found." });

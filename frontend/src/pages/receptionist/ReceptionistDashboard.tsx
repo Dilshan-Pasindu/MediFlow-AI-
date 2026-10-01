@@ -223,11 +223,32 @@ export default function ReceptionistDashboard() {
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text-primary)' }}>{refund.patientName}</div>
+                                <div
+                                  style={{ fontWeight: 800, fontSize: 16, color: 'var(--text-primary)', cursor: 'pointer' }}
+                                  onClick={() => navigate(`/appointments/${refund.appointmentId}/refund`)}
+                                  title="Click to view live refund tracking"
+                                >
+                                  {refund.patientName}
+                                </div>
                                 <span className="badge" style={{ color: st.color, background: st.bg, fontSize: 11, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                   {st.icon} {st.label}
                                 </span>
-                                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Ref: {refund.refundReference}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/appointments/${refund.appointmentId}/refund`)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0,
+                                    fontSize: 12,
+                                    color: 'var(--med-blue)',
+                                    cursor: 'pointer',
+                                    textDecoration: 'underline'
+                                  }}
+                                  title="Click to view refund tracking"
+                                >
+                                  Ref: {refund.refundReference}
+                                </button>
                               </div>
 
                               <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -295,6 +316,17 @@ export default function ReceptionistDashboard() {
 
                             {/* Action Buttons */}
                             <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => navigate(`/appointments/${refund.appointmentId}/refund`)}
+                                id={`track-refund-${refund.id}`}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '6px 10px' }}
+                                title="View live refund tracking timeline"
+                              >
+                                <CreditCard size={13} /> Tracking
+                              </button>
+
                               {isPending && !isRejectOpen && (
                                 <>
                                   <button
@@ -429,8 +461,20 @@ export default function ReceptionistDashboard() {
                                 </div>
                               )}
                               {appt.status === 'Cancelled' && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--danger)', background: '#FEF2F2', padding: '6px 12px', borderRadius: 'var(--r-md)' }}>
-                                  <XCircle size={16} /> Rejected / Cancelled
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 700, color: 'var(--danger)', background: '#FEF2F2', padding: '6px 12px', borderRadius: 'var(--r-md)' }}>
+                                    <XCircle size={16} /> Rejected / Cancelled
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline btn-sm"
+                                    onClick={() => navigate(`/appointments/${appt.id}/refund`)}
+                                    id={`track-cancelled-refund-${appt.id}`}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, padding: '5px 10px' }}
+                                    title="View refund tracking status"
+                                  >
+                                    <CreditCard size={13} /> Refund Tracking
+                                  </button>
                                 </div>
                               )}
                             </div>

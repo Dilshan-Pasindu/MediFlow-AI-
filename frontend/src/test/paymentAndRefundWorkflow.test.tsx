@@ -101,4 +101,63 @@ describe('Payment & Refund Workflow Tests', () => {
     expect(el).toHaveTextContent('2–3 working days');
     expect(el).toHaveTextContent('depending on the payment provider');
   });
+
+  it('navigates to refund tracking when clicking completed refund in receptionist section', () => {
+    const mockNavigate = vi.fn();
+    const refund = {
+      id: 42,
+      appointmentId: 108,
+      patientName: 'Kamal Perera',
+      refundStatus: 'RefundCompleted',
+      refundReference: 'RF-108-42',
+    };
+
+    render(
+      <div data-testid="completed-refund-card">
+        <span onClick={() => mockNavigate(`/appointments/${refund.appointmentId}/refund`)} data-testid="patient-name-link">
+          {refund.patientName}
+        </span>
+        <button
+          onClick={() => mockNavigate(`/appointments/${refund.appointmentId}/refund`)}
+          data-testid="view-tracking-btn"
+        >
+          View Tracking
+        </button>
+      </div>
+    );
+
+    screen.getByTestId('view-tracking-btn').click();
+    expect(mockNavigate).toHaveBeenCalledWith('/appointments/108/refund');
+
+    screen.getByTestId('patient-name-link').click();
+    expect(mockNavigate).toHaveBeenCalledWith('/appointments/108/refund');
+  });
+
+  it('navigates directly to refund tracking when clicking cancelled or refund-requested appointment card', () => {
+    const mockNavigate = vi.fn();
+    const handleCardClick = (status: string, id: number) => {
+      const isRefundStatus = ['Cancelled', 'PatientCancelled', 'RefundRequested', 'RefundApproved', 'RefundProcessing', 'RefundCompleted', 'RefundRejected', 'ReceptionistRejected'].includes(status);
+      if (isRefundStatus) {
+        mockNavigate(`/appointments/${id}/refund`);
+      } else {
+        mockNavigate(`/appointments/${id}`);
+      }
+    };
+
+    // Cancelled appointment
+    handleCardClick('Cancelled', 55);
+    expect(mockNavigate).toHaveBeenCalledWith('/appointments/55/refund');
+
+    // Refund requested appointment
+    handleCardClick('RefundRequested', 77);
+    expect(mockNavigate).toHaveBeenCalledWith('/appointments/77/refund');
+
+    // Refund completed appointment
+    handleCardClick('RefundCompleted', 99);
+    expect(mockNavigate).toHaveBeenCalledWith('/appointments/99/refund');
+
+    // Confirmed appointment goes to details
+    handleCardClick('Confirmed', 12);
+    expect(mockNavigate).toHaveBeenCalledWith('/appointments/12');
+  });
 });

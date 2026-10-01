@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   ArrowLeft, CheckCircle, CheckCircle2, Clock, AlertCircle, RefreshCw,
-  Loader, Info, XCircle, CreditCard, ClipboardList, Coins, Zap, Ban
+  Loader, Info, XCircle, CreditCard, ClipboardList, Coins, Zap, Ban, ShieldCheck
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
+import { useAuthStore } from '../stores/authStore';
 import {
   apiGetRefundStatus,
   apiGetPaymentStatus,
@@ -212,6 +213,9 @@ export default function RefundTrackingPage() {
     }
   }
 
+  const currentUser = useAuthStore(s => s.user);
+  const isStaff = currentUser?.role === 'Receptionist' || currentUser?.role === 'Administrator';
+
   const refund = data?.refund;
   const canRequestRefund = data?.canRequestRefund;
   const apptStatus = data?.appointmentStatus;
@@ -223,21 +227,65 @@ export default function RefundTrackingPage() {
       <Sidebar />
       <div className="main-content">
         <TopBar
-          title="Refund Tracking"
-          subtitle="Track your refund request status"
+          title={isStaff ? 'Refund Tracking & Audit' : 'Refund Tracking'}
+          subtitle={isStaff ? 'Administrative & Receptionist live refund monitoring' : 'Track your refund request status'}
           actions={
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-ghost btn-sm" onClick={load} id="refresh-refund-btn">
                 <RefreshCw size={14} /> Refresh
               </button>
-              <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/appointments/${appointmentId}`)} id="back-appt-btn">
-                <ArrowLeft size={14} /> Appointment
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  if (isStaff) {
+                    navigate('/receptionist/refunds');
+                  } else {
+                    navigate(`/appointments/${appointmentId}`);
+                  }
+                }}
+                id="back-appt-btn"
+              >
+                <ArrowLeft size={14} /> {isStaff ? 'Back to Refunds Queue' : 'Appointment Details'}
               </button>
             </div>
           }
         />
 
         <div className="page-body fade-in">
+          {isStaff && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 20px',
+              background: 'linear-gradient(135deg, #EFF6FF, #F0FDF4)',
+              border: '1.5px solid #BFDBFE',
+              borderRadius: 'var(--r-md)',
+              marginBottom: 20
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <ShieldCheck size={22} style={{ color: 'var(--med-blue)', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: '#1E40AF' }}>
+                    Receptionist &amp; Administrative View · Live Refund Audit Timeline
+                  </div>
+                  <div style={{ fontSize: 12.5, color: '#2563EB', marginTop: 2 }}>
+                    Monitoring PayHere payment and refund lifecycle for Appointment #{data?.appointmentNumber || appointmentId}.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => navigate('/receptionist/refunds')}
+                style={{ fontSize: 12, padding: '6px 14px', fontWeight: 600 }}
+                id="open-queue-btn"
+              >
+                Refund Review Queue
+              </button>
+            </div>
+          )}
+
           {loading ? (
             <div className="card" style={{ padding: 60, textAlign: 'center' }}>
               <Loader size={28} className="spin" style={{ color: 'var(--med-blue)', marginBottom: 12 }} />
@@ -368,81 +416,107 @@ export default function RefundTrackingPage() {
                         : 'You can cancel this appointment and apply for a refund below.'}
                     </div>
 
-                    {/* Cancel appointment flow (before approved) */}
-                    {isCancellable && !isApprovedLocked && (
+                    {isStaff ? (
+                      <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 14 }}>
+                          No active refund application recorded. Receptionists can manage appointment cancellations and approvals directly in the portal.
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn btn-outline btn-sm"
+                            onClick={() => navigate('/receptionist/refunds')}
+                          >
+                            View Refunds Queue
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => navigate('/receptionist/dashboard')}
+                          >
+                            Dashboard
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                       <>
-                        {!showCancelForm ? (
-                          <div style={{ textAlign: 'center' }}>
-                            <button
-                              className="btn btn-danger"
-                              onClick={() => { setShowCancelForm(true); setError(''); }}
-                              id="cancel-appt-btn"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
-                            >
-                              <XCircle size={16} /> Cancel Appointment &amp; Request Refund
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ padding: '16px', background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 'var(--r-md)' }}>
-                            <div style={{ fontWeight: 700, color: '#991B1B', marginBottom: 10 }}>Confirm Cancellation</div>
-                            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6, color: 'var(--text-secondary)' }}>
-                              Cancellation Reason
-                            </label>
-                            <select
-                              value={cancelReason}
-                              onChange={e => setCancelReason(e.target.value)}
-                              className="form-input"
-                              style={{ marginBottom: 12 }}
-                              id="cancel-reason-select"
-                            >
-                              <option>I no longer need this appointment</option>
-                              <option>Schedule conflict</option>
-                              <option>Feeling better</option>
-                              <option>Transportation issues</option>
-                              <option>Other</option>
-                            </select>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                              <button className="btn btn-danger btn-sm" onClick={handleCancelAndRequestRefund} disabled={cancelling} id="confirm-cancel-btn">
-                                {cancelling ? <Loader size={14} className="spin" /> : <XCircle size={14} />}
-                                Confirm Cancel
-                              </button>
-                              <button className="btn btn-ghost btn-sm" onClick={() => setShowCancelForm(false)} id="cancel-cancel-btn">
-                                Keep Appointment
-                              </button>
+                        {/* Cancel appointment flow (before approved) */}
+                        {isCancellable && !isApprovedLocked && (
+                          <>
+                            {!showCancelForm ? (
+                              <div style={{ textAlign: 'center' }}>
+                                <button
+                                  className="btn btn-danger"
+                                  onClick={() => { setShowCancelForm(true); setError(''); }}
+                                  id="cancel-appt-btn"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}
+                                >
+                                  <XCircle size={16} /> Cancel Appointment &amp; Request Refund
+                                </button>
+                              </div>
+                            ) : (
+                              <div style={{ padding: '16px', background: '#FEF2F2', border: '1.5px solid #FCA5A5', borderRadius: 'var(--r-md)' }}>
+                                <div style={{ fontWeight: 700, color: '#991B1B', marginBottom: 10 }}>Confirm Cancellation</div>
+                                <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 6, color: 'var(--text-secondary)' }}>
+                                  Cancellation Reason
+                                </label>
+                                <select
+                                  value={cancelReason}
+                                  onChange={e => setCancelReason(e.target.value)}
+                                  className="form-input"
+                                  style={{ marginBottom: 12 }}
+                                  id="cancel-reason-select"
+                                >
+                                  <option>I no longer need this appointment</option>
+                                  <option>Schedule conflict</option>
+                                  <option>Feeling better</option>
+                                  <option>Transportation issues</option>
+                                  <option>Other</option>
+                                </select>
+                                <div style={{ display: 'flex', gap: 8 }}>
+                                  <button className="btn btn-danger btn-sm" onClick={handleCancelAndRequestRefund} disabled={cancelling} id="confirm-cancel-btn">
+                                    {cancelling ? <Loader size={14} className="spin" /> : <XCircle size={14} />}
+                                    Confirm Cancel
+                                  </button>
+                                  <button className="btn btn-ghost btn-sm" onClick={() => setShowCancelForm(false)} id="cancel-cancel-btn">
+                                    Keep Appointment
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Request refund (after cancelled) */}
+                        {(canRequestRefund || showRequestForm) && (
+                          <div style={{ marginTop: 16, padding: '16px', background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 'var(--r-md)' }}>
+                            <div style={{ fontWeight: 700, color: '#1E40AF', marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
+                              <CreditCard size={16} /> Request Refund
                             </div>
+                            <div style={{ fontSize: 13, color: '#1D4ED8', marginBottom: 10 }}>
+                              Your appointment has been cancelled. Click below to request a refund.
+                            </div>
+                            <textarea
+                              value={requestNotes}
+                              onChange={e => setRequestNotes(e.target.value)}
+                              placeholder="Additional notes (optional)..."
+                              className="form-input"
+                              rows={2}
+                              style={{ marginBottom: 10, fontSize: 13 }}
+                              id="refund-notes-input"
+                            />
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={handleRequestRefund}
+                              disabled={requesting}
+                              id="request-refund-btn"
+                            >
+                              {requesting ? <Loader size={14} className="spin" /> : <CreditCard size={14} />}
+                              Submit Refund Request
+                            </button>
                           </div>
                         )}
                       </>
-                    )}
-
-                    {/* Request refund (after cancelled) */}
-                    {(canRequestRefund || showRequestForm) && (
-                      <div style={{ marginTop: 16, padding: '16px', background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 'var(--r-md)' }}>
-                        <div style={{ fontWeight: 700, color: '#1E40AF', marginBottom: 8, display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <CreditCard size={16} /> Request Refund
-                        </div>
-                        <div style={{ fontSize: 13, color: '#1D4ED8', marginBottom: 10 }}>
-                          Your appointment has been cancelled. Click below to request a refund.
-                        </div>
-                        <textarea
-                          value={requestNotes}
-                          onChange={e => setRequestNotes(e.target.value)}
-                          placeholder="Additional notes (optional)..."
-                          className="form-input"
-                          rows={2}
-                          style={{ marginBottom: 10, fontSize: 13 }}
-                          id="refund-notes-input"
-                        />
-                        <button
-                          className="btn btn-primary btn-sm"
-                          onClick={handleRequestRefund}
-                          disabled={requesting}
-                          id="request-refund-btn"
-                        >
-                          {requesting ? <Loader size={14} className="spin" /> : <CreditCard size={14} />}
-                          Submit Refund Request
-                        </button>
-                      </div>
                     )}
                   </div>
                 )}

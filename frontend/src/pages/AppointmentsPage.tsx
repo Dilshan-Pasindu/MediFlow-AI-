@@ -202,11 +202,19 @@ export default function AppointmentsPage() {
                 const isCompleted = appt.status === 'Completed';
                 const hasRated = ratedApptIds.has(appt.id) || appt.hasRated;
 
+                const isRefundAppointment = ['Cancelled', 'PatientCancelled', 'RefundRequested', 'RefundApproved', 'RefundProcessing', 'RefundCompleted', 'RefundRejected', 'ReceptionistRejected'].includes(appt.status);
+
                 return (
                   <div
                     key={appt.id}
                     className="appt-card"
-                    onClick={() => navigate(`/appointments/${appt.id}`)}
+                    onClick={() => {
+                      if (isRefundAppointment) {
+                        navigate(`/appointments/${appt.id}/refund`);
+                      } else {
+                        navigate(`/appointments/${appt.id}`);
+                      }
+                    }}
                     id={`appt-item-${appt.id}`}
                     style={appt.status === 'InConsultation' ? { border: '1.5px solid #F87171', background: '#FEF2F2' } : {}}
                   >

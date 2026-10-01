@@ -160,7 +160,7 @@ function App() {
           <Route path="/appointments" element={<ProtectedRoute roles={['Patient']}><AppointmentsPage /></ProtectedRoute>} />
           <Route path="/appointments/:id" element={<ProtectedRoute roles={['Patient']}><AppointmentDetailsPage /></ProtectedRoute>} />
           <Route path="/appointments/:id/pay" element={<ProtectedRoute roles={['Patient']}><PaymentCheckoutPage /></ProtectedRoute>} />
-          <Route path="/appointments/:id/refund" element={<ProtectedRoute roles={['Patient']}><RefundTrackingPage /></ProtectedRoute>} />
+          <Route path="/appointments/:id/refund" element={<ProtectedRoute roles={['Patient', 'Receptionist', 'Administrator']}><RefundTrackingPage /></ProtectedRoute>} />
           <Route path="/prescriptions" element={<ProtectedRoute roles={['Patient']}><PrescriptionsPage /></ProtectedRoute>} />
           <Route path="/orders" element={<ProtectedRoute roles={['Patient']}><OrdersPage /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
