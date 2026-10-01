@@ -8,16 +8,38 @@ import '../../../core/network/api_client.dart';
 import '../../../features/patient/patient_providers.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../../screens/payment_screens.dart';
 import '../doctors/doctor_profile_screen.dart';
 
 // Status journey steps (matching React's STATUS_STEPS)
 const _kStatusSteps = [
   _StatusStep('Pending',          'Booking Placed',          '📋'),
-  _StatusStep('PaymentSubmitted', 'Payment Submitted',       '💳'),
+  _StatusStep('PaymentSubmitted', 'Payment Verified',        '💳'),
   _StatusStep('Confirmed',        'Receptionist Verified',   '✅'),
   _StatusStep('InConsultation',   'In Consultation',         '🩺'),
   _StatusStep('Completed',        'Consultation Done',       '🎉'),
 ];
+
+int _statusStepIndex(String status) {
+  switch (status) {
+    case 'Pending':
+    case 'PaymentPending':
+    case 'PaymentFailed':
+      return 0;
+    case 'PaymentSubmitted':
+    case 'PaymentVerified':
+      return 1;
+    case 'ReceptionistApproved':
+    case 'Confirmed':
+      return 2;
+    case 'InConsultation':
+      return 3;
+    case 'Completed':
+      return 4;
+    default:
+      return -1;
+  }
+}
 
 // Cancel reasons (matching React's CANCEL_REASONS)
 const _kCancelReasons = [
@@ -49,10 +71,6 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
   bool _submittingRating = false;
   bool _ratingDone = false;
   bool _showRatingPanel = false;
-
-  // Payment
-  bool _paying = false;
-  String? _payError;
 
   // Cancel
   bool _showCancelSheet = false;
@@ -113,24 +131,16 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
 
   // ── Submit Payment ──────────────────────────────────────────────────────────
   Future<void> _submitPayment(AppointmentModel a) async {
-    setState(() { _paying = true; _payError = null; });
-    try {
-      await ApiClient.instance.post('/appointments/${widget.id}/pay');
-      ref.invalidate(myAppointmentsProvider);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment submitted! ✅ Awaiting receptionist verification.',
-                style: GoogleFonts.outfit()),
-            backgroundColor: AppTheme.statusConfirmed,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() => _payError = e.toString().replaceFirst('Exception: ', ''));
-    } finally {
-      if (mounted) setState(() => _paying = false);
-    }
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => PaymentCheckoutScreen(
+          appointmentId: a.id,
+          doctorName: a.doctorName,
+          fee: a.fee,
+        ),
+      ),
+    );
+    ref.invalidate(myAppointmentsProvider);
   }
 
   // ── Cancel Appointment ──────────────────────────────────────────────────────
@@ -139,7 +149,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
       setState(() => _cancelError = 'Cannot cancel an appointment that has already passed.');
       return;
     }
-    if (['Completed', 'InConsultation', 'Cancelled'].contains(a.status)) {
+    if (['Completed', 'InConsultation', 'Cancelled', 'PatientCancelled'].contains(a.status)) {
       setState(() => _cancelError = 'Cannot cancel an appointment that is ${a.status}.');
       return;
     }
@@ -151,14 +161,40 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
         : (notes.isEmpty ? _cancelReason : '$_cancelReason - $notes');
 
     try {
-      await ApiClient.instance.post('/appointments/${widget.id}/cancel', body: {'reason': reason});
+      try {
+        await ApiClient.instance.post('/payment/appointments/${widget.id}/cancel', body: {'reason': reason});
+      } catch (_) {
+        await ApiClient.instance.post('/appointments/${widget.id}/cancel', body: {'reason': reason});
+      }
+
       ref.invalidate(myAppointmentsProvider);
       setState(() => _showCancelSheet = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Appointment cancelled.', style: GoogleFonts.outfit()),
-              backgroundColor: AppTheme.statusPending),
-        );
+        if (a.isPaid) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Appointment cancelled. You can now request a refund.',
+                  style: GoogleFonts.outfit()),
+              backgroundColor: AppTheme.statusPending,
+              action: SnackBarAction(
+                label: 'Refund',
+                textColor: Colors.white,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => RefundTrackingScreen(appointmentId: a.id),
+                  ),
+                ),
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Appointment cancelled.', style: GoogleFonts.outfit()),
+              backgroundColor: AppTheme.statusPending,
+            ),
+          );
+        }
       }
     } catch (e) {
       setState(() => _cancelError = e.toString().replaceFirst('Exception: ', ''));
@@ -293,7 +329,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                       ..._kStatusSteps.asMap().entries.map((e) {
                         final idx = e.key;
                         final step = e.value;
-                        final currentIdx = _kStatusSteps.indexWhere((s) => s.key == a.status);
+                        final currentIdx = _statusStepIndex(a.status);
                         final isDone = idx < currentIdx;
                         final isCurrent = idx == currentIdx;
                         final isLast = idx == _kStatusSteps.length - 1;
@@ -344,13 +380,13 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                 const SizedBox(height: 12),
               ],
 
-              // ── Pay Now Banner ────────────────────────────────────────────
-              if (a.status == 'Pending') ...[
+              // ── Payment Required Banner ───────────────────────────────────
+              if (a.isPaymentPending || a.status == 'Pending' || a.status == 'PaymentPending') ...[
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [Color(0xFF059669), Color(0xFF10B981)],
+                      colors: [Color(0xFF2A7DE1), Color(0xFF1565C0)],
                     ),
                     borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     boxShadow: AppTheme.cardShadow,
@@ -365,29 +401,118 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                             style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                       ]),
                       const SizedBox(height: 6),
-                      Text('Submit your payment to confirm this appointment. A receptionist will verify and generate your appointment number.',
-                        style: GoogleFonts.outfit(fontSize: 12, color: Colors.white.withValues(alpha: 0.85))),
-                      if (_payError != null) ...[
-                        const SizedBox(height: 8),
-                        Text(_payError!, style: GoogleFonts.outfit(fontSize: 12, color: Colors.redAccent)),
-                      ],
+                      Text('Pay Rs. ${(a.fee ?? 2500).toStringAsFixed(0)} via PayHere Sandbox or direct card gateway to confirm this appointment.',
+                        style: GoogleFonts.outfit(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
                       const SizedBox(height: 14),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
-                          onPressed: _paying ? null : () => _submitPayment(a),
-                          icon: _paying
-                              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Icon(Icons.payment_rounded, size: 18),
-                          label: Text(_paying ? 'Processing…' : 'Submit Payment Now',
-                              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700)),
+                          onPressed: () => _submitPayment(a),
+                          icon: const Icon(Icons.lock_rounded, size: 17),
+                          label: Text('Pay Consultation Fee (Sandbox)',
+                              style: GoogleFonts.outfit(fontSize: 13.5, fontWeight: FontWeight.w700)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF059669),
+                            foregroundColor: AppTheme.primaryBlue,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusFull)),
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // ── Payment Verified Banner ───────────────────────────────────
+              if (a.isPaid || a.status == 'PaymentVerified' || a.status == 'PaymentSubmitted') ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Payment Verified',
+                                style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w700, fontSize: 13.5, color: const Color(0xFF065F46))),
+                            Text('PayHere Sandbox transaction verified. Receptionist queue pending.',
+                                style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF047857))),
+                          ],
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PaymentCheckoutScreen(
+                              appointmentId: a.id,
+                              doctorName: a.doctorName,
+                              fee: a.fee,
+                            ),
+                          ),
+                        ),
+                        child: Text('Receipt',
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFF059669))),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              // ── Refund Tracking Banner ────────────────────────────────────
+              if (a.hasRefund || a.isRefundEligible) ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.receipt_long_rounded, color: AppTheme.primaryBlue, size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              a.hasRefund ? 'Refund Active' : 'Refund Eligible',
+                              style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w700, fontSize: 13.5, color: const Color(0xFF1E3A8A)),
+                            ),
+                            Text(
+                              a.hasRefund
+                                  ? 'Check the live status of your refund.'
+                                  : 'Appointment cancelled. You can request a refund.',
+                              style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF1D4ED8)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      OutlinedButton(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RefundTrackingScreen(appointmentId: a.id),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryBlue,
+                          side: const BorderSide(color: AppTheme.primaryBlue),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        ),
+                        child: Text('Track Refund',
+                            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 12)),
                       ),
                     ],
                   ),

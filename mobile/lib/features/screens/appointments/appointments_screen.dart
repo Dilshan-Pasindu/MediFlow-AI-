@@ -7,6 +7,7 @@ import '../../../core/network/api_client.dart';
 import '../../../features/patient/patient_providers.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/widgets/widgets.dart';
+import '../../../screens/payment_screens.dart';
 import 'appointment_detail_screen.dart';
 
 /// Appointments Management Screen (macOS Medical Theme)
@@ -103,7 +104,11 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
               } else if (_selectedTab == 'completed') {
                 return a.isCompleted;
               } else {
-                return a.status == 'Cancelled' || a.status == 'NoShow';
+                return a.status == 'Cancelled' ||
+                    a.status == 'PatientCancelled' ||
+                    a.status == 'ReceptionistRejected' ||
+                    a.status == 'NoShow' ||
+                    a.hasRefund;
               }
             }).toList();
 
@@ -281,7 +286,7 @@ class _TabSegment extends StatelessWidget {
   }
 }
 
-class _AppointmentCard extends StatelessWidget {
+class _AppointmentCard extends ConsumerWidget {
   const _AppointmentCard({
     required this.appointment,
     required this.onCancel,
@@ -291,7 +296,7 @@ class _AppointmentCard extends StatelessWidget {
   final VoidCallback onCancel;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dt = appointment.appointmentDateTime;
     final dateStr = DateFormat('EEE, MMM d, yyyy').format(dt);
     final timeStr = DateFormat('hh:mm a').format(dt);
@@ -401,7 +406,7 @@ class _AppointmentCard extends StatelessWidget {
 
                 const SizedBox(height: 14),
 
-                // Actions: Details & Cancel
+                // Actions: Details, Pay, Refund, & Cancel
                 Row(
                   children: [
                     Expanded(
@@ -423,13 +428,61 @@ class _AppointmentCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (appointment.isPaymentPending) ...[
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => PaymentCheckoutScreen(
+                              appointmentId: appointment.id,
+                              doctorName: appointment.doctorName,
+                              fee: appointment.fee,
+                            ),
+                          ),
+                        ).then((_) => ref.invalidate(myAppointmentsProvider)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryBlue,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        ),
+                        icon: const Icon(Icons.payment_rounded, size: 14),
+                        label: Text(
+                          'Pay Fee',
+                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                    if (appointment.hasRefund || appointment.isRefundEligible) ...[
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => RefundTrackingScreen(
+                              appointmentId: appointment.id,
+                            ),
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppTheme.primaryBlue,
+                          side: const BorderSide(color: AppTheme.primaryBlue),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                        ),
+                        icon: const Icon(Icons.receipt_long_rounded, size: 14),
+                        label: Text(
+                          'Refund',
+                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
                     if (appointment.isCancellable) ...[
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       TextButton(
                         onPressed: onCancel,
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFFDC2626),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                         ),
                         child: Text(
                           'Cancel',
@@ -454,6 +507,7 @@ class _AppointmentCard extends StatelessWidget {
 
     switch (status) {
       case 'Confirmed':
+      case 'ReceptionistApproved':
         bg = const Color(0xFFECFDF5);
         text = const Color(0xFF059669);
         label = 'Confirmed';
@@ -468,12 +522,41 @@ class _AppointmentCard extends StatelessWidget {
         text = const Color(0xFFE11D48);
         label = '🔴 In Session';
         break;
+      case 'PaymentVerified':
       case 'PaymentSubmitted':
         bg = const Color(0xFFEFF6FF);
         text = const Color(0xFF0284C7);
-        label = 'Payment Sent';
+        label = 'Payment Verified';
+        break;
+      case 'PaymentPending':
+        bg = const Color(0xFFFFFBEB);
+        text = const Color(0xFFB45309);
+        label = 'Payment Due';
+        break;
+      case 'RefundRequested':
+        bg = const Color(0xFFFFFBEB);
+        text = const Color(0xFFB45309);
+        label = 'Refund Requested';
+        break;
+      case 'RefundApproved':
+      case 'RefundProcessing':
+        bg = const Color(0xFFEFF6FF);
+        text = const Color(0xFF0284C7);
+        label = 'Refund Processing';
+        break;
+      case 'RefundCompleted':
+        bg = const Color(0xFFECFDF5);
+        text = const Color(0xFF059669);
+        label = 'Refunded';
+        break;
+      case 'RefundRejected':
+      case 'ReceptionistRejected':
+        bg = const Color(0xFFFEF2F2);
+        text = const Color(0xFFDC2626);
+        label = 'Rejected';
         break;
       case 'Cancelled':
+      case 'PatientCancelled':
       case 'NoShow':
         bg = const Color(0xFFF1F5F9);
         text = const Color(0xFF64748B);
