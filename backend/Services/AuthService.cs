@@ -12,7 +12,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace MediFlow.Api.Services;
 
 /// <summary>
-/// Handles user registration, login, and JWT token generation.
+/// Handles user registration (patient and staff), login, verification status enforcement, and JWT token generation.
 /// </summary>
 public class AuthService
 {
@@ -33,23 +33,20 @@ public class AuthService
         _logger = logger;
     }
 
-    // ── Register ──────────────────────────────────────────────────────────────
+    // ── Patient Registration ──────────────────────────────────────────────────
 
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
-        // Check for duplicate email
         var normalizedEmail = request.Email.Trim().ToLower(CultureInfo.InvariantCulture);
         if (await _db.Users.AnyAsync(u => u.Email == normalizedEmail))
             throw new InvalidOperationException("A user with this email already exists.");
 
-        // Parse role or default to Patient
         var parsedRole = UserRole.Patient;
         if (!string.IsNullOrWhiteSpace(request.Role) && Enum.TryParse<UserRole>(request.Role, true, out var roleEnum))
         {
             parsedRole = roleEnum;
         }
 
-        // Create User
         var user = new User
         {
             FullName = request.FullName.Trim(),
@@ -57,6 +54,8 @@ public class AuthService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
             PhoneNumber = request.PhoneNumber.Trim(),
             Role = parsedRole,
+            VerificationStatus = VerificationStatus.Approved,
+            IsActive = true,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
@@ -64,7 +63,6 @@ public class AuthService
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        // If role is Patient, also create a Patient profile row
         if (parsedRole == UserRole.Patient)
         {
             var patient = new Patient
@@ -89,6 +87,7 @@ public class AuthService
                 Qualifications = "MBBS",
                 ExperienceYears = 1,
                 ConsultationFee = 2500,
+                IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -103,11 +102,97 @@ public class AuthService
             user.Email,
             user.Role.ToString(),
             token.Token,
-            token.ExpiresAt
+            token.ExpiresAt,
+            user.VerificationStatus.ToString()
         );
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────────
+    // ── Staff Registration (Pending Verification) ─────────────────────────────
+
+    public async Task<StaffRegistrationResponse> RegisterStaffAsync(StaffRegisterRequest request)
+    {
+        var normalizedEmail = request.Email.Trim().ToLower(CultureInfo.InvariantCulture);
+        if (await _db.Users.AnyAsync(u => u.Email == normalizedEmail))
+            throw new InvalidOperationException("A user with this email already exists.");
+
+        // Validate allowed staff roles: Doctor, Pharmacist, Supplier, Receptionist, PharmacyOwner
+        // Strictly exclude Administrator and Patient from staff self-registration
+        if (!Enum.TryParse<UserRole>(request.Role?.Trim(), true, out var roleEnum) ||
+            roleEnum == UserRole.Administrator ||
+            roleEnum == UserRole.Patient)
+        {
+            throw new ArgumentException("Invalid staff role requested. Only Doctor, Pharmacist, Supplier, Receptionist, or Pharmacy Owner may register through staff signup.");
+        }
+
+        string? regNo = null;
+        if (roleEnum == UserRole.Doctor)
+        {
+            if (string.IsNullOrWhiteSpace(request.RegistrationNumber))
+            {
+                throw new ArgumentException("Doctor professional registration number (Reg No.) is mandatory.");
+            }
+            regNo = request.RegistrationNumber.Trim();
+
+            // Validate against duplicate doctor registration numbers
+            if (await _db.Users.AnyAsync(u => u.RegistrationNumber == regNo) ||
+                await _db.Doctors.AnyAsync(d => d.RegistrationNumber == regNo))
+            {
+                throw new InvalidOperationException("A medical practitioner with this professional registration number already exists.");
+            }
+        }
+
+        var user = new User
+        {
+            FullName = request.FullName.Trim(),
+            Email = normalizedEmail,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            PhoneNumber = request.PhoneNumber.Trim(),
+            Role = roleEnum,
+            VerificationStatus = VerificationStatus.Pending,
+            RegistrationNumber = regNo,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _db.Users.Add(user);
+        await _db.SaveChangesAsync();
+
+        // If registering as a Doctor, pre-create the doctor profile record in inactive state
+        if (roleEnum == UserRole.Doctor)
+        {
+            var doctor = new Doctor
+            {
+                UserId = user.Id,
+                FullName = user.FullName,
+                RegistrationNumber = regNo,
+                Bio = "Medical specialist registered on MediFlow AI",
+                Qualifications = "MBBS",
+                ExperienceYears = 1,
+                ConsultationFee = 2500,
+                IsActive = false, // Inactive until approved by administrator
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.Doctors.Add(doctor);
+            await _db.SaveChangesAsync();
+        }
+
+        var confirmationMessage = roleEnum == UserRole.Doctor
+            ? "Your registration has been submitted successfully. Your account is pending administrator verification. Your professional registration number will be reviewed. You will be able to log in after your registration has been reviewed and approved."
+            : "Your registration has been submitted successfully. Your account is pending administrator verification. You will be able to log in after your registration has been reviewed and approved.";
+
+        return new StaffRegistrationResponse(
+            user.Id,
+            user.FullName,
+            user.Email,
+            user.Role.ToString(),
+            user.VerificationStatus.ToString(),
+            confirmationMessage
+        );
+    }
+
+    // ── Login with Portal Separation & Verification Checks ────────────────────
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request)
     {
@@ -121,6 +206,37 @@ public class AuthService
         if (!user.IsActive)
             throw new UnauthorizedAccessException("This account has been deactivated.");
 
+        // Enforce strict portal separation between Patient and Staff login
+        if (!string.IsNullOrWhiteSpace(request.LoginType))
+        {
+            if (request.LoginType.Equals("Patient", StringComparison.OrdinalIgnoreCase) && user.Role != UserRole.Patient)
+            {
+                throw new UnauthorizedAccessException("Staff members must use the Staff Login portal.");
+            }
+
+            if (request.LoginType.Equals("Staff", StringComparison.OrdinalIgnoreCase) && user.Role == UserRole.Patient)
+            {
+                throw new UnauthorizedAccessException("Patients must use the Patient Login portal.");
+            }
+        }
+
+        // Enforce verification status for all staff roles (Doctor, Pharmacist, Supplier, Receptionist, PharmacyOwner)
+        if (user.Role != UserRole.Patient && user.Role != UserRole.Administrator)
+        {
+            if (user.VerificationStatus == VerificationStatus.Pending)
+            {
+                throw new UnauthorizedAccessException("Your account is awaiting administrator verification. You will be able to log in once your registration has been approved. For assistance, please contact the MediFlow Help Center.");
+            }
+
+            if (user.VerificationStatus == VerificationStatus.Rejected)
+            {
+                var reasonSuffix = !string.IsNullOrWhiteSpace(user.RejectionReason)
+                    ? $" Reason: {user.RejectionReason}"
+                    : "";
+                throw new UnauthorizedAccessException($"Your registration was rejected by the administrator.{reasonSuffix}");
+            }
+        }
+
         var token = GenerateJwtToken(user);
         return new AuthResponse(
             user.Id,
@@ -128,7 +244,8 @@ public class AuthService
             user.Email,
             user.Role.ToString(),
             token.Token,
-            token.ExpiresAt
+            token.ExpiresAt,
+            user.VerificationStatus.ToString()
         );
     }
 
@@ -190,12 +307,8 @@ public class AuthService
 
         if (user == null)
         {
-            // Register new account via Google
+            // Public Google signup is exclusively for Patient accounts
             var parsedRole = UserRole.Patient;
-            if (!string.IsNullOrWhiteSpace(request.Role) && Enum.TryParse<UserRole>(request.Role, true, out var roleEnum))
-            {
-                parsedRole = roleEnum;
-            }
 
             user = new User
             {
@@ -204,6 +317,7 @@ public class AuthService
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N")),
                 PhoneNumber = string.Empty,
                 Role = parsedRole,
+                VerificationStatus = VerificationStatus.Approved,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -212,41 +326,39 @@ public class AuthService
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            if (parsedRole == UserRole.Patient)
+            var patient = new Patient
             {
-                var patient = new Patient
-                {
-                    UserId = user.Id,
-                    FullName = user.FullName,
-                    Email = user.Email,
-                    PhoneNumber = user.PhoneNumber,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _db.Patients.Add(patient);
-                await _db.SaveChangesAsync();
-            }
-            else if (parsedRole == UserRole.Doctor)
-            {
-                var doctor = new Doctor
-                {
-                    UserId = user.Id,
-                    FullName = user.FullName,
-                    Bio = "Medical specialist registered on MediFlow AI",
-                    Qualifications = "MBBS",
-                    ExperienceYears = 1,
-                    ConsultationFee = 2500,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-                _db.Doctors.Add(doctor);
-                await _db.SaveChangesAsync();
-            }
+                UserId = user.Id,
+                FullName = user.FullName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _db.Patients.Add(patient);
+            await _db.SaveChangesAsync();
         }
         else
         {
             if (!user.IsActive)
                 throw new UnauthorizedAccessException("This account has been deactivated.");
+
+            // Check verification status if existing staff user tries Google Auth
+            if (user.Role != UserRole.Patient && user.Role != UserRole.Administrator)
+            {
+                if (user.VerificationStatus == VerificationStatus.Pending)
+                {
+                    throw new UnauthorizedAccessException("Your account is awaiting administrator verification. You will be able to log in once your registration has been approved. For assistance, please contact the MediFlow Help Center.");
+                }
+
+                if (user.VerificationStatus == VerificationStatus.Rejected)
+                {
+                    var reasonSuffix = !string.IsNullOrWhiteSpace(user.RejectionReason)
+                        ? $" Reason: {user.RejectionReason}"
+                        : "";
+                    throw new UnauthorizedAccessException($"Your registration was rejected by the administrator.{reasonSuffix}");
+                }
+            }
         }
 
         var token = GenerateJwtToken(user);
@@ -256,7 +368,8 @@ public class AuthService
             user.Email,
             user.Role.ToString(),
             token.Token,
-            token.ExpiresAt
+            token.ExpiresAt,
+            user.VerificationStatus.ToString()
         );
     }
 
@@ -277,6 +390,8 @@ public class AuthService
             new Claim(ClaimTypes.Name, user.FullName),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
             new Claim("userId", user.Id.ToString(CultureInfo.InvariantCulture)),
+            new Claim("verificationStatus", user.VerificationStatus.ToString()),
+            new Claim("registrationNumber", user.RegistrationNumber ?? string.Empty),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
