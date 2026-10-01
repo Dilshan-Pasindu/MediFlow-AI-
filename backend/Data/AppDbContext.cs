@@ -71,6 +71,9 @@ public class AppDbContext : DbContext
             entity.Property(u => u.FullName).IsRequired().HasMaxLength(150);
             entity.Property(u => u.PasswordHash).IsRequired(false);
             entity.Property(u => u.Role).HasConversion<string>();
+            entity.Property(u => u.VerificationStatus).HasConversion<string>();
+            entity.Property(u => u.RegistrationNumber).HasMaxLength(100);
+            entity.Property(u => u.RejectionReason).HasMaxLength(500);
         });
 
         // ── Patient ───────────────────────────────────────────────────────
