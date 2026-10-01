@@ -1,5 +1,6 @@
 import * as signalR from '@microsoft/signalr';
 import type { ConsultationEventPayload } from '../types/consultation';
+import { queryClient } from '../lib/queryClient';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5224/api';
 const HUB_URL = `${apiBase.replace(/\/api\/?$/, '')}/hubs/consultation`;
@@ -37,18 +38,36 @@ class ConsultationHubService {
       this.connection = this.createConnection();
 
       this.connection.on('ConsultationStarted', (payload: ConsultationEventPayload) => {
+        try {
+          queryClient.invalidateQueries({ queryKey: ['appointments'] });
+          queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+        } catch {
+          // ignore in detached/testing environments
+        }
         this.startedCallbacks.forEach((cb) => {
           try { cb(payload); } catch (e) { console.error('Error in ConsultationStarted callback:', e); }
         });
       });
 
       this.connection.on('ConsultationEnded', (payload: ConsultationEventPayload) => {
+        try {
+          queryClient.invalidateQueries({ queryKey: ['appointments'] });
+          queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+        } catch {
+          // ignore in detached/testing environments
+        }
         this.endedCallbacks.forEach((cb) => {
           try { cb(payload); } catch (e) { console.error('Error in ConsultationEnded callback:', e); }
         });
       });
 
       this.connection.onreconnected(async () => {
+        try {
+          queryClient.invalidateQueries({ queryKey: ['appointments'] });
+          queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+        } catch {
+          // ignore in detached/testing environments
+        }
         // Resubscribe to active doctor groups if any
         for (const doctorId of this.activeDoctorSubscriptions) {
           try {

@@ -8,27 +8,33 @@ import {
   apiRateAppointment,
 } from '../services/api';
 
-export function useMyAppointments() {
+export function useMyAppointments(options?: { refetchInterval?: number; staleTime?: number }) {
   return useQuery({
     queryKey: ['appointments', 'my'],
     queryFn: apiGetMyAppointments,
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: options?.staleTime ?? 1000 * 3, // 3 seconds
+    refetchInterval: options?.refetchInterval ?? 3000, // auto-update every 3s
+    refetchOnWindowFocus: true,
   });
 }
 
-export function useDoctorAppointments() {
+export function useDoctorAppointments(options?: { refetchInterval?: number; staleTime?: number }) {
   return useQuery({
     queryKey: ['appointments', 'doctor'],
     queryFn: apiGetDoctorAppointments,
-    staleTime: 1000 * 60 * 2,
+    staleTime: options?.staleTime ?? 1000 * 3,
+    refetchInterval: options?.refetchInterval ?? 3000,
+    refetchOnWindowFocus: true,
   });
 }
 
-export function usePendingAppointments() {
+export function usePendingAppointments(options?: { refetchInterval?: number; staleTime?: number }) {
   return useQuery({
     queryKey: ['appointments', 'pending'],
     queryFn: apiGetPendingAppointments,
-    staleTime: 1000 * 30, // 30 seconds for receptionists
+    staleTime: options?.staleTime ?? 1000 * 3,
+    refetchInterval: options?.refetchInterval ?? 3000,
+    refetchOnWindowFocus: true,
   });
 }
 
