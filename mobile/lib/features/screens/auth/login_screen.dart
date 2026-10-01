@@ -64,6 +64,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final success = await ref.read(authProvider.notifier).login(
           _emailCtrl.text.trim(),
           _passCtrl.text.trim(),
+          loginType: 'Patient',
         );
     if (success && mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -185,7 +186,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       colors: [_kCyan, _kTeal],
                     ).createShader(b),
                     child: Text(
-                      'Sign in to your health portal',
+                      'Sign in to your patient portal',
                       style: GoogleFonts.outfit(
                         fontSize: 15, fontWeight: FontWeight.w500,
                         color: Colors.white, height: 1.3,
@@ -231,7 +232,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 18),
+
+                        // ── Patient Portal Access Badge ──
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _kCyan.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: _kCyan.withValues(alpha: 0.25)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.person_outline_rounded, size: 15, color: _kCyan),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Patient Portal Access',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                    color: _kCyan,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
 
                         // Error banner
                         if (auth.error != null) ...[
@@ -388,43 +418,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         const SizedBox(height: 20),
 
-                        // Demo hint
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: _kCyan.withValues(alpha: 0.07),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: _kCyan.withValues(alpha: 0.18)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(Icons.info_outline_rounded,
-                                      size: 14, color: _kCyan.withValues(alpha: 0.80)),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Demo Account',
-                                    style: GoogleFonts.outfit(
-                                      fontSize: 11, fontWeight: FontWeight.w700,
-                                      color: _kCyan.withValues(alpha: 0.90),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              Text('Email: dilshan@gmail.com',
-                                  style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      color: Colors.white.withValues(alpha: 0.55))),
-                              Text('Password: Test@123',
-                                  style: GoogleFonts.outfit(
-                                      fontSize: 12,
-                                      color: Colors.white.withValues(alpha: 0.55))),
-                            ],
-                          ),
-                        ),
+                        // 24/7 Help Center
+                        const AuthHelpCenterCard(),
                       ],
                     ),
                   ),

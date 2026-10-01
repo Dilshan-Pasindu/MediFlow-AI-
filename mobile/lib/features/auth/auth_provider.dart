@@ -60,23 +60,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Sign in via backend /auth/login (hybrid: works for seeded accounts too).
-  Future<bool> login(String email, String password) async {
+  /// Sign in via backend /auth/login with portal separation.
+  Future<bool> login(String email, String password, {String loginType = 'Patient'}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final data = await ApiClient.instance.post('/auth/login', body: {
         'email': email.trim(),
         'password': password.trim(),
+        'loginType': loginType,
       }) as Map<String, dynamic>;
 
       final user = UserModel.fromJson(data);
-      if (user.role != 'Patient') {
-        state = const AuthState(
-          error: 'This app is for patients only. '
-              'Please use the web portal for staff access.',
-        );
-        return false;
-      }
 
       ApiClient.instance.setToken(user.token);
       await _persist(user);
@@ -119,6 +113,40 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (e) {
       state = const AuthState(error: 'Registration failed. Please try again.');
       return false;
+    }
+  }
+
+  /// Register a new staff account (Pending Verification).
+  Future<Map<String, dynamic>?> registerStaff({
+    required String fullName,
+    required String email,
+    required String password,
+    required String phone,
+    required String role,
+    String? registrationNumber,
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final Map<String, dynamic> body = {
+        'fullName': fullName.trim(),
+        'email': email.trim(),
+        'password': password.trim(),
+        'phoneNumber': phone.trim(),
+        'role': role,
+      };
+      if (registrationNumber != null && registrationNumber.isNotEmpty) {
+        body['registrationNumber'] = registrationNumber.trim();
+      }
+
+      final data = await ApiClient.instance.post('/auth/register-staff', body: body) as Map<String, dynamic>;
+      state = state.copyWith(isLoading: false);
+      return data;
+    } on ApiException catch (e) {
+      state = AuthState(error: e.message);
+      return null;
+    } catch (e) {
+      state = const AuthState(error: 'Staff registration failed. Please try again.');
+      return null;
     }
   }
 
