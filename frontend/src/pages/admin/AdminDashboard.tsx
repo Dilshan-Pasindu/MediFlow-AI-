@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Activity, ShieldCheck, BarChart3, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Clock, Mail, Calendar, Stethoscope, Brain, Pill, Package } from 'lucide-react';
+import { Users, Activity, ShieldCheck, BarChart3, AlertTriangle, CheckCircle, RefreshCw, ArrowRight, Clock, Mail, Calendar, Stethoscope, Brain, Pill, Package, UserCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import PortalHeader from '../../components/PortalHeader';
 import Sidebar from '../../components/Sidebar';
@@ -83,6 +83,33 @@ export default function AdminDashboard() {
 
           {/* Quick Navigation Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginBottom: 24 }}>
+            <div
+              className="card"
+              style={{ cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid rgba(5, 150, 105, 0.3)', background: 'linear-gradient(135deg, rgba(5,150,105,0.03), rgba(16,185,129,0.06))' }}
+              onClick={() => navigate('/admin/registrations')}
+              id="admin-dash-registrations-card"
+            >
+              <div className="card-body" style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(5, 150, 105, 0.1)', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <UserCheck size={22} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      Pending Registrations
+                      {(stats?.pendingStaffRegistrations || 0) > 0 && (
+                        <span style={{ fontSize: 11, background: '#EF4444', color: '#fff', padding: '1px 7px', borderRadius: 10, fontWeight: 800 }}>
+                          {stats.pendingStaffRegistrations}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Staff verification queue · Doctor Reg No</div>
+                  </div>
+                </div>
+                <ArrowRight size={18} style={{ color: '#059669' }} />
+              </div>
+            </div>
+
             <div
               className="card"
               style={{ cursor: 'pointer', transition: 'all 0.2s ease', border: '1px solid var(--border-color)' }}
