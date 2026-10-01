@@ -1,7 +1,7 @@
 import { apiClient } from '../api/client';
 import { useAuthStore } from '../stores/authStore';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import type { User, UserRole, AuthResponse } from '../types/auth';
+import type { User, UserRole, AuthResponse, StaffRegistrationResponse, PendingRegistration } from '../types/auth';
 import type { ProfileForm } from '../types/profile';
 import type { Order, CreateOrderDto, RestockRequestDto, Invoice, InvoiceLineItem } from '../types/order';
 import type { Prescription, CreatePrescriptionDto, MedicationCheckResult, DrugInteraction, AlternativeDrug, ScreenInteractionsResponse, DrugInteractionLog } from '../types/prescription';
@@ -51,7 +51,7 @@ async function apiFetch<T = unknown>(
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-export async function apiLogin(email: string, password: string) {
+export async function apiLogin(email: string, password: string, loginType?: 'Patient' | 'Staff') {
   if (isSupabaseConfigured()) {
     try {
       const { data: supaData, error: supaError } = await supabase.auth.signInWithPassword({
@@ -76,19 +76,36 @@ export async function apiLogin(email: string, password: string) {
         useAuthStore.getState().setAuth(combined);
         return combined;
       }
-    } catch {
+    } catch (supaErr: any) {
+      if (supaErr?.response?.data?.message) {
+        throw new Error(supaErr.response.data.message);
+      }
       // Supabase sign-in failed (e.g. user not in Supabase auth yet).
       // Fall through to backend auth fallback below.
     }
   }
 
-  // Fallback to legacy/direct backend auth (handles seeded demo accounts & doctors/admins)
+  // Fallback to direct backend auth (handles seeded demo accounts & doctors/admins)
   const data = await apiFetch<AuthResponse>('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, loginType }),
   });
   useAuthStore.getState().setAuth(data);
   return data;
+}
+
+export async function apiRegisterStaff(payload: {
+  fullName: string;
+  email: string;
+  password: string;
+  phoneNumber: string;
+  role: string;
+  registrationNumber?: string;
+}): Promise<StaffRegistrationResponse> {
+  return await apiFetch<StaffRegistrationResponse>('/auth/register-staff', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function apiRegister(fullName: string, email: string, password: string, phoneNumber: string, role: UserRole = 'Patient') {
@@ -764,6 +781,37 @@ export async function apiGetAdminUsers(role?: string, search?: string) {
     updatedAt: string;
     lastLogin: string;
   }>>(`/admin/users${qs.toString() ? `?${qs}` : ''}`);
+}
+
+export async function apiGetPendingRegistrations(params?: {
+  role?: string;
+  search?: string;
+  status?: string;
+}): Promise<{ pendingCount: number; registrations: PendingRegistration[] }> {
+  const qs = new URLSearchParams();
+  if (params?.role && params.role !== 'All') qs.append('role', params.role);
+  if (params?.search) qs.append('search', params.search);
+  if (params?.status && params.status !== 'All') qs.append('status', params.status);
+  const qStr = qs.toString() ? `?${qs.toString()}` : '';
+  return await apiFetch<{ pendingCount: number; registrations: PendingRegistration[] }>(`/admin/pending-registrations${qStr}`);
+}
+
+export async function apiGetPendingRegistrationDetails(id: number): Promise<PendingRegistration> {
+  return await apiFetch<PendingRegistration>(`/admin/pending-registrations/${id}`);
+}
+
+export async function apiApproveRegistration(id: number, notes?: string): Promise<any> {
+  return await apiFetch(`/admin/pending-registrations/${id}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({ notes }),
+  });
+}
+
+export async function apiRejectRegistration(id: number, reason?: string): Promise<any> {
+  return await apiFetch(`/admin/pending-registrations/${id}/reject`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
 }
 
 export async function apiUpdateUserStatus(id: number | string, isActive: boolean) {

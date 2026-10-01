@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Search, Calendar, FileText,
   User, LogOut, HeartPulse, Pill, PackageSearch,
   ClipboardList, BarChart3, Truck,
-  ShieldCheck, Activity, Users, CreditCard, type LucideIcon
+  ShieldCheck, Activity, Users, CreditCard, UserCheck, type LucideIcon
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import type { UserRole } from '../types/auth';
@@ -95,10 +95,11 @@ const NAV_BY_ROLE: Record<UserRole, NavSection[]> = {
   ],
   Administrator: [
     { section: 'Administration', items: [
-      { to: '/admin/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
-      { to: '/admin/users',       icon: Users,           label: 'User Management' },
-      { to: '/admin/audit',       icon: ShieldCheck,     label: 'Audit Logs' },
-      { to: '/admin/ai-monitor',  icon: Activity,        label: 'AI Monitor' },
+      { to: '/admin/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/admin/registrations', icon: UserCheck,       label: 'Pending Registrations' },
+      { to: '/admin/users',         icon: Users,           label: 'User Management' },
+      { to: '/admin/audit',         icon: ShieldCheck,     label: 'Audit Logs' },
+      { to: '/admin/ai-monitor',    icon: Activity,        label: 'AI Monitor' },
     ]},
     { section: 'Account', items: [
       { to: '/profile', icon: User, label: 'My Profile' },

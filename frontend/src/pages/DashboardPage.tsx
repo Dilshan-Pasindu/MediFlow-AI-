@@ -9,34 +9,103 @@ import TopBar from '../components/TopBar';
 import NowConsultingCard from '../components/NowConsultingCard';
 import { getUser } from '../services/api';
 import { useMyAppointments, useMyPrescriptions } from '../hooks';
+import { consultationHubService } from '../services/consultationHubService';
+import { queryClient } from '../lib/queryClient';
+
+const UPCOMING_STATUSES = [
+  'Pending',
+  'PaymentPending',
+  'PaymentSubmitted',
+  'PaymentVerified',
+  'WaitingForReceptionist',
+  'Confirmed',
+  'ReceptionistApproved',
+  'InConsultation',
+];
+
+const statusStyles: Record<string, { color: string; bg: string }> = {
+  Pending:                { color: '#B45309', bg: '#FFFBEB' },
+  PaymentPending:         { color: '#B45309', bg: '#FFFBEB' },
+  PaymentSubmitted:       { color: '#0369A1', bg: '#EFF6FF' },
+  PaymentVerified:        { color: '#0369A1', bg: '#EFF6FF' },
+  WaitingForReceptionist: { color: '#0369A1', bg: '#EFF6FF' },
+  Confirmed:              { color: '#059669', bg: '#ECFDF5' },
+  ReceptionistApproved:   { color: '#059669', bg: '#ECFDF5' },
+  InConsultation:         { color: '#DC2626', bg: '#FEF2F2' },
+  Completed:              { color: '#6366F1', bg: '#EEF2FF' },
+  Cancelled:              { color: '#DC2626', bg: '#FEF2F2' },
+};
 
 export default function DashboardPage() {
   const navigate = useNavigate();
   const user = getUser();
 
-  const { data: appointments = [], isLoading: apptsLoading } = useMyAppointments();
-  const { data: prescriptions = [], isLoading: rxsLoading } = useMyPrescriptions();
+  const { data: appointments = [], isLoading: apptsLoading, refetch: refetchAppts } = useMyAppointments({
+    refetchInterval: 3000,
+    staleTime: 3000,
+  });
+  const { data: prescriptions = [], isLoading: rxsLoading, refetch: refetchRxs } = useMyPrescriptions({
+    refetchInterval: 3000,
+    staleTime: 3000,
+  });
   const loading = apptsLoading || rxsLoading;
 
   useEffect(() => {
     if (!user) { navigate('/login'); }
   }, [user, navigate]);
 
+  // Real-time synchronization via SignalR for instant updates when consultations start or finish
+  useEffect(() => {
+    consultationHubService.startConnection().catch(() => {});
+
+    const triggerRefresh = () => {
+      refetchAppts?.();
+      refetchRxs?.();
+      try {
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['prescriptions'] });
+      } catch {
+        // Safe for mock/test environments
+      }
+    };
+
+    const unsubStarted = consultationHubService.onConsultationStarted(() => {
+      triggerRefresh();
+    });
+
+    const unsubEnded = consultationHubService.onConsultationEnded(() => {
+      triggerRefresh();
+    });
+
+    const unsubReconnected = consultationHubService.onReconnected(() => {
+      triggerRefresh();
+    });
+
+    return () => {
+      unsubStarted();
+      unsubEnded();
+      unsubReconnected();
+    };
+  }, [refetchAppts, refetchRxs]);
+
   const today = new Date();
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const upcomingAppts = appointments.filter(a => ['Pending', 'PaymentSubmitted', 'Confirmed', 'InConsultation'].includes(a.status));
-  const completedAppts = appointments.filter(a => a.status === 'Completed');
+  const upcomingAppts = appointments
+    .filter(a => UPCOMING_STATUSES.includes(a.status))
+    .sort((a, b) => {
+      // InConsultation always highest priority to stay at top
+      if (a.status === 'InConsultation' && b.status !== 'InConsultation') return -1;
+      if (b.status === 'InConsultation' && a.status !== 'InConsultation') return 1;
+      // Soonest scheduled appointments first
+      const dateA = new Date(a.appointmentDateTime).getTime();
+      const dateB = new Date(b.appointmentDateTime).getTime();
+      return dateA - dateB;
+    });
 
-  const statusStyles = {
-    Pending:          { color: '#B45309', bg: '#FFFBEB' },
-    PaymentSubmitted: { color: '#0369A1', bg: '#EFF6FF' },
-    Confirmed:        { color: '#059669', bg: '#ECFDF5' },
-    InConsultation:   { color: '#DC2626', bg: '#FEF2F2' },
-    Completed:        { color: '#6366F1', bg: '#EEF2FF' },
-    Cancelled:        { color: '#DC2626', bg: '#FEF2F2' },
-  };
+  const completedAppts = appointments.filter(a => a.status === 'Completed');
+  const activePrescriptions = prescriptions.filter(p => !p.status || p.status === 'Active');
 
   const quickActions = [
     { icon: Stethoscope, iconColor: '#0284C7', label: 'Find Doctor',      desc: 'Search specialists',    action: () => navigate('/find-doctor'),   color: 'var(--med-blue-50)' },
@@ -117,7 +186,7 @@ export default function DashboardPage() {
                 id: 'stat-card-prescriptions',
                 icon: <Pill size={22} color="#0D9488" />,
                 label: 'Prescriptions',
-                value: prescriptions.length,
+                value: activePrescriptions.length,
                 sub: 'active',
                 bg: 'var(--med-teal-50)',
                 path: '/prescriptions',

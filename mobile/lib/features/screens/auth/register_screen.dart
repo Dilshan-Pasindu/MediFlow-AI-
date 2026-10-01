@@ -177,7 +177,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               colors: [_kCyan, _kTeal],
                             ).createShader(b),
                             child: Text(
-                              'Join MediFlow AI today',
+                              'Join MediFlow AI as a Patient',
                               style: GoogleFonts.outfit(
                                 fontSize: 13, fontWeight: FontWeight.w500,
                                 color: Colors.white,
@@ -239,7 +239,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 18),
+
+                        // ── Patient Registration Badge ──
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _kCyan.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: _kCyan.withValues(alpha: 0.25)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.person_outline_rounded, size: 15, color: _kCyan),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Patient Registration',
+                                  style: GoogleFonts.outfit(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                    color: _kCyan,
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
 
                         // Error banner
                         if (auth.error != null) ...[
@@ -413,6 +442,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               color: Colors.white.withValues(alpha: 0.28),
                               height: 1.5),
                         ),
+                        const SizedBox(height: 12),
+
+                        // 24/7 Help Center
+                        const AuthHelpCenterCard(),
                       ],
                     ),
                   ),

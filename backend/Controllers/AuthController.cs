@@ -28,7 +28,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Register a new patient account.
+    /// Register a new patient account. Role is strictly enforced as Patient by the backend.
     /// </summary>
     [HttpPost("register")]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request)
@@ -45,7 +45,29 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Login with email and password. Returns a JWT token.
+    /// Register a new staff account (Doctor, Pharmacist, Supplier, Receptionist, Pharmacy Owner).
+    /// Creates the account in a Pending verification state awaiting administrator review.
+    /// </summary>
+    [HttpPost("register-staff")]
+    public async Task<ActionResult<StaffRegistrationResponse>> RegisterStaff([FromBody] StaffRegisterRequest request)
+    {
+        try
+        {
+            var result = await _authService.RegisterStaffAsync(request);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Login with email and password. Validates portal loginType and checks verification status.
     /// </summary>
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request)
@@ -84,7 +106,7 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Synchronize or provision the authenticated Supabase user profile into PostgreSQL.
-    /// Expects a valid Supabase JWT in the Authorization header.
+    /// Validates verification status for staff accounts.
     /// </summary>
     [Authorize]
     [HttpPost("sync")]
@@ -124,6 +146,29 @@ public class AuthController : ControllerBase
 
         var user = await _supabaseResolver.SyncSupabaseUserAsync(sub, email, fullName, phone, role);
 
+        // Enforce verification status on staff accounts
+        if (user.Role != UserRole.Patient && user.Role != UserRole.Administrator)
+        {
+            if (user.VerificationStatus == VerificationStatus.Pending)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    message = "Your account is awaiting administrator verification. You will be able to log in once your registration has been approved. For assistance, please contact the MediFlow Help Center."
+                });
+            }
+
+            if (user.VerificationStatus == VerificationStatus.Rejected)
+            {
+                var reasonSuffix = !string.IsNullOrWhiteSpace(user.RejectionReason)
+                    ? $" Reason: {user.RejectionReason}"
+                    : "";
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    message = $"Your registration was rejected by the administrator.{reasonSuffix}"
+                });
+            }
+        }
+
         // Get active raw JWT token from header
         var authHeader = Request.Headers.Authorization.ToString();
         var rawToken = authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
@@ -136,12 +181,13 @@ public class AuthController : ControllerBase
             user.Email,
             user.Role.ToString(),
             rawToken,
-            DateTime.UtcNow.AddHours(24)
+            DateTime.UtcNow.AddHours(24),
+            user.VerificationStatus.ToString()
         ));
     }
 
     /// <summary>
-    /// Retrieve current authenticated user profile, mapped patient/doctor ID, and roles.
+    /// Retrieve current authenticated user profile, mapped patient/doctor ID, verification status, and roles.
     /// </summary>
     [Authorize]
     [HttpGet("me")]
@@ -189,8 +235,9 @@ public class AuthController : ControllerBase
             user.Role.ToString(),
             user.PhoneNumber,
             patientId,
-            doctorId
+            doctorId,
+            user.VerificationStatus.ToString(),
+            user.RegistrationNumber
         ));
     }
 }
-

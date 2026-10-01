@@ -20,6 +20,7 @@ import '../../features/screens/ai/symptom_ai_screen.dart';
 import '../../features/screens/notifications/notifications_screen.dart';
 import '../../features/screens/profile/profile_screen.dart';
 import '../../features/screens/profile/edit_profile_screen.dart';
+import '../../screens/payment_screens.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
@@ -67,6 +68,14 @@ GoRouter buildRouter(WidgetRef ref) {
       GoRoute(
         path: '/appointments/:id',
         builder: (_, state) => AppointmentDetailScreen(id: int.parse(state.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/appointments/:id/payment',
+        builder: (_, state) => PaymentCheckoutScreen(appointmentId: int.parse(state.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: '/appointments/:id/refund',
+        builder: (_, state) => RefundTrackingScreen(appointmentId: int.parse(state.pathParameters['id']!)),
       ),
       GoRoute(
         path: '/doctors/:id',

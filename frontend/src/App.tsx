@@ -51,6 +51,7 @@ const SupplierHistoryPage = React.lazy(() => import('./pages/supplier/SupplierHi
 
 // Admin
 const AdminDashboard = React.lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminPendingRegistrationsPage = React.lazy(() => import('./pages/admin/AdminPendingRegistrationsPage'));
 const AdminUsersPage = React.lazy(() => import('./pages/admin/AdminUsersPage'));
 const AdminAuditPage = React.lazy(() => import('./pages/admin/AdminAuditPage'));
 const AdminAIMonitorPage = React.lazy(() => import('./pages/admin/AdminAIMonitorPage'));
@@ -107,6 +108,13 @@ function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
 
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Ensure unverified or rejected staff accounts cannot access protected portals
+  if (user.role !== 'Patient' && user.role !== 'Administrator') {
+    if (user.verificationStatus === 'Pending' || user.verificationStatus === 'Rejected') {
+      return <Navigate to="/login?portal=staff" replace />;
+    }
   }
 
   if (roles && !roles.includes(user.role)) {
@@ -199,9 +207,14 @@ function App() {
 
           {/* Admin Portal */}
           <Route path="/admin/dashboard" element={<ProtectedRoute roles={['Administrator']}><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/registrations" element={<ProtectedRoute roles={['Administrator']}><AdminPendingRegistrationsPage /></ProtectedRoute>} />
           <Route path="/admin/users" element={<ProtectedRoute roles={['Administrator']}><AdminUsersPage /></ProtectedRoute>} />
           <Route path="/admin/audit" element={<ProtectedRoute roles={['Administrator']}><AdminAuditPage /></ProtectedRoute>} />
           <Route path="/admin/ai-monitor" element={<ProtectedRoute roles={['Administrator']}><AdminAIMonitorPage /></ProtectedRoute>} />
+
+          {/* Quick Route Aliases */}
+          <Route path="/register" element={<Navigate to="/login?mode=register" replace />} />
+          <Route path="/signup" element={<Navigate to="/login?mode=register" replace />} />
 
           {/* 404 / Catch-all */}
           <Route path="*" element={<Navigate to="/" replace />} />

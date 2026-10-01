@@ -1,13 +1,16 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../core/constants.dart';
-import '../providers/auth_provider.dart';
-import '../providers/appointment_provider.dart';
+import '../core/network/api_client.dart';
+import '../core/theme/app_theme.dart';
+import '../features/auth/auth_provider.dart';
+import '../features/patient/patient_providers.dart';
 
-/// PayHere sandbox checkout parameters returned by our backend
+/// PayHere sandbox checkout parameters returned by MediFlow backend
 class PayHereParams {
   final String merchantId;
   final String returnUrl;
@@ -68,12 +71,14 @@ class PayHereParams {
       country: json['country'] ?? '',
       items: json['items'] ?? '',
       appointmentId: json['appointmentId'] ?? 0,
-      sandboxCheckoutUrl: json['sandboxCheckoutUrl'] ?? 'https://sandbox.payhere.lk/pay/checkout',
+      sandboxCheckoutUrl:
+          json['sandboxCheckoutUrl'] ?? 'https://sandbox.payhere.lk/pay/checkout',
     );
   }
 }
 
-class RefundStatus {
+/// Models refund tracking status matching backend & frontend
+class RefundStatusModel {
   final int? id;
   final String? refundReference;
   final double? amount;
@@ -87,9 +92,10 @@ class RefundStatus {
   final String? completedAt;
   final String? failedAt;
   final String? rejectionReason;
+  final String? providerRefundId;
   final String? expectedProcessingInfo;
 
-  const RefundStatus({
+  const RefundStatusModel({
     this.id,
     this.refundReference,
     this.amount,
@@ -103,30 +109,33 @@ class RefundStatus {
     this.completedAt,
     this.failedAt,
     this.rejectionReason,
+    this.providerRefundId,
     this.expectedProcessingInfo,
   });
 
-  factory RefundStatus.fromJson(Map<String, dynamic> json) {
-    return RefundStatus(
-      id: json['id'],
-      refundReference: json['refundReference'],
+  factory RefundStatusModel.fromJson(Map<String, dynamic> json) {
+    return RefundStatusModel(
+      id: json['id'] as int?,
+      refundReference: json['refundReference'] as String?,
       amount: (json['amount'] as num?)?.toDouble(),
-      currency: json['currency'] ?? 'LKR',
-      status: json['status'],
-      reason: json['reason'],
-      additionalNotes: json['additionalNotes'],
-      requestedAt: json['requestedAt'],
-      approvedAt: json['approvedAt'],
-      processingAt: json['processingAt'],
-      completedAt: json['completedAt'],
-      failedAt: json['failedAt'],
-      rejectionReason: json['rejectionReason'],
-      expectedProcessingInfo: json['expectedProcessingInfo'],
+      currency: (json['currency'] as String?) ?? 'LKR',
+      status: json['status'] as String?,
+      reason: json['reason'] as String?,
+      additionalNotes: json['additionalNotes'] as String?,
+      requestedAt: json['requestedAt'] as String?,
+      approvedAt: json['approvedAt'] as String?,
+      processingAt: json['processingAt'] as String?,
+      completedAt: json['completedAt'] as String?,
+      failedAt: json['failedAt'] as String?,
+      rejectionReason: json['rejectionReason'] as String?,
+      providerRefundId: json['providerRefundId'] as String?,
+      expectedProcessingInfo: json['expectedProcessingInfo'] as String?,
     );
   }
 }
 
-/// Payment checkout screen — initiates PayHere sandbox payment and shows status
+/// Payment checkout screen — supports direct sandbox gateway card payment
+/// and PayHere hosted sandbox checkout with status verification.
 class PaymentCheckoutScreen extends ConsumerStatefulWidget {
   final int appointmentId;
   final String? doctorName;
@@ -148,129 +157,225 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
   bool _checkingStatus = false;
   String? _error;
   String? _paymentStatus;
-  RefundStatus? _refundStatus;
+  RefundStatusModel? _refundStatus;
   String _step = 'review'; // review | pay | verify | done
   double? _currentFee;
   String? _doctorName;
+  String? _specialty;
+  String? _providerPaymentId;
+  String? _paymentMethod;
+  String? _paidAt;
+
+  // Direct Card Payment Form
+  final _cardNumberCtrl = TextEditingController(text: '4111 1111 1111 1111');
+  final _cardHolderCtrl = TextEditingController();
+  final _expiryCtrl = TextEditingController(text: '12/28');
+  final _cvvCtrl = TextEditingController(text: '123');
+  String _selectedMethod = 'Credit / Debit Card';
 
   @override
   void initState() {
     super.initState();
+    _currentFee = widget.fee;
+    _doctorName = widget.doctorName;
+    final user = ref.read(authProvider).user;
+    _cardHolderCtrl.text = user?.fullName.isNotEmpty == true ? user!.fullName : 'Patient';
     _checkPaymentStatus();
   }
 
-  Future<void> _checkPaymentStatus() async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return;
+  @override
+  void dispose() {
+    _cardNumberCtrl.dispose();
+    _cardHolderCtrl.dispose();
+    _expiryCtrl.dispose();
+    _cvvCtrl.dispose();
+    super.dispose();
+  }
 
-    setState(() { _checkingStatus = true; });
+  String? _getAuthToken() {
+    return ApiClient.instance.token ?? ref.read(authProvider).user?.token;
+  }
+
+  Future<void> _checkPaymentStatus() async {
+    final token = _getAuthToken();
+    if (token == null) return;
+
+    setState(() {
+      _checkingStatus = true;
+      _error = null;
+    });
+
     try {
       final resp = await http.get(
         Uri.parse('${AppConstants.apiBaseUrl}/payment/appointments/${widget.appointmentId}/status'),
-        headers: {'Authorization': 'Bearer ${auth.token}'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
+
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
+        final data = jsonDecode(resp.body) as Map<String, dynamic>;
         final apptStatus = data['appointmentStatus'] as String?;
         final payStatus = data['payment']?['status'] as String?;
         final refundData = data['refund'];
-        final amount = (data['amount'] as num?)?.toDouble() ?? (data['doctorFee'] as num?)?.toDouble();
-        final doctorName = data['doctorName'] as String?;
+        final amount = (data['amount'] as num?)?.toDouble() ??
+            (data['doctorFee'] as num?)?.toDouble();
+        final doc = data['doctorName'] as String?;
+        final spec = data['specialty'] as String?;
 
-        setState(() {
-          _paymentStatus = payStatus ?? apptStatus;
-          if (amount != null && amount > 0) {
-            _currentFee = amount;
-          }
-          if (doctorName != null && doctorName.isNotEmpty) {
-            _doctorName = doctorName;
-          }
-          if (refundData != null) {
-            _refundStatus = RefundStatus.fromJson(refundData);
-          }
-          // Set step
-          if (['Completed', 'ReceptionistApproved', 'Confirmed', 'InConsultation'].contains(apptStatus)) {
-            _step = 'done';
-          } else if (payStatus == 'Paid' || ['PaymentVerified', 'PaymentSubmitted', 'WaitingForReceptionist'].contains(apptStatus)) {
-            _step = 'verify';
-          }
-        });
+        final provId = data['payment']?['providerPaymentId'] as String?;
+        final pMethod = data['payment']?['paymentMethod'] as String?;
+        final pDate = data['payment']?['paidAt'] as String?;
+
+        if (mounted) {
+          setState(() {
+            _paymentStatus = payStatus ?? apptStatus;
+            _providerPaymentId = provId;
+            _paymentMethod = pMethod;
+            _paidAt = pDate;
+
+            if (amount != null && amount > 0) {
+              _currentFee = amount;
+            }
+            if (doc != null && doc.isNotEmpty) {
+              _doctorName = doc;
+            }
+            if (spec != null && spec.isNotEmpty) {
+              _specialty = spec;
+            }
+            if (refundData != null) {
+              _refundStatus = RefundStatusModel.fromJson(refundData);
+            }
+
+            // Sync step
+            if (['Completed', 'ReceptionistApproved', 'Confirmed', 'InConsultation'].contains(apptStatus)) {
+              _step = 'done';
+            } else if (payStatus == 'Paid' ||
+                ['PaymentVerified', 'PaymentSubmitted', 'WaitingForReceptionist'].contains(apptStatus)) {
+              _step = 'done';
+            } else {
+              _step = 'review';
+            }
+          });
+        }
       }
-    } catch (_) {}
-    finally {
-      setState(() { _checkingStatus = false; });
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Failed to verify payment status: $e');
+    } finally {
+      if (mounted) setState(() => _checkingStatus = false);
     }
   }
 
-  Future<void> _processGatewayCardPayment() async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return;
+  void _fillTestCard(String cardNum, String exp, String cvv, String method) {
+    setState(() {
+      _cardNumberCtrl.text = cardNum;
+      _expiryCtrl.text = exp;
+      _cvvCtrl.text = cvv;
+      _selectedMethod = method;
+      _error = null;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Filled $method Test Sandbox Card', style: GoogleFonts.outfit()),
+        backgroundColor: AppTheme.primaryBlue,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
-    setState(() { _initiating = true; _error = null; });
+  Future<void> _processGatewayCardPayment() async {
+    final token = _getAuthToken();
+    if (token == null) return;
+
+    if (_cardNumberCtrl.text.replaceAll(' ', '').length < 14) {
+      setState(() => _error = 'Please enter a valid card number.');
+      return;
+    }
+
+    setState(() {
+      _initiating = true;
+      _error = null;
+    });
+
     try {
       final resp = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}/payment/appointments/${widget.appointmentId}/pay-gateway'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${auth.token}',
+          'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'cardNumber': '4111 1111 1111 1111',
-          'cardHolder': auth.user?.fullName ?? 'Patient',
-          'expiry': '12/28',
-          'cvv': '123',
-          'paymentMethod': 'Credit / Debit Card',
+          'cardNumber': _cardNumberCtrl.text.trim(),
+          'cardHolder': _cardHolderCtrl.text.trim(),
+          'expiry': _expiryCtrl.text.trim(),
+          'cvv': _cvvCtrl.text.trim(),
+          'paymentMethod': _selectedMethod,
         }),
       );
 
       if (resp.statusCode == 200) {
-        setState(() {
-          _step = 'verify';
-          _paymentStatus = 'Paid';
-        });
-        await _checkPaymentStatus();
+        ref.invalidate(myAppointmentsProvider);
+        if (mounted) {
+          setState(() {
+            _step = 'done';
+            _paymentStatus = 'Paid';
+          });
+          await _checkPaymentStatus();
+        }
       } else {
         final body = jsonDecode(resp.body);
-        setState(() { _error = body['message'] ?? 'Payment failed. Please retry.'; });
+        if (mounted) {
+          setState(() {
+            _error = body['message'] ?? 'Payment authorization failed. Please try again.';
+          });
+        }
       }
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() { _initiating = false; });
+      if (mounted) setState(() => _initiating = false);
     }
   }
 
-  Future<void> _initiatePayment() async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return;
+  Future<void> _initiateHostedPayHere() async {
+    final token = _getAuthToken();
+    if (token == null) return;
 
-    setState(() { _initiating = true; _error = null; });
+    setState(() {
+      _initiating = true;
+      _error = null;
+    });
+
     try {
       final resp = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}/payment/appointments/${widget.appointmentId}/initiate'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${auth.token}',
+          'Authorization': 'Bearer $token',
         },
       );
 
       if (resp.statusCode == 200) {
         final params = PayHereParams.fromJson(jsonDecode(resp.body));
-        setState(() { _step = 'pay'; });
+        setState(() => _step = 'pay');
         await _openPayHereCheckout(params);
       } else {
         final body = jsonDecode(resp.body);
-        setState(() { _error = body['message'] ?? 'Failed to initiate payment.'; });
+        if (mounted) {
+          setState(() {
+            _error = body['message'] ?? 'Failed to initiate PayHere checkout.';
+          });
+        }
       }
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() { _initiating = false; });
+      if (mounted) setState(() => _initiating = false);
     }
   }
 
   Future<void> _openPayHereCheckout(PayHereParams params) async {
-    // Build the PayHere checkout URL with query parameters
     final uri = Uri.parse(params.sandboxCheckoutUrl).replace(queryParameters: {
       'merchant_id': params.merchantId,
       'return_url': params.returnUrl,
@@ -291,31 +396,35 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
       'platform': 'MOBILE',
     });
 
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else {
-      setState(() { _error = 'Could not open PayHere checkout. Please try again.'; });
+    try {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched && mounted) {
+        setState(() => _error = 'Could not open PayHere checkout. Please try again.');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Error launching browser: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppTheme.bgCanvas,
       appBar: AppBar(
-        title: const Text('Payment Checkout'),
-        backgroundColor: const Color(0xFF0284C7),
+        title: Text('Payment Checkout',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 18)),
+        backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: 'Refresh Status',
             onPressed: _checkPaymentStatus,
           ),
         ],
       ),
-      body: _checkingStatus && _step == 'review'
+      body: _checkingStatus && _step == 'review' && _currentFee == null
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -323,14 +432,14 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildStepIndicator(),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   if (_step == 'review') _buildReviewStep(),
                   if (_step == 'pay') _buildPayStep(),
                   if (_step == 'verify') _buildVerifyStep(),
                   if (_step == 'done') _buildDoneStep(),
                   if (_refundStatus != null) ...[
                     const SizedBox(height: 16),
-                    _buildRefundCard(),
+                    _buildRefundBanner(),
                   ],
                   const SizedBox(height: 16),
                   _buildPolicyCard(),
@@ -341,125 +450,270 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
   }
 
   Widget _buildStepIndicator() {
-    final steps = ['Review', 'Checkout', 'Verify', 'Confirmed'];
-    final currentIdx = ['review', 'pay', 'verify', 'done'].indexOf(_step);
+    final steps = ['Review', 'Authorize', 'Verified'];
+    final currentIdx = _step == 'review'
+        ? 0
+        : _step == 'pay'
+            ? 1
+            : 2;
 
-    return Row(
-      children: List.generate(steps.length, (i) {
-        final isDone = i < currentIdx;
-        final isActive = i == currentIdx;
-        return Expanded(
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  children: [
-                    Container(
-                      width: 32, height: 32,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDone ? const Color(0xFF059669)
-                            : isActive ? const Color(0xFF0284C7)
-                            : const Color(0xFFE2E8F0),
-                      ),
-                      child: Center(
-                        child: isDone
-                            ? const Icon(Icons.check, size: 16, color: Colors.white)
-                            : Text('${i + 1}', style: TextStyle(
-                                color: isActive ? Colors.white : const Color(0xFF94A3B8),
-                                fontWeight: FontWeight.bold, fontSize: 13)),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(steps[i], style: TextStyle(
-                      fontSize: 10,
-                      color: isActive ? const Color(0xFF0284C7) : isDone ? const Color(0xFF059669) : const Color(0xFF94A3B8),
-                      fontWeight: isActive || isDone ? FontWeight.w600 : FontWeight.normal,
-                    )),
-                  ],
-                ),
-              ),
-              if (i < steps.length - 1)
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Row(
+        children: List.generate(steps.length, (i) {
+          final isDone = i < currentIdx;
+          final isActive = i == currentIdx;
+          return Expanded(
+            child: Row(
+              children: [
                 Expanded(
-                  child: Container(
-                    height: 2, margin: const EdgeInsets.only(bottom: 20),
-                    color: isDone ? const Color(0xFF059669) : const Color(0xFFE2E8F0),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDone
+                              ? AppTheme.statusConfirmed
+                              : isActive
+                                  ? AppTheme.primaryBlue
+                                  : const Color(0xFFE2E8F0),
+                        ),
+                        child: Center(
+                          child: isDone
+                              ? const Icon(Icons.check, size: 15, color: Colors.white)
+                              : Text(
+                                  '${i + 1}',
+                                  style: GoogleFonts.outfit(
+                                    color: isActive ? Colors.white : const Color(0xFF94A3B8),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        steps[i],
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          color: isActive
+                              ? AppTheme.primaryBlue
+                              : isDone
+                                  ? AppTheme.statusConfirmed
+                                  : const Color(0xFF94A3B8),
+                          fontWeight: isActive || isDone ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-            ],
-          ),
-        );
-      }),
+                if (i < steps.length - 1)
+                  Container(
+                    width: 32,
+                    height: 2,
+                    margin: const EdgeInsets.only(bottom: 18),
+                    color: isDone ? AppTheme.statusConfirmed : const Color(0xFFE2E8F0),
+                  ),
+              ],
+            ),
+          );
+        }),
+      ),
     );
   }
 
   Widget _buildReviewStep() {
-    final fee = _currentFee ?? widget.fee ?? 3500;
+    final fee = _currentFee ?? widget.fee ?? 2500;
+    final doctor = _doctorName ?? widget.doctorName ?? 'Consulting Specialist';
+    final specialty = _specialty ?? 'General Clinical Consultation';
+
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Security notice
+        // Trust badge
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF0FDF4),
-            border: Border.all(color: const Color(0xFFBBF7D0), width: 1.5),
-            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFFECFDF5),
+            border: Border.all(color: const Color(0xFFA7F3D0)),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
-          child: const Row(
+          child: Row(
             children: [
-              Icon(Icons.shield_outlined, color: Color(0xFF16A34A), size: 20),
-              SizedBox(width: 10),
+              const Icon(Icons.verified_user_rounded, color: Color(0xFF059669), size: 20),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '256-Bit SSL Encrypted Payment · Authorized by Central Bank of Sri Lanka (PayHere)',
-                  style: TextStyle(color: Color(0xFF166534), fontSize: 12.5, fontWeight: FontWeight.w600),
+                  'PayHere Sandbox · 256-Bit Encrypted · Central Bank of Sri Lanka Certified',
+                  style: GoogleFonts.outfit(
+                    color: const Color(0xFF065F46),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
 
-        // Payment summary card
-        Card(
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Payment Summary', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 14),
-                if (_doctorName != null) _summaryRow('Doctor', _doctorName!),
-                _summaryRow('Consultation Fee', 'Rs. ${fee.toStringAsFixed(0)}'),
-                _summaryRow('Currency', 'Sri Lankan Rupees (LKR)'),
-                _summaryRow('Payment Gateway', 'PayHere Secure Payment'),
-              ],
-            ),
+        // Summary Card
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Appointment & Fee Breakdown',
+                  style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700, fontSize: 15, color: AppTheme.textPrimary)),
+              const SizedBox(height: 12),
+              _row('Specialist', doctor),
+              _row('Specialty', specialty),
+              _row('Currency', 'LKR (Sri Lankan Rupees)'),
+              const Divider(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Total Amount Payable',
+                      style: GoogleFonts.outfit(
+                          fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                  Text(
+                    'Rs. ${fee.toStringAsFixed(2)}',
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.primaryBlue,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 14),
 
-        // Accepted payment methods badge
+        // Quick Sandbox Test Cards
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFFF8FAFC),
             border: Border.all(color: const Color(0xFFE2E8F0)),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
           ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Icon(Icons.credit_card, color: Color(0xFF0284C7), size: 20),
-                  SizedBox(width: 8),
-                  Text('Accepted Cards', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B))),
+                  const Icon(Icons.science_rounded, size: 16, color: Color(0xFF64748B)),
+                  const SizedBox(width: 6),
+                  Text('Sandbox Test Cards (1-Tap Auto Fill)',
+                      style: GoogleFonts.outfit(
+                          fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF475569))),
                 ],
               ),
-              Text('Visa · Mastercard · Amex', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _testCardChip('Visa (4111)', () => _fillTestCard('4111 1111 1111 1111', '12/28', '123', 'Visa')),
+                  _testCardChip('Mastercard (5200)', () => _fillTestCard('5200 0000 0000 0000', '10/27', '456', 'Mastercard')),
+                  _testCardChip('Amex (3782)', () => _fillTestCard('3782 8224 6310 005', '08/29', '7890', 'Amex')),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Card Entry Form
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            boxShadow: AppTheme.cardShadow,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Card Details',
+                  style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.textPrimary)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _cardHolderCtrl,
+                style: GoogleFonts.outfit(fontSize: 13),
+                decoration: InputDecoration(
+                  labelText: 'Cardholder Name',
+                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 18),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _cardNumberCtrl,
+                keyboardType: TextInputType.number,
+                style: GoogleFonts.outfit(fontSize: 13, letterSpacing: 1.2),
+                decoration: InputDecoration(
+                  labelText: 'Card Number',
+                  prefixIcon: const Icon(Icons.credit_card_rounded, size: 18),
+                  suffixIcon: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Text(_selectedMethod,
+                        style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                  isDense: true,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _expiryCtrl,
+                      keyboardType: TextInputType.datetime,
+                      style: GoogleFonts.outfit(fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: 'Expiry (MM/YY)',
+                        prefixIcon: const Icon(Icons.calendar_today_rounded, size: 16),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _cvvCtrl,
+                      keyboardType: TextInputType.number,
+                      obscureText: true,
+                      style: GoogleFonts.outfit(fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: 'CVV',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 16),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -470,233 +724,336 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: const Color(0xFFFEF2F2),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
               border: Border.all(color: const Color(0xFFFCA5A5)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 16),
+                const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
                 const SizedBox(width: 8),
-                Expanded(child: Text(_error!, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13))),
+                Expanded(
+                  child: Text(_error!,
+                      style: GoogleFonts.outfit(color: const Color(0xFFDC2626), fontSize: 12.5)),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
         ],
 
+        // Pay Button
         SizedBox(
-          width: double.infinity,
-          height: 50,
+          height: 48,
           child: ElevatedButton.icon(
             onPressed: _initiating ? null : _processGatewayCardPayment,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0284C7),
+              backgroundColor: AppTheme.primaryBlue,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusFull)),
               elevation: 2,
             ),
             icon: _initiating
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.lock_outline, size: 18),
-            label: Text(_initiating ? 'Authorizing Payment...' : 'Pay Rs. ${fee.toStringAsFixed(0)}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Icon(Icons.lock_rounded, size: 18),
+            label: Text(
+              _initiating ? 'Authorizing Payment…' : 'Authorize & Pay Rs. ${fee.toStringAsFixed(0)}',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15),
+            ),
           ),
         ),
         const SizedBox(height: 10),
-        TextButton(
-          onPressed: _initiating ? null : _initiatePayment,
-          child: const Text('Or pay via PayHere Hosted Gateway', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+
+        // Hosted checkout alternative
+        TextButton.icon(
+          onPressed: _initiating ? null : _initiateHostedPayHere,
+          icon: const Icon(Icons.open_in_browser_rounded, size: 16, color: Color(0xFF64748B)),
+          label: Text('Or Checkout via PayHere Hosted Sandbox Gateway',
+              style: GoogleFonts.outfit(fontSize: 12.5, color: const Color(0xFF64748B))),
         ),
       ],
     );
   }
 
-  Widget _buildPayStep() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: const Padding(
-        padding: EdgeInsets.all(40),
-        child: Column(
+  Widget _testCardChip(String label, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: AppTheme.primaryBlue.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text('💳', style: TextStyle(fontSize: 48)),
-            SizedBox(height: 16),
-            Text('Redirecting to PayHere...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            SizedBox(height: 8),
-            Text(
-              'Complete your payment on the PayHere page, then return here to track your status.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-            ),
-            SizedBox(height: 20),
-            CircularProgressIndicator(),
+            const Icon(Icons.credit_card, size: 13, color: AppTheme.primaryBlue),
+            const SizedBox(width: 4),
+            Text(label,
+                style: GoogleFonts.outfit(
+                    fontSize: 11.5, fontWeight: FontWeight.w600, color: AppTheme.primaryBlue)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPayStep() {
+    return Container(
+      padding: const EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFEFF6FF),
+            ),
+            child: const Icon(Icons.payment_rounded, size: 40, color: AppTheme.primaryBlue),
+          ),
+          const SizedBox(height: 16),
+          Text('Redirecting to PayHere Sandbox…',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 16)),
+          const SizedBox(height: 8),
+          Text(
+            'Complete your payment on the external PayHere sandbox page, then return here to track your status.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12.5),
+          ),
+          const SizedBox(height: 20),
+          const CircularProgressIndicator(),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            onPressed: _checkPaymentStatus,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: Text('I Have Completed Payment · Verify',
+                style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildVerifyStep() {
-    final isPaid = _paymentStatus == 'Paid';
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            if (isPaid) ...[
-              const Icon(Icons.check_circle, color: Color(0xFF059669), size: 40),
-              const SizedBox(height: 10),
-              const Text('Payment Verified!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF065F46))),
-              const SizedBox(height: 8),
-              const Text('Your payment has been received. The receptionist will confirm your appointment shortly.',
-                  textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF047857), fontSize: 13)),
-            ] else ...[
-              const CircularProgressIndicator(),
-              const SizedBox(height: 14),
-              const Text('Verifying payment...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              const SizedBox(height: 6),
-              const Text('Our server is confirming your payment with PayHere.',
-                  textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-            ],
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _checkPaymentStatus,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Refresh Status'),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 16),
+          Text('Verifying Payment…',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 16)),
+          const SizedBox(height: 6),
+          Text('Communicating with PayHere gateway to confirm authorization.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12.5)),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: _checkPaymentStatus,
+            icon: const Icon(Icons.refresh_rounded, size: 16),
+            label: Text('Refresh Verification', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildDoneStep() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFFDCFCE7)),
-              child: const Icon(Icons.check_circle, color: Color(0xFF059669), size: 40),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFDCFCE7),
             ),
-            const SizedBox(height: 12),
-            const Text('Appointment Confirmed!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF065F46))),
-            const SizedBox(height: 8),
-            const Text('Payment verified and appointment approved. Please arrive on time.',
-                textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF047857), fontSize: 13)),
-          ],
-        ),
+            child: const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 44),
+          ),
+          const SizedBox(height: 14),
+          Text('Payment Verified Successfully!',
+              style: GoogleFonts.outfit(
+                  fontWeight: FontWeight.w800, fontSize: 18, color: const Color(0xFF065F46))),
+          const SizedBox(height: 6),
+          Text(
+            'Your consultation payment has been confirmed. The receptionist will review your appointment shortly.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(color: const Color(0xFF047857), fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                _row('Payment Status', _paymentStatus ?? 'Paid & Verified'),
+                if (_providerPaymentId != null) _row('Transaction Ref', _providerPaymentId!),
+                if (_paymentMethod != null) _row('Method', _paymentMethod!),
+                if (_paidAt != null) _row('Date', _formatDate(_paidAt!)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RefundTrackingScreen(appointmentId: widget.appointmentId),
+                    ),
+                  ),
+                  icon: const Icon(Icons.receipt_long_rounded, size: 16),
+                  label: Text('Refund Tracking', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlue,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusFull)),
+                  ),
+                  child: Text('Done', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildRefundCard() {
+  Widget _buildRefundBanner() {
     final r = _refundStatus!;
-    final statusColors = {
-      'RefundRequested':  const Color(0xFFB45309),
-      'RefundApproved':   const Color(0xFF0369A1),
-      'RefundProcessing': const Color(0xFF7C3AED),
-      'RefundCompleted':  const Color(0xFF059669),
-      'RefundRejected':   const Color(0xFFDC2626),
-      'RefundFailed':     const Color(0xFFDC2626),
-    };
-    final color = statusColors[r.status] ?? const Color(0xFF64748B);
+    final isCompleted = r.status == 'RefundCompleted';
+    final isApproved = r.status == 'RefundApproved' || r.status == 'RefundProcessing';
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Refund Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                  child: Text(r.status ?? 'Unknown', style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _summaryRow('Reference', r.refundReference ?? '-'),
-            _summaryRow('Amount', 'Rs. ${r.amount?.toStringAsFixed(0) ?? '-'}'),
-            if (r.requestedAt != null)
-              _summaryRow('Requested', _formatDate(r.requestedAt!)),
-            if (r.approvedAt != null)
-              _summaryRow('Approved', _formatDate(r.approvedAt!)),
-            if (r.completedAt != null)
-              _summaryRow('Completed', _formatDate(r.completedAt!)),
-            if (r.rejectionReason != null)
-              Container(
-                margin: const EdgeInsets.only(top: 8),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text('Rejection reason: ${r.rejectionReason}',
-                    style: const TextStyle(color: Color(0xFFDC2626), fontSize: 12)),
-              ),
-            if (r.expectedProcessingInfo != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline, size: 14, color: Color(0xFF0369A1)),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text(r.expectedProcessingInfo!, style: const TextStyle(fontSize: 11.5, color: Color(0xFF1D4ED8)))),
-                  ],
-                ),
-              ),
-            ],
-          ],
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isCompleted
+            ? const Color(0xFFECFDF5)
+            : isApproved
+                ? const Color(0xFFEFF6FF)
+                : const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(
+          color: isCompleted
+              ? const Color(0xFFA7F3D0)
+              : isApproved
+                  ? const Color(0xFFBFDBFE)
+                  : const Color(0xFFFDE68A),
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    isCompleted ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                    size: 16,
+                    color: isCompleted
+                        ? const Color(0xFF059669)
+                        : isApproved
+                            ? const Color(0xFF0284C7)
+                            : const Color(0xFFB45309),
+                  ),
+                  const SizedBox(width: 6),
+                  Text('Refund Status: ${r.status}',
+                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13)),
+                ],
+              ),
+              Text('Rs. ${r.amount?.toStringAsFixed(0) ?? '-'}',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 13)),
+            ],
+          ),
+          if (r.expectedProcessingInfo != null) ...[
+            const SizedBox(height: 6),
+            Text(r.expectedProcessingInfo!,
+                style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF1E3A8A))),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildPolicyCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: const Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Payment Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-            SizedBox(height: 10),
-            Text('✅ Refunds available before receptionist approval.', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
-            SizedBox(height: 4),
-            Text('⛔ No refunds after appointment is approved.', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
-            SizedBox(height: 4),
-            Text('⚡ Rejections trigger automatic refunds.', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
-            SizedBox(height: 4),
-            Text('🕐 Refunds credited within 2–3 working days.', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('MediFlow Payment & Refund Policy',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary)),
+          const SizedBox(height: 8),
+          _bullet('Refunds are available before receptionist approval.'),
+          _bullet('Receptionist rejections trigger automatic payment refunds.'),
+          _bullet('Refunds are normally credited back within 2–3 working days.'),
+          _bullet('Appointments already in consultation cannot be cancelled.'),
+        ],
       ),
     );
   }
 
-  Widget _summaryRow(String label, String value) {
+  Widget _bullet(String text) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Text(text, style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(label, style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontSize: 12.5)),
+          Text(value, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12.5)),
         ],
       ),
     );
@@ -705,14 +1062,14 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
   String _formatDate(String iso) {
     try {
       final dt = DateTime.parse(iso).toLocal();
-      return '${dt.day}/${dt.month}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return iso;
     }
   }
 }
 
-/// Refund tracking screen for patients
+/// 4-Stage Refund Tracking Screen synchronized with backend & receptionist portal
 class RefundTrackingScreen extends ConsumerStatefulWidget {
   final int appointmentId;
 
@@ -729,7 +1086,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
   String? _error;
   String? _success;
   Map<String, dynamic>? _data;
-  RefundStatus? _refund;
+  RefundStatusModel? _refund;
   String _cancelReason = 'I no longer need this appointment';
   String _refundNotes = '';
   bool _showCancelForm = false;
@@ -740,388 +1097,658 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
     _load();
   }
 
+  String? _getAuthToken() {
+    return ApiClient.instance.token ?? ref.read(authProvider).user?.token;
+  }
+
   Future<void> _load() async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return;
-    setState(() { _loading = true; _error = null; });
+    final token = _getAuthToken();
+    if (token == null) return;
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
       final resp = await http.get(
         Uri.parse('${AppConstants.apiBaseUrl}/payment/appointments/${widget.appointmentId}/refund'),
-        headers: {'Authorization': 'Bearer ${auth.token}'},
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
       );
+
       if (resp.statusCode == 200) {
-        final d = jsonDecode(resp.body);
-        setState(() {
-          _data = d;
-          if (d['refund'] != null) {
-            _refund = RefundStatus.fromJson(d['refund']);
-          }
-        });
+        final d = jsonDecode(resp.body) as Map<String, dynamic>;
+        RefundStatusModel? refStatus;
+        if (d['refund'] != null) {
+          refStatus = RefundStatusModel.fromJson(d['refund']);
+        }
+
+        // Fallback: check status endpoint if refund not populated yet
+        if (refStatus == null) {
+          try {
+            final pResp = await http.get(
+              Uri.parse('${AppConstants.apiBaseUrl}/payment/appointments/${widget.appointmentId}/status'),
+              headers: {'Authorization': 'Bearer $token'},
+            );
+            if (pResp.statusCode == 200) {
+              final pData = jsonDecode(pResp.body);
+              if (pData['refund'] != null) {
+                refStatus = RefundStatusModel.fromJson(pData['refund']);
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (mounted) {
+          setState(() {
+            _data = d;
+            _refund = refStatus;
+          });
+        }
+      } else {
+        final err = jsonDecode(resp.body);
+        if (mounted) setState(() => _error = err['message'] ?? 'Failed to load refund details.');
       }
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() { _loading = false; });
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _cancelAndRequestRefund() async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return;
-    setState(() { _cancelling = true; _error = null; });
+  Future<void> _cancelAppointment() async {
+    final token = _getAuthToken();
+    if (token == null) return;
+
+    setState(() {
+      _cancelling = true;
+      _error = null;
+    });
+
     try {
       final resp = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}/payment/appointments/${widget.appointmentId}/cancel'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${auth.token}'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode({'reason': _cancelReason}),
       );
+
       if (resp.statusCode == 200) {
-        setState(() { _success = 'Appointment cancelled. You can now request a refund.'; _showCancelForm = false; });
-        await _load();
         ref.invalidate(myAppointmentsProvider);
+        if (mounted) {
+          setState(() {
+            _success = 'Appointment cancelled. You may now submit your refund request.';
+            _showCancelForm = false;
+          });
+          await _load();
+        }
       } else {
         final d = jsonDecode(resp.body);
-        setState(() { _error = d['message'] ?? 'Cancellation failed.'; });
+        if (mounted) setState(() => _error = d['message'] ?? 'Cancellation failed.');
       }
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() { _cancelling = false; });
+      if (mounted) setState(() => _cancelling = false);
     }
   }
 
-  Future<void> _requestRefund() async {
-    final auth = ref.read(authProvider);
-    if (auth.token == null) return;
-    setState(() { _requesting = true; _error = null; });
+  Future<void> _submitRefundRequest() async {
+    final token = _getAuthToken();
+    if (token == null) return;
+
+    setState(() {
+      _requesting = true;
+      _error = null;
+    });
+
     try {
       final resp = await http.post(
         Uri.parse('${AppConstants.apiBaseUrl}/payment/appointments/${widget.appointmentId}/refund/request'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ${auth.token}'},
-        body: jsonEncode({'additionalNotes': _refundNotes.isNotEmpty ? _refundNotes : null}),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'additionalNotes': _refundNotes.isNotEmpty ? _refundNotes : null,
+        }),
       );
+
       if (resp.statusCode == 200) {
-        setState(() { _success = 'Refund requested successfully!'; });
-        await _load();
+        ref.invalidate(myAppointmentsProvider);
+        if (mounted) {
+          setState(() => _success = 'Refund request submitted successfully! Awaiting receptionist review.');
+          await _load();
+        }
       } else {
         final d = jsonDecode(resp.body);
-        setState(() { _error = d['message'] ?? 'Failed to request refund.'; });
+        if (mounted) setState(() => _error = d['message'] ?? 'Failed to request refund.');
       }
     } catch (e) {
-      setState(() { _error = e.toString(); });
+      if (mounted) setState(() => _error = e.toString());
     } finally {
-      setState(() { _requesting = false; });
+      if (mounted) setState(() => _requesting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: AppTheme.bgCanvas,
       appBar: AppBar(
-        title: const Text('Refund Tracking'),
-        backgroundColor: const Color(0xFF0284C7),
+        title: Text('Refund Tracking',
+            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 18)),
+        backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Check Status',
             onPressed: _load,
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (_success != null)
-                    _alertBox(_success!, const Color(0xFF059669), const Color(0xFFECFDF5), Icons.check_circle),
-                  if (_error != null)
-                    _alertBox(_error!, const Color(0xFFDC2626), const Color(0xFFFEF2F2), Icons.error_outline),
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_success != null)
+                      _alertBanner(_success!, const Color(0xFF059669), const Color(0xFFECFDF5),
+                          Icons.check_circle_rounded),
+                    if (_error != null)
+                      _alertBanner(_error!, const Color(0xFFDC2626), const Color(0xFFFEF2F2),
+                          Icons.error_outline_rounded),
 
-                  // Appointment info
-                  Card(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    child: Padding(
+                    // Appointment Header
+                    Container(
                       padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                        boxShadow: AppTheme.cardShadow,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Appointment Info', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text('Appointment Reference',
+                              style: GoogleFonts.outfit(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 14,
+                                  color: AppTheme.textPrimary)),
                           const SizedBox(height: 10),
-                          _infoRow('Number', _data?['appointmentNumber'] ?? '#${widget.appointmentId}'),
-                          _infoRow('Doctor', _data?['doctorName'] ?? '—'),
+                          _infoRow('Appointment No.',
+                              _data?['appointmentNumber'] ?? '#${widget.appointmentId}'),
+                          _infoRow('Doctor', _data?['doctorName'] ?? 'Consulting Specialist'),
                           _infoRow('Status', _data?['appointmentStatus'] ?? '—'),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-                  // Refund timeline or request section
-                  if (_refund != null) _buildRefundTimeline() else _buildRefundRequest(),
+                    // Refund Timeline or Action Section
+                    if (_refund != null) _buildTimelineCard() else _buildNoRefundCard(),
 
-                  const SizedBox(height: 14),
-                  _buildPolicyCard(),
-                ],
+                    const SizedBox(height: 14),
+                    _buildPolicyCard(),
+                  ],
+                ),
               ),
             ),
     );
   }
 
-  Widget _buildRefundTimeline() {
+  Widget _buildTimelineCard() {
+    final r = _refund!;
     final steps = [
-      {'key': 'RefundRequested', 'label': 'Requested', 'icon': Icons.assignment_outlined},
-      {'key': 'RefundApproved', 'label': 'Approved', 'icon': Icons.thumb_up_outlined},
-      {'key': 'RefundProcessing', 'label': 'Processing', 'icon': Icons.hourglass_empty},
-      {'key': 'RefundCompleted', 'label': 'Completed', 'icon': Icons.monetization_on_outlined},
+      {'key': 'RefundRequested', 'label': 'Requested', 'desc': 'Waiting for receptionist review'},
+      {'key': 'RefundApproved', 'label': 'Approved', 'desc': 'Receptionist approved refund'},
+      {'key': 'RefundProcessing', 'label': 'Processing', 'desc': 'Initiated with payment gateway'},
+      {'key': 'RefundCompleted', 'label': 'Completed', 'desc': 'Credited to original payment source'},
     ];
-    final statusOrder = ['RefundRequested', 'RefundApproved', 'RefundProcessing', 'RefundCompleted'];
-    final currentIdx = statusOrder.indexOf(_refund!.status ?? '');
-    final isRejected = _refund!.status == 'RefundRejected' || _refund!.status == 'RefundFailed';
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Refund Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                Text('Ref: ${_refund!.refundReference ?? '-'}',
-                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 11)),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text('Rs. ${_refund!.amount?.toStringAsFixed(0) ?? '-'} ${_refund!.currency}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF0284C7))),
-            const SizedBox(height: 16),
-            if (isRejected)
+    final isCompleted = r.status == 'RefundCompleted';
+    final isRejected = r.status == 'RefundRejected' || r.status == 'RefundFailed';
+
+    final order = ['RefundRequested', 'RefundApproved', 'RefundProcessing', 'RefundCompleted'];
+    final currentIdx = isCompleted ? 3 : order.indexOf(r.status ?? '');
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Refund Progress',
+                  style: GoogleFonts.outfit(
+                      fontWeight: FontWeight.w700, fontSize: 16, color: AppTheme.textPrimary)),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(8),
+                  color: isCompleted
+                      ? const Color(0xFFDCFCE7)
+                      : isRejected
+                          ? const Color(0xFFFEE2E2)
+                          : const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.cancel_outlined, color: Color(0xFFDC2626), size: 16),
-                        SizedBox(width: 6),
-                        Text('Refund Rejected', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF991B1B))),
-                      ],
-                    ),
-                    if (_refund!.rejectionReason != null) ...[
-                      const SizedBox(height: 6),
-                      Text('Reason: ${_refund!.rejectionReason}',
-                          style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 12)),
-                    ],
-                  ],
+                child: Text(
+                  r.status ?? 'Processing',
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: isCompleted
+                        ? const Color(0xFF166534)
+                        : isRejected
+                            ? const Color(0xFF991B1B)
+                            : AppTheme.primaryBlue,
+                  ),
                 ),
-              )
-            else
-              ...steps.asMap().entries.map((e) {
-                final i = e.key;
-                final step = e.value;
-                final isDone = i < currentIdx;
-                final isActive = i == currentIdx;
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Column(
-                      children: [
-                        Container(
-                          width: 32, height: 32,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isDone ? const Color(0xFF059669)
-                                : isActive ? const Color(0xFF0284C7)
-                                : const Color(0xFFE2E8F0),
-                          ),
-                          child: Center(
-                            child: isDone
-                                ? const Icon(Icons.check, size: 16, color: Colors.white)
-                                : Icon(step['icon'] as IconData, size: 15,
-                                    color: isActive ? Colors.white : const Color(0xFF94A3B8)),
-                          ),
-                        ),
-                        if (i < steps.length - 1)
-                          Container(width: 2, height: 30,
-                              color: isDone ? const Color(0xFF059669) : const Color(0xFFE2E8F0)),
-                      ],
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 5, bottom: 20),
-                        child: Text(step['label'] as String,
-                            style: TextStyle(
-                              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                              color: isDone || isActive ? const Color(0xFF0F172A) : const Color(0xFF94A3B8),
-                            )),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Rs. ${r.amount?.toStringAsFixed(2) ?? '0.00'} ${r.currency ?? 'LKR'}',
+            style: GoogleFonts.outfit(
+              fontWeight: FontWeight.w800,
+              fontSize: 20,
+              color: AppTheme.primaryBlue,
+            ),
+          ),
+          if (r.refundReference != null) ...[
+            const SizedBox(height: 2),
+            Text('Ref: ${r.refundReference}',
+                style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF64748B))),
+          ],
+          const SizedBox(height: 18),
+
+          if (isCompleted) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: const Color(0xFFA7F3D0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Funds Credited Successfully · Refund Completed',
+                      style: GoogleFonts.outfit(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: const Color(0xFF065F46),
                       ),
                     ),
-                  ],
-                );
-              }),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
           ],
-        ),
+
+          if (isRejected) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF2F2),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: const Color(0xFFFCA5A5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 18),
+                      const SizedBox(width: 6),
+                      Text('Refund Request Rejected',
+                          style: GoogleFonts.outfit(
+                              fontWeight: FontWeight.w700, color: const Color(0xFF991B1B), fontSize: 13)),
+                    ],
+                  ),
+                  if (r.rejectionReason != null) ...[
+                    const SizedBox(height: 4),
+                    Text('Reason: ${r.rejectionReason}',
+                        style: GoogleFonts.outfit(color: const Color(0xFFB91C1C), fontSize: 12)),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ] else ...[
+            // Step items
+            ...steps.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final s = entry.value;
+              final isDone = isCompleted ? true : idx < currentIdx;
+              final isActive = isCompleted ? (idx == 3) : idx == currentIdx;
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isDone || (isCompleted && idx == 3)
+                              ? const Color(0xFF059669)
+                              : isActive
+                                  ? AppTheme.primaryBlue
+                                  : const Color(0xFFE2E8F0),
+                        ),
+                        child: Center(
+                          child: isDone || (isCompleted && idx == 3)
+                              ? const Icon(Icons.check, size: 16, color: Colors.white)
+                              : Text(
+                                  '${idx + 1}',
+                                  style: GoogleFonts.outfit(
+                                    color: isActive ? Colors.white : const Color(0xFF94A3B8),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      if (idx < steps.length - 1)
+                        Container(
+                          width: 2,
+                          height: 34,
+                          color: (isCompleted || idx < currentIdx)
+                              ? const Color(0xFF059669)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 4, bottom: 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s['label'] as String,
+                            style: GoogleFonts.outfit(
+                              fontWeight: isActive || isDone ? FontWeight.w700 : FontWeight.w500,
+                              fontSize: 13.5,
+                              color: isDone
+                                  ? const Color(0xFF065F46)
+                                  : isActive
+                                      ? AppTheme.textPrimary
+                                      : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                          Text(
+                            s['desc'] as String,
+                            style: GoogleFonts.outfit(
+                              fontSize: 11.5,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            }),
+          ],
+
+          if (r.expectedProcessingInfo != null) ...[
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF0284C7)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(r.expectedProcessingInfo!,
+                        style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF1D4ED8))),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+          ],
+
+          // Timestamps breakdown
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            ),
+            child: Column(
+              children: [
+                if (r.requestedAt != null) _infoRow('Requested At', _format(r.requestedAt!)),
+                if (r.approvedAt != null) _infoRow('Approved At', _format(r.approvedAt!)),
+                if (r.processingAt != null) _infoRow('Processing At', _format(r.processingAt!)),
+                if (r.completedAt != null) _infoRow('Completed At', _format(r.completedAt!)),
+                if (r.providerRefundId != null) _infoRow('Provider Ref', r.providerRefundId!),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildRefundRequest() {
-    final canRequestRefund = _data?['canRequestRefund'] == true;
-    final apptStatus = _data?['appointmentStatus'] as String?;
-    final isApprovedLocked = ['Confirmed', 'ReceptionistApproved', 'InConsultation', 'Completed'].contains(apptStatus);
-    final isCancellable = ['Pending', 'PaymentSubmitted', 'PaymentVerified', 'PaymentPending', 'WaitingForReceptionist'].contains(apptStatus);
+  Widget _buildNoRefundCard() {
+    final canRequest = _data?['canRequestRefund'] == true;
+    final status = _data?['appointmentStatus'] as String?;
+    final isLocked = ['InConsultation', 'Completed'].contains(status);
+    final isCancelled = status == 'Cancelled' || status == 'PatientCancelled';
 
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('💳 No Refund Request Yet', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 8),
-            Text(
-              isApprovedLocked
-                  ? 'Refunds are not available once the appointment is approved.'
-                  : canRequestRefund
-                  ? 'Your appointment has been cancelled. Request a refund below.'
-                  : 'Cancel your appointment to apply for a refund.',
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-
-            if (isApprovedLocked)
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFBEB),
-                  border: Border.all(color: const Color(0xFFF59E0B)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text('This appointment has already been approved by the receptionist. Refund requests are no longer available after appointment approval.',
-                    style: TextStyle(color: Color(0xFFB45309), fontSize: 12.5)),
-              ),
-
-            if (isCancellable && !isApprovedLocked) ...[
-              if (!_showCancelForm)
-                OutlinedButton.icon(
-                  onPressed: () => setState(() { _showCancelForm = true; _error = null; }),
-                  icon: const Icon(Icons.cancel_outlined),
-                  label: const Text('Cancel Appointment & Request Refund'),
-                  style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
-                )
-              else ...[
-                const Text('Cancellation Reason', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  value: _cancelReason,
-                  onChanged: (v) => setState(() { _cancelReason = v!; }),
-                  items: [
-                    'I no longer need this appointment',
-                    'Schedule conflict',
-                    'Feeling better',
-                    'Transportation issues',
-                    'Other',
-                  ].map((r) => DropdownMenuItem(value: r, child: Text(r, style: const TextStyle(fontSize: 13)))).toList(),
-                  decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _cancelling ? null : _cancelAndRequestRefund,
-                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
-                        icon: _cancelling ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.cancel_outlined, size: 16),
-                        label: const Text('Confirm Cancel'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    OutlinedButton(
-                      onPressed: () => setState(() { _showCancelForm = false; }),
-                      child: const Text('Keep'),
-                    ),
-                  ],
-                ),
-              ],
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.hourglass_empty_rounded, color: Color(0xFF0284C7), size: 22),
+              const SizedBox(width: 10),
+              Text('No Active Refund Request',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15)),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            isLocked
+                ? 'Refund requests cannot be submitted for appointments that have already entered consultation or completed.'
+                : canRequest || isCancelled
+                    ? 'Your appointment has been cancelled. You may submit a refund request for receptionist review.'
+                    : 'To request a refund, the appointment must first be cancelled prior to consultation.',
+            style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontSize: 13),
+          ),
+          const SizedBox(height: 16),
 
-            if (canRequestRefund) ...[
-              const SizedBox(height: 12),
-              TextField(
-                onChanged: (v) => _refundNotes = v,
-                maxLines: 2,
-                decoration: const InputDecoration(
-                  labelText: 'Additional notes (optional)',
-                  border: OutlineInputBorder(),
+          if (!isLocked && !isCancelled) ...[
+            if (!_showCancelForm)
+              OutlinedButton.icon(
+                onPressed: () => setState(() => _showCancelForm = true),
+                icon: const Icon(Icons.cancel_outlined, size: 16),
+                label: Text('Cancel Appointment First', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFDC2626),
+                  side: const BorderSide(color: Color(0xFFFCA5A5)),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+              )
+            else ...[
+              Text('Select Cancellation Reason',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13)),
+              const SizedBox(height: 8),
+              DropdownButtonFormField<String>(
+                value: _cancelReason,
+                onChanged: (v) => setState(() => _cancelReason = v!),
+                items: [
+                  'I no longer need this appointment',
+                  'Schedule conflict',
+                  'Doctor reschedule request',
+                  'Feeling better',
+                  'Other',
+                ]
+                    .map((r) => DropdownMenuItem(
+                        value: r, child: Text(r, style: GoogleFonts.outfit(fontSize: 13))))
+                    .toList(),
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
                   isDense: true,
                 ),
               ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                onPressed: _requesting ? null : _requestRefund,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0284C7),
-                  foregroundColor: Colors.white,
-                ),
-                icon: _requesting
-                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.send_outlined, size: 16),
-                label: const Text('Submit Refund Request'),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _cancelling ? null : _cancelAppointment,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: _cancelling
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check, size: 16),
+                      label: Text('Confirm Cancellation',
+                          style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton(
+                    onPressed: () => setState(() => _showCancelForm = false),
+                    child: Text('Keep', style: GoogleFonts.outfit()),
+                  ),
+                ],
               ),
             ],
           ],
-        ),
+
+          if (canRequest || isCancelled) ...[
+            const SizedBox(height: 14),
+            TextField(
+              onChanged: (v) => _refundNotes = v,
+              maxLines: 2,
+              style: GoogleFonts.outfit(fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'Additional Refund Notes (Optional)',
+                hintText: 'e.g. Cancelled due to conflict, requesting refund to original card.',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: _requesting ? null : _submitRefundRequest,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              icon: _requesting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send_rounded, size: 16),
+              label: Text('Submit Refund Request',
+                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildPolicyCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: const Padding(
-        padding: EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Refund Policy', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-            SizedBox(height: 8),
-            Text('✅ Refunds available before receptionist approval.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            SizedBox(height: 3),
-            Text('⛔ No refunds after appointment is approved.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            SizedBox(height: 3),
-            Text('⚡ Receptionist rejections trigger auto-refunds.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-            SizedBox(height: 3),
-            Text('🕐 Processing time: 2–3 working days.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Refund Guidelines',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary)),
+          const SizedBox(height: 8),
+          _policyBullet('Approved refunds are automatically initiated via the payment gateway.'),
+          _policyBullet('Refunded funds are normally credited within 2–3 working days.'),
+          _policyBullet('Appointments cancelled by receptionist or system trigger auto-refunds.'),
+        ],
       ),
     );
   }
 
-  Widget _alertBox(String msg, Color color, Color bg, IconData icon) {
+  Widget _policyBullet(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
+          Expanded(
+            child: Text(text, style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertBanner(String msg, Color color, Color bg, IconData icon) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 16),
+          Icon(icon, color: color, size: 18),
           const SizedBox(width: 8),
-          Expanded(child: Text(msg, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600))),
+          Expanded(
+            child: Text(msg,
+                style: GoogleFonts.outfit(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          ),
         ],
       ),
     );
@@ -1133,10 +1760,19 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(label, style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontSize: 12.5)),
+          Text(value, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12.5)),
         ],
       ),
     );
+  }
+
+  String _format(String iso) {
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso;
+    }
   }
 }

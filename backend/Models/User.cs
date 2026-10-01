@@ -14,8 +14,20 @@ public class User
     public string PhoneNumber { get; set; } = string.Empty;
     public UserRole Role { get; set; }
     public bool IsActive { get; set; } = true;
+    public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Approved;
+    public string? RegistrationNumber { get; set; }
+    public string? RejectionReason { get; set; }
+    public int? ReviewedByAdminId { get; set; }
+    public DateTime? ReviewedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public enum VerificationStatus
+{
+    Pending,
+    Approved,
+    Rejected
 }
 
 public enum UserRole
@@ -28,3 +40,4 @@ public enum UserRole
     Supplier,
     Administrator
 }
+

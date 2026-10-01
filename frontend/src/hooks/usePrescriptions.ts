@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiGetMyPrescriptions, apiGetPrescription } from '../services/api';
 
-export function useMyPrescriptions() {
+export function useMyPrescriptions(options?: { refetchInterval?: number; staleTime?: number }) {
   return useQuery({
     queryKey: ['prescriptions', 'my'],
     queryFn: apiGetMyPrescriptions,
-    staleTime: 1000 * 60 * 5,
+    staleTime: options?.staleTime ?? 1000 * 3, // 3 seconds
+    refetchInterval: options?.refetchInterval ?? 3000, // auto-update every 3s
+    refetchOnWindowFocus: true,
   });
 }
 

@@ -96,6 +96,57 @@ public static class DatabaseSeeder
             }
         }
 
+        // ── Seed Sample Pending Staff Registrations (for verification review demo) ──
+        if (!await db.Users.AnyAsync(u => u.Email == "pending.doctor@mediflow.lk"))
+        {
+            var pendingDoc = new User
+            {
+                FullName = "Dr. Kasun Jayawardena",
+                Email = "pending.doctor@mediflow.lk",
+                PhoneNumber = "+94778111222",
+                Role = UserRole.Doctor,
+                VerificationStatus = VerificationStatus.Pending,
+                RegistrationNumber = "SLMC-89241",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Doctor@123"),
+                CreatedAt = DateTime.UtcNow.AddHours(-18),
+                UpdatedAt = DateTime.UtcNow.AddHours(-18)
+            };
+            db.Users.Add(pendingDoc);
+            await db.SaveChangesAsync();
+
+            db.Doctors.Add(new Doctor
+            {
+                UserId = pendingDoc.Id,
+                FullName = pendingDoc.FullName,
+                RegistrationNumber = "SLMC-89241",
+                Bio = "General surgery & trauma specialist awaiting administrative credential verification.",
+                Qualifications = "MBBS, MS (Surgery)",
+                ExperienceYears = 8,
+                ConsultationFee = 3000,
+                IsActive = false,
+                CreatedAt = DateTime.UtcNow.AddHours(-18),
+                UpdatedAt = DateTime.UtcNow.AddHours(-18)
+            });
+            await db.SaveChangesAsync();
+        }
+
+        if (!await db.Users.AnyAsync(u => u.Email == "pending.pharmacist@mediflow.lk"))
+        {
+            var pendingPharm = new User
+            {
+                FullName = "Ruwan Fernando",
+                Email = "pending.pharmacist@mediflow.lk",
+                PhoneNumber = "+94778333444",
+                Role = UserRole.Pharmacist,
+                VerificationStatus = VerificationStatus.Pending,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Staff@123"),
+                CreatedAt = DateTime.UtcNow.AddHours(-6),
+                UpdatedAt = DateTime.UtcNow.AddHours(-6)
+            };
+            db.Users.Add(pendingPharm);
+            await db.SaveChangesAsync();
+        }
+
         // ── Comprehensive Doctor Seeding (At least 2 Doctors per Specialty) ──
         var allSpecialties = await db.Specialties.ToListAsync();
         var doctorProfilesData = new List<DoctorSeedDefinition>
