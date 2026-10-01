@@ -8,6 +8,8 @@ class UserModel {
   final String role;
   final String token;
   final String? expiresAt;
+  final String? verificationStatus;
+  final String? registrationNumber;
 
   const UserModel({
     required this.userId,
@@ -16,6 +18,8 @@ class UserModel {
     required this.role,
     required this.token,
     this.expiresAt,
+    this.verificationStatus,
+    this.registrationNumber,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
@@ -25,6 +29,8 @@ class UserModel {
         role: j['role'] as String? ?? 'Patient',
         token: j['token'] as String? ?? '',
         expiresAt: j['expiresAt'] as String?,
+        verificationStatus: j['verificationStatus'] as String?,
+        registrationNumber: j['registrationNumber'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -34,6 +40,8 @@ class UserModel {
         'role': role,
         'token': token,
         'expiresAt': expiresAt,
+        'verificationStatus': verificationStatus,
+        'registrationNumber': registrationNumber,
       };
 }
 
@@ -265,12 +273,36 @@ class AppointmentModel {
     );
   }
 
-  bool get isUpcoming => ['Pending', 'PaymentSubmitted', 'Confirmed', 'InConsultation']
-      .contains(status);
+  bool get isUpcoming => [
+        'Pending',
+        'PaymentPending',
+        'PaymentSubmitted',
+        'PaymentVerified',
+        'Confirmed',
+        'ReceptionistApproved',
+        'InConsultation'
+      ].contains(status);
+
   bool get isCompleted => status == 'Completed';
+
   bool get isCancellable =>
-      ['Pending', 'PaymentSubmitted'].contains(status) &&
+      !['Completed', 'InConsultation', 'Cancelled', 'PatientCancelled', 'ReceptionistRejected'].contains(status) &&
       appointmentDateTime.isAfter(DateTime.now());
+
+  bool get isPaymentPending =>
+      ['Pending', 'PaymentPending', 'PaymentFailed'].contains(status) &&
+      (paymentStatus == null || paymentStatus == 'Pending' || paymentStatus == 'Failed');
+
+  bool get isPaid =>
+      paymentStatus == 'Paid' || ['PaymentVerified', 'PaymentSubmitted'].contains(status);
+
+  bool get isRefundEligible =>
+      isPaid && ['Cancelled', 'PatientCancelled', 'ReceptionistRejected'].contains(status);
+
+  bool get hasRefund =>
+      ['RefundRequested', 'RefundApproved', 'RefundProcessing', 'RefundCompleted', 'RefundRejected'].contains(status) ||
+      paymentStatus == 'Refunded' ||
+      paymentStatus == 'RefundPending';
 }
 
 class RatingModel {
