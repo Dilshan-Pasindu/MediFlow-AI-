@@ -2,16 +2,15 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Prevent Python from writing .pyc files & buffer stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-COPY ai/requirements.txt /app/requirements.txt
+COPY requirements.txt /app/requirements.txt
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r /app/requirements.txt
 
-COPY ai/ /app/ai/
+COPY . /app/ai/
 
 EXPOSE 8000
 
