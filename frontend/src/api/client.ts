@@ -1,7 +1,19 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5224/api';
+export function getApiBaseUrl(): string {
+  let url = (import.meta.env.VITE_API_BASE_URL || '').trim();
+  if (!url) {
+    return 'http://localhost:5224/api';
+  }
+  url = url.replace(/\/+$/, '');
+  if (!url.endsWith('/api')) {
+    url = `${url}/api`;
+  }
+  return url;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,

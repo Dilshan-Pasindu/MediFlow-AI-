@@ -1,8 +1,9 @@
 import * as signalR from '@microsoft/signalr';
 import type { ConsultationEventPayload } from '../types/consultation';
+import { getApiBaseUrl } from '../api/client';
 import { queryClient } from '../lib/queryClient';
 
-const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5224/api';
+const apiBase = getApiBaseUrl();
 const HUB_URL = `${apiBase.replace(/\/api\/?$/, '')}/hubs/consultation`;
 
 class ConsultationHubService {
