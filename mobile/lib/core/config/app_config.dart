@@ -8,6 +8,10 @@ class AppConfig {
   static const String appName = 'MediFlow AI';
   static const String appTagline = 'Smart Clinical Healthcare';
 
+  /// Google OAuth Web Client ID (matches frontend .env)
+  static const String googleClientId =
+      '829691660050-tljhqp9iau6cgbk3nnln71p8971hpaa2.apps.googleusercontent.com';
+
   /// Resolves the backend API base URL based on the current platform.
   ///
   /// Web (Chrome/Safari) → localhost:5224

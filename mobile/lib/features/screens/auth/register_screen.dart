@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/auth_provider.dart';
+import '../../../features/auth/google_auth_service.dart';
 import '../../../shared/widgets/widgets.dart';
 import '../main_shell.dart';
 import '../dashboard/dashboard_screen.dart';
@@ -409,6 +410,34 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           onPressed: _register,
                         ),
                         const SizedBox(height: 20),
+
+                        // Divider
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.10))),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
+                              child: Text(
+                                'OR SIGN UP WITH',
+                                style: GoogleFonts.outfit(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.6,
+                                    color: Colors.white.withValues(alpha: 0.38)),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.10))),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Google Sign Up (Original as website)
+                        GoogleSignInButton(
+                          label: 'Continue with Google',
+                          isLoading: auth.isLoading,
+                          onPressed: () => triggerGoogleSignIn(context, ref),
+                        ),
+                        const SizedBox(height: 24),
 
                         // Sign In link
                         Row(

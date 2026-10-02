@@ -85,6 +85,46 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Sign in or register with Google account via backend /auth/google.
+  Future<bool> signInWithGoogle({
+    String? idToken,
+    required String email,
+    required String fullName,
+    String? photoUrl,
+    String role = 'Patient',
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final body = <String, dynamic>{
+        'email': email.trim(),
+        'fullName': fullName.trim(),
+        'role': role,
+      };
+      if (idToken != null && idToken.isNotEmpty) {
+        body['idToken'] = idToken;
+      }
+      if (photoUrl != null && photoUrl.isNotEmpty) {
+        body['photoUrl'] = photoUrl;
+      }
+
+      final data = await ApiClient.instance.post('/auth/google', body: body)
+          as Map<String, dynamic>;
+
+      final user = UserModel.fromJson(data);
+      ApiClient.instance.setToken(user.token);
+      await _persist(user);
+      state = AuthState(user: user);
+      return true;
+    } on ApiException catch (e) {
+      state = AuthState(error: e.message);
+      return false;
+    } catch (e) {
+      state = const AuthState(error: 'Google authentication failed. Please try again.');
+      return false;
+    }
+  }
+
+
   /// Register a new patient account.
   Future<bool> register({
     required String fullName,

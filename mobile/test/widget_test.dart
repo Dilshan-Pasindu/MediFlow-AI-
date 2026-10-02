@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mediflow_mobile/main.dart';
 import 'package:mediflow_mobile/features/screens/auth/login_screen.dart';
+import 'package:mediflow_mobile/features/screens/auth/register_screen.dart';
 import 'package:mediflow_mobile/shared/widgets/widgets.dart';
 
 void main() {
@@ -35,5 +36,20 @@ void main() {
     // Verify LoginScreen header and form inputs
     expect(find.text('Sign In'), findsWidgets);
     expect(find.byType(TextFormField), findsNWidgets(2));
+    expect(find.text('Continue with Google'), findsOneWidget);
+  });
+
+  testWidgets('RegisterScreen renders Google sign up button and form inputs', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(
+          home: RegisterScreen(),
+        ),
+      ),
+    );
+
+    expect(find.text('Create Account'), findsWidgets);
+    expect(find.text('Continue with Google'), findsOneWidget);
   });
 }
+
