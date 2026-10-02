@@ -182,8 +182,8 @@ jobs:
       - name: Build and Push AI Image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ai/Dockerfile
+          context: ./ai
+          file: ./ai/Dockerfile
           push: true
           tags: ${{ steps.meta-ai.outputs.tags }}
           labels: ${{ steps.meta-ai.outputs.labels }}

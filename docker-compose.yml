@@ -52,8 +52,8 @@ services:
   # ─── AI Subsystem (FastAPI / Agentic) ─────────────────────────────────────────
   ai:
     build:
-      context: .
-      dockerfile: ai/Dockerfile
+      context: ./ai
+      dockerfile: Dockerfile
     container_name: mediflow-ai
     restart: unless-stopped
     ports:

@@ -160,8 +160,13 @@ public class PaymentController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> PayHereNotify([FromForm] PayHereNotifyRequest request, CancellationToken ct)
     {
+        var safeOrderId = SanitizeLog(request.OrderId);
+        var safePaymentId = SanitizeLog(request.PaymentId);
+        var safeStatusCode = SanitizeLog(request.StatusCode, 20);
+        var safeCurrency = SanitizeLog(request.PayhereCurrency, 10);
+
         _logger.LogInformation("[PayHere Notify] Received: OrderId={OrderId} PaymentId={PaymentId} Status={Status}",
-            request.OrderId, request.PaymentId, request.StatusCode);
+            safeOrderId, safePaymentId, safeStatusCode);
 
         // 1. Validate signature
         if (!_payhere.ValidateNotifyHash(
@@ -172,7 +177,7 @@ public class PaymentController : ControllerBase
             request.StatusCode ?? "",
             request.Md5sig ?? ""))
         {
-            _logger.LogWarning("[PayHere Notify] INVALID signature for OrderId={OrderId}", request.OrderId);
+            _logger.LogWarning("[PayHere Notify] INVALID signature for OrderId={OrderId}", safeOrderId);
             return BadRequest(new { message = "Invalid payment notification signature." });
         }
 
@@ -184,7 +189,7 @@ public class PaymentController : ControllerBase
 
         if (payment == null)
         {
-            _logger.LogWarning("[PayHere Notify] No payment found for OrderId={OrderId}", request.OrderId);
+            _logger.LogWarning("[PayHere Notify] No payment found for OrderId={OrderId}", safeOrderId);
             return NotFound();
         }
 
@@ -210,7 +215,7 @@ public class PaymentController : ControllerBase
         // 5. Validate currency
         if (!string.Equals(request.PayhereCurrency, "LKR", StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning("[PayHere Notify] Currency mismatch: {Currency}", request.PayhereCurrency);
+            _logger.LogWarning("[PayHere Notify] Currency mismatch: {Currency}", safeCurrency);
             return BadRequest(new { message = "Currency mismatch." });
         }
 
@@ -221,7 +226,7 @@ public class PaymentController : ControllerBase
                 .AnyAsync(p => p.ProviderPaymentId == request.PaymentId && p.Id != payment.Id, ct);
             if (duplicate)
             {
-                _logger.LogWarning("[PayHere Notify] Duplicate payment_id: {PaymentId}", request.PaymentId);
+                _logger.LogWarning("[PayHere Notify] Duplicate payment_id: {PaymentId}", safePaymentId);
                 return BadRequest(new { message = "Duplicate payment ID." });
             }
         }
@@ -294,11 +299,18 @@ public class PaymentController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[PayHere Notify] Database error for OrderId={OrderId}", request.OrderId);
+            _logger.LogError(ex, "[PayHere Notify] Database error for OrderId={OrderId}", safeOrderId);
             return StatusCode(500);
         }
 
         return Ok();
+    }
+
+    private static string SanitizeLog(string? input, int maxLength = 100)
+    {
+        if (string.IsNullOrEmpty(input)) return string.Empty;
+        var clean = input.Replace("\r", "").Replace("\n", "").Trim();
+        return clean.Length > maxLength ? clean[..maxLength] : clean;
     }
 
     // ── 3. Frontend Verify (after PayHere redirects back) ────────────────────
