@@ -3,12 +3,11 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
 # Copy csproj and restore dependencies (layer caching)
-COPY ["backend/MediFlow.Api.csproj", "backend/"]
-RUN dotnet restore "backend/MediFlow.Api.csproj"
+COPY ["MediFlow.Api.csproj", "./"]
+RUN dotnet restore "MediFlow.Api.csproj"
 
 # Copy all source files and publish
-COPY backend/ backend/
-WORKDIR "/src/backend"
+COPY . .
 RUN dotnet publish "MediFlow.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false --no-restore
 
 # ─── Runtime Stage ───────────────────────────────────────────────────────────

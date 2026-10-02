@@ -236,7 +236,26 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapHealthChecks("/health");
+
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "MediFlow Backend API",
+    status = "running",
+    docs = "/swagger"
+})).AllowAnonymous();
+
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        return context.Response.WriteAsJsonAsync(new
+        {
+            status = report.Status == Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy ? "healthy" : "unhealthy"
+        });
+    }
+}).AllowAnonymous();
+
 app.MapControllers();
 app.MapHub<ConsultationHub>("/hubs/consultation");
 

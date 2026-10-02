@@ -20,12 +20,21 @@ def client():
 
 # ─── Health & Specialist ──────────────────────────────────────────────────────
 
+def test_root_endpoint(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["service"] == "MediFlow AI Service"
+    assert data["status"] == "running"
+    assert data["docs"] == "/docs"
+
+
 def test_health_check(client):
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert data["service"] == "mediflow-ai-service"
+
 
 
 def test_recommend_specialist_cardiology(client):

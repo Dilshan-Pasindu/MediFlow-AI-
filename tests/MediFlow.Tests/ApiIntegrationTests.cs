@@ -36,6 +36,38 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task RootEndpoint_ReturnsSuccessAndServiceInfo()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.Contains("MediFlow Backend API", content);
+        Assert.Contains("running", content);
+        Assert.Contains("/swagger", content);
+    }
+
+    [Fact]
+    public async Task HealthEndpoint_ReturnsSuccessAndHealthyStatus()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.GetAsync("/health");
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.Contains("\"status\":\"healthy\"", content);
+    }
+
+    [Fact]
     public async Task SwaggerEndpoint_ReturnsSuccessAndOpenApiDoc()
     {
         // Arrange

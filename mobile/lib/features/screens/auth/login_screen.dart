@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/auth_provider.dart';
+import '../../../features/auth/google_auth_service.dart';
 import '../../../shared/widgets/widgets.dart';
 
 import '../main_shell.dart';
@@ -355,12 +356,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           children: [
                             Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.10))),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              padding: const EdgeInsets.symmetric(horizontal: 14),
                               child: Text(
-                                'or continue with',
+                                'OR CONTINUE WITH',
                                 style: GoogleFonts.outfit(
                                     fontSize: 12,
-                                    color: Colors.white.withValues(alpha: 0.35)),
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.6,
+                                    color: Colors.white.withValues(alpha: 0.38)),
                               ),
                             ),
                             Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.10))),
@@ -368,25 +371,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         const SizedBox(height: 16),
 
-                        // Social buttons
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _DarkSocialButton(
-                                label: 'Google',
-                                icon: Icons.g_mobiledata_rounded,
-                                onTap: () {},
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: _DarkSocialButton(
-                                label: 'Apple',
-                                icon: Icons.apple_rounded,
-                                onTap: () {},
-                              ),
-                            ),
-                          ],
+                        // Google Sign In (Original as website)
+                        GoogleSignInButton(
+                          label: 'Continue with Google',
+                          isLoading: auth.isLoading,
+                          onPressed: () => triggerGoogleSignIn(context, ref),
                         ),
                         const SizedBox(height: 24),
 
@@ -595,48 +584,6 @@ class _CyanGradientButtonState extends State<_CyanGradientButton> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dark social button
-// ─────────────────────────────────────────────────────────────────────────────
-class _DarkSocialButton extends StatelessWidget {
-  const _DarkSocialButton({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.07),
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 22, color: Colors.white.withValues(alpha: 0.75)),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: GoogleFonts.outfit(
-                fontSize: 13, fontWeight: FontWeight.w600,
-                color: Colors.white.withValues(alpha: 0.75),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Grid dot background painter (reused from Get Started)

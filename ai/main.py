@@ -68,10 +68,21 @@ app.add_middleware(
 )
 
 
-@app.get("/health", response_model=HealthCheckResponse, tags=["Health"])
+@app.get("/", tags=["General"])
+async def root():
+    """Returns root service metadata and documentation URL."""
+    return {
+        "service": "MediFlow AI Service",
+        "status": "running",
+        "docs": "/docs",
+    }
+
+
+@app.get("/health", tags=["Health"])
 async def health_check():
     """Returns service health status."""
-    return HealthCheckResponse(status="healthy", service="mediflow-ai-service", version="1.0.0")
+    return {"status": "healthy"}
+
 
 
 @app.post("/api/ai/recommend-specialist", response_model=SpecialistRecommendation, tags=["Agents"])
