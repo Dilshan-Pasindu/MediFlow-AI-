@@ -20,7 +20,8 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000,
+  // 60-second timeout accommodates free-tier container cold starts (e.g. Render spin-up)
+  timeout: 60000,
 });
 
 // Request Interceptor: Attach Supabase JWT or Fallback Bearer Token
