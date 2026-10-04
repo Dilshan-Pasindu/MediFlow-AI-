@@ -33,6 +33,7 @@ const CSS = `
   position: relative;
   overflow-x: hidden;
   color: #0F172A;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Subtle background accent glow */
@@ -108,12 +109,12 @@ const CSS = `
 
 .lp-left-h {
   font-family: 'Outfit', sans-serif;
-  font-size: 40px;
+  font-size: 54px;
   font-weight: 900;
-  line-height: 1.12;
+  line-height: 1.1;
   color: #0F172A;
   letter-spacing: -0.035em;
-  margin: 0 0 12px;
+  margin: 0 0 18px;
 }
 
 .lp-left-h em {
@@ -125,11 +126,11 @@ const CSS = `
 }
 
 .lp-left-p {
-  font-size: 14.5px;
+  font-size: 17.5px;
   color: #475569;
-  line-height: 1.62;
-  margin: 0 0 22px;
-  max-width: 500px;
+  line-height: 1.7;
+  margin: 0 0 30px;
+  max-width: 540px;
 }
 
 /* Stats Row */
@@ -174,18 +175,18 @@ const CSS = `
 .lp-features-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 22px;
+  gap: 14px;
+  margin-bottom: 28px;
 }
 
 .lp-feature-card {
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
-  border-radius: 14px;
-  padding: 11px 16px;
+  border-radius: 16px;
+  padding: 17px 22px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 18px;
   box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.03), 0 1px 2px rgba(15, 23, 42, 0.02);
   transition: all 0.2s ease;
 }
@@ -197,9 +198,9 @@ const CSS = `
 }
 
 .lp-feat-icon-wrap {
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
+  width: 50px;
+  height: 50px;
+  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -212,18 +213,18 @@ const CSS = `
 .lp-feat-icon-amber  { background: #FFFBEB; border: 1px solid #FEF3C7; color: #D97706; }
 
 .lp-feat-title {
-  font-size: 14px;
+  font-size: 16.5px;
   font-weight: 700;
   color: #0F172A;
-  margin: 0 0 2px;
+  margin: 0 0 4px;
   letter-spacing: -0.01em;
 }
 
 .lp-feat-desc {
-  font-size: 12px;
+  font-size: 14px;
   color: #64748B;
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 /* Security Badges Row */
@@ -238,11 +239,11 @@ const CSS = `
   background: #FFFFFF;
   border: 1px solid #E2E8F0;
   border-radius: 9999px;
-  padding: 5px 13px;
+  padding: 8px 16px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
+  gap: 7px;
+  font-size: 13px;
   font-weight: 600;
   color: #334155;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
@@ -940,6 +941,9 @@ const CSS = `
   .lp-eyebrow {
     margin: 0 auto 12px;
   }
+  .lp-left-h {
+    font-size: 42px;
+  }
   .lp-left-p {
     margin: 0 auto 18px;
   }
@@ -956,6 +960,23 @@ const CSS = `
   }
   .lp-right {
     max-width: 500px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .lp-container {
+    padding: 20px 14px 36px;
+    gap: 20px;
+  }
+  .lp-left {
+    display: none;
+  }
+  .lp-right {
+    max-width: 100%;
+  }
+  .lp-card {
+    border-radius: 18px;
   }
 }
 
@@ -971,6 +992,15 @@ const CSS = `
   }
   .lp-left-h {
     font-size: 30px;
+  }
+  .lp-stats {
+    flex-wrap: wrap;
+  }
+  .lp-stat-box {
+    min-width: calc(50% - 7px);
+  }
+  .lp-portal-row {
+    grid-template-columns: 1fr 1fr;
   }
 }
 `;
@@ -1043,11 +1073,11 @@ function HelpCenter() {
         </div>
       </div>
       <div className="lp-help-links">
-        <a href="mailto:support@mediflow.ai" className="lp-help-lnk em" id="help-center-email-link">
-          <Mail size={11}/> support@mediflow.ai
+        <a href="mailto:dilshan@mediflow.ai" className="lp-help-lnk em" id="help-center-email-link">
+          <Mail size={11}/> dilshan@mediflow.ai
         </a>
-        <a href="tel:+94112345678" className="lp-help-lnk ph" id="help-center-phone-link">
-          <PhoneCall size={11}/> 011 234 5678
+        <a href="tel:0110x0x999" className="lp-help-lnk ph" id="help-center-phone-link">
+          <PhoneCall size={11}/> 0110x0x999
         </a>
       </div>
     </div>
@@ -1370,9 +1400,6 @@ export default function LoginPage() {
 
           {/* ══════════════ LEFT COLUMN — FIXED TO TOP ══════════════ */}
           <div className="lp-left">
-            <div className="lp-eyebrow">
-              <HeartPulse size={13} style={{ color: '#0284C7' }} /> Sri Lanka's Premier Healthcare AI
-            </div>
 
             <h1 className="lp-left-h">
               Smart Healthcare<br />
@@ -1383,28 +1410,13 @@ export default function LoginPage() {
               Connect with certified specialists, manage appointments, and receive digital prescriptions — all in one secure AI-powered platform.
             </p>
 
-            {/* Quick Metrics */}
-            <div className="lp-stats">
-              <div className="lp-stat-box">
-                <div className="lp-stat-val">50<span>K+</span></div>
-                <div className="lp-stat-lbl">Active Patients</div>
-              </div>
-              <div className="lp-stat-box">
-                <div className="lp-stat-val">1<span>K+</span></div>
-                <div className="lp-stat-lbl">Specialists</div>
-              </div>
-              <div className="lp-stat-box">
-                <div className="lp-stat-val">99<span>%</span></div>
-                <div className="lp-stat-lbl">Platform Uptime</div>
-              </div>
-            </div>
 
             {/* ── 4 Feature Cards (exact as user image) ── */}
             <div className="lp-features-list">
               {/* Feature 1 */}
               <div className="lp-feature-card">
                 <div className="lp-feat-icon-wrap lp-feat-icon-blue">
-                  <Stethoscope size={20} />
+                  <Stethoscope size={24} />
                 </div>
                 <div>
                   <div className="lp-feat-title">Smart Doctor Matching</div>
@@ -1415,7 +1427,7 @@ export default function LoginPage() {
               {/* Feature 2 */}
               <div className="lp-feature-card">
                 <div className="lp-feat-icon-wrap lp-feat-icon-purple">
-                  <Brain size={20} />
+                  <Brain size={24} />
                 </div>
                 <div>
                   <div className="lp-feat-title">AI Clinical Support</div>
@@ -1426,7 +1438,7 @@ export default function LoginPage() {
               {/* Feature 3 */}
               <div className="lp-feature-card">
                 <div className="lp-feat-icon-wrap lp-feat-icon-green">
-                  <Pill size={20} />
+                  <Pill size={24} />
                 </div>
                 <div>
                   <div className="lp-feat-title">Digital Prescriptions</div>
@@ -1437,7 +1449,7 @@ export default function LoginPage() {
               {/* Feature 4 */}
               <div className="lp-feature-card">
                 <div className="lp-feat-icon-wrap lp-feat-icon-amber">
-                  <Activity size={20} />
+                  <Activity size={24} />
                 </div>
                 <div>
                   <div className="lp-feat-title">Real-time Monitoring</div>
@@ -1531,14 +1543,6 @@ export default function LoginPage() {
                   </button>
                 </div>
 
-                {/* Staff Roles Strip */}
-                {isStaff && authMode === 'login' && (
-                  <div className="lp-role-strip">
-                    {['Doctor', 'Pharmacist', 'Supplier', 'Receptionist', 'Pharmacy Owner', 'Admin'].map(r => (
-                      <span key={r} className="lp-role-badge">{r}</span>
-                    ))}
-                  </div>
-                )}
 
                 {/* Global Error Banner */}
                 {error && (
