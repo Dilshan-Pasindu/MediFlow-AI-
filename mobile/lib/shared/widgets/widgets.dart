@@ -607,9 +607,9 @@ class StatTile extends StatelessWidget {
 class AuthHelpCenterCard extends StatelessWidget {
   const AuthHelpCenterCard({super.key});
 
-  static const String supportEmail = 'dilshan@admin.com';
-  static const String supportPhone = '011 0x 9x 89x';
-  static const String supportPhoneTel = '0110x9x89x';
+  static const String supportEmail = 'dilshan@mediflow.ai';
+  static const String supportPhone = '0110x0x999';
+  static const String supportPhoneTel = '0110x0x999';
 
   Future<void> _launchEmail() async {
     try {
