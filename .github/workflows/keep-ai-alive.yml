@@ -1,0 +1,29 @@
+name: AI Service Health Check (Keep-Alive)
+
+on:
+  schedule:
+    # Runs every 14 minutes to ping the Render free-tier AI service
+    - cron: '*/14 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-ai-service:
+    name: Ping AI Service Health
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send Health Probe
+        env:
+          AI_SERVICE_URL: ${{ secrets.AI_SERVICE_URL }}
+        run: |
+          if [ -z "$AI_SERVICE_URL" ]; then
+            echo "::error::Repository secret 'AI_SERVICE_URL' is not configured. Please add it under Repository Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+          # Strip trailing slash if present for consistent URL formatting
+          BASE_URL="${AI_SERVICE_URL%/}"
+
+          echo "Pinging AI microservice health endpoint..."
+          RESPONSE=$(curl --fail --silent --show-error --max-time 30 "${BASE_URL}/health")
+          echo "Health check succeeded: ${RESPONSE}"
