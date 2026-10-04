@@ -387,6 +387,11 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - AI Health Probe: `http://localhost:8000/health`
 - Recommendation Endpoint: `POST http://localhost:8000/api/ai/recommend-specialist`
 
+#### Render Deployment & Keep-Alive Workflow
+When deployed on Render's free tier, the AI service automatically suspends after 15 minutes of inactivity. To mitigate cold starts during active demonstration cycles, MediFlow-AI includes a scheduled GitHub Actions health-check workflow:
+- **Workflow File:** [keep-ai-alive.yml](file:///.github/workflows/keep-ai-alive.yml) (Runs every 14 minutes and on manual trigger)
+- **Setup Guide:** See [RENDER_AI_SERVICE_KEEP_ALIVE.md](file:///docs/RENDER_AI_SERVICE_KEEP_ALIVE.md) for GitHub Secrets configuration (`AI_SERVICE_URL`), limitations, and run instructions.
+
 ---
 
 ### 5. Mobile Setup (Flutter)
