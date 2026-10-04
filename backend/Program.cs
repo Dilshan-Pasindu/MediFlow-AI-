@@ -76,7 +76,7 @@ var aiBaseUrl = builder.Configuration["AiService:BaseUrl"]
 builder.Services.AddHttpClient("AiService", client =>
 {
     client.BaseAddress = new Uri(aiBaseUrl);
-    client.Timeout = TimeSpan.FromSeconds(15);
+    client.Timeout = TimeSpan.FromSeconds(60);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
 
