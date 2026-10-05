@@ -18,10 +18,11 @@ from ai.knowledge_base.retrieval_service import (
     get_hybrid_retriever,
     compute_query_vector,
     VECTOR_DIM,
+    DEFAULT_DB_PATH,
 )
 from ai.knowledge_base.clinical_data_catalog import AUTHORITATIVE_SOURCES
 
-DB_PATH = Path("ai/knowledge_base/mediflow_knowledge_base.db")
+DB_PATH = DEFAULT_DB_PATH
 
 
 @pytest.fixture(scope="session", autouse=True)
