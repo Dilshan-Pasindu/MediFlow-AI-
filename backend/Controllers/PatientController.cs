@@ -1,5 +1,6 @@
 using MediFlow.Api.Data;
 using MediFlow.Api.DTOs;
+using MediFlow.Api.Extensions;
 using MediFlow.Api.Models;
 using MediFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -30,8 +31,7 @@ public class PatientController : ControllerBase
     [HttpGet("profile")]
     public async Task<IActionResult> GetProfile()
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
 
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
@@ -58,8 +58,7 @@ public class PatientController : ControllerBase
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdatePatientRequest request)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
 
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
@@ -144,8 +143,7 @@ public class PatientController : ControllerBase
     [HttpGet("appointments")]
     public async Task<IActionResult> GetAppointments()
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
@@ -189,8 +187,7 @@ public class PatientController : ControllerBase
     [HttpDelete("appointments/{id:int}")]
     public async Task<IActionResult> CancelAppointment(int id, [FromBody] CancelAppointmentRequest? request)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
@@ -235,8 +232,7 @@ public class PatientController : ControllerBase
     [HttpPost("symptoms")]
     public async Task<IActionResult> SubmitSymptoms([FromBody] SubmitSymptomsRequest request)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
@@ -453,10 +449,30 @@ public class PatientController : ControllerBase
 
     // ── Helper ────────────────────────────────────────────────────────────────
 
+    private async Task<Patient?> GetPatientAsync()
+    {
+        var userId = GetUserId();
+        if (userId > 0)
+        {
+            var p = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+            if (p != null) return p;
+        }
+
+        var sub = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value
+            ?? User.FindFirst("supabaseId")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(sub))
+        {
+            return await _db.Patients.FirstOrDefaultAsync(p => p.SupabaseId == sub);
+        }
+
+        return null;
+    }
+
     private int GetUserId()
     {
-        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : throw new UnauthorizedAccessException();
+        return User.GetUserId(_db);
     }
 }
 

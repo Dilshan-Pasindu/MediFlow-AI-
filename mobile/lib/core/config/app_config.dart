@@ -65,7 +65,7 @@ class AppConfig {
   static const String userKey = 'mediflow_user_profile';
 
   // ── Request Timeout ───────────────────────────────────────────────────────
-  static const Duration requestTimeout = Duration(seconds: 15);
+  static const Duration requestTimeout = Duration(seconds: 60);
 
   // ── Business Rules (mirroring backend) ───────────────────────────────────
   static const int maxAppointmentAdvanceDays = 90;

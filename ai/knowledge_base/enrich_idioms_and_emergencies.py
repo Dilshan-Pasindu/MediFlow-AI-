@@ -316,8 +316,9 @@ def enrich_knowledge_base():
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """, (uid, "SRC-ENRICH-001", data_type, agent, category, concept, content, meta_json, chunk_hash, emb_bytes, now_iso))
 
+            cursor.execute("DELETE FROM knowledge_fts WHERE id = ?;", (uid,))
             cursor.execute("""
-                INSERT OR REPLACE INTO knowledge_fts (id, concept, content, knowledge_category, agent)
+                INSERT INTO knowledge_fts (id, concept, content, knowledge_category, agent)
                 VALUES (?, ?, ?, ?, ?);
             """, (uid, concept, f"{content} {' '.join(keywords)}", category, agent))
             inserted_count += 1
@@ -337,8 +338,9 @@ def enrich_knowledge_base():
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 """, (q_uid, "SRC-ENRICH-001", "synthetic", "specialist_recommendation", "patient_query", f"Query: {kw}", q_content, meta_json, q_hash, q_emb, now_iso))
 
+                cursor.execute("DELETE FROM knowledge_fts WHERE id = ?;", (q_uid,))
                 cursor.execute("""
-                    INSERT OR REPLACE INTO knowledge_fts (id, concept, content, knowledge_category, agent)
+                    INSERT INTO knowledge_fts (id, concept, content, knowledge_category, agent)
                     VALUES (?, ?, ?, ?, ?);
                 """, (q_uid, f"Query: {kw}", f"{q_content} {kw} {specialty}", "patient_query", "specialist_recommendation"))
                 inserted_count += 1

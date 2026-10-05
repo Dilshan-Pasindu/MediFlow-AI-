@@ -1,5 +1,6 @@
 using MediFlow.Api.Data;
 using MediFlow.Api.DTOs;
+using MediFlow.Api.Extensions;
 using MediFlow.Api.Models;
 using MediFlow.Api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -368,8 +369,6 @@ public class InventoryController : ControllerBase
 
     private int GetUserId()
     {
-        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture)
-            : throw new UnauthorizedAccessException();
+        return User.GetRequiredUserId(_db);
     }
 }

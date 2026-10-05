@@ -1,4 +1,5 @@
 using MediFlow.Api.Data;
+using MediFlow.Api.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -51,7 +52,6 @@ public class NotificationsController : ControllerBase
 
     private int GetUserId()
     {
-        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : 0;
+        return User.GetUserId(_db);
     }
 }

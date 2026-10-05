@@ -41,12 +41,12 @@ export default function DashboardPage() {
   const user = getUser();
 
   const { data: appointments = [], isLoading: apptsLoading, refetch: refetchAppts } = useMyAppointments({
-    refetchInterval: 3000,
-    staleTime: 3000,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
   const { data: prescriptions = [], isLoading: rxsLoading, refetch: refetchRxs } = useMyPrescriptions({
-    refetchInterval: 3000,
-    staleTime: 3000,
+    refetchInterval: 30000,
+    staleTime: 10000,
   });
   const loading = apptsLoading || rxsLoading;
 

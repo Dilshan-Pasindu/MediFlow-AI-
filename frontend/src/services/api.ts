@@ -49,10 +49,9 @@ async function apiFetch<T = unknown>(
   return res.data;
 }
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
 export async function apiLogin(email: string, password: string, loginType?: 'Patient' | 'Staff') {
-  if (isSupabaseConfigured()) {
+  // Only attempt Supabase auth if not logging in as Staff (staff accounts exist in backend DB)
+  if (loginType !== 'Staff' && isSupabaseConfigured()) {
     try {
       const { data: supaData, error: supaError } = await supabase.auth.signInWithPassword({
         email,
