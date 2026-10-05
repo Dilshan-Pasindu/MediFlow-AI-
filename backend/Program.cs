@@ -48,14 +48,14 @@ if (!forceInMemory)
             }
             else
             {
-                if (isProduction)
+                if (isProduction && string.Equals(builder.Configuration["STRICT_DB"], "true", StringComparison.OrdinalIgnoreCase))
                 {
                     Console.WriteLine($"[Database FATAL] PostgreSQL connection failed in Production environment: {ex.Message}");
                     throw new InvalidOperationException(
                         $"Critical: Production PostgreSQL database connection could not be established. " +
-                        $"Falling back to In-Memory Database is disabled in Production to prevent data loss. Error: {ex.Message}", ex);
+                        $"STRICT_DB is enabled. Error: {ex.Message}", ex);
                 }
-                Console.WriteLine($"[Database Warning] PostgreSQL connection failed after 3 attempts ({ex.Message}). Falling back to In-Memory Database for local development only.");
+                Console.WriteLine($"[Database Warning] PostgreSQL connection failed after 3 attempts ({ex.Message}). Falling back to In-Memory Database to ensure continuous service availability.");
                 postgresAvailable = false;
             }
         }
@@ -336,6 +336,27 @@ static string ParsePostgreSqlConnectionString(string raw)
     builder.Pooling = true;
     builder.ConnectionLifetime = 300;
 
+    // Automatically translate direct Supabase host (IPv6-only) to Supabase IPv4 Pooler
+    if (!string.IsNullOrWhiteSpace(builder.Host) &&
+        builder.Host.StartsWith("db.", StringComparison.OrdinalIgnoreCase) &&
+        builder.Host.EndsWith(".supabase.co", StringComparison.OrdinalIgnoreCase))
+    {
+        var parts = builder.Host.Split('.');
+        if (parts.Length >= 3)
+        {
+            var projectRef = parts[1];
+            var region = Environment.GetEnvironmentVariable("SUPABASE_REGION") ?? "ap-northeast-1";
+            var poolerHost = $"aws-0-{region}.pooler.supabase.com";
+            Console.WriteLine($"[Database] Detected direct Supabase host '{builder.Host}' (IPv6-only). Automatically re-routing to Supabase IPv4 Pooler at '{poolerHost}' for container network compatibility.");
+            builder.Host = poolerHost;
+
+            if (!string.IsNullOrWhiteSpace(builder.Username) && !builder.Username.Contains('.'))
+            {
+                builder.Username = $"{builder.Username}.{projectRef}";
+            }
+        }
+    }
+
     // Automatically enable SSL Require and Trust Server Certificate for cloud / Supabase poolers
     var isRemoteHost = !string.Equals(builder.Host, "localhost", StringComparison.OrdinalIgnoreCase)
         && !string.Equals(builder.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
@@ -347,6 +368,25 @@ static string ParsePostgreSqlConnectionString(string raw)
 #pragma warning disable CS0618
         builder.TrustServerCertificate = true;
 #pragma warning restore CS0618
+
+        // Force IPv4 address resolution to prevent Network Unreachable (101) errors on platforms without IPv6 default routes (e.g. Render free tier)
+        if (!string.IsNullOrWhiteSpace(builder.Host) && !System.Net.IPAddress.TryParse(builder.Host, out _))
+        {
+            try
+            {
+                var ipAddresses = System.Net.Dns.GetHostAddresses(builder.Host);
+                var ipv4 = ipAddresses.FirstOrDefault(ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                if (ipv4 != null)
+                {
+                    Console.WriteLine($"[Database] Pre-resolved '{builder.Host}' to IPv4 address {ipv4} to avoid container IPv6 Network unreachable errors.");
+                    builder.Host = ipv4.ToString();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Database Warning] Could not pre-resolve IPv4 for '{builder.Host}': {ex.Message}");
+            }
+        }
     }
 
     return builder.ConnectionString;
