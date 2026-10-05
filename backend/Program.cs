@@ -24,19 +24,41 @@ var rawConn = builder.Configuration["DATABASE_URL"]
 var connectionString = ParsePostgreSqlConnectionString(rawConn);
 var forceInMemory = string.Equals(builder.Configuration["USE_IN_MEMORY_DB"], "true", StringComparison.OrdinalIgnoreCase);
 
+var isProduction = builder.Environment.IsProduction();
 bool postgresAvailable = false;
 if (!forceInMemory)
 {
-    try
+    // Retry loop (up to 3 attempts) to tolerate initial connection pooler wakeups
+    for (int attempt = 1; attempt <= 3; attempt++)
     {
-        using var testConn = new Npgsql.NpgsqlConnection(connectionString);
-        testConn.Open();
-        postgresAvailable = true;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"[Database Warning] PostgreSQL connection failed ({ex.Message}). Falling back to In-Memory Database for seamless execution.");
-        postgresAvailable = false;
+        try
+        {
+            using var testConn = new Npgsql.NpgsqlConnection(connectionString);
+            testConn.Open();
+            postgresAvailable = true;
+            Console.WriteLine($"[Database] Successfully established PostgreSQL connection to {testConn.Host}:{testConn.Port}/{testConn.Database}.");
+            break;
+        }
+        catch (Exception ex)
+        {
+            if (attempt < 3)
+            {
+                Console.WriteLine($"[Database Warning] PostgreSQL connection attempt {attempt}/3 failed ({ex.Message}). Retrying in 2 seconds...");
+                Thread.Sleep(2000);
+            }
+            else
+            {
+                if (isProduction)
+                {
+                    Console.WriteLine($"[Database FATAL] PostgreSQL connection failed in Production environment: {ex.Message}");
+                    throw new InvalidOperationException(
+                        $"Critical: Production PostgreSQL database connection could not be established. " +
+                        $"Falling back to In-Memory Database is disabled in Production to prevent data loss. Error: {ex.Message}", ex);
+                }
+                Console.WriteLine($"[Database Warning] PostgreSQL connection failed after 3 attempts ({ex.Message}). Falling back to In-Memory Database for local development only.");
+                postgresAvailable = false;
+            }
+        }
     }
 }
 
@@ -170,7 +192,8 @@ builder.Services.AddControllers()
 
 // ─── Problem Details & Health Checks ───────────────────────────────────────────
 builder.Services.AddProblemDetails();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database");
 
 // ─── Swagger / OpenAPI ────────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
@@ -249,9 +272,18 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
     ResponseWriter = (context, report) =>
     {
         context.Response.ContentType = "application/json";
+        var isHealthy = report.Status == Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy;
+        context.Response.StatusCode = isHealthy ? StatusCodes.Status200OK : StatusCodes.Status503ServiceUnavailable;
         return context.Response.WriteAsJsonAsync(new
         {
-            status = report.Status == Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy ? "healthy" : "unhealthy"
+            status = isHealthy ? "healthy" : "unhealthy",
+            checks = report.Entries.ToDictionary(
+                e => e.Key,
+                e => new
+                {
+                    status = e.Value.Status.ToString(),
+                    description = e.Value.Description
+                })
         });
     }
 }).AllowAnonymous();
@@ -303,6 +335,20 @@ static string ParsePostgreSqlConnectionString(string raw)
     builder.CommandTimeout = 60;
     builder.Pooling = true;
     builder.ConnectionLifetime = 300;
+
+    // Automatically enable SSL Require and Trust Server Certificate for cloud / Supabase poolers
+    var isRemoteHost = !string.Equals(builder.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(builder.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(builder.Host, "db", StringComparison.OrdinalIgnoreCase);
+
+    if (isRemoteHost)
+    {
+        builder.SslMode = Npgsql.SslMode.Require;
+#pragma warning disable CS0618
+        builder.TrustServerCertificate = true;
+#pragma warning restore CS0618
+    }
+
     return builder.ConnectionString;
 }
 
