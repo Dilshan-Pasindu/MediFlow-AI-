@@ -181,9 +181,39 @@ curl -X GET "http://localhost:5224/api/doctors?specialty=Cardiology" \
 ---
 
 ### 3.2 Consultation Lifecycle Transitions
-- `POST /api/appointments/{id}/start` (`Doctor`): Begins clinical consultation; notifies queue monitor via SignalR.
-- `POST /api/appointments/{id}/complete` (`Doctor`): Concludes patient session and logs encounter duration.
-- `POST /api/appointments/{id}/cancel` (`Patient`, `Doctor`, `Receptionist`): Releases channeling slot.
+- `POST /api/Appointments/{id}/start` (`Doctor`): Begins clinical consultation; broadcasts `ConsultationStarted` event via SignalR to all subscribed queue clients.
+- `POST /api/Appointments/{id}/end` (`Doctor`): Concludes patient session and broadcasts `ConsultationEnded` event via SignalR.
+- `GET /api/Appointments/current-consultation` (`Public / Staff`): Returns currently consulting appointment details for real-time waiting room displays.
+- `WebSocket /hubs/consultation`: SignalR hub for real-time consultation queue updates (`SubscribeToDoctor`, `UnsubscribeFromDoctor`, `ConsultationStarted`, `ConsultationEnded`).
+
+---
+
+### 3.3 PayHere Payment Gateway & Refund Lifecycle
+
+#### Initiate PayHere Checkout
+- **Method:** `POST`
+- **Path:** `/api/Payment/initiate`
+- **Access:** `Patient`
+- **Description:** Generates pre-signed PayHere parameters with MD5 hash signature calculation (`merchant_id + order_id + amount + currency + UPPER(MD5(merchant_secret))`).
+
+#### PayHere IPN Webhook Notification
+- **Method:** `POST`
+- **Path:** `/api/Payment/payhere/notify`
+- **Access:** Public (Protected via PayHere MD5 signature verification)
+- **Description:** Processes async payment notifications, verifies cryptographic signature, confirms appointment, and records transaction in `AppointmentPayment` and `PaymentAuditLog`.
+
+#### Receptionist Payment Verification
+- **Method:** `POST`
+- **Path:** `/api/Payment/appointments/{id}/verify-payment`
+- **Access:** `Receptionist`, `Administrator`
+- **Description:** Manually approves or rejects a bank slip upload with audit trail.
+
+#### Refund Management Endpoints
+- `POST /api/Payment/appointments/{id}/cancel`: Patient cancels appointment and submits refund request.
+- `POST /api/Payment/refunds/{id}/request`: Submits refund request with patient banking details.
+- `POST /api/Payment/refunds/{id}/process`: Receptionist/Admin approves or rejects refund with gateway transaction reference.
+- `GET /api/Payment/refunds/pending`: Fetches all pending refund requests awaiting staff review.
+- `GET /api/Payment/audit-logs`: Retrieves immutable financial audit log entries.
 
 ---
 

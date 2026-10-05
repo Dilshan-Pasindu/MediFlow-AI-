@@ -4,11 +4,14 @@
 > *An enterprise-grade, multi-agent AI healthcare ecosystem with Human-in-the-Loop clinical decision support.*
 
 [![Backend](https://img.shields.io/badge/Backend-ASP.NET%20Core%208%20LTS-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL%2016%20%2F%20EF%20Core%208-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL%2016%20%2F%20Supabase%20Pooler-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://supabase.com/)
+[![RealTime](https://img.shields.io/badge/RealTime-SignalR%20WebSockets-512BD4?style=for-the-badge&logo=signal&logoColor=white)](https://learn.microsoft.com/aspnet/core/signalr/)
+[![Payments](https://img.shields.io/badge/Payments-PayHere%20Sandbox-00A651?style=for-the-badge)](https://www.payhere.lk/)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2019%20%2B%20TypeScript%20%2B%20Vite-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![Mobile](https://img.shields.io/badge/Mobile-Flutter%20%2F%20Riverpod-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
-[![AI Subsystem](https://img.shields.io/badge/AI-LangGraph%20%2F%20FastAPI-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![Auth](https://img.shields.io/badge/Auth-JWT%20Bearer%20%2B%20BCrypt-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
+[![AI Subsystem](https://img.shields.io/badge/AI-LangGraph%20%2F%20FastAPI%20100k%20RAG-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Tests](https://img.shields.io/badge/Tests-139%20.NET%20%7C%20109%20Python%20PASS-success?style=for-the-badge)](./tests)
+[![Auth](https://img.shields.io/badge/Auth-JWT%20%2B%20Supabase-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
 
 ---
@@ -79,34 +82,43 @@ graph TB
     end
 
     subgraph Gateway["Application & API Layer"]
-        DotNetAPI["ASP.NET Core 8 LTS Web API<br/>• JWT Authentication & RBAC<br/>• Controllers & Business Services<br/>• RFC 7807 Problem Details & Health Checks<br/>• Swagger / OpenAPI Docs"]
+        DotNetAPI["ASP.NET Core 8 LTS Web API<br/>• Dual Auth: JWT & Supabase Auth<br/>• SignalR Real-Time Consultation Hub<br/>• PayHere Payment Gateway & Refunds<br/>• RFC 7807 Problem Details & Health Checks<br/>• Swagger / OpenAPI Docs"]
     end
 
     subgraph DataLayer["Persistence Layer"]
-        EFCore["Entity Framework Core"]
-        PostgreSQL[("PostgreSQL Database<br/>(Transactional & Audit Store)")]
+        EFCore["Entity Framework Core 8"]
+        SupabasePooler["Supabase IPv4 Pooler<br/>(aws-0-ap-northeast-1.pooler.supabase.com:5432)"]
+        PostgreSQL[("PostgreSQL 16 Cloud Store<br/>(29 Domain Entities & Audit Trails)")]
     end
 
-    subgraph AISubsystem["Agentic AI Layer (Internal Subsystem)"]
-        Orchestrator["Agentic Orchestrator<br/>(Workflow Plan & State Management)"]
+    subgraph AISubsystem["Agentic AI Layer (FastAPI Microservice)"]
+        Orchestrator["Agentic Orchestrator & LangGraph Engine"]
         Agent1["🩺 Specialist & Doctor Agent"]
         Agent2["🧠 Clinical Decision Support Agent"]
         Agent3["💊 Medication Intelligence Agent"]
         Agent4["📦 Pharmacy & Inventory Agent"]
-        ToolRegistry["Controlled Tool Registry<br/>(Allow-Listed Functions)"]
+        KnowledgeBase["100k Hybrid RAG Knowledge Base<br/>(Porter Stemmer FTS5 + Embeddings)"]
     end
 
-    ReactWeb -->|HTTPS / REST| DotNetAPI
+    subgraph ExternalServices["External Infrastructure & Automation"]
+        PayHere["PayHere Sandbox Gateway<br/>(MD5 Signatures, IPN Webhooks & Receipts)"]
+        KeepAliveCron["GitHub Actions Keep-Alive Cron<br/>(14-Min Dual-Service Ping)"]
+    end
+
+    ReactWeb -->|HTTPS / REST & SignalR WSS| DotNetAPI
     FlutterApp -->|HTTPS / REST| DotNetAPI
+    DotNetAPI <-->|MD5 Hash & IPN Callbacks| PayHere
     DotNetAPI --> EFCore
-    EFCore --> PostgreSQL
-    DotNetAPI <-->|Internal Service Calls| Orchestrator
+    EFCore --> SupabasePooler
+    SupabasePooler --> PostgreSQL
+    KeepAliveCron -.->|14m Ping /health| DotNetAPI
+    KeepAliveCron -.->|14m Ping /health| Orchestrator
+    DotNetAPI <-->|Internal HTTP / C# Fallback| Orchestrator
     Orchestrator --> Agent1
     Orchestrator --> Agent2
     Orchestrator --> Agent3
     Orchestrator --> Agent4
-    Agent1 & Agent2 & Agent3 & Agent4 <--> ToolRegistry
-    ToolRegistry <--> DotNetAPI
+    Agent1 & Agent2 & Agent3 & Agent4 <--> KnowledgeBase
 ```
 
 ---
@@ -131,49 +143,82 @@ sequenceDiagram
     autonumber
     actor Patient as 👤 Patient
     participant System as 💻 MediFlow API
-    participant AI as 🤖 AI Orchestrator
+    participant AI as 🤖 AI Subsystem
     actor Receptionist as 📋 Receptionist
     actor Doctor as 🩺 Doctor
+    participant SignalR as ⚡ SignalR Hub
     actor Pharmacist as 💊 Pharmacist
     actor Owner as 🏪 Pharmacy Owner
     actor Supplier as 🚚 Supplier
 
-    %% 1. Booking
-    Patient->>System: Submit symptoms (Natural language)
-    System->>AI: Trigger Specialist Recommendation Agent
-    AI-->>Patient: Recommend Specialty & Ranked Doctors
-    Patient->>System: Select doctor & book appointment with payment
-    
-    %% 2. Receptionist Verification
-    Receptionist->>System: Verify payment & confirm booking
+    %% 1. Triage & Booking
+    Patient->>System: Submit symptoms in natural language
+    alt AI Microservice Online
+        System->>AI: Trigger Specialist Recommendation Agent
+        AI-->>Patient: Recommend Specialty & Ranked Doctors
+    else AI Downtime Fallback
+        System-->>Patient: Fallback to C# Clinical Rule Engine (17 Specialties + Triage)
+    end
+    Patient->>System: Select doctor & book appointment
+
+    %% 2. Payment & Verification
+    alt PayHere Sandbox Online Payment
+        Patient->>System: Initiate checkout (/api/Payment/initiate)
+        System-->>Patient: Return signed PayHere MD5 parameters
+        Patient->>System: Complete checkout via PayHere IPN callback (/api/Payment/payhere/notify)
+    else Bank Slip / Manual Verification
+        Patient->>System: Upload bank payment slip
+        Receptionist->>System: Verify payment & approve booking (/api/Payment/appointments/{id}/verify-payment)
+    end
     System-->>System: Generate appointment number (APP-2026-XXXX)
 
-    %% 3. Consultation & AI Clinical Support
-    Doctor->>System: Open verified appointment & start consultation
-    System->>AI: Trigger Clinical Decision Support Agent
-    AI-->>Doctor: Suggested diagnoses & test recommendations
-    Doctor->>System: Review AI output [ACCEPT / MODIFY / REJECT]
+    %% 3. Consultation & SignalR Queue Broadcast
+    Doctor->>System: Start consultation (/api/Appointments/{id}/start)
+    System->>SignalR: Broadcast ConsultationStarted (Queue real-time update)
+    Doctor->>System: Trigger Clinical Decision Support
+    alt AI Microservice Online
+        System->>AI: Analyze patient vitals & medical history
+        AI-->>Doctor: Suggested differential diagnoses & tests
+    else AI Fallback
+        System-->>Doctor: Historical records & clinical SOAP templates
+    end
+    Doctor->>System: Review AI recommendations [ACCEPT / MODIFY / REJECT]
 
-    %% 4. Prescription & Stock Verification
-    Doctor->>System: Add medicines to e-prescription
-    System->>AI: Trigger Medication Intelligence Agent (Stock Check)
-    AI-->>Doctor: Stock confirmation / Therapeutic alternatives
-    Doctor->>System: Confirm & issue official E-Prescription
+    %% 4. Prescription & Safe Dispensing
+    Doctor->>System: Draft prescription items
+    alt AI Microservice Online
+        System->>AI: Screen drug interactions & stock availability
+        AI-->>Doctor: Stock verification & safety confirmation
+    else AI Downtime (Clinical Safety Guardrail)
+        System-->>Doctor: HTTP 503 Fail-Closed (Mandates Pharmacist manual safety review)
+    end
+    Doctor->>System: Issue official E-Prescription
+    Doctor->>System: End consultation (/api/Appointments/{id}/end)
+    System->>SignalR: Broadcast ConsultationEnded
 
-    %% 5. Dispensing
-    System-->>Patient: Push notification + E-Prescription View
+    %% 5. Dispensing & Automatic Inventory Decrement
     System-->>Pharmacist: E-Prescription visible in Pharmacy Queue
-    Pharmacist->>System: Auto-calculate price & process order
-    Pharmacist->>System: Update status: PREPARING → READY → DISPENSED
-    System-->>System: Automatically decrement pharmacy inventory
+    Pharmacist->>System: Calculate price & advance state: PREPARING → READY → DISPENSED
+    System-->>System: Automatically decrement pharmacy stock batches
 
-    %% 6. Inventory Intelligence & Replenishment
-    System->>AI: Trigger Inventory Intelligence Agent
-    AI-->>Owner: Alert low stock + Forecast demand + Restock recommendation
-    Owner->>System: Review & Approve restock order
+    %% 6. Predictive Inventory & Supply Chain
+    alt AI Microservice Online
+        System->>AI: Forecast stock-out horizons via AI Inventory Agent
+        AI-->>Owner: Alert low stock + Recommended batch restock order
+    else AI Fallback
+        System-->>Owner: Deterministic 30-day velocity restock calculation
+    end
+    Owner->>System: Review & approve restock purchase order
     System->>Supplier: Forward restock request to supplier
-    Supplier->>System: Approve order & dispatch stock
+    Supplier->>System: Approve order & dispatch shipment
     Pharmacist->>System: Mark stock received (Inventory replenished)
+
+    %% 7. Cancellation & Refund Lifecycle
+    opt Appointment Cancellation & Refund
+        Patient->>System: Request cancellation & refund (/api/Payment/refunds/request)
+        Receptionist->>System: Review & approve refund (/api/Payment/refunds/process)
+        System-->>System: Log financial audit entry (PaymentAuditLog)
+    end
 ```
 
 ---
@@ -182,14 +227,16 @@ sequenceDiagram
 
 | Layer | Technology | Details |
 |---|---|---|
-| **Web Client** | React 19 + TypeScript (Strict) + Vite 8 | SPA architecture, Tailwind CSS 4, TanStack Query 5, Zustand 5, React Router 7, Zod, Lucide React |
-| **Backend API** | ASP.NET Core 8 LTS / C# 12 | Modular REST API, Dependency Injection, RFC 7807 Problem Details, Health Checks, Swagger/OpenAPI |
-| **ORM & Database** | PostgreSQL 16 + EF Core 8 | Code-First migrations, automated seeding, connection pooling |
-| **Security & Auth** | JWT Bearer & BCrypt | Role-Based Access Control (RBAC), Claims-based authorization |
+| **Web Client** | React 19 + TypeScript (Strict) + Vite 8 | SPA architecture, Tailwind CSS 4, TanStack Query 5, Zustand 5, React Router 7, Zod, Lucide React, SignalR client |
+| **Backend API** | ASP.NET Core 8 LTS / C# 12 | Modular REST API, Dependency Injection, RFC 7807 Problem Details, Health Checks, Swagger/OpenAPI, SignalR Hubs |
+| **Real-Time Engine** | ASP.NET Core SignalR WebSockets | Real-time queue tracker (`/hubs/consultation`), live doctor consultation events (`ConsultationStarted`, `ConsultationEnded`) |
+| **Payment Gateway** | PayHere Sandbox + Audit Store | MD5 signature hashing, IPN webhook notification handling, full refund approval state machine, immutable `PaymentAuditLog` |
+| **ORM & Database** | PostgreSQL 16 + EF Core 8 (Supabase Pooler) | 29 domain entities, code-first migrations, automated seeding, IPv4 pooler routing (`aws-0-ap-northeast-1.pooler.supabase.com:5432`) |
+| **Security & Auth** | Dual Auth: JWT Bearer & Supabase Auth | Role-Based Access Control (RBAC), BCrypt password hashing, staff-role latency bypass for immediate token validation |
 | **Mobile Client** | Flutter / Dart | Cross-platform mobile (Android/iOS), Riverpod state management, GoRouter |
-| **AI Subsystem** | Python 3.11 / FastAPI / LangGraph | Structured tool-calling, state graphs, Pydantic v2 deterministic validation |
-| **Testing** | Vitest, RTL, xUnit, Pytest | Automated frontend, backend API integration, and AI unit test suites |
-| **CI / CD & Tooling** | GitHub Actions & Docker | Automated build, security scanning (CodeQL), Docker Compose orchestration |
+| **AI Subsystem** | Python 3.11 / FastAPI / LangGraph | 100k Hybrid RAG Knowledge Base (Porter Stemmer FTS5 + Embeddings), Pydantic v2 deterministic validation, graceful C# rule engine fallbacks |
+| **Testing & QA** | Vitest, RTL, xUnit, Pytest | 139 xUnit backend unit/integration tests (100% pass) + 109 Pytest AI tests (100% pass) + Vitest frontend suites |
+| **CI / CD & Tooling** | GitHub Actions & Docker | Automated CI/CD (`ci.yml`, `cd.yml`), CodeQL security scanning, 14-min keep-alive monitoring (`keep-ai-alive.yml`), multi-stage Dockerfiles |
 
 ---
 
@@ -387,10 +434,12 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 - AI Health Probe: `http://localhost:8000/health`
 - Recommendation Endpoint: `POST http://localhost:8000/api/ai/recommend-specialist`
 
-#### Render Deployment & Keep-Alive Workflow
-When deployed on Render's free tier, the AI service automatically suspends after 15 minutes of inactivity. To mitigate cold starts during active demonstration cycles, MediFlow-AI includes a scheduled GitHub Actions health-check workflow:
-- **Workflow File:** [keep-ai-alive.yml](file:///.github/workflows/keep-ai-alive.yml) (Runs every 14 minutes and on manual trigger)
-- **Setup Guide:** See [RENDER_AI_SERVICE_KEEP_ALIVE.md](file:///docs/RENDER_AI_SERVICE_KEEP_ALIVE.md) for GitHub Secrets configuration (`AI_SERVICE_URL`), limitations, and run instructions.
+#### Render Deployment, Supabase IPv4 Pooler & Keep-Alive Workflow
+- **Supabase IPv4 Pooler Integration:** When deployed on Render's free-tier Linux containers, direct outbound connections to Supabase hostnames (`db.<project_ref>.supabase.co`) fail with `SocketException (101): Network unreachable` due to platform IPv6 constraints. MediFlow API automatically detects this and translates the connection to the Supabase IPv4 transaction/session pooler (`aws-0-ap-northeast-1.pooler.supabase.com:5432`) with user `postgres.<project_ref>` and IPv4 address pre-resolution.
+- **Render Free-Tier Keep-Alive:** Render free-tier web services automatically spin down after 15 minutes of inactivity. MediFlow includes a scheduled GitHub Actions health-check workflow:
+  - **Workflow File:** [keep-ai-alive.yml](file:///.github/workflows/keep-ai-alive.yml) (Runs every 14 minutes and supports manual triggers).
+  - **Dual-Service Probe:** Pings both `AI_SERVICE_URL` (`/health`) and `BACKEND_URL` (`/health`) to keep containers warm and avoid cold-start delays.
+  - **Setup Guide:** See [RENDER_AI_SERVICE_KEEP_ALIVE.md](file:///docs/RENDER_AI_SERVICE_KEEP_ALIVE.md) for GitHub Secrets configuration and troubleshooting.
 
 ---
 
@@ -419,18 +468,35 @@ Below is a summary of primary endpoints exposed by the ASP.NET Core API:
 - `GET /api/auth/me` — Retrieve current authenticated user profile.
 
 ### 🩺 Patients & Appointments (Member 1)
-- `GET /api/patients/{id}` — Retrieve patient demographic & medical details.
-- `POST /api/patients/symptoms` — Submit natural language symptom profile.
-- `GET /api/doctors` — Search and filter doctor directory.
-- `GET /api/doctors/ranked?specialty={id}` — **Non-CRUD:** Retrieve weighted algorithmic doctor recommendations.
-- `POST /api/appointments` — Book doctor consultation.
-- `GET /api/appointments/my` — Fetch current user's appointment history.
-- `POST /api/appointments/{id}/pay` — Process appointment fee transaction.
+- `GET /api/Patients/{id}` — Retrieve patient demographic & medical details.
+- `POST /api/Patients/symptoms` — Submit natural language symptom profile.
+- `GET /api/Doctors` — Search and filter doctor directory.
+- `GET /api/Doctors/ranked?specialty={id}` — **Non-CRUD:** Retrieve weighted algorithmic doctor recommendations.
+- `POST /api/Appointments` — Book doctor consultation.
+- `GET /api/Appointments/{id}` — Retrieve comprehensive appointment details.
+- `GET /api/Appointments/my` — Fetch current user's appointment history.
+- `POST /api/Appointments/{id}/pay` — Process appointment fee transaction or receipt upload.
+- `POST /api/Appointments/{id}/start` — Start consultation and broadcast `ConsultationStarted` via SignalR.
+- `POST /api/Appointments/{id}/end` — Complete consultation and broadcast `ConsultationEnded` via SignalR.
+- `GET /api/Appointments/current-consultation` — Real-time queue tracker for currently consulting patient.
+- `WebSocket /hubs/consultation` — SignalR real-time consultation hub for live queue synchronization.
 
-### 📋 Receptionist Operations
-- `GET /api/receptionist/appointments` — View pending appointment bookings.
-- `POST /api/receptionist/appointments/{id}/verify` — Verify payment & confirm booking.
-- `POST /api/receptionist/appointments/{id}/generate-number` — Generate formatted appointment identifier.
+### 💳 PayHere Payments & Refunds (Member 1)
+- `POST /api/Payment/initiate` — Generate pre-signed PayHere MD5 checkout parameters for sandbox checkout.
+- `POST /api/Payment/payhere/notify` — PayHere IPN webhook callback with signature verification & automated booking confirmation.
+- `POST /api/Payment/appointments/{id}/verify-payment` — Receptionist manual payment slip verification & approval.
+- `POST /api/Payment/appointments/{id}/cancel` — Cancel appointment and initiate refund workflow.
+- `POST /api/Payment/refunds/{id}/request` — Submit patient refund request with banking details.
+- `POST /api/Payment/refunds/{id}/process` — Staff approve or reject refund request with gateway reference.
+- `GET /api/Payment/refunds/pending` — Fetch pending refund requests awaiting staff review.
+- `GET /api/Payment/audit-logs` — Immutable financial audit trail with actor, action, and gateway references.
+
+### 📋 Receptionist & Admin Operations
+- `GET /api/Appointments` — View all appointment bookings with status filters.
+- `GET /api/Admin/users` — Paginated user management table with approval actions.
+- `PATCH /api/Admin/users/{id}/approve` — Approve pending staff/doctor account registrations.
+- `POST /api/Admin/specialties` — Provision new medical specialty.
+- `GET /api/Admin/audit-logs` — Query security audit logs with timestamp filtering.
 
 ### 🧠 Doctor Consultation & Clinical CDS (Member 2)
 - `GET /api/doctors/appointments` — Doctor queue (verified appointments only).
@@ -494,30 +560,40 @@ Recommended Restock Qty = (Target Safety Days × Demand Rate) - Current Stock Le
 ## 🛡️ Safety, Guardrails & Safe Failures
 
 - **Tool Allow-Lists:** AI agents can only invoke registered, deterministic backend tools with strict input schemas.
-- **Fail-Safe Fallbacks:**
-  - If symptom analysis is ambiguous → defaults safely to **General Medicine**.
-  - If agent services become unavailable → presents clean manual search interfaces without crashing.
-  - If stock checks fail → flags inventory for manual pharmacist confirmation before dispensing.
-- **Audit Logging:** Every AI output, tool invocation, and human decision is timestamped and persisted with audit trails.
+- **Graceful AI Downtime Strategy (3-Tier Safe Failure):**
+  - **🩺 Specialist Recommendation Fallback:** If the Python FastAPI service is offline, unreachable, or times out, the backend automatically fails over to an internal C# clinical rule engine covering **17 medical specialties** and emergency triage red-flag detection. The patient receives clear specialty recommendations without service disruption.
+  - **💊 Medication Safety Fallback (Clinical Guardrail):** If the AI service is unavailable during prescription drafting or dispensing safety screening, the system **fails closed** with an HTTP 503 error instructing the doctor/pharmacist: *"AI medication check unavailable. Please perform manual clinical drug-interaction review."* Patient safety is never compromised by hallucinated approvals.
+  - **📦 Inventory Forecasting Fallback:** If the AI demand predictor is offline, the backend seamlessly calculates reorder points using its internal **30-day velocity demand model** (`TotalDispensedLast30Days / 30 * SafetyDays`).
+- **Audit Logging:** Every AI output, tool invocation, human approval/rejection decision, and financial transaction is timestamped and persisted with audit trails (`AuditLogs` and `PaymentAuditLogs`).
 
 ---
 
 ## 🧪 Testing & Quality Assurance
 
-- **Backend:** xUnit, Moq & `WebApplicationFactory` for unit testing services, controllers, EF Core constraints, and integration security boundaries.
-- **Frontend:** Vitest & React Testing Library for components, state stores, routing guards, and user flows.
-- **AI Subsystem:** Pytest suite with Pydantic v2 schema validators, deterministic reasoning tests, and fallback evaluations.
-- **Mobile Subsystem:** Flutter widget and unit tests for Riverpod providers and navigation.
+MediFlow AI enforces a rigorous automated testing standard across all tiers:
+
+- **Backend Unit & Integration Tests (`tests/MediFlow.Tests`)**:
+  - Built with **xUnit**, **Moq**, and **EF Core In-Memory Database Provider**.
+  - Covers appointment status lifecycles, PayHere MD5 hash verification, batch expiry logic (`EXPIRED`, `CRITICAL`, `EXPIRING_SOON`, `GOOD`), refund processing, and claims-based authorization.
+  - **Current Status**: **139 / 139 tests passing** with 0 failures (100% pass rate).
+- **AI Microservice Tests (`ai/tests`)**:
+  - Built with **Pytest** and **FastAPI TestClient**.
+  - Validates Pydantic schemas, 100k Hybrid RAG Knowledge Base indexing, Porter Stemmer FTS5 search, emergency triage red-flags, and dosage safety guardrails.
+  - **Current Status**: **109 / 109 tests passing** with 0 failures (100% pass rate).
+- **Frontend Quality**:
+  - Built with **Vitest** and **React Testing Library** for components, state stores, and user flows; strict TypeScript type-checking with 0 errors.
+- **Mobile Subsystem**:
+  - Flutter widget and unit tests for Riverpod state providers and navigation.
 
 ```bash
-# Run backend tests (Unit & WebApplicationFactory Integration)
+# Run backend tests (139 unit & integration tests)
 dotnet test MediFlow.sln
+
+# Run AI microservice tests (109 pytest tests)
+cd ai && python3 -m pytest tests/
 
 # Run frontend tests (Vitest + React Testing Library)
 cd frontend && npm test
-
-# Run AI microservice tests (Pytest)
-python3 -m pytest ai/tests
 
 # Run mobile client tests (Flutter)
 cd mobile && flutter test

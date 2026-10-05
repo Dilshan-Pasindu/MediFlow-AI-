@@ -204,19 +204,25 @@ Member 1 (**Dilshan Pasindu**) spearheads the platform foundation, infrastructur
 ## Verification Plan
 
 ### Automated Tests
-1. **Backend Unit & Service Tests**:
+1. **Backend Unit & Integration Tests**:
    ```bash
    dotnet test tests/MediFlow.Tests/MediFlow.Tests.csproj
    ```
-   *Expected Result: 27/27 tests passed, 0 failed, 0 skipped.*
+   *Expected Result: 139/139 tests passed, 0 failed, 0 skipped (100% pass rate).*
 
-2. **Frontend Production Compilation**:
+2. **AI Microservice Suite**:
+   ```bash
+   cd ai && python3 -m pytest tests/
+   ```
+   *Expected Result: 109/109 tests passed, 0 failed, 0 skipped (100% pass rate).*
+
+3. **Frontend Production Compilation**:
    ```bash
    cd frontend && npm run build
    ```
    *Expected Result: TypeScript typecheck passes and Vite builds production bundles with 0 errors.*
 
-3. **Git Branch & Repository Hygiene**:
+4. **Git Branch & Repository Hygiene**:
    ```bash
    git status && git log -n 5 --oneline
    ```
