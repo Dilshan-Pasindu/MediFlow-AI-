@@ -16,18 +16,26 @@ At the core of MediFlow AI is a strict **Human-in-the-Loop (HITL) Agentic AI Arc
   │                                     CLIENT INTERFACES                                       │
   │   Mobile: Flutter (Dart / Riverpod)   │   Web: React 19 (TypeScript / Vite / Tailwind CSS)  │
   └──────────────────────────────────────┬──────────────────────────────────────────────────────┘
-                                         │ HTTPS / WSS (REST / JSON)
+                                         │ HTTPS / WSS (REST / SignalR WebSockets)
                                          ▼
   ┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-  │                           ASP.NET CORE 8 LTS WEB API GATEWAY                                │
-  │        JWT Authentication & RBAC │ Global Exception Middleware │ EF Core 8 ORM              │
+  │                           ASP.NET CORE 9 / 8 LTS WEB API GATEWAY                            │
+  │   JWT & Supabase Auth │ SignalR Consultation Hub │ Global Problem Details │ EF Core ORM     │
   └──────────────────┬───────────────────────────────────────────┬──────────────────────────────┘
-                     │ Internal REST                             │ Connection Pooling
+                     │ Internal REST (HTTP)                      │ TLS Pooler (:5432)
                      ▼                                           ▼
   ┌──────────────────────────────────────┐    ┌─────────────────────────────────────────────────┐
-  │    FASTAPI / LANGGRAPH AI ENGINE     │    │            POSTGRESQL 16 DATABASE               │
-  │  4 Autonomous HITL Agent Subsystems  │    │  Relational Data Store, Constraints & Indexes   │
+  │    FASTAPI / LANGGRAPH AI ENGINE     │    │        SUPABASE POSTGRESQL CLOUD DATABASE       │
+  │  4 Autonomous HITL Agent Subsystems  │    │      Session Pooler (IPv4) & Database Health    │
+  │  100k Hybrid Medical KB RAG (FTS5)   │    │      29 Production Tables & ACID Transactions   │
   └──────────────────────────────────────┘    └─────────────────────────────────────────────────┘
+                     │                                           │
+                     └───────────────────┬───────────────────────┘
+                                         ▼
+                     ┌───────────────────────────────────────┐
+                     │     GITHUB ACTIONS KEEP-ALIVE CRON    │
+                     │  14-Min Ping: AI Service + Backend    │
+                     └───────────────────────────────────────┘
 ```
 
 ---
@@ -36,17 +44,18 @@ At the core of MediFlow AI is a strict **Human-in-the-Loop (HITL) Agentic AI Arc
 
 | Layer / Subsystem | Technology | Specification / Standard | Architectural Role |
 |---|---|---|---|
-| **Mobile Client** | **Flutter (v3.20+) / Dart** | Riverpod State Management, GoRouter, Material 3 | Patient discovery, mobile booking, live queue tracking, digital e-prescriptions |
-| **Web Frontend** | **React 19 / TypeScript 5** | Vite 8, Tailwind CSS 4, TanStack Query v5, Zustand 5, Lucide Icons | Responsive portals for Patient, Receptionist, Admin, Doctor, Pharmacist, Owner, Supplier |
-| **Backend API Gateway** | **ASP.NET Core 8 LTS / C# 12** | RESTful Controllers, RFC 7807 Problem Details, Health Checks, Dependency Injection | Central business logic, authorization, transactional integrity, audit logging |
-| **Database & ORM** | **PostgreSQL 16 / EF Core 8** | Code-First Migrations, DatabaseSeeder, Connection Pooling, Strict Foreign Keys | Relational data persistence, ACID transactions, data consistency |
-| **Authentication & Security** | **JWT Bearer & BCrypt** | Role-Based Access Control (RBAC), Claims Authorization, HMAC-SHA256, CORS | Token issuance, claim validation, password hashing, route protection |
-| **Agentic AI Subsystem** | **Python 3.11 / FastAPI / LangGraph** | StateGraph workflows, Pydantic v2 validation, Async HTTP microservice | Cognitive reasoning, clinical NLP, ranking algorithms, predictive forecasting |
-| **Containerization & Infra** | **Docker & Docker Compose** | Multi-stage Dockerfiles, Docker Compose multi-service network, Alpine Linux | Reproducible development, production runtime orchestration, isolation |
-| **CI/CD & DevSecOps** | **GitHub Actions** | GitHub Actions (`ci.yml`, `cd.yml`), SonarQube / Trivy security scanning, Branch hooks | Automated build, linting, xUnit testing, container publishing, deployment |
-| **Testing Framework** | **xUnit, Moq, Vitest, Pytest** | In-Memory EF Core, `WebApplicationFactory`, React Testing Library, Pytest-AsyncIO | Comprehensive unit, integration, frontend, and AI agent test suites |
+| **Mobile Client** | **Flutter (v3.20+) / Dart** | Riverpod State Management, GoRouter, Material 3, 60s Cold-Start Timeout | Patient discovery, mobile booking, live queue tracking, digital e-prescriptions |
+| **Web Frontend** | **React 19 / TypeScript 5** | Vite 8, Tailwind CSS, TanStack Query v5, Zustand 5, Lucide Icons | Responsive portals for Patient, Receptionist, Admin, Doctor, Pharmacist, Owner, Supplier |
+| **Backend API Gateway** | **ASP.NET Core 9 / 8 LTS / C# 12** | RESTful Controllers, RFC 7807 Problem Details, Database Health Checks (`/health`), Dependency Injection | Central business logic, authorization, transactional integrity, audit logging |
+| **Real-Time Communication** | **ASP.NET Core SignalR** | WebSockets / Long Polling Hub (`/hubs/consultation`) | Real-time consultation queue updates, patient calling, and live status broadcasting |
+| **Payment Gateway & Refunds** | **PayHere Sandbox Gateway** | MD5 Signature Generation, IPN Webhook Verification, Receptionist Manual Audit | Secure online card/wallet checkout, automated IPN status sync, full patient refund lifecycle |
+| **Database & ORM** | **Supabase PostgreSQL / EF Core** | AWS Tokyo Session Pooler (`aws-0-ap-northeast-1.pooler.supabase.com:5432`), IPv4 Auto-Routing, 29 Tables | Relational data persistence, ACID transactions, pooler connection resiliency |
+| **Authentication & Security** | **JWT Bearer & Supabase Auth** | Dual-Auth Architecture, Role-Based Access Control (RBAC), Claims Authorization, Staff Latency Bypass | Token issuance, claim validation, password hashing, route protection |
+| **Agentic AI Subsystem** | **Python 3.12 / FastAPI / LangGraph** | StateGraph workflows, Pydantic v2 validation, 100k Hybrid Medical KB RAG (FTS5 + Semantic) | Cognitive reasoning, clinical NLP, ranking algorithms, predictive forecasting |
+| **Reliability & Keep-Alive** | **GitHub Actions Cron Automation** | 14-Minute Scheduled Ping (`keep-ai-alive.yml`) targeting AI Service & Backend | Prevents Render free-tier container dormancy and eliminates cold start delays |
+| **Testing Framework** | **xUnit, Moq, Vitest, Pytest** | In-Memory EF Core, `WebApplicationFactory`, React Testing Library, Pytest-AsyncIO | Comprehensive unit, integration, frontend, and AI agent test suites (139 .NET + 109 Pytest passing) |
 
-> **Architectural Law:** React Web and Flutter Mobile communicate **exclusively** through the ASP.NET Core 8 Web API. The Python FastAPI AI Subsystem operates as an **internal microservice** queried strictly by ASP.NET Core via secured internal HTTP channels. No client ever connects directly to the AI service or database.
+> **Architectural Law:** React Web and Flutter Mobile communicate **exclusively** through the ASP.NET Core Web API. The Python FastAPI AI Subsystem operates as an **internal microservice** queried strictly by ASP.NET Core via secured internal HTTP channels with automatic offline clinical fallbacks.
 
 ---
 
@@ -90,48 +99,72 @@ sequenceDiagram
     actor Pharmacist as Pharmacist (Portal)
     actor Owner as Pharmacy Owner
     actor Supplier as Supplier (Portal)
-    participant API as ASP.NET Core 8 Web API
-    participant AI as FastAPI AI Agents
-    participant DB as PostgreSQL Database
+    participant API as ASP.NET Core Web API (SignalR Hub)
+    participant PayHere as PayHere Payment Gateway
+    participant AI as FastAPI AI Agents (100k KB RAG)
+    participant DB as Supabase PostgreSQL Pooler
 
     Note over Patient,AI: Phase 1: Patient Discovery & Booking (Member 1)
-    Patient->>API: POST /api/patients/symptoms (Enter Symptoms)
-    API->>AI: POST /api/agent/recommend-specialist (Run Specialist Agent)
-    AI-->>API: Recommended Specialty + Ranked Doctors
+    Patient->>API: POST /api/Patient/symptoms (Enter Symptoms)
+    alt AI Microservice Online
+        API->>AI: POST /api/ai/recommend-specialist (Run Specialist Agent)
+        AI-->>API: Recommended Specialty + Ranked Doctors
+    else AI Microservice Offline (Fallback)
+        API-->>API: Execute Built-in Clinical Rule Engine (17 Specialties + Emergency Interceptors)
+    end
     API-->>Patient: Display Ranked Doctors & Specialties
-    Patient->>API: POST /api/appointments (Book Slot)
-    Patient->>API: POST /api/appointments/{id}/pay (Submit Payment Slip/Card)
+    Patient->>API: POST /api/Appointments (Book Slot)
+    Patient->>API: POST /api/Payment/initiate (Checkout with PayHere)
+    API-->>Patient: Return PayHere Checkout Hash & Parameters
+    Patient->>PayHere: Complete Card / Wallet Payment
 
-    Note over M1_Rec,API: Phase 2: Payment Verification & Check-in (Member 1)
-    M1_Rec->>API: GET /api/receptionist/appointments/pending-verification
-    M1_Rec->>API: POST /api/receptionist/appointments/{id}/verify (Verify Payment)
-    API->>DB: Status = CONFIRMED, Token = APP-2026-XXXX
+    Note over M1_Rec,DB: Phase 2: Payment Verification, Refunds & Check-in (Member 1)
+    alt PayHere Automated IPN
+        PayHere->>API: POST /api/Payment/payhere/notify (Webhook Signature Verified)
+        API->>DB: Status = CONFIRMED, Token = APP-YYYY-XXXX
+    else Receptionist Manual Audit
+        M1_Rec->>API: POST /api/Payment/appointments/{id}/verify-payment (Verify Slip/Cash)
+        API->>DB: Status = CONFIRMED, Token = APP-YYYY-XXXX
+    else Patient Cancellation & Refund
+        Patient->>API: POST /api/Payment/appointments/{id}/cancel (Request Refund)
+        M1_Rec->>API: POST /api/Payment/refunds/{id}/process (Approve / Reject Refund)
+        API->>DB: Status = REFUNDED, Audit Log Stored
+    end
 
-    Note over Doctor,AI: Phase 3: Clinical Consultation & E-Prescription (Member 2 & 3)
-    Doctor->>API: GET /api/doctors/appointments (Only Verified Queue)
-    Doctor->>API: POST /api/consultations/{id}/start
-    Doctor->>API: POST /api/clinical-analysis (Request Clinical Decision Support)
+    Note over Doctor,API: Phase 3: Clinical Consultation & SignalR Real-Time Queue (Member 2 & 3)
+    Doctor->>API: GET /api/Doctors/appointments (Only Verified Queue)
+    Doctor->>API: POST /api/Appointments/{id}/start (Start Consultation)
+    API-->>Patient: SignalR Broadcast: ConsultationStarted (Patient Called)
+    Doctor->>API: POST /api/consultations/{id}/clinical-analysis (CDSS Agent)
     API->>AI: POST /api/agent/clinical-support (Run CDSS Agent)
     AI-->>API: Differential Diagnosis + ICD-10 + Contraindications
     Doctor->>API: POST /api/diagnosis/{id}/decision (Doctor Accepts/Modifies)
-    Doctor->>API: POST /api/prescriptions (Generate Official E-Prescription)
-    API->>DB: Save Prescription + Notify Patient & Pharmacy
+    Doctor->>API: POST /api/Prescriptions (Generate Official E-Prescription)
+    Doctor->>API: POST /api/Appointments/{id}/end (End Consultation)
+    API-->>Patient: SignalR Broadcast: ConsultationEnded
 
     Note over Pharmacist,AI: Phase 4: Medication Intelligence & Dispensing (Member 3)
-    Pharmacist->>API: GET /api/pharmacist/prescriptions/incoming
-    Pharmacist->>API: POST /api/pharmacist/verify-interactions (Run Medication Agent)
-    API->>AI: POST /api/agent/medication-check (Check DDIs & Allergies)
-    AI-->>API: Interaction Report (Safe / Warnings)
-    Pharmacist->>API: POST /api/orders/{id}/dispense (Calculate Total & Dispense)
+    Pharmacist->>API: GET /api/Prescriptions (Incoming Unfulfilled Queue)
+    alt AI Microservice Online
+        API->>AI: POST /api/ai/medication-check (Check DDIs & Allergies)
+        AI-->>API: Interaction Report (Safe / Warnings)
+    else AI Microservice Offline (Fail-Closed)
+        API-->>Pharmacist: HTTP 503 (Flagged for Manual Pharmacist Review)
+    end
+    Pharmacist->>API: POST /api/Orders/{id}/dispense (Calculate Total & Dispense)
     API->>DB: Status = DISPENSED, Decrement Inventory Quantity
 
     Note over Owner,Supplier: Phase 5: Inventory Intelligence & Supply Chain (Member 4)
-    API->>AI: POST /api/agent/inventory-forecast (Run Inventory Agent)
-    AI-->>API: Restock Suggestions (Safety Stock & Expiry Alerts)
-    Owner->>API: GET /api/pharmacy/inventory/batches (Inspect Expiry Thresholds)
-    Owner->>API: POST /api/restock-requests (Approve AI Restock Order)
-    Supplier->>API: GET /api/suppliers/restock-requests (View Orders)
-    Supplier->>API: POST /api/suppliers/restock-requests/{id}/approve (Fulfill Order)
+    alt AI Microservice Online
+        API->>AI: POST /api/agent/inventory-forecast (Run Inventory Agent)
+        AI-->>API: Restock Suggestions (Safety Stock & Expiry Alerts)
+    else AI Microservice Offline (Fallback)
+        API-->>API: Execute 30-Day Dispensing Velocity Demand Calculation
+    end
+    Owner->>API: GET /api/Inventory/low-stock (Inspect Expiry Thresholds)
+    Owner->>API: POST /api/RestockRequests (Approve AI Restock Order)
+    Supplier->>API: GET /api/RestockRequests (View Orders)
+    Supplier->>API: PUT /api/RestockRequests/{id}/dispatch (Fulfill & Ship)
     API->>DB: Status = DELIVERED, Increment Inventory Stock Batches
 ```
 
@@ -171,11 +204,12 @@ Member 1 provides the foundational architecture for the entire MediFlow AI ecosy
    - AI Agent Health & Telemetry Monitor (latency metrics, token consumption, fallback rates, error traces).
 
 ##### B. Platform & Infrastructure Ownership
-- **PostgreSQL 16 Database Architecture**: Master `AppDbContext` definition, Code-First Fluent API entity configurations, foreign key constraints, composite indexes, and idempotent `DatabaseSeeder.cs` provisioning initial admin, doctor, pharmacist, and medicine data.
-- **Authentication & Global Security**: Centralized JWT Bearer token generation, refresh token rotation, BCrypt password hashing, Claims-based authorization handlers, and RFC 7807 compliant global exception handling middleware.
-- **Docker & Containerization**: Multi-stage production Dockerfiles for `backend`, `web`, and `ai` services, alongside unified `docker-compose.yml` defining environment configurations, internal bridge networking, and persistent volume storage.
-- **GitHub Actions & CI/CD Pipelines**: Authoring and maintaining `ci.yml` (automated code formatting, static analysis, unit/integration test execution) and `cd.yml` (Docker image build, security scanning with Trivy, GHCR publication, and deployment).
-- **Global Testing Framework**: Architecting the testing harness, mocking patterns, and implementing xUnit and Vitest test suites.
+- **Supabase PostgreSQL Cloud Database Architecture**: Master `AppDbContext` definition, Code-First Fluent API entity configurations, foreign key constraints, composite indexes, 29 production tables, and resilient session pooler connectivity (`aws-0-ap-northeast-1.pooler.supabase.com:5432`) with automatic direct IPv6-to-pooler IPv4 translation for container network compatibility.
+- **SignalR Real-Time Consultation Hub**: Implemented `/hubs/consultation` providing WebSocket bidirectional notifications for live appointment queues, consultation start/end events, and patient calling.
+- **PayHere Payment Gateway & Refund Lifecycle**: Complete integration featuring MD5 checkout hash calculation, IPN webhook notification handling (`/api/Payment/payhere/notify`), manual receptionist verification, and patient refund processing.
+- **Authentication & Global Security**: Centralized JWT Bearer token generation, Supabase Auth integration with latency-bypass for staff logins, `ClaimsPrincipalExtensions` for safe UUID claim parsing, BCrypt password hashing, Claims-based authorization, and RFC 7807 global exception handling.
+- **Reliability & Keep-Alive Automation**: Automated GitHub Actions scheduled workflow (`keep-ai-alive.yml`) pinging both the AI microservice and backend health endpoints every 14 minutes, preventing container sleep and cold start delays.
+- **Global Testing Framework**: Architecting the testing harness, mocking patterns, and implementing **139 xUnit backend unit/integration tests** and **109 Pytest AI tests** passing with 100% success rate.
 
 #### 2. ASP.NET Core API Endpoints Owned by Member 1
 
@@ -184,49 +218,59 @@ Member 1 provides the foundational architecture for the entire MediFlow AI ecosy
 POST   /api/auth/register                       # Register new patient account
 POST   /api/auth/login                          # Authenticate user & return JWT + Refresh Token
 POST   /api/auth/refresh-token                  # Rotate refresh token and issue new JWT
+POST   /api/auth/sync                           # Sync Supabase Auth session with internal database
 GET    /api/auth/me                             # Retrieve authenticated user claims & profile
 
+# System Health & Connectivity
+GET    /health                                  # Database connectivity health probe (DatabaseHealthCheck)
+WS     /hubs/consultation                       # SignalR WebSocket consultation real-time queue hub
+
 # Patient Profile & Medical Details
-GET    /api/patients/{id}                       # Retrieve patient demographic & medical details
-PUT    /api/patients/{id}                       # Update patient emergency contacts & vitals history
-GET    /api/patients/me                         # Get profile of currently logged-in patient
+GET    /api/Patient/profile                     # Retrieve patient demographic & medical details
+PUT    /api/Patient/profile                     # Update patient emergency contacts & vitals history
+GET    /api/Patient/appointments                # Retrieve authenticated patient's appointment list
+DELETE /api/Patient/appointments/{id}           # Cancel patient's own pending appointment
 
 # Symptom Ingestion & Doctor Discovery
-POST   /api/patients/symptoms                   # Ingest symptom text, duration, and severity payload
-GET    /api/doctors                             # Filter doctors by specialty, rating, and fee
-GET    /api/doctors/{id}                        # Retrieve public doctor clinical profile
-GET    /api/doctors/{id}/availability           # Retrieve available time slots for scheduling
+POST   /api/Patient/symptoms                    # Ingest symptoms, query AI Agent with offline clinical fallback
+GET    /api/Doctors                             # Filter doctors by specialty, rating, experience, and fee
+GET    /api/Doctors/{id}                        # Retrieve public doctor clinical profile
 
-# Appointment Booking & Patient Queue
-POST   /api/appointments                        # Create appointment draft with PENDING_PAYMENT status
-GET    /api/appointments/my                     # Retrieve authenticated patient's appointment history
-GET    /api/appointments/{id}                   # Retrieve comprehensive appointment details
-POST   /api/appointments/{id}/pay               # Submit card payment or upload payment receipt
+# Appointment Booking & Consultation Queue
+POST   /api/Appointments                        # Create appointment draft with PENDING_PAYMENT status
+GET    /api/Appointments/{id}                   # Retrieve comprehensive appointment details
+POST   /api/Appointments/{id}/pay               # Submit card payment or upload payment receipt
+POST   /api/Appointments/{id}/start             # Start doctor consultation (broadcasts via SignalR)
+POST   /api/Appointments/{id}/end               # Complete doctor consultation (broadcasts via SignalR)
+GET    /api/Appointments/current-consultation   # Real-time queue tracker for currently consulting patient
 
-# Receptionist Operations
-GET    /api/receptionist/appointments/pending   # Fetch appointments awaiting payment verification
-POST   /api/receptionist/appointments/{id}/verify # Verify payment, generate token (APP-YYYY-XXXX)
-POST   /api/receptionist/appointments/walk-in   # Register walk-in patient & book immediate slot
-PATCH  /api/receptionist/appointments/{id}/reschedule # Reschedule appointment slot
-PATCH  /api/receptionist/appointments/{id}/cancel # Cancel appointment with reason log
+# PayHere Payment Gateway & Refund Management
+POST   /api/Payment/initiate                    # Initiate PayHere sandbox checkout with hash generation
+POST   /api/Payment/payhere/notify              # PayHere IPN webhook callback with signature verification
+POST   /api/Payment/appointments/{id}/verify-payment # Receptionist manual payment verification
+POST   /api/Payment/appointments/{id}/cancel    # Cancel appointment and initiate refund request
+POST   /api/Payment/refunds/{id}/request        # Submit patient refund request with bank details
+POST   /api/Payment/refunds/{id}/process        # Receptionist approve/reject refund with gateway reference
+GET    /api/Payment/refunds/pending             # Fetch pending refunds awaiting staff review
+GET    /api/Payment/audit-logs                  # Financial audit trail with actor, action, and gateway ref
 
 # Admin Portal Management
-GET    /api/admin/dashboard/stats               # System-wide metrics (users, appointments, revenue)
-GET    /api/admin/users                         # Paginated user management table with search & filter
-PATCH  /api/admin/users/{id}/status             # Activate / deactivate user account
-POST   /api/admin/specialties                   # Provision new medical specialty
-GET    /api/admin/audit-logs                    # Query security audit logs with timestamp filtering
-GET    /api/admin/agent-telemetry               # Telemetry on AI latency, calls, and fallback events
+GET    /api/Admin/users                         # Paginated user management table with search & filter
+PATCH  /api/Admin/users/{id}/approve            # Approve pending staff account registration
+POST   /api/Admin/specialties                   # Provision new medical specialty
+GET    /api/Admin/audit-logs                    # Query security audit logs with timestamp filtering
 ```
 
 #### 3. Database Entities Owned by Member 1
-- `User`: Central identity store (Email, PasswordHash, Role, FullName, PhoneNumber, IsActive, CreatedAt).
-- `Patient`: Patient demographics (UserId, NIC, DateOfBirth, Gender, BloodGroup, EmergencyContact, Address).
+- `User`: Central identity store (Email, PasswordHash, Role, FullName, PhoneNumber, SupabaseId, IsActive, CreatedAt).
+- `Patient`: Patient demographics (UserId, SupabaseId, FullName, DateOfBirth, Gender, BloodGroup, Allergies, Address).
 - `Specialty`: Medical disciplines (Id, Name, Description, Icon, IsActive).
 - `DoctorSpecialty`: Relational link between doctors and medical specialties.
-- `Appointment`: Central scheduling entity (Id, AppointmentNumber, PatientId, DoctorId, SlotTime, Status, QueueToken).
-- `AppointmentPayment`: Financial records (Id, AppointmentId, Amount, PaymentMethod, TransactionRef, SlipUrl, IsVerified).
-- `SymptomSubmission`: Ingested patient symptoms (Id, PatientId, RawText, DurationDays, SeverityScale, Timestamp).
+- `Appointment`: Central scheduling entity (Id, AppointmentNumber, PatientId, DoctorId, Status, Fee, ConsultationStartedAt, ConsultationEndedAt).
+- `AppointmentPayment`: Financial records (Id, AppointmentId, PatientId, Amount, Status, TransactionReference, PaymentMethod, CreatedAt).
+- `AppointmentRefund`: Refund management (Id, AppointmentId, PaymentId, PatientId, Amount, Reason, Status, ProcessedByUserId).
+- `PaymentAuditLog`: Immutable financial audit log (Id, AppointmentId, PaymentId, RefundId, UserId, Role, Action, Result, Details).
+- `SymptomSubmission`: Ingested patient symptoms (Id, PatientId, SymptomsText, Duration, Severity, RecommendedSpecialty, AgentExplanation).
 - `AuditLog`: System-wide security tracking (Id, UserId, Action, EntityName, Timestamp, IpAddress).
 
 #### 4. Agentic AI Ownership: 🩺 Specialist & Doctor Recommendation Agent
@@ -540,10 +584,10 @@ Member 1 designed and maintains automated GitHub Actions pipelines:
 │  Trigger: Pull Request or Push to any branch                                │
 │                                                                             │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────────────────┐  │
-│  │  Backend Pipeline│  │ Frontend Pipeline│  │   AI Subsystem Pipeline   │  │
-│  │  • dotnet format │  │  • npm run lint  │  │   • black / flake8 lint   │  │
-│  │  • dotnet build  │  │  • tsc (typecheck│  │   • pytest test suite     │  │
-│  │  • xUnit (27/27) │  │  • vitest tests  │  │   • schema verification   │  │
+│  │ Backend Pipeline │  │ Frontend Pipeline│  │   AI Subsystem Pipeline   │  │
+│  │ • dotnet format  │  │ • npm run lint   │  │   • black / flake8 lint   │  │
+│  │ • dotnet build   │  │ • tsc (typecheck)│  │   • pytest (109/109)      │  │
+│  │ • xUnit (139/139)│  │ • vitest tests   │  │   • schema verification   │  │
 │  └────────┬─────────┘  └────────┬─────────┘  └─────────────┬─────────────┘  │
 │           └─────────────────────┼──────────────────────────┘                │
 │                                 ▼                                           │
@@ -569,8 +613,8 @@ Member 1 implemented automated testing frameworks across all tiers:
 
 1. **Backend Unit & Service Tests (`tests/MediFlow.Tests`)**:
    - Built with **xUnit**, **Moq**, and **EF Core In-Memory Database Provider**.
-   - Tests verify batch creation, stock increment, automated expiry date calculation thresholds (`EXPIRED`, `CRITICAL`, `EXPIRING_SOON`, `GOOD`), appointment status transitions, and authentication claims.
-   - **Current Status**: **27/27 tests passing** with 0 failures.
+   - Tests verify batch creation, stock increment, automated expiry date calculation thresholds (`EXPIRED`, `CRITICAL`, `EXPIRING_SOON`, `GOOD`), appointment status transitions, PayHere checkout and refunds, and authentication claims.
+   - **Current Status**: **139/139 tests passing** with 0 failures (100% pass rate).
 
 2. **Integration Tests (`WebApplicationFactory`)**:
    - Executes full HTTP requests against an in-memory ASP.NET Core test server, validating authorization attributes, DTO model validation, and RFC 7807 Problem Details formatting.
@@ -579,7 +623,8 @@ Member 1 implemented automated testing frameworks across all tiers:
    - Vitest + React Testing Library verifying modal rendering, form validation, date picker behavior, and TanStack Query state transitions.
 
 4. **AI Microservice Tests (`Pytest`)**:
-   - Pytest suites validating Pydantic schemas, emergency triage red-flags, and fallback behavior when clinical inputs are incomplete.
+   - Comprehensive Pytest suites validating FastAPI endpoints, LangGraph state transitions, 100k Hybrid RAG Knowledge Base indexing, Porter Stemmer FTS5 search, emergency triage red-flags, and dosage safety guardrails.
+   - **Current Status**: **109/109 tests passing** with 0 failures (100% pass rate).
 
 ---
 
@@ -642,11 +687,11 @@ During the final system presentation, the team will demonstrate a complete, conn
 | **Pharmacy Owner Portal** | **Member 4** *(Maneesha)*| Member 3 | Inventory dashboard, batch expiry picker, revenue analytics |
 | **Supplier Portal** | **Member 4** *(Maneesha)*| Member 4 | Supplier restock queue, catalog pricing editor, shipment tracker |
 | **Inventory Intelligence Agent** | **Member 4** *(Maneesha)*| Member 4 | Predictive demand forecasting, batch expiry classifier, restock generator |
-| **Database Architecture (Postgres)**| **Member 1** *(Dilshan)* | All members | `AppDbContext`, 20+ entities, EF Core migrations, `DatabaseSeeder.cs` |
-| **Auth & Global Security** | **Member 1** *(Dilshan)* | All members | JWT Bearer, BCrypt, RBAC policies, RFC 7807 Problem Details |
+| **Database Architecture (Postgres)**| **Member 1** *(Dilshan)* | All members | `AppDbContext`, 29 entities, EF Core migrations, Supabase Pooler |
+| **Auth & Global Security** | **Member 1** *(Dilshan)* | All members | JWT Bearer, Supabase Auth, BCrypt, RBAC policies, RFC 7807 Problem Details |
 | **Docker & Infrastructure** | **Member 1** *(Dilshan)* | All members | Multi-stage Dockerfiles (`backend`, `web`, `ai`), `docker-compose.yml` |
-| **GitHub Actions CI/CD** | **Member 1** *(Dilshan)* | All members | `.github/workflows/ci.yml`, `.github/workflows/cd.yml`, branch rules |
-| **Testing Strategy & Suites** | **Member 1** *(Dilshan)* | All members | 27 xUnit backend unit tests, `WebApplicationFactory` tests, Vitest tests |
+| **GitHub Actions CI/CD** | **Member 1** *(Dilshan)* | All members | `.github/workflows/ci.yml`, `cd.yml`, `keep-ai-alive.yml` (14m keep-alive) |
+| **Testing Strategy & Suites** | **Member 1** *(Dilshan)* | All members | 139 xUnit backend unit tests, 109 pytest AI tests, Vitest tests |
 
 ---
 *MediFlow AI — Intelligent Channeling, E-Prescription & Pharmacy Management System*

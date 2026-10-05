@@ -18,18 +18,29 @@ This guide describes how to deploy, configure, cluster, and monitor the **MediFl
                   │        SSL Termination & Rate Limiting       │
                   └───────┬──────────────┬──────────────┬────────┘
                           │              │              │
-             /api, /ws    │       /ai    │              │  / (Static UI)
+       /api, /hubs        │       /ai    │              │  / (Static UI)
                           ▼              ▼              ▼
      ┌────────────────────────┐  ┌─────────────┐  ┌──────────────────┐
      │  ASP.NET Core 8 API    │  │ FastAPI AI  │  │  Vite Web Client │
-     │  (Port 5224 / 5000)    │  │ (Port 8000) │  │  (Nginx SPA)     │
-     └───────────┬────────────┘  └──────┬──────┘  └──────────────────┘
+     │  • REST Endpoints      │  │ (Port 8000) │  │  (Nginx SPA)     │
+     │  • SignalR WSS Hub     │  └──────┬──────┘  └──────────────────┘
+     │  (Port 5224 / 5000)    │         │
+     └───────────┬────────────┘         │
                  │                      │
-                 ▼                      ▼
-     ┌────────────────────────┐  ┌─────────────┐
-     │   PostgreSQL 16 DB     │  │ Google      │
-     │   (Port 5432)          │  │ Gemini API  │
-     └────────────────────────┘  └─────────────┘
+       ┌─────────┴─────────┐            ▼
+       │                   │     ┌─────────────┐
+       ▼                   ▼     │ 100k Hybrid │
+┌──────────────┐   ┌────────────┐│  Knowledge  │
+│ PayHere      │   │ Supabase   ││  Base RAG   │
+│ Sandbox      │   │ IPv4 Pooler│└─────────────┘
+│ Gateway      │   │ (Port 5432)│
+└──────────────┘   └─────┬──────┘
+                         │
+                         ▼
+                   ┌────────────┐
+                   │ PostgreSQL │
+                   │ 16 Store   │
+                   └────────────┘
 ```
 
 ---
@@ -179,8 +190,8 @@ server {
     }
 
     # SignalR WebSockets (Live Consultation Queue)
-    location /consultationHub {
-        proxy_pass http://127.0.0.1:5224/consultationHub;
+    location /hubs/consultation {
+        proxy_pass http://127.0.0.1:5224/hubs/consultation;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -205,10 +216,10 @@ The cluster exposes deterministic health endpoints for load balancer validation:
 
 | Component | Endpoint | Expected Status |
 | :--- | :--- | :--- |
-| **Backend API** | `GET /api/doctors` | `200 OK` |
+| **Backend API** | `GET /health` | `200 OK` (`{"status": "Healthy"}`) |
 | **AI Microservice** | `GET /health` | `200 OK` (`{"status": "healthy"}`) |
 | **Frontend Web** | `GET /index.html` | `200 OK` |
-| **Postgres Database** | `pg_isready -U mediflow_admin` | `Accepting connections` |
+| **Postgres Database** | `pg_isready -U postgres` | `Accepting connections` |
 
 ---
 
@@ -235,3 +246,45 @@ echo "Backup completed: $BACKUP_DIR/mediflow_${TIMESTAMP}.sql.gz"
 ```bash
 gunzip < /var/backups/mediflow/mediflow_20261015.sql.gz | docker exec -i mediflow-db-1 psql -U mediflow_admin -d mediflow_db
 ```
+
+---
+
+## ☁️ Step 7: Cloud Deployment (Render & Supabase IPv4 Pooler)
+
+When deploying MediFlow AI to cloud providers like **Render** and **Supabase**, specific platform networking constraints must be accommodated:
+
+### 1. Render Free-Tier IPv6 Network Limitation
+Render free-tier Linux instances (deployed in AWS regions like Oregon) operate on IPv4-only outbound routing. When connecting directly to Supabase project hosts (`db.<project_ref>.supabase.co`), Supabase only publishes IPv6 `AAAA` records, causing .NET applications to crash on startup:
+```text
+System.Net.Sockets.SocketException (101): Network unreachable
+Failed to connect to [2406:da14:...]:5432
+```
+
+### 2. Automatic IPv4 Pooler Translation & Pre-Resolution
+MediFlow API's `Program.cs` automatically detects when the configured database host matches `db.*.supabase.co` or Supabase pooler hostnames:
+1. **Automatic Hostname Translation**: Converts `db.<project_ref>.supabase.co` directly into the Supabase Session/Transaction Pooler:
+   ```text
+   aws-0-ap-northeast-1.pooler.supabase.com:5432
+   ```
+2. **Username Remapping**: Automatically prefixes the username with the Supabase project reference:
+   ```text
+   postgres.<project_ref>
+   ```
+3. **Explicit IPv4 DNS Pre-Resolution**: Performs an upfront `Dns.GetHostAddressesAsync` resolving exclusively to `AddressFamily.InterNetwork` (IPv4), eliminating IPv6 resolution failures entirely.
+
+### 3. Recommended Render Environment Variables
+Configure the following environment variables in your Render Web Service dashboard:
+
+| Variable Name | Example / Recommended Value | Description |
+| :--- | :--- | :--- |
+| `DATABASE_URL` | `Host=aws-0-ap-northeast-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.sueqylommsghfomdcvhn;Password=...;SSL Mode=Require;Trust Server Certificate=true;` | Direct pooler connection string |
+| `JWT_SECRET` | `YourGenerated32CharacterMinimumCryptographicSecret!` | JWT signing secret |
+| `AI_SERVICE_URL` | `https://mediflow-ai-service.onrender.com` | Internal or public AI URL |
+| `PAYHERE_MERCHANT_ID` | `1234567` | PayHere Sandbox merchant ID |
+| `PAYHERE_MERCHANT_SECRET` | `YourPayHereSandboxSecret` | PayHere Sandbox merchant secret |
+
+### 4. Render Keep-Alive Workflow
+Render free-tier containers automatically suspend after 15 minutes of inactivity. MediFlow includes a GitHub Actions scheduled workflow ([keep-ai-alive.yml](file:///.github/workflows/keep-ai-alive.yml)) running every 14 minutes:
+- Configure GitHub Secrets `AI_SERVICE_URL` and `BACKEND_URL` in **Settings > Secrets and variables > Actions**.
+- The workflow sends simultaneous lightweight HTTP probes to `${AI_SERVICE_URL}/health` and `${BACKEND_URL}/health`.
+- Keeps both containers warm, avoiding 30–50 second cold starts during presentations and live evaluations.

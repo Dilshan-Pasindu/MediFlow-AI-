@@ -1,14 +1,14 @@
-# Render AI Service Health Check & Keep-Alive Workflow
+# Render Services Health Check & Keep-Alive Workflow
 
-This guide explains the automated health-check workflow implemented for the MediFlow Python FastAPI AI microservice deployed on Render.
+This guide explains the automated health-check workflow implemented for the MediFlow Python FastAPI AI microservice and ASP.NET Core backend API deployed on Render free-tier containers.
 
 ---
 
 ## 1. Purpose of the Workflow
 
-When deployed on Render's free tier, web services automatically spin down (sleep) after 15 minutes of inactivity. When a subsequent user request arrives (such as running an AI medication safety screening, clinical decision support, or specialist recommendation), the sleeping service must undergo a cold start (typically taking 30–50 seconds), which can cause HTTP timeouts and temporary service unavailability.
+When deployed on Render's free tier, web services automatically spin down (sleep) after 15 minutes of inactivity. When a subsequent user request arrives (such as running an AI medication safety screening, clinical decision support, specialist recommendation, or authenticating against the backend API), the sleeping service must undergo a cold start (typically taking 30–50 seconds), which can cause HTTP timeouts and temporary service unavailability.
 
-The GitHub Actions workflow [keep-ai-alive.yml](file:///.github/workflows/keep-ai-alive.yml) runs a scheduled lightweight health probe against the deployed AI service every 14 minutes, keeping the container warm during active testing cycles and alerting maintainers if the service fails.
+The GitHub Actions workflow [keep-ai-alive.yml](file:///.github/workflows/keep-ai-alive.yml) runs a scheduled lightweight health probe against both the deployed AI microservice and the backend API every 14 minutes, keeping both containers warm during active testing cycles and alerting maintainers if either service fails.
 
 ---
 
@@ -21,9 +21,16 @@ The workflow definition is located at:
 
 ---
 
-## 3. Configuring the GitHub Repository Secret
+## 3. Configuring GitHub Repository Secrets
 
-To keep your deployment URL private and configurable across staging/production environments, the workflow reads the base URL from a GitHub Actions secret.
+To keep your deployment URLs private and configurable across staging/production environments, the workflow reads the base URLs from GitHub Actions secrets.
+
+### Required Secrets:
+
+| Secret Name | Description | Example Value |
+| :--- | :--- | :--- |
+| `AI_SERVICE_URL` | Base URL of deployed Render AI FastAPI service | `https://mediflow-ai.onrender.com` |
+| `BACKEND_URL` | Base URL of deployed Render ASP.NET Core API | `https://mediflow-api.onrender.com` |
 
 ### Steps to Configure:
 
@@ -31,16 +38,11 @@ To keep your deployment URL private and configurable across staging/production e
 2. Click **Settings** (top navigation bar).
 3. In the left sidebar, expand **Secrets and variables** and select **Actions**.
 4. Click **New repository secret**.
-5. Set the fields:
-   - **Name:** `AI_SERVICE_URL`
-   - **Secret:** The base URL of your deployed Render AI service **without a trailing slash**, for example:
-     ```text
-     https://your-service-name.onrender.com
-     ```
-6. Click **Add secret**.
+5. Add `AI_SERVICE_URL` with your AI service URL (without trailing slash).
+6. Click **New repository secret** again and add `BACKEND_URL` with your backend API URL (without trailing slash).
 
 > [!NOTE]
-> Do NOT commit your Render service URL to Git or embed it directly into workflow files. The workflow automatically strips any accidental trailing slash when building the `${BASE_URL}/health` endpoint.
+> Do NOT commit your Render service URLs to Git or embed them directly into workflow files. The workflow automatically strips any accidental trailing slashes when building the `${BASE_URL}/health` endpoints.
 
 ---
 
@@ -49,7 +51,7 @@ To keep your deployment URL private and configurable across staging/production e
 In addition to the scheduled cron trigger (`*/14 * * * *`), the workflow supports on-demand execution via `workflow_dispatch`:
 
 1. On GitHub, navigate to the **Actions** tab of your repository.
-2. In the left sidebar under *Workflows*, select **AI Service Health Check (Keep-Alive)**.
+2. In the left sidebar under *Workflows*, select **Render Services Keep-Alive**.
 3. Click the **Run workflow** dropdown on the right.
 4. Select the target branch (`main` or your current branch) and click **Run workflow**.
 
@@ -57,22 +59,26 @@ In addition to the scheduled cron trigger (`*/14 * * * *`), the workflow support
 
 ## 5. How to Inspect Execution Logs
 
-1. Go to **Actions** > **AI Service Health Check (Keep-Alive)**.
+1. Go to **Actions** > **Render Services Keep-Alive**.
 2. Click on the latest workflow run.
-3. Click on the **Ping AI Service Health** job.
-4. Expand the **Send Health Probe** step.
+3. Click on the **Ping Free-Tier Services** job.
+4. Expand the **Send Health Probes** step.
 5. You will see the timestamp and execution output:
    ```text
-   Pinging AI microservice health endpoint...
-   Health check succeeded: {"status":"healthy"}
+   Pinging AI microservice health endpoint at https://mediflow-ai.onrender.com/health...
+   AI Health response: {"status":"healthy"}
+   Pinging Backend health endpoint at https://mediflow-api.onrender.com/health...
+   Backend Health response: {"status":"Healthy"}
    ```
-   If `AI_SERVICE_URL` is missing or the endpoint returns a non-200 HTTP code, the step will fail with a clear diagnostic message.
+   If either secret is missing or an endpoint returns a non-200 HTTP code, the step will report diagnostics.
 
 ---
 
-## 6. How to Verify the `/health` Endpoint
+## 6. How to Verify the `/health` Endpoints
 
-The health endpoint is defined in [ai/main.py](file:///ai/main.py):
+Both microservices expose sub-millisecond, zero-side-effect health probes:
+
+### 1. AI Service Health Probe (`ai/main.py`)
 ```python
 @app.get("/health", tags=["Health"])
 async def health_check():
@@ -80,26 +86,26 @@ async def health_check():
     return {"status": "healthy"}
 ```
 
-This endpoint is intentionally lightweight:
-- It returns HTTP `200 OK` with JSON `{"status": "healthy"}`.
-- It does **not** load Gemini LLM models, vector embeddings, or execute database queries.
-- It executes in sub-millisecond time and consumes negligible RAM/CPU.
-
-You can verify it manually from your terminal:
 ```bash
-# Using your deployed Render URL:
-curl -i https://your-service-name.onrender.com/health
-
-# Or locally:
-curl -i http://localhost:8000/health
+curl -i https://mediflow-ai.onrender.com/health
+# Response: HTTP 200 OK {"status":"healthy"}
 ```
 
-Expected output:
-```http
-HTTP/1.1 200 OK
-content-type: application/json
+### 2. Backend API Health Probe (`backend/Program.cs`)
+```csharp
+app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync("{\"status\":\"" + report.Status.ToString() + "\"}");
+    }
+});
+```
 
-{"status":"healthy"}
+```bash
+curl -i https://mediflow-api.onrender.com/health
+# Response: HTTP 200 OK {"status":"Healthy"}
 ```
 
 ---
