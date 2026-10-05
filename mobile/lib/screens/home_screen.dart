@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -21,7 +22,7 @@ class HomeScreen extends ConsumerWidget {
         foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(LucideIcons.logOut),
             tooltip: 'Logout',
             onPressed: () {
               ref.read(authProvider.notifier).logout();
@@ -169,7 +170,7 @@ class HomeScreen extends ConsumerWidget {
                                   const CircleAvatar(
                                     radius: 20,
                                     backgroundColor: Color(0xFFE0F2FE),
-                                    child: Icon(Icons.person, color: Color(0xFF0284C7), size: 20),
+                                    child: Icon(LucideIcons.user, color: Color(0xFF0284C7), size: 20),
                                   ),
                                   const SizedBox(width: 10),
                                   Expanded(
@@ -222,7 +223,7 @@ class HomeScreen extends ConsumerWidget {
                                             padding: const EdgeInsets.symmetric(vertical: 8),
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                           ),
-                                          icon: const Icon(Icons.credit_card, size: 15),
+                                          icon: const Icon(LucideIcons.creditCard, size: 15),
                                           label: Text('Pay Rs. ${(appt.fee > 0 ? appt.fee : 2500.0).toStringAsFixed(0)}',
                                               style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
                                         ),
@@ -241,7 +242,7 @@ class HomeScreen extends ConsumerWidget {
                                             padding: const EdgeInsets.symmetric(vertical: 8),
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                           ),
-                                          icon: const Icon(Icons.payment_outlined, size: 14),
+                                          icon: const Icon(LucideIcons.creditCard, size: 14),
                                           label: const Text('Payment Status', style: TextStyle(fontSize: 12.5)),
                                         ),
                                       ),
@@ -258,7 +259,7 @@ class HomeScreen extends ConsumerWidget {
                                             padding: const EdgeInsets.symmetric(vertical: 8),
                                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                           ),
-                                          icon: const Icon(Icons.monetization_on_outlined, size: 14),
+                                          icon: const Icon(LucideIcons.circleDollarSign, size: 14),
                                           label: const Text('Track Refund', style: TextStyle(fontSize: 12.5)),
                                         ),
                                       ),

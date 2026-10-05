@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -284,7 +285,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
                                 const SizedBox(width: 4),
                                 Text(
                                   'Live',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w600,
                                     color: const Color(0xFF059669),
@@ -347,7 +348,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
               : null,
         ),
         child: Icon(
-          hasActive ? Icons.medical_services_rounded : Icons.radio_outlined,
+          hasActive ? LucideIcons.stethoscope : LucideIcons.radio,
           size: 22,
           color: hasActive ? const Color(0xFFDC2626) : AppTheme.textSecondary,
         ),
@@ -390,7 +391,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
           const SizedBox(width: 5),
           Text(
             hasActive ? 'NOW CONSULTING' : 'CONSULTATION STATUS',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.6,
@@ -415,15 +416,15 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
           value: _selectedDoctorId,
           hint: Text(
             'Select Doctor',
-            style: GoogleFonts.outfit(fontSize: 12.5, color: AppTheme.textSecondary),
+            style: GoogleFonts.inter(fontSize: 12.5, color: AppTheme.textSecondary),
           ),
           isExpanded: true,
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppTheme.textPrimary,
           ),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: AppTheme.textMuted),
+          icon: const Icon(LucideIcons.chevronDown, size: 18, color: AppTheme.textMuted),
           items: doctors.map((a) {
             final name = a.doctorName.startsWith('Dr.') ? a.doctorName : 'Dr. ${a.doctorName}';
             return DropdownMenuItem<int>(
@@ -443,7 +444,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     if (_selectedDoctorId == null) {
       return Text(
         'Select a doctor above to view live consultation status.',
-        style: GoogleFonts.outfit(
+        style: GoogleFonts.inter(
           fontSize: 12.5,
           color: AppTheme.textSecondary,
           height: 1.4,
@@ -459,7 +460,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
         children: [
           Text(
             'CURRENTLY CONSULTING:',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
@@ -472,7 +473,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
             children: [
               Text(
                 'Appointment No: ',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary,
@@ -487,7 +488,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
                 ),
                 child: Text(
                   _status.appointmentNumber ?? '#${_status.appointmentId ?? '—'}',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
                     color: const Color(0xFFDC2626),
@@ -499,7 +500,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
           const SizedBox(height: 4),
           Text(
             'The doctor is currently seeing this appointment.',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 11.5,
               color: AppTheme.textSecondary,
             ),
@@ -509,7 +510,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     } else {
       return Text(
         'No appointment is currently being consulted. Updates will appear here in real time.',
-        style: GoogleFonts.outfit(
+        style: GoogleFonts.inter(
           fontSize: 12.5,
           color: AppTheme.textSecondary,
           height: 1.4,
@@ -521,7 +522,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
   Widget _buildNoBookingsMessage() {
     return Text(
       'No active booked appointments. Book a doctor to track live consultation status.',
-      style: GoogleFonts.outfit(
+      style: GoogleFonts.inter(
         fontSize: 12.5,
         color: AppTheme.textSecondary,
         height: 1.4,

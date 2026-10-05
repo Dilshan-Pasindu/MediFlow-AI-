@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_theme.dart';
@@ -156,7 +157,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             ),
                           ),
                           child: Text('Get Started',
-                            style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                            style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                           ),
                         ),
                       ),
@@ -164,7 +165,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       TextButton(
                         onPressed: _goToRegister,
                         child: Text("Don't have an account? Register",
-                          style: GoogleFonts.outfit(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
+                          style: GoogleFonts.inter(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
                         ),
                       ),
                     ] else ...[
@@ -173,7 +174,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           TextButton(
                             onPressed: _goToLogin,
                             child: Text('Skip',
-                              style: GoogleFonts.outfit(fontSize: 14, color: Colors.white60),
+                              style: GoogleFonts.inter(fontSize: 14, color: Colors.white60),
                             ),
                           ),
                           const Spacer(),
@@ -185,7 +186,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               shape: const CircleBorder(),
                               padding: const EdgeInsets.all(14),
                             ),
-                            child: const Icon(Icons.arrow_forward_rounded, size: 22),
+                            child: const Icon(LucideIcons.arrowRight, size: 22),
                           ),
                         ],
                       ),
@@ -236,7 +237,7 @@ class _PageContent extends StatelessWidget {
           Text(
             data.title,
             textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 32, fontWeight: FontWeight.w800,
               color: Colors.white, height: 1.15,
             ),
@@ -245,7 +246,7 @@ class _PageContent extends StatelessWidget {
           Text(
             data.subtitle,
             textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(fontSize: 15, color: Colors.white70, height: 1.5),
+            style: GoogleFonts.inter(fontSize: 15, color: Colors.white70, height: 1.5),
           ),
         ],
       ),

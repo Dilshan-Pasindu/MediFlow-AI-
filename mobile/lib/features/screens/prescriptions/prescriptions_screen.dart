@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,7 +28,7 @@ class PrescriptionsScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         title: Text(
           'My E-Prescriptions',
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: AppTheme.textPrimary,
@@ -40,10 +41,10 @@ class PrescriptionsScreen extends ConsumerWidget {
                 MaterialPageRoute(builder: (_) => const OrdersScreen()),
               );
             },
-            icon: const Icon(Icons.local_shipping_outlined, size: 16, color: AppTheme.primaryBlue),
+            icon: const Icon(LucideIcons.truck, size: 16, color: AppTheme.primaryBlue),
             label: Text(
               'Medicine Orders',
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
                 color: AppTheme.primaryBlue,
@@ -149,7 +150,7 @@ class PrescriptionsScreen extends ConsumerWidget {
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
-                                Icons.description_outlined,
+                                LucideIcons.fileText,
                                 size: 36,
                                 color: AppTheme.primaryBlue,
                               ),
@@ -157,7 +158,7 @@ class PrescriptionsScreen extends ConsumerWidget {
                             const SizedBox(height: 16),
                             Text(
                               'No prescriptions yet',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
                                 color: AppTheme.textPrimary,
@@ -167,7 +168,7 @@ class PrescriptionsScreen extends ConsumerWidget {
                             Text(
                               'Your digital e-prescriptions issued by consulting physicians will appear here with full medication instructions.',
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 13,
                                 color: AppTheme.textSecondary,
                                 height: 1.4,
@@ -224,7 +225,7 @@ class _StatItem extends StatelessWidget {
             ),
             child: Text(
               count,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: color,
@@ -234,7 +235,7 @@ class _StatItem extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: AppTheme.textSecondary,
@@ -292,7 +293,7 @@ class _PrescriptionCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
-                            Icons.receipt_rounded,
+                            LucideIcons.receipt,
                             color: AppTheme.primaryBlue,
                             size: 20,
                           ),
@@ -303,7 +304,7 @@ class _PrescriptionCard extends StatelessWidget {
                           children: [
                             Text(
                               'Rx #${rx.id}',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 14.5,
                                 fontWeight: FontWeight.w800,
                                 color: AppTheme.textPrimary,
@@ -311,7 +312,7 @@ class _PrescriptionCard extends StatelessWidget {
                             ),
                             Text(
                               'Dr. ${rx.doctorName}',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                                 color: AppTheme.textSecondary,
@@ -331,7 +332,7 @@ class _PrescriptionCard extends StatelessWidget {
                           ),
                           child: Text(
                             rx.status,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
                               color: isActive ? const Color(0xFF059669) : AppTheme.primaryBlue,
@@ -339,7 +340,7 @@ class _PrescriptionCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted, size: 20),
+                        const Icon(LucideIcons.chevronRight, color: AppTheme.textMuted, size: 20),
                       ],
                     ),
                   ],
@@ -351,7 +352,7 @@ class _PrescriptionCard extends StatelessWidget {
                 if (rx.diagnosis != null && rx.diagnosis!.isNotEmpty) ...[
                   Text(
                     rx.diagnosis!,
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
                       color: AppTheme.textPrimary,
@@ -376,7 +377,7 @@ class _PrescriptionCard extends StatelessWidget {
                         ),
                         child: Text(
                           item.medicineName,
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
                             color: AppTheme.textSecondary,
@@ -394,7 +395,7 @@ class _PrescriptionCard extends StatelessWidget {
                   children: [
                     Text(
                       '${rx.items.length} prescribed medication${rx.items.length != 1 ? 's' : ''}',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.primaryBlue,
@@ -402,7 +403,7 @@ class _PrescriptionCard extends StatelessWidget {
                     ),
                     Text(
                       dateStr,
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 11,
                         color: AppTheme.textMuted,
                       ),

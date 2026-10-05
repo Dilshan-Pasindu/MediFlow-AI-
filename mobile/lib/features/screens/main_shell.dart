@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -69,40 +70,40 @@ class MainShell extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(
-                  icon: Icons.home_outlined,
-                  activeIcon: Icons.home_rounded,
+                  icon: LucideIcons.house,
+                  activeIcon: LucideIcons.house,
                   label: 'Home',
                   index: 0,
                   selectedIndex: selectedIndex,
                   onTap: () => ref.read(shellTabProvider.notifier).state = 0,
                 ),
                 _NavItem(
-                  icon: Icons.search_rounded,
-                  activeIcon: Icons.search_rounded,
+                  icon: LucideIcons.search,
+                  activeIcon: LucideIcons.search,
                   label: 'Doctors',
                   index: 1,
                   selectedIndex: selectedIndex,
                   onTap: () => ref.read(shellTabProvider.notifier).state = 1,
                 ),
                 _NavItem(
-                  icon: Icons.calendar_today_outlined,
-                  activeIcon: Icons.calendar_today_rounded,
+                  icon: LucideIcons.calendar,
+                  activeIcon: LucideIcons.calendar,
                   label: 'Schedule',
                   index: 2,
                   selectedIndex: selectedIndex,
                   onTap: () => ref.read(shellTabProvider.notifier).state = 2,
                 ),
                 _NavItem(
-                  icon: Icons.medication_outlined,
-                  activeIcon: Icons.medication_rounded,
+                  icon: LucideIcons.pill,
+                  activeIcon: LucideIcons.pill,
                   label: 'Records',
                   index: 3,
                   selectedIndex: selectedIndex,
                   onTap: () => ref.read(shellTabProvider.notifier).state = 3,
                 ),
                 _NavItem(
-                  icon: Icons.person_outline_rounded,
-                  activeIcon: Icons.person_rounded,
+                  icon: LucideIcons.user,
+                  activeIcon: LucideIcons.user,
                   label: 'Profile',
                   index: 4,
                   selectedIndex: selectedIndex,

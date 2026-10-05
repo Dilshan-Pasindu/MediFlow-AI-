@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -42,7 +43,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: AppTheme.cardBorder),
             ),
-            child: const Icon(Icons.arrow_back_rounded, size: 18, color: AppTheme.textPrimary),
+            child: const Icon(LucideIcons.arrowLeft, size: 18, color: AppTheme.textPrimary),
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -51,7 +52,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
           children: [
             Text(
                    'Medicine Dispensing Tracker',
-                   style: GoogleFonts.outfit(
+                   style: GoogleFonts.inter(
                      fontSize: 16,
                      fontWeight: FontWeight.w800,
                      color: AppTheme.textPrimary,
@@ -59,7 +60,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                  ),
             Text(
               'Real-time pharmacy fulfillment queue',
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 11,
                 color: AppTheme.textSecondary,
                 fontWeight: FontWeight.w500,
@@ -83,19 +84,19 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                 children: [
                   _FilterSegment(
                     label: 'All Orders',
-                    icon: Icons.list_alt_rounded,
+                    icon: LucideIcons.clipboardList,
                     isSelected: _selectedTab == 'all',
                     onTap: () => setState(() => _selectedTab = 'all'),
                   ),
                   _FilterSegment(
                     label: 'Active',
-                    icon: Icons.hourglass_top_rounded,
+                    icon: LucideIcons.hourglass,
                     isSelected: _selectedTab == 'active',
                     onTap: () => setState(() => _selectedTab = 'active'),
                   ),
                   _FilterSegment(
                     label: 'Dispensed',
-                    icon: Icons.check_circle_outline_rounded,
+                    icon: LucideIcons.circleCheck,
                     isSelected: _selectedTab == 'dispensed',
                     onTap: () => setState(() => _selectedTab = 'dispensed'),
                   ),
@@ -150,7 +151,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.medication_liquid_rounded,
+                        LucideIcons.flaskConical,
                         size: 36,
                         color: AppTheme.primaryBlue,
                       ),
@@ -164,7 +165,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                             ? 'No dispensed orders yet'
                             : 'No medicine orders found',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
@@ -176,7 +177,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     child: Text(
                       'When your doctor issues an e-prescription, it is queued for pharmacy dispensing and tracked here in real-time.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 13,
                         color: AppTheme.textSecondary,
                         height: 1.4,
@@ -245,7 +246,7 @@ class _FilterSegment extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 12.5,
                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   color: isSelected ? AppTheme.primaryBlue : AppTheme.textSecondary,
@@ -308,7 +309,7 @@ class _OrderDispenseCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
-                        Icons.local_pharmacy_rounded,
+                        LucideIcons.pill,
                         color: AppTheme.primaryBlue,
                         size: 22,
                       ),
@@ -319,7 +320,7 @@ class _OrderDispenseCard extends StatelessWidget {
                       children: [
                         Text(
                           'Order #${order.id}',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.textPrimary,
@@ -329,7 +330,7 @@ class _OrderDispenseCard extends StatelessWidget {
                           order.pharmacyName.isNotEmpty
                               ? order.pharmacyName
                               : 'MediFlow Central Pharmacy',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                             color: AppTheme.textSecondary,
@@ -361,7 +362,7 @@ class _OrderDispenseCard extends StatelessWidget {
                     children: [
                       Text(
                         'DISPENSING PROGRESS',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.textMuted,
@@ -374,7 +375,7 @@ class _OrderDispenseCard extends StatelessWidget {
                             : stage == 2
                                 ? 'Pharmacist Verified'
                                 : 'Awaiting Review',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: stage == 3
@@ -421,7 +422,7 @@ class _OrderDispenseCard extends StatelessWidget {
             if (order.items.isNotEmpty) ...[
               Text(
                 'Prescribed Items (${order.items.length})',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textSecondary,
@@ -435,12 +436,12 @@ class _OrderDispenseCard extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.medication_rounded,
+                            const Icon(LucideIcons.pill,
                                 size: 14, color: AppTheme.primaryBlue),
                             const SizedBox(width: 6),
                             Text(
                               item.medicineName,
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: AppTheme.textPrimary,
@@ -450,7 +451,7 @@ class _OrderDispenseCard extends StatelessWidget {
                               const SizedBox(width: 4),
                               Text(
                                 '(${item.dosage})',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                   fontSize: 11,
                                   color: AppTheme.textMuted,
                                 ),
@@ -460,7 +461,7 @@ class _OrderDispenseCard extends StatelessWidget {
                         ),
                         Text(
                           'Qty: ${item.quantity}',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: AppTheme.textSecondary,
@@ -479,7 +480,7 @@ class _OrderDispenseCard extends StatelessWidget {
               children: [
                 Text(
                   formattedDate,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 11.5,
                     color: AppTheme.textMuted,
                     fontWeight: FontWeight.w500,
@@ -489,14 +490,14 @@ class _OrderDispenseCard extends StatelessWidget {
                   children: [
                     Text(
                       'Total: ',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 13,
                         color: AppTheme.textSecondary,
                       ),
                     ),
                     Text(
                       'Rs. ${order.totalAmount.toStringAsFixed(2)}',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.primaryBlue,
@@ -523,7 +524,7 @@ class _OrderDispenseCard extends StatelessWidget {
         bg = const Color(0xFFECFDF5);
         text = const Color(0xFF059669);
         label = '✓ Dispensed';
-        icon = Icons.check_circle_rounded;
+        icon = LucideIcons.circleCheck;
         break;
       case 'confirmed':
       case 'preparing':
@@ -531,19 +532,19 @@ class _OrderDispenseCard extends StatelessWidget {
         bg = const Color(0xFFEFF6FF);
         text = const Color(0xFF0284C7);
         label = 'Confirmed';
-        icon = Icons.verified_rounded;
+        icon = LucideIcons.badgeCheck;
         break;
       case 'cancelled':
         bg = const Color(0xFFFEF2F2);
         text = const Color(0xFFDC2626);
         label = 'Cancelled';
-        icon = Icons.cancel_rounded;
+        icon = LucideIcons.circleX;
         break;
       default:
         bg = const Color(0xFFFFFBEB);
         text = const Color(0xFFB45309);
         label = 'In Queue';
-        icon = Icons.schedule_rounded;
+        icon = LucideIcons.clock;
     }
 
     return Container(
@@ -559,7 +560,7 @@ class _OrderDispenseCard extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label,
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 11,
               fontWeight: FontWeight.w700,
               color: text,
@@ -615,10 +616,10 @@ class _StepNode extends StatelessWidget {
           ),
           child: Center(
             child: isComplete
-                ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
                 : Text(
                     '$stepNum',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
@@ -629,7 +630,7 @@ class _StepNode extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           title,
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 10,
             fontWeight: isComplete || isActive ? FontWeight.w700 : FontWeight.w500,
             color: isComplete || isActive ? AppTheme.textPrimary : AppTheme.textMuted,

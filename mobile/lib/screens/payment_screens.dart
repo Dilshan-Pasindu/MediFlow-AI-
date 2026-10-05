@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -277,7 +278,7 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Filled $method Test Sandbox Card', style: GoogleFonts.outfit()),
+        content: Text('Filled $method Test Sandbox Card', style: GoogleFonts.inter()),
         backgroundColor: AppTheme.primaryBlue,
         duration: const Duration(seconds: 2),
       ),
@@ -412,13 +413,13 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
       backgroundColor: AppTheme.bgCanvas,
       appBar: AppBar(
         title: Text('Payment Checkout',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 18)),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18)),
         backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(LucideIcons.refreshCw),
             tooltip: 'Refresh Status',
             onPressed: _checkPaymentStatus,
           ),
@@ -487,10 +488,10 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                         ),
                         child: Center(
                           child: isDone
-                              ? const Icon(Icons.check, size: 15, color: Colors.white)
+                              ? const Icon(LucideIcons.check, size: 15, color: Colors.white)
                               : Text(
                                   '${i + 1}',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     color: isActive ? Colors.white : const Color(0xFF94A3B8),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
@@ -501,7 +502,7 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                       const SizedBox(height: 4),
                       Text(
                         steps[i],
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 11,
                           color: isActive
                               ? AppTheme.primaryBlue
@@ -547,12 +548,12 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.verified_user_rounded, color: Color(0xFF059669), size: 20),
+              const Icon(LucideIcons.shieldCheck, color: Color(0xFF059669), size: 20),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'PayHere Sandbox · 256-Bit Encrypted · Central Bank of Sri Lanka Certified',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     color: const Color(0xFF065F46),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -576,7 +577,7 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Appointment & Fee Breakdown',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                       fontWeight: FontWeight.w700, fontSize: 15, color: AppTheme.textPrimary)),
               const SizedBox(height: 12),
               _row('Specialist', doctor),
@@ -587,11 +588,11 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Total Amount Payable',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                           fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                   Text(
                     'Rs. ${fee.toStringAsFixed(2)}',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.primaryBlue,
@@ -617,10 +618,10 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.science_rounded, size: 16, color: Color(0xFF64748B)),
+                  const Icon(LucideIcons.testTube, size: 16, color: Color(0xFF64748B)),
                   const SizedBox(width: 6),
                   Text('Sandbox Test Cards (1-Tap Auto Fill)',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                           fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF475569))),
                 ],
               ),
@@ -651,15 +652,15 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Card Details',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                       fontWeight: FontWeight.w700, fontSize: 14, color: AppTheme.textPrimary)),
               const SizedBox(height: 12),
               TextField(
                 controller: _cardHolderCtrl,
-                style: GoogleFonts.outfit(fontSize: 13),
+                style: GoogleFonts.inter(fontSize: 13),
                 decoration: InputDecoration(
                   labelText: 'Cardholder Name',
-                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 18),
+                  prefixIcon: const Icon(LucideIcons.user, size: 18),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
                   isDense: true,
                 ),
@@ -668,14 +669,14 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
               TextField(
                 controller: _cardNumberCtrl,
                 keyboardType: TextInputType.number,
-                style: GoogleFonts.outfit(fontSize: 13, letterSpacing: 1.2),
+                style: GoogleFonts.inter(fontSize: 13, letterSpacing: 1.2),
                 decoration: InputDecoration(
                   labelText: 'Card Number',
-                  prefixIcon: const Icon(Icons.credit_card_rounded, size: 18),
+                  prefixIcon: const Icon(LucideIcons.creditCard, size: 18),
                   suffixIcon: Padding(
                     padding: const EdgeInsets.all(10),
                     child: Text(_selectedMethod,
-                        style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
+                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryBlue)),
                   ),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
                   isDense: true,
@@ -688,10 +689,10 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                     child: TextField(
                       controller: _expiryCtrl,
                       keyboardType: TextInputType.datetime,
-                      style: GoogleFonts.outfit(fontSize: 13),
+                      style: GoogleFonts.inter(fontSize: 13),
                       decoration: InputDecoration(
                         labelText: 'Expiry (MM/YY)',
-                        prefixIcon: const Icon(Icons.calendar_today_rounded, size: 16),
+                        prefixIcon: const Icon(LucideIcons.calendar, size: 16),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
                         isDense: true,
                       ),
@@ -703,10 +704,10 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                       controller: _cvvCtrl,
                       keyboardType: TextInputType.number,
                       obscureText: true,
-                      style: GoogleFonts.outfit(fontSize: 13),
+                      style: GoogleFonts.inter(fontSize: 13),
                       decoration: InputDecoration(
                         labelText: 'CVV',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded, size: 16),
+                        prefixIcon: const Icon(LucideIcons.lock, size: 16),
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
                         isDense: true,
                       ),
@@ -729,11 +730,11 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
+                const Icon(LucideIcons.circleAlert, color: Color(0xFFDC2626), size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(_error!,
-                      style: GoogleFonts.outfit(color: const Color(0xFFDC2626), fontSize: 12.5)),
+                      style: GoogleFonts.inter(color: const Color(0xFFDC2626), fontSize: 12.5)),
                 ),
               ],
             ),
@@ -757,10 +758,10 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.lock_rounded, size: 18),
+                : const Icon(LucideIcons.lock, size: 18),
             label: Text(
               _initiating ? 'Authorizing Payment…' : 'Authorize & Pay Rs. ${fee.toStringAsFixed(0)}',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
             ),
           ),
         ),
@@ -769,9 +770,9 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
         // Hosted checkout alternative
         TextButton.icon(
           onPressed: _initiating ? null : _initiateHostedPayHere,
-          icon: const Icon(Icons.open_in_browser_rounded, size: 16, color: Color(0xFF64748B)),
+          icon: const Icon(LucideIcons.externalLink, size: 16, color: Color(0xFF64748B)),
           label: Text('Or Checkout via PayHere Hosted Sandbox Gateway',
-              style: GoogleFonts.outfit(fontSize: 12.5, color: const Color(0xFF64748B))),
+              style: GoogleFonts.inter(fontSize: 12.5, color: const Color(0xFF64748B))),
         ),
       ],
     );
@@ -791,10 +792,10 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.credit_card, size: 13, color: AppTheme.primaryBlue),
+            const Icon(LucideIcons.creditCard, size: 13, color: AppTheme.primaryBlue),
             const SizedBox(width: 4),
             Text(label,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                     fontSize: 11.5, fontWeight: FontWeight.w600, color: AppTheme.primaryBlue)),
           ],
         ),
@@ -818,25 +819,25 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
               shape: BoxShape.circle,
               color: Color(0xFFEFF6FF),
             ),
-            child: const Icon(Icons.payment_rounded, size: 40, color: AppTheme.primaryBlue),
+            child: const Icon(LucideIcons.creditCard, size: 40, color: AppTheme.primaryBlue),
           ),
           const SizedBox(height: 16),
           Text('Redirecting to PayHere Sandbox…',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 16)),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 8),
           Text(
             'Complete your payment on the external PayHere sandbox page, then return here to track your status.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12.5),
+            style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12.5),
           ),
           const SizedBox(height: 20),
           const CircularProgressIndicator(),
           const SizedBox(height: 20),
           OutlinedButton.icon(
             onPressed: _checkPaymentStatus,
-            icon: const Icon(Icons.refresh_rounded, size: 16),
+            icon: const Icon(LucideIcons.refreshCw, size: 16),
             label: Text('I Have Completed Payment · Verify',
-                style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -856,16 +857,16 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
           const CircularProgressIndicator(),
           const SizedBox(height: 16),
           Text('Verifying Payment…',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 16)),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
           const SizedBox(height: 6),
           Text('Communicating with PayHere gateway to confirm authorization.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.outfit(color: AppTheme.textSecondary, fontSize: 12.5)),
+              style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 12.5)),
           const SizedBox(height: 16),
           OutlinedButton.icon(
             onPressed: _checkPaymentStatus,
-            icon: const Icon(Icons.refresh_rounded, size: 16),
-            label: Text('Refresh Verification', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            icon: const Icon(LucideIcons.refreshCw, size: 16),
+            label: Text('Refresh Verification', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -888,17 +889,17 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
               shape: BoxShape.circle,
               color: Color(0xFFDCFCE7),
             ),
-            child: const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 44),
+            child: const Icon(LucideIcons.circleCheck, color: Color(0xFF059669), size: 44),
           ),
           const SizedBox(height: 14),
           Text('Payment Verified Successfully!',
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                   fontWeight: FontWeight.w800, fontSize: 18, color: const Color(0xFF065F46))),
           const SizedBox(height: 6),
           Text(
             'Your consultation payment has been confirmed. The receptionist will review your appointment shortly.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(color: const Color(0xFF047857), fontSize: 13),
+            style: GoogleFonts.inter(color: const Color(0xFF047857), fontSize: 13),
           ),
           const SizedBox(height: 16),
           Container(
@@ -927,8 +928,8 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                       builder: (_) => RefundTrackingScreen(appointmentId: widget.appointmentId),
                     ),
                   ),
-                  icon: const Icon(Icons.receipt_long_rounded, size: 16),
-                  label: Text('Refund Tracking', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+                  icon: const Icon(LucideIcons.receiptText, size: 16),
+                  label: Text('Refund Tracking', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                 ),
               ),
               const SizedBox(width: 10),
@@ -940,7 +941,7 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusFull)),
                   ),
-                  child: Text('Done', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                  child: Text('Done', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
@@ -981,7 +982,7 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
               Row(
                 children: [
                   Icon(
-                    isCompleted ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                    isCompleted ? LucideIcons.circleCheck : LucideIcons.info,
                     size: 16,
                     color: isCompleted
                         ? const Color(0xFF059669)
@@ -991,17 +992,17 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
                   ),
                   const SizedBox(width: 6),
                   Text('Refund Status: ${r.status}',
-                      style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13)),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13)),
                 ],
               ),
               Text('Rs. ${r.amount?.toStringAsFixed(0) ?? '-'}',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w800, fontSize: 13)),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w800, fontSize: 13)),
             ],
           ),
           if (r.expectedProcessingInfo != null) ...[
             const SizedBox(height: 6),
             Text(r.expectedProcessingInfo!,
-                style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF1E3A8A))),
+                style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF1E3A8A))),
           ],
         ],
       ),
@@ -1020,7 +1021,7 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('MediFlow Payment & Refund Policy',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary)),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           _bullet('Refunds are available before receptionist approval.'),
           _bullet('Receptionist rejections trigger automatic payment refunds.'),
@@ -1039,7 +1040,7 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
         children: [
           const Text('• ', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
           Expanded(
-            child: Text(text, style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B))),
+            child: Text(text, style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B))),
           ),
         ],
       ),
@@ -1052,8 +1053,8 @@ class _PaymentCheckoutScreenState extends ConsumerState<PaymentCheckoutScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontSize: 12.5)),
-          Text(value, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12.5)),
+          Text(label, style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 12.5)),
+          Text(value, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12.5)),
         ],
       ),
     );
@@ -1242,13 +1243,13 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
       backgroundColor: AppTheme.bgCanvas,
       appBar: AppBar(
         title: Text('Refund Tracking',
-            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 18)),
+            style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 18)),
         backgroundColor: AppTheme.primaryBlue,
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(LucideIcons.refreshCw),
             tooltip: 'Check Status',
             onPressed: _load,
           ),
@@ -1266,10 +1267,10 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                   children: [
                     if (_success != null)
                       _alertBanner(_success!, const Color(0xFF059669), const Color(0xFFECFDF5),
-                          Icons.check_circle_rounded),
+                          LucideIcons.circleCheck),
                     if (_error != null)
                       _alertBanner(_error!, const Color(0xFFDC2626), const Color(0xFFFEF2F2),
-                          Icons.error_outline_rounded),
+                          LucideIcons.circleAlert),
 
                     // Appointment Header
                     Container(
@@ -1283,7 +1284,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('Appointment Reference',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
                                   color: AppTheme.textPrimary)),
@@ -1338,7 +1339,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Refund Progress',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                       fontWeight: FontWeight.w700, fontSize: 16, color: AppTheme.textPrimary)),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1352,7 +1353,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                 ),
                 child: Text(
                   r.status ?? 'Processing',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: isCompleted
@@ -1368,7 +1369,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
           const SizedBox(height: 8),
           Text(
             'Rs. ${r.amount?.toStringAsFixed(2) ?? '0.00'} ${r.currency ?? 'LKR'}',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontWeight: FontWeight.w800,
               fontSize: 20,
               color: AppTheme.primaryBlue,
@@ -1377,7 +1378,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
           if (r.refundReference != null) ...[
             const SizedBox(height: 2),
             Text('Ref: ${r.refundReference}',
-                style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF64748B))),
+                style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF64748B))),
           ],
           const SizedBox(height: 18),
 
@@ -1391,12 +1392,12 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: Color(0xFF059669), size: 20),
+                  const Icon(LucideIcons.circleCheck, color: Color(0xFF059669), size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Funds Credited Successfully · Refund Completed',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                         color: const Color(0xFF065F46),
@@ -1422,17 +1423,17 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.cancel_rounded, color: Color(0xFFDC2626), size: 18),
+                      const Icon(LucideIcons.circleX, color: Color(0xFFDC2626), size: 18),
                       const SizedBox(width: 6),
                       Text('Refund Request Rejected',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                               fontWeight: FontWeight.w700, color: const Color(0xFF991B1B), fontSize: 13)),
                     ],
                   ),
                   if (r.rejectionReason != null) ...[
                     const SizedBox(height: 4),
                     Text('Reason: ${r.rejectionReason}',
-                        style: GoogleFonts.outfit(color: const Color(0xFFB91C1C), fontSize: 12)),
+                        style: GoogleFonts.inter(color: const Color(0xFFB91C1C), fontSize: 12)),
                   ],
                 ],
               ),
@@ -1464,10 +1465,10 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                         ),
                         child: Center(
                           child: isDone || (isCompleted && idx == 3)
-                              ? const Icon(Icons.check, size: 16, color: Colors.white)
+                              ? const Icon(LucideIcons.check, size: 16, color: Colors.white)
                               : Text(
                                   '${idx + 1}',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     color: isActive ? Colors.white : const Color(0xFF94A3B8),
                                     fontWeight: FontWeight.bold,
                                     fontSize: 12,
@@ -1494,7 +1495,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                         children: [
                           Text(
                             s['label'] as String,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontWeight: isActive || isDone ? FontWeight.w700 : FontWeight.w500,
                               fontSize: 13.5,
                               color: isDone
@@ -1506,7 +1507,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                           ),
                           Text(
                             s['desc'] as String,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 11.5,
                               color: const Color(0xFF64748B),
                             ),
@@ -1530,11 +1531,11 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF0284C7)),
+                  const Icon(LucideIcons.info, size: 18, color: Color(0xFF0284C7)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(r.expectedProcessingInfo!,
-                        style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF1D4ED8))),
+                        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF1D4ED8))),
                   ),
                 ],
               ),
@@ -1582,10 +1583,10 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.hourglass_empty_rounded, color: Color(0xFF0284C7), size: 22),
+              const Icon(LucideIcons.hourglass, color: Color(0xFF0284C7), size: 22),
               const SizedBox(width: 10),
               Text('No Active Refund Request',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 15)),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15)),
             ],
           ),
           const SizedBox(height: 8),
@@ -1595,7 +1596,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                 : canRequest || isCancelled
                     ? 'Your appointment has been cancelled. You may submit a refund request for receptionist review.'
                     : 'To request a refund, the appointment must first be cancelled prior to consultation.',
-            style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontSize: 13),
+            style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 13),
           ),
           const SizedBox(height: 16),
 
@@ -1603,8 +1604,8 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
             if (!_showCancelForm)
               OutlinedButton.icon(
                 onPressed: () => setState(() => _showCancelForm = true),
-                icon: const Icon(Icons.cancel_outlined, size: 16),
-                label: Text('Cancel Appointment First', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                icon: const Icon(LucideIcons.circleX, size: 16),
+                label: Text('Cancel Appointment First', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFDC2626),
                   side: const BorderSide(color: Color(0xFFFCA5A5)),
@@ -1613,7 +1614,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
               )
             else ...[
               Text('Select Cancellation Reason',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 13)),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
                 value: _cancelReason,
@@ -1626,7 +1627,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                   'Other',
                 ]
                     .map((r) => DropdownMenuItem(
-                        value: r, child: Text(r, style: GoogleFonts.outfit(fontSize: 13))))
+                        value: r, child: Text(r, style: GoogleFonts.inter(fontSize: 13))))
                     .toList(),
                 decoration: InputDecoration(
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
@@ -1648,15 +1649,15 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                               width: 14,
                               height: 14,
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.check, size: 16),
+                          : const Icon(LucideIcons.check, size: 16),
                       label: Text('Confirm Cancellation',
-                          style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
                     ),
                   ),
                   const SizedBox(width: 10),
                   OutlinedButton(
                     onPressed: () => setState(() => _showCancelForm = false),
-                    child: Text('Keep', style: GoogleFonts.outfit()),
+                    child: Text('Keep', style: GoogleFonts.inter()),
                   ),
                 ],
               ),
@@ -1668,7 +1669,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
             TextField(
               onChanged: (v) => _refundNotes = v,
               maxLines: 2,
-              style: GoogleFonts.outfit(fontSize: 13),
+              style: GoogleFonts.inter(fontSize: 13),
               decoration: InputDecoration(
                 labelText: 'Additional Refund Notes (Optional)',
                 hintText: 'e.g. Cancelled due to conflict, requesting refund to original card.',
@@ -1689,9 +1690,9 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.send_rounded, size: 16),
+                  : const Icon(LucideIcons.send, size: 16),
               label: Text('Submit Refund Request',
-                  style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
             ),
           ],
         ],
@@ -1711,7 +1712,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Refund Guidelines',
-              style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary)),
+              style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13, color: AppTheme.textPrimary)),
           const SizedBox(height: 8),
           _policyBullet('Approved refunds are automatically initiated via the payment gateway.'),
           _policyBullet('Refunded funds are normally credited within 2–3 working days.'),
@@ -1729,7 +1730,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
         children: [
           const Text('• ', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold)),
           Expanded(
-            child: Text(text, style: GoogleFonts.outfit(fontSize: 12, color: const Color(0xFF64748B))),
+            child: Text(text, style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B))),
           ),
         ],
       ),
@@ -1747,7 +1748,7 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(msg,
-                style: GoogleFonts.outfit(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                style: GoogleFonts.inter(color: color, fontSize: 12.5, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -1760,8 +1761,8 @@ class _RefundTrackingScreenState extends ConsumerState<RefundTrackingScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: GoogleFonts.outfit(color: const Color(0xFF64748B), fontSize: 12.5)),
-          Text(value, style: GoogleFonts.outfit(fontWeight: FontWeight.w600, fontSize: 12.5)),
+          Text(label, style: GoogleFonts.inter(color: const Color(0xFF64748B), fontSize: 12.5)),
+          Text(value, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12.5)),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -158,7 +159,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             border: Border.all(
                                 color: Colors.white.withValues(alpha: 0.12)),
                           ),
-                          child: const Icon(Icons.arrow_back_rounded,
+                          child: const Icon(LucideIcons.arrowLeft,
                               color: Colors.white, size: 20),
                         ),
                       ),
@@ -168,7 +169,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         children: [
                           Text(
                             'Create Account',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 22, fontWeight: FontWeight.w900,
                               color: Colors.white, letterSpacing: -0.5,
                             ),
@@ -179,7 +180,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             ).createShader(b),
                             child: Text(
                               'Join MediFlow AI as a Patient',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 13, fontWeight: FontWeight.w500,
                                 color: Colors.white,
                               ),
@@ -254,11 +255,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.person_outline_rounded, size: 15, color: _kCyan),
+                                const Icon(LucideIcons.user, size: 15, color: _kCyan),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Patient Registration',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 12,
                                     color: _kCyan,
@@ -284,13 +285,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.error_outline_rounded,
+                                Icon(LucideIcons.circleAlert,
                                     color: Colors.red.shade300, size: 18),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     auth.error!,
-                                    style: GoogleFonts.outfit(
+                                    style: GoogleFonts.inter(
                                         fontSize: 13,
                                         color: Colors.red.shade300),
                                   ),
@@ -307,7 +308,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         _DarkRegField(
                           label: 'Full Name',
                           hint: 'Enter your full name',
-                          icon: Icons.person_outline_rounded,
+                          icon: LucideIcons.user,
                           controller: _nameCtrl,
                           validator: (v) {
                             if (v == null || v.trim().isEmpty) {
@@ -323,7 +324,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         _DarkRegField(
                           label: 'Email Address',
                           hint: 'patient@example.com',
-                          icon: Icons.email_outlined,
+                          icon: LucideIcons.mail,
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
                           validator: (v) => v == null || !v.contains('@')
@@ -334,7 +335,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         _DarkRegField(
                           label: 'Phone Number',
                           hint: '+94 71 234 5678',
-                          icon: Icons.phone_outlined,
+                          icon: LucideIcons.phone,
                           controller: _phoneCtrl,
                           keyboardType: TextInputType.phone,
                           validator: (v) {
@@ -355,7 +356,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         _DarkRegField(
                           label: 'Password',
                           hint: 'Min. 6 characters',
-                          icon: Icons.lock_outline_rounded,
+                          icon: LucideIcons.lock,
                           controller: _passCtrl,
                           obscure: _obscurePass,
                           suffixIcon: GestureDetector(
@@ -363,8 +364,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                 setState(() => _obscurePass = !_obscurePass),
                             child: Icon(
                               _obscurePass
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
+                                  ? LucideIcons.eye
+                                  : LucideIcons.eyeOff,
                               size: 20,
                               color: Colors.white.withValues(alpha: 0.45),
                             ),
@@ -383,7 +384,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         _DarkRegField(
                           label: 'Confirm Password',
                           hint: 'Re-enter password',
-                          icon: Icons.lock_outline_rounded,
+                          icon: LucideIcons.lock,
                           controller: _confCtrl,
                           obscure: _obscureConf,
                           suffixIcon: GestureDetector(
@@ -391,8 +392,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                                 setState(() => _obscureConf = !_obscureConf),
                             child: Icon(
                               _obscureConf
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
+                                  ? LucideIcons.eye
+                                  : LucideIcons.eyeOff,
                               size: 20,
                               color: Colors.white.withValues(alpha: 0.45),
                             ),
@@ -419,7 +420,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               padding: const EdgeInsets.symmetric(horizontal: 14),
                               child: Text(
                                 'OR SIGN UP WITH',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 0.6,
@@ -445,7 +446,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           children: [
                             Text(
                               'Already have an account? ',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                   fontSize: 13,
                                   color: Colors.white.withValues(alpha: 0.50)),
                             ),
@@ -453,7 +454,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               onTap: () => Navigator.of(context).pop(),
                               child: Text(
                                 'Sign In',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                   fontSize: 13, fontWeight: FontWeight.w700,
                                   color: _kCyan,
                                 ),
@@ -466,7 +467,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         Text(
                           'By creating an account you agree to our\nTerms of Service and Privacy Policy.',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                               fontSize: 11,
                               color: Colors.white.withValues(alpha: 0.28),
                               height: 1.5),
@@ -512,7 +513,7 @@ class _DarkSectionLabel extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           label,
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 13, fontWeight: FontWeight.w700,
             color: Colors.white.withValues(alpha: 0.80),
           ),
@@ -553,7 +554,7 @@ class _DarkRegField extends StatelessWidget {
       obscureText: obscure,
       keyboardType: keyboardType,
       validator: validator,
-      style: GoogleFonts.outfit(fontSize: 14, color: Colors.white),
+      style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -595,12 +596,12 @@ class _DarkRegField extends StatelessWidget {
           borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-        hintStyle: GoogleFonts.outfit(
+        hintStyle: GoogleFonts.inter(
             fontSize: 13, color: Colors.white.withValues(alpha: 0.28)),
-        labelStyle: GoogleFonts.outfit(
+        labelStyle: GoogleFonts.inter(
             fontSize: 13, color: Colors.white.withValues(alpha: 0.55)),
-        floatingLabelStyle: GoogleFonts.outfit(fontSize: 13, color: _kCyan),
-        errorStyle: GoogleFonts.outfit(fontSize: 12, color: Colors.red.shade300),
+        floatingLabelStyle: GoogleFonts.inter(fontSize: 13, color: _kCyan),
+        errorStyle: GoogleFonts.inter(fontSize: 12, color: Colors.red.shade300),
       ),
     );
   }
@@ -664,7 +665,7 @@ class _CyanGradientButtonState extends State<_CyanGradientButton> {
                 )
               : Text(
                   widget.label,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 15, fontWeight: FontWeight.w800,
                     color: _kBgDeep,
                   ),

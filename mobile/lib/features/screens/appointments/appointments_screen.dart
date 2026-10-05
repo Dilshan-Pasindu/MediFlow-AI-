@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,7 +36,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         automaticallyImplyLeading: false,
         title: Text(
           'My Appointments',
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: AppTheme.textPrimary,
@@ -126,7 +127,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.calendar_today_rounded,
+                        LucideIcons.calendar,
                         size: 34,
                         color: AppTheme.primaryBlue,
                       ),
@@ -140,7 +141,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                             ? 'No past consultations found'
                             : 'No cancelled appointments',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: AppTheme.textPrimary,
@@ -154,7 +155,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
                           ? 'Find a verified doctor and schedule a physical or tele-consultation.'
                           : 'Your consultation history and records will be archived here.',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 13,
                         color: AppTheme.textSecondary,
                         height: 1.4,
@@ -187,16 +188,16 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Cancel Consultation?',
-          style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w800),
+          style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w800),
         ),
         content: Text(
           'Are you sure you want to cancel this scheduled appointment?',
-          style: GoogleFonts.outfit(fontSize: 13.5, color: AppTheme.textSecondary),
+          style: GoogleFonts.inter(fontSize: 13.5, color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Keep', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            child: Text('Keep', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -206,7 +207,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('Cancel Visit', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+            child: Text('Cancel Visit', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -219,7 +220,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Appointment cancelled successfully', style: GoogleFonts.outfit()),
+              content: Text('Appointment cancelled successfully', style: GoogleFonts.inter()),
               backgroundColor: const Color(0xFF1E293B),
             ),
           );
@@ -228,7 +229,7 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${e.toString()}', style: GoogleFonts.outfit()),
+              content: Text('Error: ${e.toString()}', style: GoogleFonts.inter()),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );
@@ -273,7 +274,7 @@ class _TabSegment extends StatelessWidget {
           child: Center(
             child: Text(
               label,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 12.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected ? AppTheme.primaryBlue : AppTheme.textSecondary,
@@ -339,7 +340,7 @@ class _AppointmentCard extends ConsumerWidget {
                         children: [
                           Text(
                             'Dr. ${appointment.doctorName}',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 15.5,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,
@@ -347,7 +348,7 @@ class _AppointmentCard extends ConsumerWidget {
                           ),
                           Text(
                             appointment.specialtyName,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 12.5,
                               color: AppTheme.textSecondary,
                               fontWeight: FontWeight.w500,
@@ -374,11 +375,11 @@ class _AppointmentCard extends ConsumerWidget {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.calendar_today_rounded, size: 14, color: AppTheme.primaryBlue),
+                          const Icon(LucideIcons.calendar, size: 14, color: AppTheme.primaryBlue),
                           const SizedBox(width: 8),
                           Text(
                             dateStr,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.textPrimary,
@@ -388,11 +389,11 @@ class _AppointmentCard extends ConsumerWidget {
                       ),
                       Row(
                         children: [
-                          const Icon(Icons.access_time_rounded, size: 14, color: AppTheme.primaryBlue),
+                          const Icon(LucideIcons.clock, size: 14, color: AppTheme.primaryBlue),
                           const SizedBox(width: 6),
                           Text(
                             timeStr,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
                               color: AppTheme.primaryBlue,
@@ -424,7 +425,7 @@ class _AppointmentCard extends ConsumerWidget {
                         ),
                         child: Text(
                           'View Details',
-                          style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ),
@@ -446,10 +447,10 @@ class _AppointmentCard extends ConsumerWidget {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                         ),
-                        icon: const Icon(Icons.payment_rounded, size: 14),
+                        icon: const Icon(LucideIcons.creditCard, size: 14),
                         label: Text(
                           'Pay Fee',
-                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -469,10 +470,10 @@ class _AppointmentCard extends ConsumerWidget {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                         ),
-                        icon: const Icon(Icons.receipt_long_rounded, size: 14),
+                        icon: const Icon(LucideIcons.receiptText, size: 14),
                         label: Text(
                           'Refund',
-                          style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -486,7 +487,7 @@ class _AppointmentCard extends ConsumerWidget {
                         ),
                         child: Text(
                           'Cancel',
-                          style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -576,7 +577,7 @@ class _AppointmentCard extends ConsumerWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.outfit(
+        style: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w700,
           color: text,
