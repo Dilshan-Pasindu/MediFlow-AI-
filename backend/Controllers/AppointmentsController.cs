@@ -1,4 +1,5 @@
 using MediFlow.Api.Data;
+using MediFlow.Api.Extensions;
 using MediFlow.Api.Hubs;
 using MediFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -30,8 +31,7 @@ public class AppointmentsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> BookAppointment([FromBody] BookAppointmentRequest request)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
@@ -144,8 +144,7 @@ public class AppointmentsController : ControllerBase
     [HttpPost("{id}/pay")]
     public async Task<IActionResult> PayAppointment(int id)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
@@ -161,6 +160,7 @@ public class AppointmentsController : ControllerBase
             appointment.Payment = new AppointmentPayment
             {
                 AppointmentId = appointment.Id,
+                PatientId = patient.Id,
                 Amount = appointment.Fee ?? 2500,
                 Status = PaymentStatus.Submitted,
                 PaymentMethod = "Card",
@@ -513,8 +513,7 @@ public class AppointmentsController : ControllerBase
     [Authorize(Roles = "Patient")]
     public async Task<IActionResult> RateAppointment(int id, [FromBody] RateAppointmentRequest request)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
@@ -587,8 +586,7 @@ public class AppointmentsController : ControllerBase
     [Authorize(Roles = "Patient")]
     public async Task<IActionResult> GetAppointmentRating(int id)
     {
-        var userId = GetUserId();
-        var patient = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+        var patient = await GetPatientAsync();
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
@@ -610,10 +608,30 @@ public class AppointmentsController : ControllerBase
 
     // ── Helper ────────────────────────────────────────────────────────────────
 
+    private async Task<Patient?> GetPatientAsync()
+    {
+        var userId = GetUserId();
+        if (userId > 0)
+        {
+            var p = await _db.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+            if (p != null) return p;
+        }
+
+        var sub = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("sub")?.Value
+            ?? User.FindFirst("supabaseId")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(sub))
+        {
+            return await _db.Patients.FirstOrDefaultAsync(p => p.SupabaseId == sub);
+        }
+
+        return null;
+    }
+
     private int GetUserId()
     {
-        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : throw new UnauthorizedAccessException();
+        return User.GetUserId(_db);
     }
 }
 

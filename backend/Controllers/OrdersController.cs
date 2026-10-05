@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Claims;
 using MediFlow.Api.Data;
 using MediFlow.Api.DTOs;
+using MediFlow.Api.Extensions;
 using MediFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -92,9 +93,8 @@ public class OrdersController : ControllerBase
 
     private int? TryGetUserId()
     {
-        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null && int.TryParse(claim.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)
-            ? id : null;
+        var id = User.GetUserId(_db);
+        return id > 0 ? id : null;
     }
 
     private async Task<MedicineOrder?> LoadOrderAsync(int id) =>

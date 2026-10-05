@@ -1,4 +1,5 @@
 using MediFlow.Api.Data;
+using MediFlow.Api.Extensions;
 using MediFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -469,8 +470,7 @@ public class DoctorsController : ControllerBase
 
     private int GetUserId()
     {
-        var claim = User.FindFirst("userId") ?? User.FindFirst(ClaimTypes.NameIdentifier);
-        return claim != null ? int.Parse(claim.Value, CultureInfo.InvariantCulture) : 0;
+        return User.GetUserId(_db);
     }
 }
 
