@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -80,7 +81,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
           SnackBar(
             content: Text(
               'Booking note: ${e.toString().replaceFirst("ApiException(400): ", "").replaceFirst("Exception: ", "")}',
-              style: GoogleFonts.outfit(),
+              style: GoogleFonts.inter(),
             ),
             backgroundColor: AppTheme.primaryTeal,
           ),
@@ -113,7 +114,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.check_circle_rounded,
+                  LucideIcons.circleCheck,
                   color: AppTheme.primaryTeal,
                   size: 36,
                 ),
@@ -121,7 +122,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
               const SizedBox(height: 16),
               Text(
                 'Appointment Confirmed!',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppTheme.textPrimary,
@@ -131,7 +132,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
               Text(
                 'Your session with ${doctor.fullName} on ${DateFormat("EEEE, MMMM d 'at' h:mm a").format(dt.toLocal())} has been scheduled.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 13,
                   color: AppTheme.textSecondary,
                   height: 1.4,
@@ -154,7 +155,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                   ),
                   child: Text(
                     'Done',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
@@ -191,25 +192,25 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _CircleNavButton(
-                      icon: Icons.chevron_left_rounded,
+                      icon: LucideIcons.chevronLeft,
                       onTap: () => Navigator.of(context).pop(),
                     ),
                     Text(
                       'Doctor Profile',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
                       ),
                     ),
                     _CircleNavButton(
-                      icon: Icons.chat_bubble_outline_rounded,
+                      icon: LucideIcons.messageSquare,
                       onTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
                               'Direct messaging with ${doctor.fullName} will be available upon confirmed appointment.',
-                              style: GoogleFonts.outfit(),
+                              style: GoogleFonts.inter(),
                             ),
                             backgroundColor: AppTheme.primaryTeal,
                           ),
@@ -231,7 +232,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                       // ── Doctor Info & Portrait (Screen 2) ────────────────
                       Text(
                         doctor.primarySpecialty,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: AppTheme.textSecondary,
@@ -240,7 +241,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                       const SizedBox(height: 2),
                       Text(
                         doctor.fullName,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 23,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.textPrimary,
@@ -258,7 +259,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                         ),
                         child: Text(
                           'ID: ${doctor.registrationNumber ?? "32145687"}',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.textSecondary,
@@ -315,11 +316,11 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.star_rounded, color: Colors.white, size: 18),
+                            const Icon(LucideIcons.star, color: Colors.white, size: 18),
                             const SizedBox(width: 6),
                             Text(
                               'Rating ${(doctor.averageRating > 0 ? doctor.averageRating : 4.8).toStringAsFixed(1)}',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
                                 color: Colors.white,
@@ -335,22 +336,22 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _ActionCircleButton(
-                            icon: Icons.description_outlined,
+                            icon: LucideIcons.fileText,
                             onTap: () => _showDoctorBioModal(context, doctor),
                           ),
                           const SizedBox(width: 16),
                           _ActionCircleButton(
-                            icon: Icons.star_border_rounded,
+                            icon: LucideIcons.star,
                             onTap: () => _showDoctorReviewsModal(context, doctor),
                           ),
                           const SizedBox(width: 16),
                           _ActionCircleButton(
-                            icon: Icons.calendar_today_outlined,
+                            icon: LucideIcons.calendar,
                             onTap: () {},
                           ),
                           const SizedBox(width: 16),
                           _ActionCircleButton(
-                            icon: Icons.access_time_rounded,
+                            icon: LucideIcons.clock,
                             onTap: () => _showDoctorAvailabilityModal(context, doctor),
                           ),
                         ],
@@ -363,7 +364,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                         children: [
                           Text(
                             DateFormat('MMMM yyyy').format(DateTime.now()),
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,
@@ -371,9 +372,9 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                           ),
                           const Row(
                             children: [
-                              Icon(Icons.chevron_left_rounded, size: 20, color: AppTheme.textSecondary),
+                              Icon(LucideIcons.chevronLeft, size: 20, color: AppTheme.textSecondary),
                               SizedBox(width: 6),
-                              Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.textSecondary),
+                              Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.textSecondary),
                             ],
                           ),
                         ],
@@ -407,7 +408,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                 children: [
                                   Text(
                                     item['day']!,
-                                    style: GoogleFonts.outfit(
+                                    style: GoogleFonts.inter(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                       color: isSelected ? Colors.white : AppTheme.textSecondary,
@@ -424,7 +425,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                     child: Center(
                                       child: Text(
                                         item['num']!,
-                                        style: GoogleFonts.outfit(
+                                        style: GoogleFonts.inter(
                                           fontSize: 13,
                                           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                                           color: isSelected ? AppTheme.primaryBlue : AppTheme.textPrimary,
@@ -457,7 +458,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                               children: [
                                 Text(
                                   'Today,\nAvailability',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800,
                                     color: AppTheme.textPrimary,
@@ -466,7 +467,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                 ),
                                 Text(
                                   '${_timeSlots.length} Slots',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                     color: AppTheme.textMuted,
@@ -501,7 +502,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                     ),
                                     child: Text(
                                       slot,
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 12,
                                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                                         color: isSelected ? Colors.white : AppTheme.textPrimary,
@@ -520,11 +521,11 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.info_outline_rounded, size: 14, color: AppTheme.textMuted),
+                          const Icon(LucideIcons.info, size: 14, color: AppTheme.textMuted),
                           const SizedBox(width: 4),
                           Text(
                             'Consultation Fee: Rs. ${(doctor.consultationFee ?? 2500).toStringAsFixed(0)}',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: AppTheme.textSecondary,
@@ -570,7 +571,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                           )
                         : Text(
                             'Book Session',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
@@ -592,7 +593,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
       child: Center(
         child: Text(
           doc.fullName.isNotEmpty ? doc.fullName[0].toUpperCase() : 'D',
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 48,
             fontWeight: FontWeight.w800,
             color: AppTheme.primaryBlue,
@@ -616,18 +617,18 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('About ${doctor.fullName}',
-                style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800)),
+                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
             Text(
               doctor.bio != null && doctor.bio!.isNotEmpty
                   ? doctor.bio!
                   : 'Experienced clinical specialist committed to providing empathetic, evidence-based care.',
-              style: GoogleFonts.outfit(fontSize: 14, color: AppTheme.textSecondary, height: 1.5),
+              style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textSecondary, height: 1.5),
             ),
             const SizedBox(height: 16),
             if (doctor.hospitalClinic != null) ...[
               Text('Location: ${doctor.hospitalClinic}',
-                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primaryTeal)),
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primaryTeal)),
             ],
           ],
         ),
@@ -650,17 +651,17 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.star_rounded, color: AppTheme.starGold, size: 24),
+                const Icon(LucideIcons.star, color: AppTheme.starGold, size: 24),
                 const SizedBox(width: 8),
                 Text(
                   '${(doctor.averageRating > 0 ? doctor.averageRating : 4.8).toStringAsFixed(1)} Rating (${doctor.reviewCount} reviews)',
-                  style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w800),
+                  style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w800),
                 ),
               ],
             ),
             const SizedBox(height: 14),
             Text('100% verified patient feedback from clinical visits.',
-                style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textSecondary)),
+                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary)),
           ],
         ),
       ),
@@ -680,7 +681,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Clinical Schedule', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text('Clinical Schedule', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 14),
             if (doctor.availability.isNotEmpty)
               ...doctor.availability.map((a) => Padding(
@@ -688,15 +689,15 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(a.dayOfWeek, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text(a.dayOfWeek, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
                         Text('${a.startTime} – ${a.endTime}',
-                            style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.primaryTeal)),
+                            style: GoogleFonts.inter(fontSize: 13, color: AppTheme.primaryTeal)),
                       ],
                     ),
                   ))
             else
               Text('Available Monday to Saturday for scheduled outpatient appointments.',
-                  style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textSecondary)),
+                  style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary)),
           ],
         ),
       ),

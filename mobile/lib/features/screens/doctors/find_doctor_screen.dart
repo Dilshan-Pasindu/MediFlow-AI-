@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -51,7 +52,7 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _TopCircleButton(
-                    icon: Icons.chevron_left_rounded,
+                    icon: LucideIcons.chevronLeft,
                     onTap: () {
                       if (Navigator.of(context).canPop()) {
                         Navigator.of(context).pop();
@@ -62,7 +63,7 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                   ),
                   Text(
                     'Doctors List',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.textPrimary,
@@ -70,7 +71,7 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                     ),
                   ),
                   _TopCircleButton(
-                    icon: Icons.more_horiz_rounded,
+                    icon: LucideIcons.ellipsis,
                     onTap: () => _showSortModal(context),
                   ),
                 ],
@@ -93,26 +94,26 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                       ),
                       child: TextField(
                         controller: _searchCtrl,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           color: AppTheme.textPrimary,
                         ),
                         onChanged: (_) => _applyFilter(),
                         decoration: InputDecoration(
                           hintText: 'Search for doctor...',
-                          hintStyle: GoogleFonts.outfit(
+                          hintStyle: GoogleFonts.inter(
                             fontSize: 14,
                             color: AppTheme.textMuted,
                           ),
                           prefixIcon: const Icon(
-                            Icons.search_rounded,
+                            LucideIcons.search,
                             size: 20,
                             color: AppTheme.textMuted,
                           ),
                           suffixIcon: _searchCtrl.text.isNotEmpty
                               ? IconButton(
                                   icon: const Icon(
-                                    Icons.close_rounded,
+                                    LucideIcons.x,
                                     size: 18,
                                     color: AppTheme.textMuted,
                                   ),
@@ -148,7 +149,7 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                         boxShadow: AppTheme.cardShadow,
                       ),
                       child: const Icon(
-                        Icons.tune_rounded,
+                        LucideIcons.slidersHorizontal,
                         color: AppTheme.textPrimary,
                         size: 20,
                       ),
@@ -218,7 +219,7 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
                   final sorted = _sort(doctors);
                   if (sorted.isEmpty) {
                     return const EmptyState(
-                      icon: Icons.person_search_outlined,
+                      icon: LucideIcons.userSearch,
                       title: 'No doctors found',
                       subtitle: 'Try adjusting your search or filters',
                     );
@@ -284,7 +285,7 @@ class _FindDoctorScreenState extends ConsumerState<FindDoctorScreen> {
             const SizedBox(height: 16),
             Text(
               'Sort Specialists',
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary,
@@ -401,7 +402,7 @@ class _FilterPill extends StatelessWidget {
         child: Center(
           child: Text(
             label,
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               color: selected ? Colors.white : AppTheme.textSecondary,
@@ -487,7 +488,7 @@ class _GridDoctorCard extends StatelessWidget {
               doctor.fullName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: nameColor,
@@ -499,7 +500,7 @@ class _GridDoctorCard extends StatelessWidget {
               doctor.primarySpecialty,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: specialtyColor,
@@ -520,14 +521,14 @@ class _GridDoctorCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           const Icon(
-                            Icons.star_rounded,
+                            LucideIcons.star,
                             size: 15,
                             color: AppTheme.starGold,
                           ),
                           const SizedBox(width: 3),
                           Text(
                             rating.toStringAsFixed(1),
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
                               color: isHighlighted ? Colors.white : AppTheme.textPrimary,
@@ -540,7 +541,7 @@ class _GridDoctorCard extends StatelessWidget {
                         '$reviews Reviews',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
                           color: reviewColor,
@@ -558,7 +559,7 @@ class _GridDoctorCard extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    Icons.arrow_outward_rounded,
+                    LucideIcons.arrowUpRight,
                     color: arrowColor,
                     size: 16,
                   ),
@@ -579,7 +580,7 @@ class _GridDoctorCard extends StatelessWidget {
       child: Center(
         child: Text(
           doctor.fullName.isNotEmpty ? doctor.fullName[0].toUpperCase() : 'D',
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w800,
             color: isHighlighted ? Colors.white : AppTheme.primaryBlue,
@@ -608,14 +609,14 @@ class _SortOption extends StatelessWidget {
       onTap: onTap,
       title: Text(
         label,
-        style: GoogleFonts.outfit(
+        style: GoogleFonts.inter(
           fontSize: 14,
           fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           color: selected ? AppTheme.primaryBlue : AppTheme.textPrimary,
         ),
       ),
       trailing: selected
-          ? const Icon(Icons.check_circle_rounded, color: AppTheme.primaryBlue)
+          ? const Icon(LucideIcons.circleCheck, color: AppTheme.primaryBlue)
           : null,
     );
   }

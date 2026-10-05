@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -98,12 +99,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             Row(
                               children: [
                                 _HeaderIconButton(
-                                  icon: Icons.search_rounded,
+                                  icon: LucideIcons.search,
                                   onTap: () => ref.read(shellTabProvider.notifier).state = 1,
                                 ),
                                 const SizedBox(width: 10),
                                 _HeaderIconButton(
-                                  icon: Icons.notifications_outlined,
+                                  icon: LucideIcons.bell,
                                   hasBadge: true,
                                   onTap: () => Navigator.of(context).push(
                                     MaterialPageRoute(
@@ -180,7 +181,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           children: [
                             _StatCard(
                               label: 'Upcoming',
-                              icon: Icons.calendar_today_rounded,
+                              icon: LucideIcons.calendar,
                               color: Colors.white,
                               value: apptsAsync.when(
                                 data: (list) =>
@@ -194,7 +195,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             const SizedBox(width: 10),
                             _StatCard(
                               label: 'Active Rx',
-                              icon: Icons.medication_liquid_rounded,
+                              icon: LucideIcons.flaskConical,
                               color: const Color(0xFF34D399),
                               value: rxsAsync.when(
                                 data: (list) =>
@@ -208,7 +209,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             const SizedBox(width: 10),
                             _StatCard(
                               label: 'Orders',
-                              icon: Icons.local_pharmacy_rounded,
+                              icon: LucideIcons.pill,
                               color: const Color(0xFFFBBF24),
                               value: ordersAsync.when(
                                 data: (list) =>
@@ -258,14 +259,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       childAspectRatio: 0.92,
                       children: [
                         _ServiceTile(
-                          icon: Icons.medical_services_rounded,
+                          icon: LucideIcons.stethoscope,
                           title: 'Find Doctor',
                           subtitle: 'Browse Specialists',
                           gradientColors: const [Color(0xFF2A7DE1), Color(0xFF1565C0)],
                           onTap: () => ref.read(shellTabProvider.notifier).state = 1,
                         ),
                         _ServiceTile(
-                          icon: Icons.auto_awesome_rounded,
+                          icon: LucideIcons.sparkles,
                           title: 'Symptom AI',
                           subtitle: 'Check Symptoms',
                           gradientColors: const [Color(0xFF7C3AED), Color(0xFF5B21B6)],
@@ -274,21 +275,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                         ),
                         _ServiceTile(
-                          icon: Icons.calendar_month_rounded,
+                          icon: LucideIcons.calendarDays,
                           title: 'Schedule',
                           subtitle: 'My Visits',
                           gradientColors: const [Color(0xFF0EA5E9), Color(0xFF0284C7)],
                           onTap: () => ref.read(shellTabProvider.notifier).state = 2,
                         ),
                         _ServiceTile(
-                          icon: Icons.receipt_long_rounded,
+                          icon: LucideIcons.receiptText,
                           title: 'Prescriptions',
                           subtitle: 'E-Prescriptions',
                           gradientColors: const [Color(0xFF10B981), Color(0xFF059669)],
                           onTap: () => ref.read(shellTabProvider.notifier).state = 3,
                         ),
                         _ServiceTile(
-                          icon: Icons.local_shipping_rounded,
+                          icon: LucideIcons.truck,
                           title: 'Orders',
                           subtitle: 'Track Dispense',
                           gradientColors: const [Color(0xFFF59E0B), Color(0xFFD97706)],
@@ -297,7 +298,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                         ),
                         _ServiceTile(
-                          icon: Icons.account_circle_rounded,
+                          icon: LucideIcons.circleUser,
                           title: 'My Profile',
                           subtitle: 'Health Records',
                           gradientColors: const [Color(0xFF6366F1), Color(0xFF4F46E5)],
@@ -359,7 +360,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       trailing: Row(
                         children: [
                           _MiniIconButton(
-                            icon: Icons.tune_rounded,
+                            icon: LucideIcons.slidersHorizontal,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                   builder: (_) => const SymptomAiScreen()),
@@ -367,7 +368,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           ),
                           const SizedBox(width: 8),
                           _MiniIconButton(
-                            icon: Icons.more_horiz_rounded,
+                            icon: LucideIcons.ellipsis,
                             onTap: () =>
                                 ref.read(shellTabProvider.notifier).state = 1,
                           ),
@@ -384,7 +385,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         children: [
                           _DiseaseCard(
                             title: "Spine\nDisorder",
-                            icon: Icons.accessibility_new_rounded,
+                            icon: LucideIcons.activity,
                             gradient: const [Color(0xFFE11D48), Color(0xFFFB7185)],
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
@@ -394,7 +395,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           const SizedBox(width: 14),
                           _DiseaseCard(
                             title: "Migraine\nCare",
-                            icon: Icons.psychology_rounded,
+                            icon: LucideIcons.brain,
                             gradient: const [Color(0xFF7C3AED), Color(0xFFA855F7)],
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
@@ -404,7 +405,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           const SizedBox(width: 14),
                           _DiseaseCard(
                             title: "Cardio\nRhythm",
-                            icon: Icons.favorite_rounded,
+                            icon: LucideIcons.heart,
                             gradient: const [Color(0xFF059669), Color(0xFF34D399)],
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
@@ -414,7 +415,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           const SizedBox(width: 14),
                           _DiseaseCard(
                             title: "Diabetes\nMonitor",
-                            icon: Icons.bloodtype_rounded,
+                            icon: LucideIcons.droplet,
                             gradient: const [Color(0xFF0EA5E9), Color(0xFF38BDF8)],
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
@@ -589,7 +590,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.star_rounded,
+                      const Icon(LucideIcons.star,
                           size: 14, color: Color(0xFFF59E0B)),
                       const SizedBox(width: 4),
                       Text(
@@ -614,7 +615,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      _isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      _isFavorite ? LucideIcons.heart : LucideIcons.heart,
                       color: Colors.white,
                       size: 18,
                     ),
@@ -640,11 +641,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           doctor.profilePhoto!,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => const Icon(
-                              Icons.person_rounded,
+                              LucideIcons.user,
                               size: 48,
                               color: Colors.white),
                         )
-                      : const Icon(Icons.person_rounded,
+                      : const Icon(LucideIcons.user,
                           size: 48, color: Colors.white),
                 ),
               ),
@@ -1029,7 +1030,7 @@ class _UpcomingAppointmentCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.access_time_rounded,
+                const Icon(LucideIcons.clock,
                     size: 15, color: AppTheme.primaryBlue),
                 const SizedBox(width: 8),
                 Text(
@@ -1205,7 +1206,7 @@ class _DiseaseCard extends StatelessWidget {
                     color: Colors.white.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.arrow_outward_rounded,
+                  child: const Icon(LucideIcons.arrowUpRight,
                       size: 13, color: Colors.white),
                 ),
               ],
@@ -1252,7 +1253,7 @@ class _PrescriptionTile extends StatelessWidget {
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.receipt_rounded, size: 18, color: Colors.white),
+            child: const Icon(LucideIcons.receipt, size: 18, color: Colors.white),
           ),
           const SizedBox(width: 12),
           Expanded(

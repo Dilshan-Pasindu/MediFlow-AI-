@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 
 /// Logo variants corresponding to the official MediFlow brand asset.
@@ -75,7 +76,7 @@ class MediFlowLogo extends StatelessWidget {
             borderRadius: BorderRadius.circular(h * 0.25),
           ),
           child: Icon(
-            Icons.medical_services_rounded,
+            LucideIcons.stethoscope,
             color: Colors.white,
             size: h * 0.55,
           ),

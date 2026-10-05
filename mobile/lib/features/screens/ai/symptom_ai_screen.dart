@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -132,7 +133,7 @@ class _SymptomAiScreenState extends ConsumerState<SymptomAiScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: AppTheme.cardBorder),
             ),
-            child: const Icon(Icons.arrow_back_rounded, size: 18, color: AppTheme.textPrimary),
+            child: const Icon(LucideIcons.arrowLeft, size: 18, color: AppTheme.textPrimary),
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -141,7 +142,7 @@ class _SymptomAiScreenState extends ConsumerState<SymptomAiScreen> {
           children: [
             Text(
                'AI Symptom Checker',
-               style: GoogleFonts.outfit(
+               style: GoogleFonts.inter(
                  fontSize: 16,
                  fontWeight: FontWeight.w800,
                  color: AppTheme.textPrimary,
@@ -149,7 +150,7 @@ class _SymptomAiScreenState extends ConsumerState<SymptomAiScreen> {
              ),
             Text(
               'Clinical Triage & Specialist Recommendation',
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 11,
                 color: AppTheme.textSecondary,
                 fontWeight: FontWeight.w500,
@@ -161,10 +162,10 @@ class _SymptomAiScreenState extends ConsumerState<SymptomAiScreen> {
           if (_step == _Step.result)
             TextButton.icon(
               onPressed: _reset,
-              icon: const Icon(Icons.refresh_rounded, size: 16, color: AppTheme.primaryBlue),
+              icon: const Icon(LucideIcons.refreshCw, size: 16, color: AppTheme.primaryBlue),
               label: Text(
                 'Reset',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primaryBlue,
@@ -260,12 +261,12 @@ class _InputView extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 20),
+                  const Icon(LucideIcons.circleAlert, color: Color(0xFFEF4444), size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       error!,
-                      style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFFDC2626)),
+                      style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFFDC2626)),
                     ),
                   ),
                 ],
@@ -291,7 +292,7 @@ class _InputView extends StatelessWidget {
                   children: [
                     Text(
                       'Describe Your Symptoms',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppTheme.textPrimary,
@@ -305,7 +306,7 @@ class _InputView extends StatelessWidget {
                       ),
                       child: Text(
                         'AI Triage',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.primaryBlue,
@@ -317,17 +318,17 @@ class _InputView extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Mention pain intensity, location, and any accompanying discomfort.',
-                  style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary),
+                  style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: symptomsCtrl,
                   maxLines: 5,
                   maxLength: 2000,
-                  style: GoogleFonts.outfit(fontSize: 14, color: AppTheme.textPrimary),
+                  style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'e.g., I have had sharp chest pain for 3 days with shortness of breath when climbing stairs...',
-                    hintStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
+                    hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMuted),
                     filled: true,
                     fillColor: AppTheme.surface2,
                     border: OutlineInputBorder(
@@ -353,7 +354,7 @@ class _InputView extends StatelessWidget {
           // ── Quick Examples ──
           Text(
             'Common Clinical Symptoms',
-            style: GoogleFonts.outfit(
+            style: GoogleFonts.inter(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
               color: AppTheme.textSecondary,
@@ -383,11 +384,11 @@ class _InputView extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.add_rounded, size: 14, color: AppTheme.primaryBlue),
+                      const Icon(LucideIcons.plus, size: 14, color: AppTheme.primaryBlue),
                       const SizedBox(width: 4),
                       Text(
                         ex,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: AppTheme.textPrimary,
@@ -417,7 +418,7 @@ class _InputView extends StatelessWidget {
                 // Duration
                 Text(
                   'How long have you experienced this?',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -439,7 +440,7 @@ class _InputView extends StatelessWidget {
                         ),
                         child: Text(
                           dur,
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                             color: isSelected ? Colors.white : AppTheme.textPrimary,
@@ -458,7 +459,7 @@ class _InputView extends StatelessWidget {
                   children: [
                     Text(
                       'Symptom Severity',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.textPrimary,
@@ -472,7 +473,7 @@ class _InputView extends StatelessWidget {
                       ),
                       child: Text(
                         '$severityLabel (${severity.toInt()}/10)',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
                           color: severityColor,
@@ -512,11 +513,11 @@ class _InputView extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.auto_awesome_rounded, size: 18),
+                const Icon(LucideIcons.sparkles, size: 18),
                 const SizedBox(width: 8),
                 Text(
                   'Analyze Symptoms with AI',
-                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w800),
+                  style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
                 ),
               ],
             ),
@@ -525,7 +526,7 @@ class _InputView extends StatelessWidget {
           Text(
             '🔒 Secure clinical AI analysis. For guidance only; does not replace emergency medical care.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted),
+            style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMuted),
           ),
         ],
       ),
@@ -577,7 +578,7 @@ class _AnalyzingView extends StatelessWidget {
               const SizedBox(height: 20),
               Text(
                 'Analyzing Symptoms...',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: AppTheme.textPrimary,
@@ -587,7 +588,7 @@ class _AnalyzingView extends StatelessWidget {
               Text(
                 'Mapping clinical indications to specialist medical fields and screening emergency red flags.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 13,
                   color: AppTheme.textSecondary,
                   height: 1.4,
@@ -638,11 +639,11 @@ class _ResultView extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.warning_rounded, color: Color(0xFFDC2626), size: 22),
+                      const Icon(LucideIcons.triangleAlert, color: Color(0xFFDC2626), size: 22),
                       const SizedBox(width: 8),
                       Text(
                         'CRITICAL SAFETY SCREENING ALERT',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           color: const Color(0xFFDC2626),
@@ -653,12 +654,12 @@ class _ResultView extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     result.reason,
-                    style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFF991B1B), height: 1.4),
+                    style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF991B1B), height: 1.4),
                   ),
                   const SizedBox(height: 10),
                   Text(
                     'Emergency Helpline: Call 1990 (Ambulance) or visit the nearest ER immediately.',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFFDC2626),
@@ -702,11 +703,11 @@ class _ResultView extends StatelessWidget {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.verified_rounded, size: 14, color: Colors.white),
+                          const Icon(LucideIcons.badgeCheck, size: 14, color: Colors.white),
                           const SizedBox(width: 5),
                           Text(
                             'Clinical Recommendation',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
@@ -717,7 +718,7 @@ class _ResultView extends StatelessWidget {
                     ),
                     Text(
                       '${result.confidence}% Match',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                         color: const Color(0xFF81E6D9),
@@ -728,7 +729,7 @@ class _ResultView extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'Consult a ${result.specialty} Specialist',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -748,7 +749,7 @@ class _ResultView extends StatelessWidget {
                 const SizedBox(height: 14),
                 Text(
                   result.reason,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 13,
                     color: Colors.white.withValues(alpha: 0.9),
                     height: 1.45,
@@ -778,7 +779,7 @@ class _ResultView extends StatelessWidget {
                     color: AppTheme.surface2,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.alt_route_rounded, size: 20, color: AppTheme.textSecondary),
+                  child: const Icon(LucideIcons.gitFork, size: 20, color: AppTheme.textSecondary),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -787,18 +788,18 @@ class _ResultView extends StatelessWidget {
                     children: [
                       Text(
                         'Alternative Clinical Route',
-                        style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted),
+                        style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMuted),
                       ),
                       Text(
                         result.altSpecialty,
-                        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                       ),
                     ],
                   ),
                 ),
                 Text(
                   '${result.altConfidence}%',
-                  style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
+                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
                 ),
               ],
             ),
@@ -810,7 +811,7 @@ class _ResultView extends StatelessWidget {
           if (doctors.isNotEmpty) ...[
             Text(
               'Available ${result.specialty} Specialists',
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary,
@@ -836,19 +837,19 @@ class _ResultView extends StatelessWidget {
                           children: [
                             Text(
                               doc.fullName,
-                              style: GoogleFonts.outfit(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
+                              style: GoogleFonts.inter(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppTheme.textPrimary),
                             ),
                             Text(
                               doc.hospitalClinic ?? doc.primarySpecialty,
-                              style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary),
+                              style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textSecondary),
                             ),
                             Row(
                               children: [
-                                const Icon(Icons.star_rounded, size: 14, color: AppTheme.starGold),
+                                const Icon(LucideIcons.star, size: 14, color: AppTheme.starGold),
                                 const SizedBox(width: 3),
                                 Text(
                                   doc.averageRating.toStringAsFixed(1),
-                                  style: GoogleFonts.outfit(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
+                                  style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppTheme.textPrimary),
                                 ),
                               ],
                             ),
@@ -870,7 +871,7 @@ class _ResultView extends StatelessWidget {
                         ),
                         child: Text(
                           'Book',
-                          style: GoogleFonts.outfit(fontSize: 12.5, fontWeight: FontWeight.w700),
+                          style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -884,7 +885,7 @@ class _ResultView extends StatelessWidget {
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const FindDoctorScreen()),
             ),
-            icon: const Icon(Icons.search_rounded, size: 18),
+            icon: const Icon(LucideIcons.search, size: 18),
             label: const Text('Browse All Doctors'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppTheme.primaryBlue,
@@ -893,16 +894,16 @@ class _ResultView extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              textStyle: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700),
+              textStyle: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(height: 10),
           TextButton.icon(
             onPressed: onReset,
-            icon: const Icon(Icons.refresh_rounded, size: 16),
+            icon: const Icon(LucideIcons.refreshCw, size: 16),
             label: Text(
               'Analyze Different Symptoms',
-              style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
+              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
             ),
           ),
         ],

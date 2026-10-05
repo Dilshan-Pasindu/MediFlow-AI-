@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -36,7 +37,7 @@ class ProfileScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         title: Text(
           'Patient Health Profile',
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 17,
             fontWeight: FontWeight.w800,
             color: AppTheme.textPrimary,
@@ -52,7 +53,7 @@ class ProfileScreen extends ConsumerWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppTheme.cardBorder),
               ),
-              child: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.primaryBlue),
+              child: const Icon(LucideIcons.pencil, size: 18, color: AppTheme.primaryBlue),
             ),
             tooltip: 'Edit Profile',
             onPressed: () => Navigator.of(context).push(
@@ -92,7 +93,7 @@ class ProfileScreen extends ConsumerWidget {
                         auth.user?.fullName.isNotEmpty == true
                             ? auth.user!.fullName[0].toUpperCase()
                             : 'P',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 26,
                           fontWeight: FontWeight.w900,
                           color: AppTheme.primaryBlue,
@@ -107,7 +108,7 @@ class ProfileScreen extends ConsumerWidget {
                       children: [
                         Text(
                           auth.user?.fullName ?? 'Verified Patient',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.textPrimary,
@@ -116,7 +117,7 @@ class ProfileScreen extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           auth.user?.email ?? '',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 12.5,
                             color: AppTheme.textSecondary,
                           ),
@@ -133,11 +134,11 @@ class ProfileScreen extends ConsumerWidget {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.verified_rounded, size: 12, color: Color(0xFF059669)),
+                                  const Icon(LucideIcons.badgeCheck, size: 12, color: Color(0xFF059669)),
                                   const SizedBox(width: 4),
                                   Text(
                                     'Active Patient',
-                                    style: GoogleFonts.outfit(
+                                    style: GoogleFonts.inter(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
                                       color: const Color(0xFF059669),
@@ -177,7 +178,7 @@ class ProfileScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'Clinical Health Record',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.textPrimary,
@@ -191,7 +192,7 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                           child: Text(
                             profile.bloodGroup?.isNotEmpty == true ? profile.bloodGroup! : 'Blood Type: —',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.primaryBlue,
@@ -203,14 +204,14 @@ class ProfileScreen extends ConsumerWidget {
                     const SizedBox(height: 16),
 
                     _ClinicalDataRow(
-                      icon: Icons.phone_outlined,
+                      icon: LucideIcons.phone,
                       label: 'Contact Number',
                       value: profile.phoneNumber?.isNotEmpty == true ? profile.phoneNumber! : 'Not provided',
                     ),
                     const Divider(height: 20),
 
                     _ClinicalDataRow(
-                      icon: Icons.cake_outlined,
+                      icon: LucideIcons.cake,
                       label: 'Date of Birth',
                       value: profile.dateOfBirth != null && profile.dateOfBirth!.length >= 10
                           ? DateFormat('MMMM d, yyyy').format(DateTime.parse(profile.dateOfBirth!.substring(0, 10)))
@@ -219,14 +220,14 @@ class ProfileScreen extends ConsumerWidget {
                     const Divider(height: 20),
 
                     _ClinicalDataRow(
-                      icon: Icons.person_outline_rounded,
+                      icon: LucideIcons.user,
                       label: 'Gender',
                       value: profile.gender?.isNotEmpty == true ? profile.gender! : 'Not specified',
                     ),
                     const Divider(height: 20),
 
                     _ClinicalDataRow(
-                      icon: Icons.warning_amber_rounded,
+                      icon: LucideIcons.triangleAlert,
                       label: 'Known Allergies',
                       value: profile.allergies?.isNotEmpty == true ? profile.allergies! : 'No known drug allergies',
                       isHighlight: profile.allergies?.isNotEmpty == true,
@@ -234,7 +235,7 @@ class ProfileScreen extends ConsumerWidget {
                     const Divider(height: 20),
 
                     _ClinicalDataRow(
-                      icon: Icons.location_on_outlined,
+                      icon: LucideIcons.mapPin,
                       label: 'Home Address',
                       value: profile.address?.isNotEmpty == true ? profile.address! : 'Not provided',
                     ),
@@ -256,7 +257,7 @@ class ProfileScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   _ProfileMenuItem(
-                    icon: Icons.local_shipping_outlined,
+                    icon: LucideIcons.truck,
                     label: 'Medicine Dispensing Orders',
                     subtitle: 'Track real-time pharmacy queue',
                     color: const Color(0xFFD97706),
@@ -266,7 +267,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const Divider(height: 1, indent: 56),
                   _ProfileMenuItem(
-                    icon: Icons.auto_awesome_rounded,
+                    icon: LucideIcons.sparkles,
                     label: 'AI Symptom Checker',
                     subtitle: 'Clinical specialist recommendation',
                     color: const Color(0xFF7C3AED),
@@ -276,7 +277,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const Divider(height: 1, indent: 56),
                   _ProfileMenuItem(
-                    icon: Icons.notifications_outlined,
+                    icon: LucideIcons.bell,
                     label: 'Notifications & Alerts',
                     subtitle: 'Consultation & prescription updates',
                     color: AppTheme.primaryBlue,
@@ -286,7 +287,7 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   const Divider(height: 1, indent: 56),
                   _ProfileMenuItem(
-                    icon: Icons.logout_rounded,
+                    icon: LucideIcons.logOut,
                     label: 'Sign Out',
                     subtitle: 'Disconnect account session',
                     color: const Color(0xFFDC2626),
@@ -304,7 +305,7 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 6),
                   Text(
                     'MediFlow AI Clinical Platform • v1.0.0',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: AppTheme.textMuted,
@@ -326,16 +327,16 @@ class ProfileScreen extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Sign Out?',
-          style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w800),
+          style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w800),
         ),
         content: Text(
           'Are you sure you want to end your active MediFlow session?',
-          style: GoogleFonts.outfit(fontSize: 13.5, color: AppTheme.textSecondary),
+          style: GoogleFonts.inter(fontSize: 13.5, color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel', style: GoogleFonts.outfit(fontWeight: FontWeight.w600)),
+            child: Text('Cancel', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -345,7 +346,7 @@ class ProfileScreen extends ConsumerWidget {
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('Sign Out', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+            child: Text('Sign Out', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -415,7 +416,7 @@ class _ClinicalDataRow extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: AppTheme.textMuted,
@@ -423,7 +424,7 @@ class _ClinicalDataRow extends StatelessWidget {
               ),
               Text(
                 value,
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: isHighlight ? const Color(0xFFDC2626) : AppTheme.textPrimary,
@@ -478,7 +479,7 @@ class _ProfileMenuItem extends StatelessWidget {
                   children: [
                     Text(
                       label,
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppTheme.textPrimary,
@@ -486,7 +487,7 @@ class _ProfileMenuItem extends StatelessWidget {
                     ),
                     Text(
                       subtitle,
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 11.5,
                         color: AppTheme.textSecondary,
                       ),
@@ -494,7 +495,7 @@ class _ProfileMenuItem extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, size: 20, color: AppTheme.textMuted),
+              const Icon(LucideIcons.chevronRight, size: 20, color: AppTheme.textMuted),
             ],
           ),
         ),

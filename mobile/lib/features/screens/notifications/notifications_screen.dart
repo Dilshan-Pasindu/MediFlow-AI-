@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -35,13 +36,13 @@ class NotificationsScreen extends ConsumerWidget {
                   child: Row(
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                        icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                       Expanded(
                         child: Text('Notifications',
                           textAlign: TextAlign.center,
-                          style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
+                          style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
                       ),
                       notifAsync.valueOrNull?.any((n) => !n.isRead) == true
                           ? TextButton(
@@ -50,7 +51,7 @@ class NotificationsScreen extends ConsumerWidget {
                                 ref.invalidate(notificationsProvider);
                               },
                               child: Text('Mark all read',
-                                  style: GoogleFonts.outfit(fontSize: 12, color: Colors.white70)),
+                                  style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
                             )
                           : const SizedBox(width: 80),
                     ],
@@ -75,7 +76,7 @@ class NotificationsScreen extends ConsumerWidget {
               if (notifs.isEmpty) {
                 return const SliverFillRemaining(
                   child: EmptyState(
-                    icon: Icons.notifications_none_outlined,
+                    icon: LucideIcons.bell,
                     title: 'No notifications',
                     subtitle: 'System notifications about your appointments and prescriptions will appear here',
                   ),
@@ -105,11 +106,11 @@ class _NotificationTile extends StatelessWidget {
 
   IconData _icon(String? type) {
     return switch (type) {
-      'appointment' => Icons.calendar_today_rounded,
-      'prescription' => Icons.medication_rounded,
-      'payment' => Icons.payments_rounded,
-      'system' => Icons.info_outline_rounded,
-      _ => Icons.notifications_outlined,
+      'appointment' => LucideIcons.calendar,
+      'prescription' => LucideIcons.pill,
+      'payment' => LucideIcons.banknote,
+      'system' => LucideIcons.info,
+      _ => LucideIcons.bell,
     };
   }
 
@@ -163,20 +164,20 @@ class _NotificationTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(notif.title,
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 13, fontWeight: notif.isRead ? FontWeight.w500 : FontWeight.w700,
                       color: AppTheme.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(notif.message,
-                    style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textSecondary, height: 1.4)),
+                    style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textSecondary, height: 1.4)),
                   const SizedBox(height: 4),
                   Text(
                     isRecent
                         ? DateFormat('h:mm a').format(created)
                         : DateFormat('d MMM • h:mm a').format(created),
-                    style: GoogleFonts.outfit(fontSize: 10, color: AppTheme.textMuted),
+                    style: GoogleFonts.inter(fontSize: 10, color: AppTheme.textMuted),
                   ),
                 ],
               ),

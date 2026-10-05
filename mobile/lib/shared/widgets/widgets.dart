@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
@@ -118,7 +119,7 @@ class MedPrimaryButton extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-                    Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.2)),
+                    Text(label, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.2)),
                   ],
                 ),
         ),
@@ -175,7 +176,7 @@ class MedAccentButton extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
-                    Text(label, style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.2)),
+                    Text(label, style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white, letterSpacing: 0.2)),
                   ],
                 ),
         ),
@@ -202,7 +203,7 @@ class StatusBadge extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.outfit(
+        style: GoogleFonts.inter(
           fontSize: small ? 10 : 11,
           fontWeight: FontWeight.w600,
           color: color,
@@ -242,11 +243,11 @@ class EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(title, textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
             if (subtitle != null) ...[
               const SizedBox(height: 8),
               Text(subtitle!, textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textSecondary)),
+                  style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary)),
             ],
             if (action != null && actionLabel != null) ...[
               const SizedBox(height: 20),
@@ -279,14 +280,14 @@ class ErrorState extends StatelessWidget {
                 color: AppTheme.statusInConsult.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.wifi_off_rounded, color: AppTheme.statusInConsult, size: 32),
+              child: const Icon(LucideIcons.wifiOff, color: AppTheme.statusInConsult, size: 32),
             ),
             const SizedBox(height: 16),
             Text('Something went wrong', textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700)),
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             Text(message, textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textSecondary)),
+                style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary)),
             if (onRetry != null) ...[
               const SizedBox(height: 20),
               MedPrimaryButton(label: 'Try Again', onPressed: onRetry, fullWidth: false),
@@ -344,7 +345,7 @@ class DoctorAvatar extends StatelessWidget {
       backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.12),
       child: Text(
         name.isNotEmpty ? name[0].toUpperCase() : 'D',
-        style: GoogleFonts.outfit(
+        style: GoogleFonts.inter(
           fontSize: radius * 0.75,
           fontWeight: FontWeight.w700,
           color: AppTheme.primaryBlue,
@@ -377,7 +378,7 @@ class PatientAvatar extends StatelessWidget {
       child: Center(
         child: Text(
           initials.isEmpty ? 'P' : initials,
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: radius * 0.65,
             fontWeight: FontWeight.w700,
             color: Colors.white,
@@ -400,8 +401,8 @@ class StarRating extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
         return Icon(
-          i < rating.floor() ? Icons.star_rounded
-              : (i < rating ? Icons.star_half_rounded : Icons.star_outline_rounded),
+          i < rating.floor() ? LucideIcons.star
+              : (i < rating ? LucideIcons.starHalf : LucideIcons.star),
           color: const Color(0xFFF59E0B),
           size: size,
         );
@@ -430,9 +431,9 @@ class SectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+              Text(title, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
               if (subtitle != null)
-                Text(subtitle!, style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted)),
+                Text(subtitle!, style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMuted)),
             ],
           ),
         ),
@@ -444,7 +445,7 @@ class SectionHeader extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 4),
             ),
             child: Text(seeAllLabel,
-                style: GoogleFonts.outfit(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryBlue)),
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryBlue)),
           ),
       ],
     );
@@ -486,7 +487,7 @@ class MedTextField extends StatelessWidget {
       readOnly: readOnly,
       onTap: onTap,
       onChanged: onChanged,
-      style: GoogleFonts.outfit(fontSize: 14, color: AppTheme.textPrimary),
+      style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textPrimary),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
@@ -533,10 +534,10 @@ class GradientAppBar extends StatelessWidget implements PreferredSizeWidget {
                     child: Column(
                       children: [
                         Text(title, textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
+                            style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white)),
                         if (subtitle != null)
                           Text(subtitle!, textAlign: TextAlign.center,
-                              style: GoogleFonts.outfit(fontSize: 11, color: Colors.white70)),
+                              style: GoogleFonts.inter(fontSize: 11, color: Colors.white70)),
                       ],
                     ),
                   ),
@@ -590,10 +591,10 @@ class StatTile extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(value,
-                style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
+                style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w800, color: AppTheme.textPrimary)),
             const SizedBox(height: 2),
             Text(label,
-                style: GoogleFonts.outfit(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.textSecondary)),
+                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.textSecondary)),
           ],
         ),
       ),
@@ -649,7 +650,7 @@ class AuthHelpCenterCard extends StatelessWidget {
                   ),
                   borderRadius: BorderRadius.circular(9),
                 ),
-                child: const Icon(Icons.help_outline_rounded, color: Color(0xFF050D1A), size: 18),
+                child: const Icon(LucideIcons.circleHelp, color: Color(0xFF050D1A), size: 18),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -660,7 +661,7 @@ class AuthHelpCenterCard extends StatelessWidget {
                       children: [
                         Text(
                           'MediFlow Help Center',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
@@ -675,7 +676,7 @@ class AuthHelpCenterCard extends StatelessWidget {
                           ),
                           child: Text(
                             '24/7',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w700,
                               color: const Color(0xFF34D399),
@@ -686,7 +687,7 @@ class AuthHelpCenterCard extends StatelessWidget {
                     ),
                     Text(
                       'Assistance with account access & appointments',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 10.5,
                         color: Colors.white.withValues(alpha: 0.55),
                       ),
@@ -713,13 +714,13 @@ class AuthHelpCenterCard extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.email_outlined, color: Color(0xFF00D4FF), size: 14),
+                        const Icon(LucideIcons.mail, color: Color(0xFF00D4FF), size: 14),
                         const SizedBox(width: 5),
                         Flexible(
                           child: Text(
                             supportEmail,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: const Color(0xFF00D4FF),
@@ -746,13 +747,13 @@ class AuthHelpCenterCard extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.phone_outlined, color: Color(0xFF34D399), size: 14),
+                        const Icon(LucideIcons.phone, color: Color(0xFF34D399), size: 14),
                         const SizedBox(width: 5),
                         Flexible(
                           child: Text(
                             supportPhone,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: const Color(0xFF34D399),

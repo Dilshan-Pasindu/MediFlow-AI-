@@ -119,7 +119,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   const SizedBox(height: 28),
                   Text(
                     'Smart Clinical Healthcare',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: Colors.white.withValues(alpha: 0.80),

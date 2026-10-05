@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -72,7 +73,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Profile updated successfully', style: GoogleFonts.outfit()),
+            content: Text('Profile updated successfully', style: GoogleFonts.inter()),
             backgroundColor: const Color(0xFF059669),
           ),
         );
@@ -102,13 +103,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: AppTheme.cardBorder),
             ),
-            child: const Icon(Icons.arrow_back_rounded, size: 18, color: AppTheme.textPrimary),
+            child: const Icon(LucideIcons.arrowLeft, size: 18, color: AppTheme.textPrimary),
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Edit Health Profile',
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w800,
             color: AppTheme.textPrimary,
@@ -134,7 +135,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         ),
                         child: Text(
                           _error!,
-                          style: GoogleFonts.outfit(fontSize: 13, color: const Color(0xFFDC2626)),
+                          style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFFDC2626)),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -154,7 +155,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         children: [
                           Text(
                             'Contact Details',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,
@@ -164,14 +165,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           MedTextField(
                             label: 'Phone Number',
                             controller: _phoneCtrl,
-                            prefixIcon: Icons.phone_outlined,
+                            prefixIcon: LucideIcons.phone,
                             keyboardType: TextInputType.phone,
                           ),
                           const SizedBox(height: 14),
                           MedTextField(
                             label: 'Home Address',
                             controller: _addressCtrl,
-                            prefixIcon: Icons.location_on_outlined,
+                            prefixIcon: LucideIcons.mapPin,
                             maxLines: 2,
                           ),
                         ],
@@ -194,7 +195,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                         children: [
                           Text(
                             'Medical Information',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,
@@ -205,13 +206,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             value: _gender,
                             decoration: InputDecoration(
                               labelText: 'Gender',
-                              prefixIcon: const Icon(Icons.person_outline_rounded, size: 20, color: AppTheme.textMuted),
+                              prefixIcon: const Icon(LucideIcons.user, size: 20, color: AppTheme.textMuted),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                               filled: true,
                               fillColor: AppTheme.surface2,
                             ),
                             items: _genders
-                                .map((g) => DropdownMenuItem(value: g, child: Text(g, style: GoogleFonts.outfit(fontSize: 14))))
+                                .map((g) => DropdownMenuItem(value: g, child: Text(g, style: GoogleFonts.inter(fontSize: 14))))
                                 .toList(),
                             onChanged: (v) => setState(() => _gender = v),
                           ),
@@ -220,13 +221,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             value: _bloodGroups.contains(_bloodCtrl.text) ? _bloodCtrl.text : null,
                             decoration: InputDecoration(
                               labelText: 'Blood Group',
-                              prefixIcon: const Icon(Icons.bloodtype_outlined, size: 20, color: AppTheme.textMuted),
+                              prefixIcon: const Icon(LucideIcons.droplet, size: 20, color: AppTheme.textMuted),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
                               filled: true,
                               fillColor: AppTheme.surface2,
                             ),
                             items: _bloodGroups
-                                .map((bg) => DropdownMenuItem(value: bg, child: Text(bg, style: GoogleFonts.outfit(fontSize: 14))))
+                                .map((bg) => DropdownMenuItem(value: bg, child: Text(bg, style: GoogleFonts.inter(fontSize: 14))))
                                 .toList(),
                             onChanged: (v) {
                               if (v != null) _bloodCtrl.text = v;
@@ -236,7 +237,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           MedTextField(
                             label: 'Known Allergies',
                             controller: _allergiesCtrl,
-                            prefixIcon: Icons.warning_amber_rounded,
+                            prefixIcon: LucideIcons.triangleAlert,
                             maxLines: 3,
                             hint: 'e.g., Penicillin, Sulfa drugs, Peanuts (write None if not applicable)',
                           ),
@@ -263,7 +264,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             )
                           : Text(
                               'Save Health Records',
-                              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w800),
+                              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w800),
                             ),
                     ),
                   ],

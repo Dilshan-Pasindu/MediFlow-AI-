@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -152,7 +153,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                           ),
-                          child: const Icon(Icons.arrow_back_rounded,
+                          child: const Icon(LucideIcons.arrowLeft,
                               color: Colors.white, size: 20),
                         ),
                       ),
@@ -176,7 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   // Welcome text
                   Text(
                     'Welcome Back',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 32, fontWeight: FontWeight.w900,
                       color: Colors.white, letterSpacing: -0.8, height: 1.1,
                     ),
@@ -188,7 +189,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ).createShader(b),
                     child: Text(
                       'Sign in to your patient portal',
-                      style: GoogleFonts.outfit(
+                      style: GoogleFonts.inter(
                         fontSize: 15, fontWeight: FontWeight.w500,
                         color: Colors.white, height: 1.3,
                       ),
@@ -247,11 +248,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.person_outline_rounded, size: 15, color: _kCyan),
+                                const Icon(LucideIcons.user, size: 15, color: _kCyan),
                                 const SizedBox(width: 6),
                                 Text(
                                   'Patient Portal Access',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 12,
                                     color: _kCyan,
@@ -275,13 +276,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.error_outline_rounded,
+                                Icon(LucideIcons.circleAlert,
                                     color: Colors.red.shade300, size: 18),
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
                                     auth.error!,
-                                    style: GoogleFonts.outfit(
+                                    style: GoogleFonts.inter(
                                         fontSize: 13, color: Colors.red.shade300),
                                   ),
                                 ),
@@ -296,7 +297,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           label: 'Email Address',
                           hint: 'Enter your email',
                           controller: _emailCtrl,
-                          icon: Icons.email_outlined,
+                          icon: LucideIcons.mail,
                           keyboardType: TextInputType.emailAddress,
                           validator: (v) =>
                               v == null || !v.contains('@') ? 'Enter a valid email' : null,
@@ -308,14 +309,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           label: 'Password',
                           hint: 'Enter your password',
                           controller: _passCtrl,
-                          icon: Icons.lock_outline_rounded,
+                          icon: LucideIcons.lock,
                           obscure: _obscure,
                           suffixIcon: GestureDetector(
                             onTap: () => setState(() => _obscure = !_obscure),
                             child: Icon(
                               _obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
+                                  ? LucideIcons.eye
+                                  : LucideIcons.eyeOff,
                               color: Colors.white.withValues(alpha: 0.45),
                               size: 20,
                             ),
@@ -334,7 +335,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                             ),
                             child: Text(
                               'Forgot Password?',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 13, fontWeight: FontWeight.w600,
                                 color: _kCyan,
                               ),
@@ -359,7 +360,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               padding: const EdgeInsets.symmetric(horizontal: 14),
                               child: Text(
                                 'OR CONTINUE WITH',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 0.6,
@@ -385,7 +386,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           children: [
                             Text(
                               "Don't have an account? ",
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                   fontSize: 13,
                                   color: Colors.white.withValues(alpha: 0.50)),
                             ),
@@ -396,7 +397,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                               child: Text(
                                 'Register',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: _kCyan,
@@ -453,7 +454,7 @@ class _DarkAuthField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 13, fontWeight: FontWeight.w600,
             color: Colors.white.withValues(alpha: 0.70),
           ),
@@ -464,7 +465,7 @@ class _DarkAuthField extends StatelessWidget {
           obscureText: obscure,
           keyboardType: keyboardType,
           validator: validator,
-          style: GoogleFonts.outfit(fontSize: 14, color: Colors.white),
+          style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
           decoration: InputDecoration(
             hintText: hint,
             filled: true,
@@ -505,9 +506,9 @@ class _DarkAuthField extends StatelessWidget {
               borderSide: BorderSide(color: Colors.red.shade400, width: 1.5),
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-            hintStyle: GoogleFonts.outfit(
+            hintStyle: GoogleFonts.inter(
                 fontSize: 13, color: Colors.white.withValues(alpha: 0.28)),
-            errorStyle: GoogleFonts.outfit(fontSize: 12, color: Colors.red.shade300),
+            errorStyle: GoogleFonts.inter(fontSize: 12, color: Colors.red.shade300),
           ),
         ),
       ],
@@ -573,7 +574,7 @@ class _CyanGradientButtonState extends State<_CyanGradientButton> {
                 )
               : Text(
                   widget.label,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 15, fontWeight: FontWeight.w800,
                     color: _kBgDeep,
                   ),

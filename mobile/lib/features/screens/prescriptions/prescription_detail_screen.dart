@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -36,13 +37,13 @@ class PrescriptionDetailScreen extends ConsumerWidget {
               shape: BoxShape.circle,
               border: Border.all(color: AppTheme.cardBorder),
             ),
-            child: const Icon(Icons.arrow_back_rounded, size: 18, color: AppTheme.textPrimary),
+            child: const Icon(LucideIcons.arrowLeft, size: 18, color: AppTheme.textPrimary),
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'E-Prescription #$id',
-          style: GoogleFonts.outfit(
+          style: GoogleFonts.inter(
             fontSize: 16,
             fontWeight: FontWeight.w800,
             color: AppTheme.textPrimary,
@@ -58,7 +59,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppTheme.cardBorder),
               ),
-              child: const Icon(Icons.receipt_long_rounded, size: 18, color: AppTheme.primaryBlue),
+              child: const Icon(LucideIcons.receiptText, size: 18, color: AppTheme.primaryBlue),
             ),
             tooltip: 'View Official Receipt',
             onPressed: () {
@@ -112,7 +113,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: const Icon(
-                      Icons.medical_services_rounded,
+                      LucideIcons.stethoscope,
                       color: AppTheme.primaryBlue,
                       size: 28,
                     ),
@@ -124,7 +125,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'Dr. ${rx.doctorName}',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.textPrimary,
@@ -132,7 +133,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                         ),
                         Text(
                           rx.doctorSpecialty ?? 'Consultant Physician',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 13,
                             color: AppTheme.textSecondary,
                             fontWeight: FontWeight.w500,
@@ -149,7 +150,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                               ),
                               child: Text(
                                 rx.status,
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: const Color(0xFF059669),
@@ -159,7 +160,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                             const SizedBox(width: 8),
                             Text(
                               dateStr,
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 12,
                                 color: AppTheme.textMuted,
                               ),
@@ -175,7 +176,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                 const Divider(height: 24),
                 Text(
                   'CLINICAL DIAGNOSIS',
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
                     color: AppTheme.textMuted,
@@ -185,7 +186,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   rx.diagnosis!,
-                  style: GoogleFonts.outfit(
+                  style: GoogleFonts.inter(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary,
@@ -210,7 +211,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                     ),
                   );
                 },
-                icon: const Icon(Icons.local_shipping_outlined, size: 18),
+                icon: const Icon(LucideIcons.truck, size: 18),
                 label: const Text('Track Dispense'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.primaryBlue,
@@ -220,7 +221,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  textStyle: GoogleFonts.outfit(
+                  textStyle: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -231,7 +232,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () => _showOfficialReceipt(context, rx),
-                icon: const Icon(Icons.receipt_long_rounded, size: 18),
+                icon: const Icon(LucideIcons.receiptText, size: 18),
                 label: const Text('Official Receipt'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppTheme.primaryBlue,
@@ -240,7 +241,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  textStyle: GoogleFonts.outfit(
+                  textStyle: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                   ),
@@ -258,7 +259,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
           children: [
             Text(
               'Prescribed Medications',
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppTheme.textPrimary,
@@ -272,7 +273,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
               ),
               child: Text(
                 '${rx.items.length} items',
-                style: GoogleFonts.outfit(
+                style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.primaryBlue,
@@ -311,7 +312,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                       child: Center(
                         child: Text(
                           '$i',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.primaryBlue,
@@ -323,7 +324,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         item.medicineName,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary,
@@ -338,7 +339,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                       ),
                       child: Text(
                         'Qty: ${item.quantity}',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.textSecondary,
@@ -364,7 +365,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Notes: ${item.instructions}',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 12,
                       color: AppTheme.textSecondary,
                       fontStyle: FontStyle.italic,
@@ -388,7 +389,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline_rounded, size: 20, color: Color(0xFFB45309)),
+                const Icon(LucideIcons.info, size: 20, color: Color(0xFFB45309)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -396,7 +397,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                     children: [
                       Text(
                         'Doctor Instructions',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: const Color(0xFFB45309),
@@ -405,7 +406,7 @@ class PrescriptionDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 2),
                       Text(
                         rx.instructions!,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 12.5,
                           color: const Color(0xFF92400E),
                         ),
@@ -445,7 +446,7 @@ class _PillTag extends StatelessWidget {
       ),
       child: Text(
         '$label: $value',
-        style: GoogleFonts.outfit(
+        style: GoogleFonts.inter(
           fontSize: 11.5,
           fontWeight: FontWeight.w600,
           color: AppTheme.textSecondary,
@@ -494,14 +495,14 @@ class _OfficialReceiptSheet extends StatelessWidget {
               children: [
                 Text(
                     'Official Clinical Receipt',
-                    style: GoogleFonts.outfit(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                       color: AppTheme.textPrimary,
                     ),
                   ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded, size: 20),
+                  icon: const Icon(LucideIcons.x, size: 20),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],
@@ -543,7 +544,7 @@ class _OfficialReceiptSheet extends StatelessWidget {
                               children: [
                                 Text(
                                   'MEDIFLOW AI CLINIC',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w900,
                                     color: AppTheme.primaryBlue,
@@ -552,7 +553,7 @@ class _OfficialReceiptSheet extends StatelessWidget {
                                 ),
                                 Text(
                                   'Digital Healthcare & Telemedicine Network',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontSize: 11,
                                     color: AppTheme.textSecondary,
                                   ),
@@ -567,7 +568,7 @@ class _OfficialReceiptSheet extends StatelessWidget {
                               ),
                               child: Text(
                                 'Rx #${rx.id}',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w800,
                                   color: AppTheme.primaryBlue,
@@ -590,14 +591,14 @@ class _OfficialReceiptSheet extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('PRESCRIBED BY',
-                                      style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
+                                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
                                   const SizedBox(height: 2),
                                   Text('Dr. ${rx.doctorName}',
-                                      style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                                   Text(rx.doctorSpecialty ?? 'Consultant Physician',
-                                      style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textSecondary)),
+                                      style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textSecondary)),
                                   Text('SLMC Reg: Verified',
-                                      style: GoogleFonts.outfit(fontSize: 10.5, color: AppTheme.accentGreen, fontWeight: FontWeight.w600)),
+                                      style: GoogleFonts.inter(fontSize: 10.5, color: AppTheme.accentGreen, fontWeight: FontWeight.w600)),
                                 ],
                               ),
                             ),
@@ -606,12 +607,12 @@ class _OfficialReceiptSheet extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text('PATIENT',
-                                      style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
+                                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
                                   const SizedBox(height: 2),
                                   Text(rx.patientName.isNotEmpty ? rx.patientName : 'Verified Patient',
-                                      style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                                   Text('Issued: $dateStr',
-                                      style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textSecondary)),
+                                      style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textSecondary)),
                                 ],
                               ),
                             ),
@@ -622,16 +623,16 @@ class _OfficialReceiptSheet extends StatelessWidget {
 
                         if (rx.diagnosis != null && rx.diagnosis!.isNotEmpty) ...[
                           Text('DIAGNOSIS',
-                              style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
+                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
                           const SizedBox(height: 2),
                           Text(rx.diagnosis!,
-                              style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
                           const SizedBox(height: 16),
                         ],
 
                         // Medication Table
                         Text('MEDICATIONS',
-                            style: GoogleFonts.outfit(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
+                            style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppTheme.textMuted)),
                         const SizedBox(height: 8),
 
                         ...rx.items.map((m) => Container(
@@ -647,7 +648,7 @@ class _OfficialReceiptSheet extends StatelessWidget {
                                   Expanded(
                                     child: Text(
                                       '${m.medicineName} (${m.dosage ?? "Std"})',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 12.5,
                                         fontWeight: FontWeight.w600,
                                         color: AppTheme.textPrimary,
@@ -656,7 +657,7 @@ class _OfficialReceiptSheet extends StatelessWidget {
                                   ),
                                   Text(
                                     '${m.frequency ?? "Daily"} • Qty: ${m.quantity}',
-                                    style: GoogleFonts.outfit(
+                                    style: GoogleFonts.inter(
                                       fontSize: 12,
                                       color: AppTheme.textSecondary,
                                     ),
@@ -677,7 +678,7 @@ class _OfficialReceiptSheet extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.verified_user_rounded, color: Color(0xFF16A34A), size: 28),
+                              const Icon(LucideIcons.shieldCheck, color: Color(0xFF16A34A), size: 28),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
@@ -685,7 +686,7 @@ class _OfficialReceiptSheet extends StatelessWidget {
                                   children: [
                                     Text(
                                       'Cryptographically Signed & SLMC Verified',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
                                         color: const Color(0xFF15803D),
@@ -693,7 +694,7 @@ class _OfficialReceiptSheet extends StatelessWidget {
                                     ),
                                     Text(
                                       'Official MediFlow AI e-Prescription. Accepted at all verified network pharmacies.',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 10.5,
                                         color: const Color(0xFF166534),
                                       ),

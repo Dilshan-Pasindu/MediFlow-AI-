@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -89,7 +90,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Appointment booked successfully! 🎉', style: GoogleFonts.outfit()),
+            content: Text('Appointment booked successfully! 🎉', style: GoogleFonts.inter()),
             backgroundColor: AppTheme.statusConfirmed,
           ),
         );
@@ -137,7 +138,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                           boxShadow: AppTheme.cardShadow,
                         ),
                         child: const Icon(
-                          Icons.chevron_left_rounded,
+                          LucideIcons.chevronLeft,
                           color: AppTheme.textPrimary,
                           size: 22,
                         ),
@@ -147,7 +148,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                       child: Text(
                         'Book Appointment',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: AppTheme.textPrimary,
@@ -184,7 +185,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                           children: [
                             Text(
                               doctor.fullName,
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
                                 color: AppTheme.textPrimary,
@@ -192,7 +193,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                             ),
                             Text(
                               doctor.primarySpecialty,
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                 fontSize: 13,
                                 color: AppTheme.textSecondary,
                               ),
@@ -208,7 +209,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                         ),
                         child: Text(
                           'Rs. ${(doctor.consultationFee ?? 2500).toStringAsFixed(0)}',
-                          style: GoogleFonts.outfit(
+                          style: GoogleFonts.inter(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                             color: AppTheme.primaryDeep,
@@ -237,12 +238,12 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.error_outline, color: AppTheme.statusInConsult, size: 18),
+                              const Icon(LucideIcons.circleAlert, color: AppTheme.statusInConsult, size: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _error!,
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontSize: 13,
                                     color: AppTheme.statusInConsult,
                                   ),
@@ -275,7 +276,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: const Icon(
-                                  Icons.calendar_today_rounded,
+                                  LucideIcons.calendar,
                                   color: AppTheme.primaryTeal,
                                   size: 20,
                                 ),
@@ -287,7 +288,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                   children: [
                                     Text(
                                       'Appointment Date',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: AppTheme.textMuted,
@@ -298,7 +299,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                       _selectedDate != null
                                           ? DateFormat('EEEE, d MMMM yyyy').format(_selectedDate!)
                                           : 'Tap to select date',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
                                         color: _selectedDate != null
@@ -309,7 +310,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
+                              const Icon(LucideIcons.chevronRight, color: AppTheme.textMuted),
                             ],
                           ),
                         ),
@@ -337,7 +338,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                   borderRadius: BorderRadius.circular(14),
                                 ),
                                 child: const Icon(
-                                  Icons.access_time_rounded,
+                                  LucideIcons.clock,
                                   color: AppTheme.primaryTeal,
                                   size: 20,
                                 ),
@@ -349,7 +350,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                   children: [
                                     Text(
                                       'Appointment Time',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w600,
                                         color: AppTheme.textMuted,
@@ -360,7 +361,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                       _selectedTime != null
                                           ? _selectedTime!.format(context)
                                           : 'Tap to select time',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w700,
                                         color: _selectedTime != null
@@ -371,7 +372,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
+                              const Icon(LucideIcons.chevronRight, color: AppTheme.textMuted),
                             ],
                           ),
                         ),
@@ -381,7 +382,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                       // Clinical Notes
                       Text(
                         'Reason for visit / symptoms (optional)',
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: AppTheme.textPrimary,
@@ -398,10 +399,10 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                         child: TextField(
                           controller: _notesCtrl,
                           maxLines: 3,
-                          style: GoogleFonts.outfit(fontSize: 14),
+                          style: GoogleFonts.inter(fontSize: 14),
                           decoration: InputDecoration(
                             hintText: 'Describe your symptoms or reason for consulting...',
-                            hintStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
+                            hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMuted),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
                             focusedBorder: InputBorder.none,
@@ -447,7 +448,7 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                           )
                         : Text(
                             'Confirm Appointment',
-                            style: GoogleFonts.outfit(
+                            style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,

@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -113,14 +114,14 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
       ref.invalidate(myAppointmentsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Thank you for your feedback! ⭐', style: GoogleFonts.outfit()),
+          SnackBar(content: Text('Thank you for your feedback! ⭐', style: GoogleFonts.inter()),
               backgroundColor: AppTheme.statusConfirmed),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit rating: $e', style: GoogleFonts.outfit()),
+          SnackBar(content: Text('Failed to submit rating: $e', style: GoogleFonts.inter()),
               backgroundColor: AppTheme.statusInConsult),
         );
       }
@@ -174,7 +175,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Appointment cancelled. You can now request a refund.',
-                  style: GoogleFonts.outfit()),
+                  style: GoogleFonts.inter()),
               backgroundColor: AppTheme.statusPending,
               action: SnackBarAction(
                 label: 'Refund',
@@ -190,7 +191,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Appointment cancelled.', style: GoogleFonts.outfit()),
+              content: Text('Appointment cancelled.', style: GoogleFonts.inter()),
               backgroundColor: AppTheme.statusPending,
             ),
           );
@@ -251,19 +252,19 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                          icon: const Icon(LucideIcons.arrowLeft, color: Colors.white),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                         Expanded(
                           child: Text('Appointment Details',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
+                            style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w700, color: Colors.white),
                           ),
                         ),
                         if (isCancellable)
                           TextButton(
                             onPressed: () => _showCancelDialog(context, a),
-                            child: Text('Cancel', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13)),
+                            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.white70, fontSize: 13)),
                           )
                         else
                           const SizedBox(width: 48),
@@ -284,9 +285,9 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text('${date.day}',
-                                  style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
+                                  style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
                               Text(DateFormat('MMM').format(date),
-                                  style: GoogleFonts.outfit(fontSize: 12, color: Colors.white70)),
+                                  style: GoogleFonts.inter(fontSize: 12, color: Colors.white70)),
                             ],
                           ),
                         ),
@@ -296,9 +297,9 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(a.doctorName,
-                                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+                                  style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
                               Text(a.specialtyName,
-                                  style: GoogleFonts.outfit(fontSize: 13, color: Colors.white70)),
+                                  style: GoogleFonts.inter(fontSize: 13, color: Colors.white70)),
                               const SizedBox(height: 6),
                               StatusBadge(label: st.label, bg: Colors.white.withValues(alpha: 0.2), color: Colors.white),
                             ],
@@ -324,7 +325,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Appointment Journey',
-                          style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700)),
+                          style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 16),
                       ..._kStatusSteps.asMap().entries.map((e) {
                         final idx = e.key;
@@ -347,7 +348,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                                 ),
                                 child: Center(
                                   child: isDone
-                                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                                      ? const Icon(LucideIcons.check, color: Colors.white, size: 16)
                                       : Text(step.icon, style: const TextStyle(fontSize: 14)),
                                 ),
                               ),
@@ -362,7 +363,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                             Padding(
                               padding: const EdgeInsets.only(top: 6),
                               child: Text(step.label,
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                   fontSize: 13,
                                   fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w400,
                                   color: isCurrent ? AppTheme.textPrimary
@@ -395,22 +396,22 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(children: [
-                        const Icon(Icons.credit_card_rounded, color: Colors.white, size: 22),
+                        const Icon(LucideIcons.creditCard, color: Colors.white, size: 22),
                         const SizedBox(width: 10),
                         Text('Payment Required',
-                            style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+                            style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
                       ]),
                       const SizedBox(height: 6),
                       Text('Pay Rs. ${(a.fee ?? 2500).toStringAsFixed(0)} via PayHere Sandbox or direct card gateway to confirm this appointment.',
-                        style: GoogleFonts.outfit(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
+                        style: GoogleFonts.inter(fontSize: 12, color: Colors.white.withValues(alpha: 0.9))),
                       const SizedBox(height: 14),
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton.icon(
                           onPressed: () => _submitPayment(a),
-                          icon: const Icon(Icons.lock_rounded, size: 17),
+                          icon: const Icon(LucideIcons.lock, size: 17),
                           label: Text('Pay Consultation Fee (Sandbox)',
-                              style: GoogleFonts.outfit(fontSize: 13.5, fontWeight: FontWeight.w700)),
+                              style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w700)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: AppTheme.primaryBlue,
@@ -436,17 +437,17 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.verified_rounded, color: Color(0xFF059669), size: 24),
+                      const Icon(LucideIcons.badgeCheck, color: Color(0xFF059669), size: 24),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Payment Verified',
-                                style: GoogleFonts.outfit(
+                                style: GoogleFonts.inter(
                                     fontWeight: FontWeight.w700, fontSize: 13.5, color: const Color(0xFF065F46))),
                             Text('PayHere Sandbox transaction verified. Receptionist queue pending.',
-                                style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF047857))),
+                                style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF047857))),
                           ],
                         ),
                       ),
@@ -461,7 +462,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                           ),
                         ),
                         child: Text('Receipt',
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFF059669))),
+                            style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12, color: const Color(0xFF059669))),
                       ),
                     ],
                   ),
@@ -480,7 +481,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.receipt_long_rounded, color: AppTheme.primaryBlue, size: 24),
+                      const Icon(LucideIcons.receiptText, color: AppTheme.primaryBlue, size: 24),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -488,14 +489,14 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                           children: [
                             Text(
                               a.hasRefund ? 'Refund Active' : 'Refund Eligible',
-                              style: GoogleFonts.outfit(
+                              style: GoogleFonts.inter(
                                   fontWeight: FontWeight.w700, fontSize: 13.5, color: const Color(0xFF1E3A8A)),
                             ),
                             Text(
                               a.hasRefund
                                   ? 'Check the live status of your refund.'
                                   : 'Appointment cancelled. You can request a refund.',
-                              style: GoogleFonts.outfit(fontSize: 11.5, color: const Color(0xFF1D4ED8)),
+                              style: GoogleFonts.inter(fontSize: 11.5, color: const Color(0xFF1D4ED8)),
                             ),
                           ],
                         ),
@@ -512,7 +513,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         ),
                         child: Text('Track Refund',
-                            style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 12)),
+                            style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 12)),
                       ),
                     ],
                   ),
@@ -526,24 +527,24 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Appointment Info',
-                        style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
+                        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.textPrimary)),
                     const SizedBox(height: 12),
-                    _InfoRow(icon: Icons.numbers_rounded, label: 'Appointment No.',
+                    _InfoRow(icon: LucideIcons.hash, label: 'Appointment No.',
                         value: a.appointmentNumber ?? '#${a.id}'),
-                    _InfoRow(icon: Icons.calendar_today_rounded, label: 'Date',
+                    _InfoRow(icon: LucideIcons.calendar, label: 'Date',
                         value: DateFormat('EEEE, d MMMM yyyy').format(date)),
-                    _InfoRow(icon: Icons.access_time_rounded, label: 'Time',
+                    _InfoRow(icon: LucideIcons.clock, label: 'Time',
                         value: DateFormat('h:mm a').format(date)),
                     if (a.fee != null)
-                      _InfoRow(icon: Icons.payments_outlined, label: 'Consultation Fee',
+                      _InfoRow(icon: LucideIcons.banknote, label: 'Consultation Fee',
                           value: 'Rs. ${a.fee!.toStringAsFixed(0)}'),
                     if (a.paymentStatus != null)
-                      _InfoRow(icon: Icons.credit_card_outlined, label: 'Payment',
+                      _InfoRow(icon: LucideIcons.creditCard, label: 'Payment',
                           value: a.paymentStatus!),
                     if (a.notes != null && a.notes!.isNotEmpty)
-                      _InfoRow(icon: Icons.notes_rounded, label: 'Notes', value: a.notes!),
+                      _InfoRow(icon: LucideIcons.notebookText, label: 'Notes', value: a.notes!),
                     if (a.cancelReason != null)
-                      _InfoRow(icon: Icons.cancel_outlined, label: 'Cancel Reason', value: a.cancelReason!),
+                      _InfoRow(icon: LucideIcons.circleX, label: 'Cancel Reason', value: a.cancelReason!),
                   ],
                 ),
               ),
@@ -560,18 +561,18 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(a.doctorName,
-                              style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700)),
+                              style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
                           Text(a.specialtyName,
-                              style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.primaryDeep)),
+                              style: GoogleFonts.inter(fontSize: 12, color: AppTheme.primaryDeep)),
                           if (a.doctorQualifications != null)
                             Text(a.doctorQualifications!,
-                                style: GoogleFonts.outfit(fontSize: 11, color: AppTheme.textMuted),
+                                style: GoogleFonts.inter(fontSize: 11, color: AppTheme.textMuted),
                                 maxLines: 1, overflow: TextOverflow.ellipsis),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.person_outline_rounded, color: AppTheme.primaryDeep),
+                      icon: const Icon(LucideIcons.user, color: AppTheme.primaryDeep),
                       onPressed: () => Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => DoctorProfileScreen(id: a.doctorId))),
                     ),
@@ -588,13 +589,13 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Your Rating',
-                            style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700)),
+                            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
                         const SizedBox(height: 8),
                         StarRating(rating: a.rating!.stars.toDouble(), size: 20),
                         if (a.rating!.comment != null && a.rating!.comment!.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text('"${a.rating!.comment!}"',
-                              style: GoogleFonts.outfit(fontSize: 13, fontStyle: FontStyle.italic, color: AppTheme.textSecondary)),
+                              style: GoogleFonts.inter(fontSize: 13, fontStyle: FontStyle.italic, color: AppTheme.textSecondary)),
                         ],
                       ],
                     ),
@@ -605,10 +606,10 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(children: [
-                          const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 20),
+                          const Icon(LucideIcons.star, color: Color(0xFFF59E0B), size: 20),
                           const SizedBox(width: 8),
                           Text('Rate Your Consultation',
-                              style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700)),
+                              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
                         ]),
                         const SizedBox(height: 12),
                         if (_showRatingPanel) ...[
@@ -618,17 +619,17 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                             direction: Axis.horizontal,
                             itemCount: 5,
                             itemSize: 36,
-                            itemBuilder: (_, __) => const Icon(Icons.star_rounded, color: Color(0xFFF59E0B)),
+                            itemBuilder: (_, __) => const Icon(LucideIcons.star, color: Color(0xFFF59E0B)),
                             onRatingUpdate: (r) => setState(() => _ratingScore = r),
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
                             controller: _reviewCtrl,
                             maxLines: 3,
-                            style: GoogleFonts.outfit(fontSize: 13),
+                            style: GoogleFonts.inter(fontSize: 13),
                             decoration: InputDecoration(
                               hintText: 'Share your experience (optional)...',
-                              hintStyle: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted),
+                              hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMuted),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                                 borderSide: const BorderSide(color: AppTheme.divider),
@@ -645,16 +646,16 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                             label: 'Submit Rating',
                             onPressed: _submitRating,
                             isLoading: _submittingRating,
-                            icon: Icons.star_rounded,
+                            icon: LucideIcons.star,
                           ),
                         ] else ...[
                           Text('How was your consultation with Dr. ${a.doctorName}?',
-                              style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textSecondary)),
+                              style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary)),
                           const SizedBox(height: 10),
                           OutlinedButton.icon(
                             onPressed: () => setState(() => _showRatingPanel = true),
-                            icon: const Icon(Icons.star_outline_rounded, size: 16),
-                            label: Text('Rate Now', style: GoogleFonts.outfit(fontWeight: FontWeight.w700)),
+                            icon: const Icon(LucideIcons.star, size: 16),
+                            label: Text('Rate Now', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
                           ),
                         ],
                       ],
@@ -702,10 +703,10 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
               ),
               const SizedBox(height: 16),
               Text('Cancel Appointment',
-                  style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700)),
+                  style: GoogleFonts.inter(fontSize: 17, fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text('Please select a reason for cancellation',
-                  style: GoogleFonts.outfit(fontSize: 13, color: AppTheme.textMuted)),
+                  style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMuted)),
               const SizedBox(height: 16),
               // Reason chips
               ..._kCancelReasons.map((reason) => GestureDetector(
@@ -725,14 +726,14 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                   ),
                   child: Row(children: [
                     Icon(
-                      _cancelReason == reason ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                      _cancelReason == reason ? LucideIcons.circleDot : LucideIcons.circle,
                       size: 18,
                       color: _cancelReason == reason ? AppTheme.primaryDeep : AppTheme.textMuted,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(reason,
-                        style: GoogleFonts.outfit(
+                        style: GoogleFonts.inter(
                           fontSize: 13,
                           fontWeight: _cancelReason == reason ? FontWeight.w600 : FontWeight.w400,
                           color: _cancelReason == reason ? AppTheme.textPrimary : AppTheme.textSecondary,
@@ -748,10 +749,10 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                   controller: _cancelNotesCtrl,
                   maxLines: 2,
                   maxLength: 200,
-                  style: GoogleFonts.outfit(fontSize: 13),
+                  style: GoogleFonts.inter(fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'Additional details (optional)...',
-                    hintStyle: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted),
+                    hintStyle: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMuted),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMd)),
                     filled: true, fillColor: AppTheme.surfaceDim,
                   ),
@@ -759,14 +760,14 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
               ],
               if (_cancelError != null) ...[
                 const SizedBox(height: 8),
-                Text(_cancelError!, style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.statusInConsult)),
+                Text(_cancelError!, style: GoogleFonts.inter(fontSize: 12, color: AppTheme.statusInConsult)),
               ],
               const SizedBox(height: 16),
               Row(children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(ctx),
-                    child: Text('Keep Appointment', style: GoogleFonts.outfit()),
+                    child: Text('Keep Appointment', style: GoogleFonts.inter()),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -779,7 +780,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                     style: ElevatedButton.styleFrom(backgroundColor: AppTheme.statusInConsult),
                     child: _cancelling
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text('Confirm Cancel', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.w700)),
+                        : Text('Confirm Cancel', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ]),
@@ -806,10 +807,10 @@ class _InfoRow extends StatelessWidget {
           Icon(icon, size: 16, color: AppTheme.textMuted),
           const SizedBox(width: 10),
           SizedBox(width: 110,
-            child: Text(label, style: GoogleFonts.outfit(fontSize: 12, color: AppTheme.textMuted))),
+            child: Text(label, style: GoogleFonts.inter(fontSize: 12, color: AppTheme.textMuted))),
           Expanded(
             child: Text(value,
-              style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
               textAlign: TextAlign.right,
             ),
           ),

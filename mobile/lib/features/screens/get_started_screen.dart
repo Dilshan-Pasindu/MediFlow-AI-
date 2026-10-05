@@ -1,3 +1,4 @@
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -235,7 +236,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                                             ],
                                           ),
                                           child: const Icon(
-                                            Icons.medical_services_rounded,
+                                            LucideIcons.stethoscope,
                                             color: Colors.white,
                                             size: 20,
                                           ),
@@ -256,7 +257,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                                   children: [
                                     Text(
                                       'Smart',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 40, fontWeight: FontWeight.w900,
                                         color: Colors.white, height: 1.1, letterSpacing: -1.0,
                                       ),
@@ -269,7 +270,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                                       ).createShader(bounds),
                                       child: Text(
                                         'Healthcare',
-                                        style: GoogleFonts.outfit(
+                                        style: GoogleFonts.inter(
                                           fontSize: 40, fontWeight: FontWeight.w900,
                                           color: Colors.white, height: 1.1, letterSpacing: -1.0,
                                         ),
@@ -277,14 +278,14 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                                     ),
                                     Text(
                                       'At Your',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 40, fontWeight: FontWeight.w900,
                                         color: Colors.white, height: 1.1, letterSpacing: -1.0,
                                       ),
                                     ),
                                     Text(
                                       'Fingertips',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 40, fontWeight: FontWeight.w900,
                                         color: Colors.white, height: 1.1, letterSpacing: -1.0,
                                       ),
@@ -294,7 +295,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
 
                                     Text(
                                       'Connect with certified specialists, manage\nappointments, and receive digital prescriptions\n— all in one secure AI platform.',
-                                      style: GoogleFonts.outfit(
+                                      style: GoogleFonts.inter(
                                         fontSize: 13.5, fontWeight: FontWeight.w400,
                                         color: Colors.white.withValues(alpha: 0.70),
                                         height: 1.55,
@@ -327,7 +328,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                               Center(
                                 child: Text(
                                   'Your healthcare, simplified.',
-                                  style: GoogleFonts.outfit(
+                                  style: GoogleFonts.inter(
                                     fontSize: 13, fontWeight: FontWeight.w400,
                                     color: Colors.white.withValues(alpha: 0.55),
                                     letterSpacing: 0.2,
@@ -354,7 +355,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                                   onTap: _goToRegister,
                                   child: Text(
                                     'Create an Account',
-                                    style: GoogleFonts.outfit(
+                                    style: GoogleFonts.inter(
                                       fontSize: 14, fontWeight: FontWeight.w600,
                                       color: Colors.white.withValues(alpha: 0.85),
                                       decoration: TextDecoration.underline,
@@ -377,7 +378,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                                     children: [
                                       Text(
                                         'Terms of Service',
-                                        style: GoogleFonts.outfit(
+                                        style: GoogleFonts.inter(
                                           fontSize: 11, color: Colors.white.withValues(alpha: 0.35),
                                         ),
                                       ),
@@ -391,7 +392,7 @@ class _GetStartedScreenState extends State<GetStartedScreen>
                                       ),
                                       Text(
                                         'Privacy Policy',
-                                        style: GoogleFonts.outfit(
+                                        style: GoogleFonts.inter(
                                           fontSize: 11, color: Colors.white.withValues(alpha: 0.35),
                                         ),
                                       ),
@@ -613,7 +614,7 @@ class _CyanButtonState extends State<_CyanButton>
           child: Center(
             child: Text(
               widget.label,
-              style: GoogleFonts.outfit(
+              style: GoogleFonts.inter(
                 fontSize: 16, fontWeight: FontWeight.w800,
                 color: _kBgDeep, letterSpacing: 0.3,
               ),
