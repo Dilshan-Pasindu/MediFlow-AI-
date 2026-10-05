@@ -12,8 +12,8 @@ export function useMyAppointments(options?: { refetchInterval?: number; staleTim
   return useQuery({
     queryKey: ['appointments', 'my'],
     queryFn: apiGetMyAppointments,
-    staleTime: options?.staleTime ?? 1000 * 3, // 3 seconds
-    refetchInterval: options?.refetchInterval ?? 3000, // auto-update every 3s
+    staleTime: options?.staleTime ?? 1000 * 10, // 10 seconds
+    refetchInterval: options?.refetchInterval ?? 30000, // auto-update every 30s
     refetchOnWindowFocus: true,
   });
 }
@@ -22,8 +22,8 @@ export function useDoctorAppointments(options?: { refetchInterval?: number; stal
   return useQuery({
     queryKey: ['appointments', 'doctor'],
     queryFn: apiGetDoctorAppointments,
-    staleTime: options?.staleTime ?? 1000 * 3,
-    refetchInterval: options?.refetchInterval ?? 3000,
+    staleTime: options?.staleTime ?? 1000 * 10,
+    refetchInterval: options?.refetchInterval ?? 30000,
     refetchOnWindowFocus: true,
   });
 }
@@ -32,8 +32,8 @@ export function usePendingAppointments(options?: { refetchInterval?: number; sta
   return useQuery({
     queryKey: ['appointments', 'pending'],
     queryFn: apiGetPendingAppointments,
-    staleTime: options?.staleTime ?? 1000 * 3,
-    refetchInterval: options?.refetchInterval ?? 3000,
+    staleTime: options?.staleTime ?? 1000 * 10,
+    refetchInterval: options?.refetchInterval ?? 30000,
     refetchOnWindowFocus: true,
   });
 }

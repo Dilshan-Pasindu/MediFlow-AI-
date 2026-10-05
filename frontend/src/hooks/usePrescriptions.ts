@@ -5,8 +5,8 @@ export function useMyPrescriptions(options?: { refetchInterval?: number; staleTi
   return useQuery({
     queryKey: ['prescriptions', 'my'],
     queryFn: apiGetMyPrescriptions,
-    staleTime: options?.staleTime ?? 1000 * 3, // 3 seconds
-    refetchInterval: options?.refetchInterval ?? 3000, // auto-update every 3s
+    staleTime: options?.staleTime ?? 1000 * 10, // 10 seconds
+    refetchInterval: options?.refetchInterval ?? 30000, // auto-update every 30s
     refetchOnWindowFocus: true,
   });
 }
