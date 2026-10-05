@@ -20,8 +20,8 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // 60-second timeout accommodates free-tier container cold starts (e.g. Render spin-up)
-  timeout: 60000,
+  // 90-second timeout accommodates free-tier container cold starts (e.g. Render spin-up taking 70-80s)
+  timeout: 90000,
 });
 
 // Request Interceptor: Attach Supabase JWT or Fallback Bearer Token
@@ -65,10 +65,15 @@ apiClient.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+    const isTimeout =
+      error.code === 'ECONNABORTED' ||
+      error.message?.toLowerCase().includes('timeout');
     const message =
       error.response?.data?.message ||
       error.response?.data?.title ||
-      error.message ||
+      (isTimeout
+        ? 'The request timed out. If the server was sleeping, it may take a moment to wake up. Please try again.'
+        : error.message) ||
       'An unexpected network error occurred';
     return Promise.reject(new Error(message));
   }

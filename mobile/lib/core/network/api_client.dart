@@ -159,12 +159,14 @@ class ApiClient {
 
   String _networkErrorMessage(Object e) {
     final str = e.toString();
-    if (str.contains('SocketException') || str.contains('No route to host') ||
+    final target = AppConfig.apiBaseUrl;
+    if (str.contains('SocketException') ||
+        str.contains('No route to host') ||
         str.contains('Connection refused')) {
-      return 'Unable to connect to the server. Please check your internet connection.';
+      return 'Unable to connect to server ($target). Please check your internet connection or server settings.';
     }
     if (str.contains('TimeoutException')) {
-      return 'The request timed out. Please try again.';
+      return 'The request timed out. If connecting to cloud services, the server may take ~60–80s to wake up from sleep. Please try again.';
     }
     return 'A network error occurred. Please try again.';
   }

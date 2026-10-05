@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/config/app_config.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/screens/splash_screen.dart';
 import 'features/screens/main_shell.dart';
 import 'features/screens/dashboard/dashboard_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AppConfig.init();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,

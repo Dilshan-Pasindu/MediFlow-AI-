@@ -1,8 +1,10 @@
+import 'package:http/http.dart' as http;
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/config/app_config.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../features/auth/auth_provider.dart';
 import '../../../features/auth/google_auth_service.dart';
@@ -158,6 +160,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                       ),
                       const Spacer(),
+                      // Server indicator & switch button
+                      GestureDetector(
+                        onTap: () => _showServerDialog(context),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 7, height: 7,
+                                decoration: BoxDecoration(
+                                  color: AppConfig.apiBaseUrl.contains('render')
+                                      ? const Color(0xFF00D4FF)
+                                      : const Color(0xFF10B981),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                AppConfig.apiBaseUrl.contains('render') ? 'Cloud' : 'Local',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(LucideIcons.settings2, size: 12, color: Colors.white70),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -274,18 +314,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(color: Colors.red.withValues(alpha: 0.30)),
                             ),
-                            child: Row(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Icon(LucideIcons.circleAlert,
-                                    color: Colors.red.shade300, size: 18),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    auth.error!,
-                                    style: GoogleFonts.inter(
-                                        fontSize: 13, color: Colors.red.shade300),
-                                  ),
+                                Row(
+                                  children: [
+                                    Icon(LucideIcons.circleAlert,
+                                        color: Colors.red.shade300, size: 18),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        auth.error!,
+                                        style: GoogleFonts.inter(
+                                            fontSize: 13, color: Colors.red.shade300),
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                                if (auth.error!.toLowerCase().contains('time') ||
+                                    auth.error!.toLowerCase().contains('connect') ||
+                                    auth.error!.toLowerCase().contains('server')) ...[
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      TextButton.icon(
+                                        style: TextButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                          backgroundColor: Colors.white.withValues(alpha: 0.08),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () => _showServerDialog(context),
+                                        icon: const Icon(LucideIcons.settings2, size: 14, color: _kCyan),
+                                        label: Text(
+                                          'Change Server (${AppConfig.apiBaseUrl.contains('render') ? "Cloud" : "Local"})',
+                                          style: GoogleFonts.inter(fontSize: 12, color: _kCyan, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ],
                             ),
                           ),
@@ -418,6 +486,263 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showServerDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF0A1628),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        String? testStatus;
+        bool testing = false;
+
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            Future<void> pingServer(String baseUrl) async {
+              setModalState(() {
+                testing = true;
+                testStatus = 'Connecting to server...';
+              });
+              try {
+                final healthUrl = baseUrl.endsWith('/api')
+                    ? baseUrl.replaceAll('/api', '/health')
+                    : '$baseUrl/health';
+                final sw = Stopwatch()..start();
+                final res = await http.get(Uri.parse(healthUrl)).timeout(const Duration(seconds: 15));
+                sw.stop();
+                setModalState(() {
+                  testing = false;
+                  testStatus = (res.statusCode == 200)
+                      ? '✓ Online & Ready (${sw.elapsedMilliseconds}ms)'
+                      : '⚠ Server returned status ${res.statusCode}';
+                });
+              } catch (e) {
+                setModalState(() {
+                  testing = false;
+                  testStatus = '✗ Failed: ${e.toString().split('\n').first}';
+                });
+              }
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20, right: 20, top: 20,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40, height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(LucideIcons.server, color: _kCyan, size: 20),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Backend Server Selection',
+                        style: GoogleFonts.inter(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Active: ${AppConfig.apiBaseUrl}',
+                    style: GoogleFonts.inter(fontSize: 12, color: Colors.white54),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildServerTile(
+                    title: 'Render Cloud Backend (Live)',
+                    subtitle: AppConfig.cloudApiBaseUrl,
+                    isSelected: AppConfig.apiBaseUrl == AppConfig.cloudApiBaseUrl,
+                    onTap: () async {
+                      await AppConfig.setCustomApiBaseUrl(AppConfig.cloudApiBaseUrl);
+                      setState(() {});
+                      setModalState(() {});
+                    },
+                    onTest: () => pingServer(AppConfig.cloudApiBaseUrl),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildServerTile(
+                    title: 'Local Mac Wi-Fi LAN',
+                    subtitle: AppConfig.physicalDeviceApiUrl,
+                    isSelected: AppConfig.apiBaseUrl == AppConfig.physicalDeviceApiUrl,
+                    onTap: () async {
+                      await AppConfig.setCustomApiBaseUrl(AppConfig.physicalDeviceApiUrl);
+                      setState(() {});
+                      setModalState(() {});
+                    },
+                    onTest: () => pingServer(AppConfig.physicalDeviceApiUrl),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildServerTile(
+                    title: 'Android Emulator Loopback',
+                    subtitle: AppConfig.androidEmulatorApiUrl,
+                    isSelected: AppConfig.apiBaseUrl == AppConfig.androidEmulatorApiUrl,
+                    onTap: () async {
+                      await AppConfig.setCustomApiBaseUrl(AppConfig.androidEmulatorApiUrl);
+                      setState(() {});
+                      setModalState(() {});
+                    },
+                    onTest: () => pingServer(AppConfig.androidEmulatorApiUrl),
+                  ),
+                  const SizedBox(height: 14),
+                  if (testStatus != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: testStatus!.startsWith('✓')
+                            ? Colors.green.withValues(alpha: 0.15)
+                            : Colors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: testStatus!.startsWith('✓')
+                              ? Colors.green.withValues(alpha: 0.3)
+                              : Colors.orange.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          if (testing) ...[
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: _kCyan),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Expanded(
+                            child: Text(
+                              testStatus!,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: testStatus!.startsWith('✓') ? Colors.greenAccent : Colors.orangeAccent,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.white24),
+                            foregroundColor: Colors.white70,
+                          ),
+                          onPressed: () async {
+                            await AppConfig.setCustomApiBaseUrl(null);
+                            setState(() {});
+                            if (ctx.mounted) Navigator.pop(ctx);
+                          },
+                          child: const Text('Reset Default'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kCyan,
+                            foregroundColor: _kBgDeep,
+                          ),
+                          onPressed: () {
+                            setState(() {});
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Done', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildServerTile({
+    required String title,
+    required String subtitle,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required VoidCallback onTest,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? _kCyan.withValues(alpha: 0.12) : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? _kCyan : Colors.white12,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? LucideIcons.circleDot : LucideIcons.circle,
+              color: isSelected ? _kCyan : Colors.white38,
+              size: 18,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: Colors.white54,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(LucideIcons.activity, size: 16, color: _kCyan),
+              tooltip: 'Ping test',
+              onPressed: onTest,
+            ),
+          ],
+        ),
       ),
     );
   }
