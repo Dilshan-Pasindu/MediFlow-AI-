@@ -58,6 +58,17 @@ public class PaymentController : ControllerBase
         if (appointment.Status is not AppointmentStatus.Pending and not AppointmentStatus.PaymentFailed)
             return BadRequest(new { message = $"This appointment is not eligible for payment. Status: {appointment.Status}." });
 
+        if (appointment.AppointmentDateTime.Date < DateTime.UtcNow.Date)
+        {
+            appointment.Status = AppointmentStatus.Cancelled;
+            appointment.Notes = string.IsNullOrWhiteSpace(appointment.Notes)
+                ? "[Auto-cancelled: Appointment date has passed]"
+                : $"{appointment.Notes} [Auto-cancelled: Appointment date has passed]";
+            appointment.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync(ct);
+            return BadRequest(new { message = "This appointment date has already passed and the booking has been cancelled." });
+        }
+
         // Duplicate payment guard
         if (appointment.Payment != null && appointment.Payment.Status == PaymentStatus.Paid)
             return BadRequest(new { message = "This appointment has already been paid." });

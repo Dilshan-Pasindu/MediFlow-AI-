@@ -65,12 +65,15 @@ public class AppointmentsController : ControllerBase
         if (request.Notes != null && request.Notes.Length > 500)
             return BadRequest(new { message = "Notes cannot exceed 500 characters." });
 
-        // Prevent duplicate booking: same patient, same doctor, same date
+        // Automatically cancel any past pending appointments for this patient whose day is over
+        await _db.CancelExpiredPendingAppointmentsAsync(patientId: patient.Id);
+
+        // Prevent duplicate booking: same patient, same doctor, same date with an active booking
         var existingAppointment = await _db.Appointments
             .FirstOrDefaultAsync(a => a.PatientId == patient.Id
                 && a.DoctorId == request.DoctorId
                 && a.AppointmentDateTime.Date == appointmentDateUtc.Date
-                && a.Status != AppointmentStatus.Cancelled);
+                && AppointmentExtensions.ActiveBookingStatuses.Contains(a.Status));
 
         if (existingAppointment != null)
             return BadRequest(new { message = $"You already have an appointment with this doctor on {appointmentDateUtc:yyyy-MM-dd}. Please choose a different date or cancel the existing appointment." });
@@ -83,7 +86,7 @@ public class AppointmentsController : ControllerBase
             .FirstOrDefaultAsync(a => a.PatientId == patient.Id
                 && a.AppointmentDateTime >= windowStart
                 && a.AppointmentDateTime <= windowEnd
-                && a.Status != AppointmentStatus.Cancelled);
+                && AppointmentExtensions.ActiveBookingStatuses.Contains(a.Status));
 
         if (conflictingPatientAppt != null)
         {
@@ -155,6 +158,17 @@ public class AppointmentsController : ControllerBase
         if (appointment == null)
             return NotFound(new { message = "Appointment not found." });
 
+        if (appointment.AppointmentDateTime.Date < DateTime.UtcNow.Date)
+        {
+            appointment.Status = AppointmentStatus.Cancelled;
+            appointment.Notes = string.IsNullOrWhiteSpace(appointment.Notes)
+                ? "[Auto-cancelled: Appointment date has passed]"
+                : $"{appointment.Notes} [Auto-cancelled: Appointment date has passed]";
+            appointment.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            return BadRequest(new { message = "This appointment date has already passed and the booking has been cancelled." });
+        }
+
         if (appointment.Payment == null)
         {
             appointment.Payment = new AppointmentPayment
@@ -196,6 +210,20 @@ public class AppointmentsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(int id)
     {
+        var apptEntity = await _db.Appointments.FirstOrDefaultAsync(a => a.Id == id);
+        if (apptEntity != null && apptEntity.AppointmentDateTime.Date < DateTime.UtcNow.Date &&
+            AppointmentExtensions.ExpiredActiveStatuses.Contains(apptEntity.Status))
+        {
+            apptEntity.Status = AppointmentStatus.Cancelled;
+            const string cancelReason = "[Auto-cancelled: Appointment date has passed]";
+            if (string.IsNullOrWhiteSpace(apptEntity.Notes))
+                apptEntity.Notes = cancelReason;
+            else if (!apptEntity.Notes.Contains("[Auto-cancelled"))
+                apptEntity.Notes = $"{apptEntity.Notes.Trim()} {cancelReason}";
+            apptEntity.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
+
         var appointment = await _db.Appointments
             .Include(a => a.Doctor).ThenInclude(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
             .Include(a => a.Payment)
