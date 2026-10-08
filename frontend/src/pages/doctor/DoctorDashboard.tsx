@@ -229,11 +229,28 @@ export default function DoctorDashboard() {
   const today = new Date().toDateString();
 
   const stats = useMemo(() => {
-    const todayAll     = appointments.filter(a => new Date(a.appointmentDateTime).toDateString() === today);
+    const now = new Date();
+    const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const normalized = appointments.map((a) => {
+      if (!a.appointmentDateTime) return a;
+      const apptDate = new Date(a.appointmentDateTime);
+      const apptDay = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate()).getTime();
+      const isPastDay = apptDay < todayDay;
+      const isUncompleted = [
+        'Pending', 'PaymentPending', 'PaymentSubmitted', 'PaymentVerified',
+        'WaitingForReceptionist', 'Confirmed', 'ReceptionistApproved', 'InConsultation'
+      ].includes(a.status);
+      if (isPastDay && isUncompleted) {
+        return { ...a, status: 'Cancelled' };
+      }
+      return a;
+    });
+
+    const todayAll     = normalized.filter(a => new Date(a.appointmentDateTime).toDateString() === today);
     const todayQueue   = todayAll.filter(a => a.status === 'Confirmed');
-    const allConfirmed = appointments.filter(a => a.status === 'Confirmed');
-    const completed    = appointments.filter(a => a.status === 'Completed');
-    const pending      = appointments.filter(a => a.status === 'Pending' || a.status === 'PaymentSubmitted');
+    const allConfirmed = normalized.filter(a => a.status === 'Confirmed');
+    const completed    = normalized.filter(a => a.status === 'Completed');
+    const pending      = normalized.filter(a => a.status === 'Pending' || a.status === 'PaymentSubmitted');
     return { todayQueue, allConfirmed, completed, pending, todayAll };
   }, [appointments, today]);
 

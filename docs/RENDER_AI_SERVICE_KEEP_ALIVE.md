@@ -23,26 +23,29 @@ The workflow definition is located at:
 
 ## 3. Configuring GitHub Repository Secrets
 
-To keep your deployment URLs private and configurable across staging/production environments, the workflow reads the base URLs from GitHub Actions secrets.
+To keep your deployment URLs customizable across staging/production environments, the workflow resolves URLs in the following priority order:
+1. **Manual Input** via `workflow_dispatch` (if triggered manually).
+2. **GitHub Secrets** (`secrets.AI_SERVICE_URL`, `secrets.BACKEND_URL`).
+3. **Repository Variables** (`vars.AI_SERVICE_URL`, `vars.BACKEND_URL`).
+4. **Default Deployed URLs** (`https://mediflow-ai-1-q0d9.onrender.com`, `https://mediflow-ai-2.onrender.com`).
 
-### Required Secrets:
+### Optional Secrets / Variables:
 
-| Secret Name | Description | Example Value |
+| Name | Description | Example Value |
 | :--- | :--- | :--- |
-| `AI_SERVICE_URL` | Base URL of deployed Render AI FastAPI service | `https://mediflow-ai.onrender.com` |
-| `BACKEND_URL` | Base URL of deployed Render ASP.NET Core API | `https://mediflow-api.onrender.com` |
+| `AI_SERVICE_URL` | Base URL of deployed Render AI FastAPI service | `https://mediflow-ai-1-q0d9.onrender.com` |
+| `BACKEND_URL` | Base URL of deployed Render ASP.NET Core API | `https://mediflow-ai-2.onrender.com` |
 
-### Steps to Configure:
+### Steps to Configure (Optional):
 
 1. Navigate to your repository on GitHub: `https://github.com/<owner>/<repo>`.
 2. Click **Settings** (top navigation bar).
 3. In the left sidebar, expand **Secrets and variables** and select **Actions**.
-4. Click **New repository secret**.
-5. Add `AI_SERVICE_URL` with your AI service URL (without trailing slash).
-6. Click **New repository secret** again and add `BACKEND_URL` with your backend API URL (without trailing slash).
+4. You can configure either **Repository secrets** or **Repository variables**.
+5. Add `AI_SERVICE_URL` and `BACKEND_URL` (without trailing slash).
 
 > [!NOTE]
-> Do NOT commit your Render service URLs to Git or embed them directly into workflow files. The workflow automatically strips any accidental trailing slashes when building the `${BASE_URL}/health` endpoints.
+> If neither secret nor variable is configured, the workflow uses the project's deployed Render instances automatically. If an endpoint is waking up from cold sleep, the probe delivers the wake-up request with a 60-second timeout and completes without failing the job.
 
 ---
 
@@ -53,7 +56,7 @@ In addition to the scheduled cron trigger (`*/14 * * * *`), the workflow support
 1. On GitHub, navigate to the **Actions** tab of your repository.
 2. In the left sidebar under *Workflows*, select **Render Services Keep-Alive**.
 3. Click the **Run workflow** dropdown on the right.
-4. Select the target branch (`main` or your current branch) and click **Run workflow**.
+4. Optionally enter custom URLs to test, select the target branch, and click **Run workflow**.
 
 ---
 
@@ -65,12 +68,15 @@ In addition to the scheduled cron trigger (`*/14 * * * *`), the workflow support
 4. Expand the **Send Health Probes** step.
 5. You will see the timestamp and execution output:
    ```text
-   Pinging AI microservice health endpoint at https://mediflow-ai.onrender.com/health...
-   AI Health response: {"status":"healthy"}
-   Pinging Backend health endpoint at https://mediflow-api.onrender.com/health...
-   Backend Health response: {"status":"Healthy"}
+   ==========================================
+   Render Free-Tier Keep-Alive Health Probe
+   ==========================================
+   Pinging AI Microservice at https://mediflow-ai-1-q0d9.onrender.com/health...
+   ✅ AI Microservice is warm and healthy (HTTP 200).
+   Pinging Backend API at https://mediflow-ai-2.onrender.com/health...
+   ✅ Backend API is warm and healthy (HTTP 200).
+   Keep-alive routine completed successfully.
    ```
-   If either secret is missing or an endpoint returns a non-200 HTTP code, the step will report diagnostics.
 
 ---
 

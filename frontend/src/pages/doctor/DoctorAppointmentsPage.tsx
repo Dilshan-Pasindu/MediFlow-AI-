@@ -97,9 +97,33 @@ export default function DoctorAppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  // Normalize appointments: past uncompleted appointments are marked Cancelled when the day is over
+  const normalizedAppointments = useMemo(() => {
+    const now = new Date();
+    const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return appointments.map((a) => {
+      if (!a.appointmentDateTime) return a;
+      const apptDate = new Date(a.appointmentDateTime);
+      const apptDay = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate()).getTime();
+      const isPastDay = apptDay < todayDay;
+      const isUncompleted = [
+        'Pending', 'PaymentPending', 'PaymentSubmitted', 'PaymentVerified',
+        'WaitingForReceptionist', 'Confirmed', 'ReceptionistApproved', 'InConsultation'
+      ].includes(a.status);
+      if (isPastDay && isUncompleted) {
+        return {
+          ...a,
+          status: 'Cancelled',
+          notes: a.notes ? `${a.notes} [Auto-cancelled: Date passed]` : '[Auto-cancelled: Date passed]',
+        };
+      }
+      return a;
+    });
+  }, [appointments]);
+
   // Compute filtered & sorted appointments
   const filteredAppointments = useMemo(() => {
-    return appointments
+    return normalizedAppointments
       .filter((appt) => {
         // Status filter
         if (selectedStatus !== 'ALL' && appt.status !== selectedStatus) return false;
@@ -126,24 +150,24 @@ export default function DoctorAppointmentsPage() {
         const timeB = new Date(b.appointmentDateTime).getTime();
         return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
       });
-  }, [appointments, selectedStatus, searchQuery, selectedDate, sortOrder]);
+  }, [normalizedAppointments, selectedStatus, searchQuery, selectedDate, sortOrder]);
 
   // Statistics counters
   const stats = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
-    const todayAppts = appointments.filter(
+    const todayAppts = normalizedAppointments.filter(
       (a) => new Date(a.appointmentDateTime).toISOString().split('T')[0] === todayStr
     );
 
     return {
-      total: appointments.length,
+      total: normalizedAppointments.length,
       today: todayAppts.length,
-      inConsultation: appointments.filter((a) => a.status === 'InConsultation').length,
-      confirmed: appointments.filter((a) => a.status === 'Confirmed').length,
-      completed: appointments.filter((a) => a.status === 'Completed').length,
-      pending: appointments.filter((a) => a.status === 'Pending' || a.status === 'PaymentSubmitted').length,
+      inConsultation: normalizedAppointments.filter((a) => a.status === 'InConsultation').length,
+      confirmed: normalizedAppointments.filter((a) => a.status === 'Confirmed').length,
+      completed: normalizedAppointments.filter((a) => a.status === 'Completed').length,
+      pending: normalizedAppointments.filter((a) => a.status === 'Pending' || a.status === 'PaymentSubmitted').length,
     };
-  }, [appointments]);
+  }, [normalizedAppointments]);
 
   const clearFilters = () => {
     setSearchQuery('');
@@ -434,7 +458,7 @@ export default function DoctorAppointmentsPage() {
                   Status:
                 </span>
                 {[
-                  { id: 'ALL', label: `All (${appointments.length})` },
+                  { id: 'ALL', label: `All (${normalizedAppointments.length})` },
                   ...(stats.inConsultation > 0 ? [{ id: 'InConsultation', label: `In Consultation (${stats.inConsultation})` }] : []),
                   { id: 'Confirmed', label: `Confirmed (${stats.confirmed})` },
                   { id: 'Completed', label: `Completed (${stats.completed})` },

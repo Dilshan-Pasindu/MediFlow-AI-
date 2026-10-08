@@ -1,4 +1,5 @@
 using MediFlow.Api.Data;
+using MediFlow.Api.Extensions;
 using MediFlow.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,6 +25,9 @@ public class ReceptionistController : ControllerBase
     [Authorize]
     public async Task<IActionResult> GetPendingAppointments()
     {
+        // Auto-cancel past pending appointments where the scheduled day is over
+        await _db.CancelExpiredPendingAppointmentsAsync();
+
         var appointments = await _db.Appointments
             .Include(a => a.Patient)
             .Include(a => a.Doctor)

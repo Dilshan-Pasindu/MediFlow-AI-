@@ -330,14 +330,26 @@ class AppTheme {
   // ── Status Badge Helpers ──────────────────────────────────────────────────────
   static ({Color bg, Color text, String label}) appointmentStatus(String status) {
     return switch (status) {
-      'Pending'          => (bg: statusPendingBg, text: statusPending,   label: 'Pending'),
-      'PaymentSubmitted' => (bg: statusPayBg,     text: statusPaySent,   label: 'Payment Sent'),
-      'Confirmed'        => (bg: statusConfBg,    text: statusConfirmed, label: 'Confirmed'),
-      'InConsultation'   => (bg: statusInConsBg,  text: statusInConsult, label: '🔴 In Consultation'),
-      'Completed'        => (bg: statusCompBg,    text: statusCompleted, label: 'Completed'),
-      'Cancelled'        => (bg: statusCancelBg,  text: statusCancelled, label: 'Cancelled'),
-      'NoShow'           => (bg: statusCancelBg,  text: statusCancelled, label: 'No Show'),
-      _                  => (bg: statusCancelBg,  text: statusCancelled, label: status),
+      'Pending'              => (bg: statusPendingBg, text: statusPending,   label: 'Pending'),
+      'PaymentPending'       => (bg: statusPendingBg, text: statusPending,   label: 'Payment Due'),
+      'PaymentSubmitted'     => (bg: statusPayBg,     text: statusPaySent,   label: 'Payment Sent'),
+      'PaymentVerified'      => (bg: statusPayBg,     text: statusPaySent,   label: 'Payment Verified'),
+      'WaitingForReceptionist' => (bg: statusPendingBg, text: statusPending, label: 'Waiting Queue'),
+      'Confirmed'            => (bg: statusConfBg,    text: statusConfirmed, label: 'Confirmed'),
+      'ReceptionistApproved' => (bg: statusConfBg,    text: statusConfirmed, label: 'Confirmed'),
+      'InConsultation'       => (bg: statusInConsBg,  text: statusInConsult, label: '🔴 In Consultation'),
+      'Completed'            => (bg: statusCompBg,    text: statusCompleted, label: 'Completed'),
+      'Cancelled'            => (bg: statusCancelBg,  text: statusCancelled, label: 'Cancelled'),
+      'PatientCancelled'     => (bg: statusCancelBg,  text: statusCancelled, label: 'Cancelled'),
+      'ReceptionistRejected' => (bg: statusInConsBg,  text: statusInConsult, label: 'Rejected'),
+      'RefundRequested'      => (bg: statusPendingBg, text: statusPending,   label: 'Refund Requested'),
+      'RefundApproved'       => (bg: statusPayBg,     text: statusPaySent,   label: 'Refund Approved'),
+      'RefundProcessing'     => (bg: statusPayBg,     text: statusPaySent,   label: 'Refund Processing'),
+      'RefundCompleted'      => (bg: statusCompBg,    text: statusCompleted, label: 'Refunded'),
+      'RefundRejected'       => (bg: statusInConsBg,  text: statusInConsult, label: 'Refund Rejected'),
+      'PaymentFailed'        => (bg: statusInConsBg,  text: statusInConsult, label: 'Payment Failed'),
+      'NoShow'               => (bg: statusCancelBg,  text: statusCancelled, label: 'No Show'),
+      _                      => (bg: statusCancelBg,  text: statusCancelled, label: status),
     };
   }
 

@@ -18,19 +18,34 @@ class DoctorProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
-  int _selectedDayIndex = 3; // Thu 15 in reference
+  int _selectedDayIndex = 0;
   String _selectedTimeSlot = '08:30 PM';
   bool _isBooking = false;
 
-  final List<Map<String, String>> _days = const [
-    {'day': 'Mon', 'num': '12'},
-    {'day': 'Tue', 'num': '13'},
-    {'day': 'Wed', 'num': '14'},
-    {'day': 'Thu', 'num': '15'},
-    {'day': 'Fri', 'num': '16'},
-    {'day': 'Sat', 'num': '17'},
-    {'day': 'Sun', 'num': '18'},
-  ];
+  List<DateTime> get _availableDays {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return List.generate(7, (i) => today.add(Duration(days: i)));
+  }
+
+  bool _isSlotPast(DateTime date, String slotStr) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (date.year != today.year || date.month != today.month || date.day != today.day) {
+      return false;
+    }
+    final timeParts = slotStr.split(' ');
+    final hm = timeParts[0].split(':');
+    var hour = int.parse(hm[0]);
+    final minute = int.parse(hm[1]);
+    if (timeParts.length > 1 && timeParts[1].toUpperCase() == 'PM' && hour < 12) {
+      hour += 12;
+    } else if (timeParts.length > 1 && timeParts[1].toUpperCase() == 'AM' && hour == 12) {
+      hour = 0;
+    }
+    final slotDt = DateTime(date.year, date.month, date.day, hour, minute);
+    return slotDt.isBefore(now);
+  }
 
   final List<String> _timeSlots = const [
     '04:30 PM',
@@ -42,27 +57,63 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
   ];
 
   Future<void> _handleBookAppointment(DoctorModel doctor) async {
+    final targetDate = _availableDays[_selectedDayIndex];
+
+    // Parse time slot
+    final timeParts = _selectedTimeSlot.split(' ');
+    final hm = timeParts[0].split(':');
+    var hour = int.parse(hm[0]);
+    final minute = int.parse(hm[1]);
+    if (timeParts.length > 1 && timeParts[1].toUpperCase() == 'PM' && hour < 12) {
+      hour += 12;
+    } else if (timeParts.length > 1 && timeParts[1].toUpperCase() == 'AM' && hour == 12) {
+      hour = 0;
+    }
+
+    final localDt = DateTime(targetDate.year, targetDate.month, targetDate.day, hour, minute);
+    if (localDt.isBefore(DateTime.now())) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'The selected time slot has already passed. Please select an upcoming slot.',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: AppTheme.statusInConsult,
+        ),
+      );
+      return;
+    }
+
+    // Check if patient already has an active appointment with this doctor on this day
+    final myAppts = ref.read(myAppointmentsProvider).valueOrNull ?? [];
+    final hasActiveOnDate = myAppts.any((a) {
+      if (a.doctorId != doctor.id) return false;
+      if (a.isCancelledOrInactive) return false; // Cancelled appointments allow same-day rebooking!
+      final ad = a.appointmentDateTime;
+      return ad.year == targetDate.year &&
+          ad.month == targetDate.month &&
+          ad.day == targetDate.day;
+    });
+
+    if (hasActiveOnDate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You already have an active appointment scheduled with Dr. ${doctor.fullName} on this date.',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: AppTheme.statusInConsult,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isBooking = true;
     });
 
     try {
-      final now = DateTime.now();
-      final dayOffset = _selectedDayIndex - 3; // relative offset
-      final targetDate = now.add(Duration(days: dayOffset >= 0 ? dayOffset + 1 : 1));
-
-      // Parse time slot
-      final timeParts = _selectedTimeSlot.split(' ');
-      final hm = timeParts[0].split(':');
-      var hour = int.parse(hm[0]);
-      final minute = int.parse(hm[1]);
-      if (timeParts.length > 1 && timeParts[1].toUpperCase() == 'PM' && hour < 12) {
-        hour += 12;
-      } else if (timeParts.length > 1 && timeParts[1].toUpperCase() == 'AM' && hour == 12) {
-        hour = 0;
-      }
-
-      final dt = DateTime(targetDate.year, targetDate.month, targetDate.day, hour, minute).toUtc();
+      final dt = localDt.toUtc();
 
       await ApiClient.instance.post('/appointments', body: {
         'doctorId': doctor.id,
@@ -384,8 +435,10 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                       // Horizontal 7 Days Row
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(_days.length, (i) {
-                          final item = _days[i];
+                        children: List.generate(_availableDays.length, (i) {
+                          final day = _availableDays[i];
+                          final dayName = DateFormat('EEE').format(day);
+                          final dayNum = day.day.toString();
                           final isSelected = i == _selectedDayIndex;
                           return GestureDetector(
                             onTap: () {
@@ -407,7 +460,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                               child: Column(
                                 children: [
                                   Text(
-                                    item['day']!,
+                                    dayName,
                                     style: GoogleFonts.inter(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
@@ -424,7 +477,7 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                     ),
                                     child: Center(
                                       child: Text(
-                                        item['num']!,
+                                        dayNum,
                                         style: GoogleFonts.inter(
                                           fontSize: 13,
                                           fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
@@ -441,80 +494,174 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // ── "Today, Availability" Container ──────────────────
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(color: AppTheme.cardBorder),
-                          boxShadow: AppTheme.cardShadow,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Today,\nAvailability',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppTheme.textPrimary,
-                                    height: 1.2,
+                      // ── Availability Container ──────────────────
+                      Builder(builder: (context) {
+                        final selectedDate = _availableDays[_selectedDayIndex];
+                        final myAppts = ref.watch(myAppointmentsProvider).valueOrNull ?? [];
+                        final activeApptOnDate = myAppts.where((a) =>
+                            a.doctorId == doctor.id &&
+                            !a.isCancelledOrInactive &&
+                            a.appointmentDateTime.year == selectedDate.year &&
+                            a.appointmentDateTime.month == selectedDate.month &&
+                            a.appointmentDateTime.day == selectedDate.day).firstOrNull;
+                        final cancelledApptOnDate = myAppts.where((a) =>
+                            a.doctorId == doctor.id &&
+                            a.isCancelledOrInactive &&
+                            a.appointmentDateTime.year == selectedDate.year &&
+                            a.appointmentDateTime.month == selectedDate.month &&
+                            a.appointmentDateTime.day == selectedDate.day).firstOrNull;
+
+                        return Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(color: AppTheme.cardBorder),
+                            boxShadow: AppTheme.cardShadow,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    _selectedDayIndex == 0
+                                        ? 'Today,\nAvailability'
+                                        : '${DateFormat("EEEE").format(selectedDate)},\nAvailability',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.textPrimary,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${_timeSlots.length} Slots',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: AppTheme.textMuted,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+
+                              // Time Slot Chips Grid (Wrapped)
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 10,
+                                children: _timeSlots.map((slot) {
+                                  final isSelected = slot == _selectedTimeSlot;
+                                  final isPast = _isSlotPast(selectedDate, slot);
+                                  return GestureDetector(
+                                    onTap: isPast
+                                        ? null
+                                        : () {
+                                            setState(() {
+                                              _selectedTimeSlot = slot;
+                                            });
+                                          },
+                                    child: AnimatedContainer(
+                                      duration: const Duration(milliseconds: 180),
+                                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                      decoration: BoxDecoration(
+                                        color: isPast
+                                            ? const Color(0xFFF1F5F9)
+                                            : isSelected
+                                                ? AppTheme.primaryBlue
+                                                : AppTheme.bgCanvas,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                          color: isPast
+                                              ? const Color(0xFFE2E8F0)
+                                              : isSelected
+                                                  ? AppTheme.primaryBlue
+                                                  : AppTheme.cardBorder,
+                                        ),
+                                        boxShadow: isSelected && !isPast ? AppTheme.blueShadow : null,
+                                      ),
+                                      child: Text(
+                                        slot,
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: isSelected && !isPast
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                          color: isPast
+                                              ? AppTheme.textMuted
+                                              : isSelected
+                                                  ? Colors.white
+                                                  : AppTheme.textPrimary,
+                                          decoration: isPast ? TextDecoration.lineThrough : null,
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+
+                              if (activeApptOnDate != null) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.statusInConsBg,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                        color: AppTheme.statusInConsult.withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(LucideIcons.calendarX,
+                                          color: AppTheme.statusInConsult, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'You already have an active appointment scheduled with Dr. ${doctor.fullName} on this date.',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppTheme.statusInConsult,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                Text(
-                                  '${_timeSlots.length} Slots',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textMuted,
+                              ] else if (cancelledApptOnDate != null) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEFF6FF),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFFBFDBFE)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(LucideIcons.circleCheck,
+                                          color: AppTheme.primaryBlue, size: 18),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Previous appointment on this date was cancelled. You can select an upcoming slot to re-book.',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: const Color(0xFF1E40AF),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
-                            ),
-                            const SizedBox(height: 14),
-
-                            // Time Slot Chips Grid (Wrapped)
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 10,
-                              children: _timeSlots.map((slot) {
-                                final isSelected = slot == _selectedTimeSlot;
-                                return GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      _selectedTimeSlot = slot;
-                                    });
-                                  },
-                                  child: AnimatedContainer(
-                                    duration: const Duration(milliseconds: 180),
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: isSelected ? AppTheme.primaryBlue : AppTheme.bgCanvas,
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(
-                                        color: isSelected ? AppTheme.primaryBlue : AppTheme.cardBorder,
-                                      ),
-                                      boxShadow: isSelected ? AppTheme.blueShadow : null,
-                                    ),
-                                    child: Text(
-                                      slot,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                        color: isSelected ? Colors.white : AppTheme.textPrimary,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ],
-                        ),
-                      ),
+                            ],
+                          ),
+                        );
+                      }),
                       const SizedBox(height: 20),
 
                       // Fee display note
@@ -538,48 +685,64 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                 ),
               ),
 
-              Container(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 16,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: GestureDetector(
-                  onTap: _isBooking ? null : () => _handleBookAppointment(doctor),
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: AppTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      boxShadow: AppTheme.buttonShadow,
-                    ),
-                    alignment: Alignment.center,
-                    child: _isBooking
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : Text(
-                            'Book Session',
-                            style: GoogleFonts.inter(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
+              Builder(builder: (context) {
+                final selectedDate = _availableDays[_selectedDayIndex];
+                final myAppts = ref.watch(myAppointmentsProvider).valueOrNull ?? [];
+                final hasActiveOnDate = myAppts.any((a) =>
+                    a.doctorId == doctor.id &&
+                    !a.isCancelledOrInactive &&
+                    a.appointmentDateTime.year == selectedDate.year &&
+                    a.appointmentDateTime.month == selectedDate.month &&
+                    a.appointmentDateTime.day == selectedDate.day);
+
+                return Container(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 16,
+                        offset: const Offset(0, -4),
+                      ),
+                    ],
                   ),
-                ),
-              ),
+                  child: GestureDetector(
+                    onTap: (_isBooking || hasActiveOnDate)
+                        ? null
+                        : () => _handleBookAppointment(doctor),
+                    child: Container(
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: hasActiveOnDate ? AppTheme.textMuted : null,
+                        gradient: hasActiveOnDate ? null : AppTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        boxShadow: hasActiveOnDate ? null : AppTheme.buttonShadow,
+                      ),
+                      alignment: Alignment.center,
+                      child: _isBooking
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2.5,
+                              ),
+                            )
+                          : Text(
+                              hasActiveOnDate
+                                  ? 'Already Booked on this Date'
+                                  : 'Book Session',
+                              style: GoogleFonts.inter(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                    ),
+                  ),
+                );
+              }),
             ],
           ),
         ),

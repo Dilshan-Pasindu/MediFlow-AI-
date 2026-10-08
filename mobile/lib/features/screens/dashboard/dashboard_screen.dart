@@ -314,7 +314,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       error: (_, __) => const SizedBox(),
                       data: (appts) {
                         final upcoming =
-                            appts.where((a) => a.isUpcoming).toList();
+                            appts.where((a) => a.isUpcoming).toList()
+                              ..sort((a, b) => a.appointmentDateTime.compareTo(b.appointmentDateTime));
                         if (upcoming.isEmpty) return const SizedBox();
                         final next = upcoming.first;
                         return Column(
@@ -1059,14 +1060,16 @@ class _UpcomingAppointmentCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _PremiumButton(
-                  label: 'Cancel Visit',
-                  danger: true,
-                  onTap: onCancel,
+              if (appointment.isCancellable) ...[
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _PremiumButton(
+                    label: 'Cancel Visit',
+                    danger: true,
+                    onTap: onCancel,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ],

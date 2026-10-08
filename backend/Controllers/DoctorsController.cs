@@ -78,6 +78,9 @@ public class DoctorsController : ControllerBase
             .Include(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
             .FirstOrDefaultAsync(d => d.UserId == userId);
 
+        // Auto-cancel past pending appointments where the scheduled day is over
+        await _db.CancelExpiredPendingAppointmentsAsync(doctorId: doctor?.Id);
+
         IQueryable<Appointment> query = _db.Appointments
             .Include(a => a.Patient)
             .Include(a => a.Doctor)

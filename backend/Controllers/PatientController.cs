@@ -147,6 +147,9 @@ public class PatientController : ControllerBase
         if (patient == null)
             return NotFound(new { message = "Patient profile not found." });
 
+        // Auto-cancel past pending appointments where the day has passed
+        await _db.CancelExpiredPendingAppointmentsAsync(patientId: patient.Id);
+
         var appointments = await _db.Appointments
             .Where(a => a.PatientId == patient.Id)
             .Include(a => a.Doctor).ThenInclude(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)

@@ -14,6 +14,21 @@ interface TimeSlot {
   isBooked: boolean;
 }
 
+function isCancelledOrInactive(status?: string): boolean {
+  if (!status) return false;
+  const s = status.toLowerCase();
+  return (
+    s === 'cancelled' ||
+    s === 'patientcancelled' ||
+    s === 'receptionistrejected' ||
+    s === 'paymentfailed' ||
+    s === 'noshow' ||
+    s.includes('cancel') ||
+    s.includes('reject') ||
+    s.includes('refund')
+  );
+}
+
 function generateTimeSlots(
   selectedDate: Date,
   doctorId?: number,
@@ -38,9 +53,16 @@ function generateTimeSlots(
       // Check if this patient already has a booking for this slot
       const isBooked = myAppointments.some((appt) => {
         if (!appt.appointmentDateTime) return false;
-        if (appt.status && appt.status.toLowerCase() === 'cancelled') return false;
+        if (isCancelledOrInactive(appt.status)) return false;
 
         const apptDate = new Date(appt.appointmentDateTime);
+        const apptDayStart = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate()).getTime();
+        const todayZero = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+        // If the day is over, past appointments are auto-cancelled/expired
+        if (apptDayStart < todayZero) {
+          return false;
+        }
+
         const isSameDay =
           apptDate.getFullYear() === slotDate.getFullYear() &&
           apptDate.getMonth() === slotDate.getMonth() &&
@@ -120,18 +142,23 @@ export default function DoctorBookingPage() {
   const weekDays = useMemo(() => getDaysInWeek(weekStart), [weekStart]);
 
   const existingApptOnDate = useMemo(() => {
+    const todayZero = new Date(todayStart.getFullYear(), todayStart.getMonth(), todayStart.getDate()).getTime();
     return myAppointments.find((appt: ConsultationAppointment) => {
-      if (appt.status && appt.status.toLowerCase() === 'cancelled') return false;
+      if (isCancelledOrInactive(appt.status)) return false;
       if (doctor?.id && appt.doctorId && appt.doctorId !== doctor.id) return false;
       if (!appt.appointmentDateTime) return false;
       const apptDate = new Date(appt.appointmentDateTime);
+      const apptDayStart = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate()).getTime();
+      if (apptDayStart < todayZero) {
+        return false;
+      }
       return (
         apptDate.getFullYear() === selectedDate.getFullYear() &&
         apptDate.getMonth() === selectedDate.getMonth() &&
         apptDate.getDate() === selectedDate.getDate()
       );
     });
-  }, [myAppointments, doctor?.id, selectedDate]);
+  }, [myAppointments, doctor?.id, selectedDate, todayStart]);
 
   // If the currently selected time becomes invalid on a date switch, reset it
   function handleDateSelect(day: Date) {

@@ -5,6 +5,15 @@ on:
     # Runs every 14 minutes to ping Render free-tier services to prevent cold starts
     - cron: '*/14 * * * *'
   workflow_dispatch:
+    inputs:
+      ai_url:
+        description: 'Optional custom AI service URL to ping'
+        required: false
+        type: string
+      backend_url:
+        description: 'Optional custom Backend URL to ping'
+        required: false
+        type: string
 
 jobs:
   ping-services:
@@ -14,24 +23,51 @@ jobs:
     steps:
       - name: Send Health Probes
         env:
-          AI_SERVICE_URL: ${{ secrets.AI_SERVICE_URL }}
-          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          INPUT_AI_URL: ${{ inputs.ai_url }}
+          INPUT_BACKEND_URL: ${{ inputs.backend_url }}
+          SECRET_AI_URL: ${{ secrets.AI_SERVICE_URL }}
+          SECRET_BACKEND_URL: ${{ secrets.BACKEND_URL }}
+          VAR_AI_URL: ${{ vars.AI_SERVICE_URL }}
+          VAR_BACKEND_URL: ${{ vars.BACKEND_URL }}
+          DEFAULT_AI_URL: "https://mediflow-ai-1-q0d9.onrender.com"
+          DEFAULT_BACKEND_URL: "https://mediflow-ai-2.onrender.com"
         run: |
-          if [ -z "$AI_SERVICE_URL" ] && [ -z "$BACKEND_URL" ]; then
-            echo "::error::Neither 'AI_SERVICE_URL' nor 'BACKEND_URL' secret is configured under Repository Settings > Secrets and variables > Actions."
-            exit 1
-          fi
+          # Resolve target URLs in priority order: manual input -> secret -> repository variable -> default deployed URL
+          AI_URL="${INPUT_AI_URL:-${SECRET_AI_URL:-${VAR_AI_URL:-$DEFAULT_AI_URL}}}"
+          BACKEND_URL="${INPUT_BACKEND_URL:-${SECRET_BACKEND_URL:-${VAR_BACKEND_URL:-$DEFAULT_BACKEND_URL}}}"
 
-          if [ -n "$AI_SERVICE_URL" ]; then
-            AI_BASE="${AI_SERVICE_URL%/}"
-            echo "Pinging AI microservice health endpoint at ${AI_BASE}/health..."
-            AI_RESP=$(curl --fail --silent --show-error --max-time 30 "${AI_BASE}/health" || echo "FAILED")
-            echo "AI Health response: ${AI_RESP}"
-          fi
+          echo "=========================================="
+          echo "Render Free-Tier Keep-Alive Health Probe"
+          echo "=========================================="
 
-          if [ -n "$BACKEND_URL" ]; then
-            BACKEND_BASE="${BACKEND_URL%/}"
-            echo "Pinging Backend health endpoint at ${BACKEND_BASE}/health..."
-            BACKEND_RESP=$(curl --fail --silent --show-error --max-time 30 "${BACKEND_BASE}/health" || echo "FAILED")
-            echo "Backend Health response: ${BACKEND_RESP}"
-          fi
+          ping_endpoint() {
+            local name="$1"
+            local raw_url="$2"
+
+            if [ -z "$raw_url" ]; then
+              echo "::notice::No URL configured for $name. Skipping."
+              return 0
+            fi
+
+            local base_url="${raw_url%/}"
+            local health_url="${base_url}/health"
+
+            echo "Pinging $name at ${health_url}..."
+            
+            # Send HTTP request with 60s timeout to allow waking sleeping containers
+            local http_code
+            http_code=$(curl -s -L -o /dev/null -w "%{http_code}" --max-time 60 "${health_url}" 2>/dev/null || echo "000")
+
+            if [ "$http_code" = "200" ]; then
+              echo "✅ $name is warm and healthy (HTTP 200)."
+            elif [ "$http_code" = "000" ]; then
+              echo "::warning::$name probe timed out or connection reset (service likely waking from cold sleep). Wake-up request delivered."
+            else
+              echo "::warning::$name returned HTTP ${http_code}. Probe delivered."
+            fi
+          }
+
+          ping_endpoint "AI Microservice" "$AI_URL"
+          ping_endpoint "Backend API" "$BACKEND_URL"
+
+          echo "Keep-alive routine completed successfully."

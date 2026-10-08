@@ -220,10 +220,73 @@ public class AppointmentValidationTests : IDisposable
         var okResult = Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(okResult.Value);
 
-        var created = await _db.Appointments.FirstOrDefaultAsync(a => a.PatientId == patient.Id && a.DoctorId == doctor.Id);
+        var created = await _db.Appointments.FirstOrDefaultAsync(a => a.PatientId == patient.Id && a.DoctorId == doctor.Id && a.AppointmentDateTime == futureDate);
         Assert.NotNull(created);
         Assert.Equal(AppointmentStatus.Pending, created.Status);
         Assert.Equal(2500, created.Fee);
         Assert.StartsWith("APT-", created.AppointmentNumber ?? "");
+    }
+
+    [Fact]
+    public async Task BookAppointment_WhenPatientHasPastPendingAppointments_AutoCancelsPastPendingAppointments()
+    {
+        var patient = new Patient { Id = 1, UserId = 100, FullName = "Test Patient" };
+        var doctor = new Doctor { Id = 1, UserId = 10, FullName = "Dr. Available", IsActive = true, ConsultationFee = 2500 };
+        var yesterday = DateTime.UtcNow.Date.AddDays(-1).AddHours(10);
+        var futureDate = DateTime.UtcNow.Date.AddDays(2).AddHours(14);
+
+        _db.Patients.Add(patient);
+        _db.Doctors.Add(doctor);
+        var pastPendingAppt = new Appointment
+        {
+            PatientId = patient.Id,
+            DoctorId = doctor.Id,
+            AppointmentDateTime = yesterday,
+            Status = AppointmentStatus.Pending,
+            Notes = "Previous pending appointment"
+        };
+        _db.Appointments.Add(pastPendingAppt);
+        await _db.SaveChangesAsync();
+
+        var request = new BookAppointmentRequest(doctor.Id, futureDate, "New booking");
+        var result = await _controller.BookAppointment(request);
+        Assert.IsType<OkObjectResult>(result);
+
+        // Verify past pending appointment was auto-cancelled
+        var refreshedPast = await _db.Appointments.FindAsync(pastPendingAppt.Id);
+        Assert.NotNull(refreshedPast);
+        Assert.Equal(AppointmentStatus.Cancelled, refreshedPast.Status);
+        Assert.Contains("[Auto-cancelled", refreshedPast.Notes);
+    }
+
+    [Fact]
+    public async Task BookAppointment_WhenPreviousAppointmentOnSameDayWasCancelled_AllowsBooking()
+    {
+        var patient = new Patient { Id = 1, UserId = 100, FullName = "Test Patient" };
+        var doctor = new Doctor { Id = 1, UserId = 10, FullName = "Dr. Available", IsActive = true, ConsultationFee = 2500 };
+        var targetDate = DateTime.UtcNow.Date.AddDays(2);
+
+        _db.Patients.Add(patient);
+        _db.Doctors.Add(doctor);
+        // Previous appointment on that day was cancelled
+        _db.Appointments.Add(new Appointment
+        {
+            PatientId = patient.Id,
+            DoctorId = doctor.Id,
+            AppointmentDateTime = targetDate.AddHours(9),
+            Status = AppointmentStatus.Cancelled
+        });
+        await _db.SaveChangesAsync();
+
+        // Attempt new booking on the same day at 14:00
+        var request = new BookAppointmentRequest(doctor.Id, targetDate.AddHours(14), "Re-booking after cancellation");
+        var result = await _controller.BookAppointment(request);
+        var okResult = Assert.IsType<OkObjectResult>(result);
+        Assert.NotNull(okResult.Value);
+
+        var newAppt = await _db.Appointments
+            .FirstOrDefaultAsync(a => a.PatientId == patient.Id && a.DoctorId == doctor.Id && a.AppointmentDateTime == targetDate.AddHours(14));
+        Assert.NotNull(newAppt);
+        Assert.Equal(AppointmentStatus.Pending, newAppt.Status);
     }
 }
