@@ -249,6 +249,25 @@ class AppointmentModel {
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> j) {
+    final rawStatus = j['status'] as String? ?? 'Pending';
+    final parsedDt = DateTime.tryParse(
+            j['appointmentDateTime'] as String? ?? '')?.toLocal() ??
+        DateTime.now();
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final apptDay = DateTime(parsedDt.year, parsedDt.month, parsedDt.day);
+    final isPastDay = apptDay.isBefore(today);
+
+    // If scheduled day has passed and not completed, appointment is automatically cancelled
+    final isExpired = isPastDay && rawStatus != 'Completed';
+    final effectiveStatus = isExpired ? 'Cancelled' : rawStatus;
+    final effectiveCancelReason = j['cancelReason'] as String? ??
+        j['cancellationReason'] as String? ??
+        (isExpired
+            ? 'Automatically cancelled because the scheduled appointment day has passed.'
+            : null);
+
     return AppointmentModel(
       id: j['id'] as int? ?? 0,
       appointmentNumber: j['appointmentNumber'] as String?,
@@ -257,15 +276,13 @@ class AppointmentModel {
       doctorQualifications: j['doctorQualifications'] as String?,
       doctorProfilePhoto: j['doctorProfilePhoto'] as String?,
       specialtyName: j['specialtyName'] as String? ?? 'General Medicine',
-      appointmentDateTime: DateTime.tryParse(
-              j['appointmentDateTime'] as String? ?? '') ??
-          DateTime.now(),
-      status: j['status'] as String? ?? 'Pending',
+      appointmentDateTime: parsedDt,
+      status: effectiveStatus,
       fee: (j['fee'] as num?)?.toDouble(),
       paymentStatus: j['paymentStatus'] as String?,
       notes: j['notes'] as String?,
       createdAt: j['createdAt'] as String?,
-      cancelReason: j['cancelReason'] as String? ?? j['cancellationReason'] as String?,
+      cancelReason: effectiveCancelReason,
       hasRated: j['hasRated'] as bool? ?? false,
       rating: j['rating'] != null
           ? RatingModel.fromJson(j['rating'] as Map<String, dynamic>)
@@ -273,23 +290,56 @@ class AppointmentModel {
     );
   }
 
-  bool get isUpcoming => [
-        'Pending',
-        'PaymentPending',
-        'PaymentSubmitted',
-        'PaymentVerified',
-        'Confirmed',
-        'ReceptionistApproved',
-        'InConsultation'
-      ].contains(status);
+  bool get isPastDay {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final apptDay = DateTime(appointmentDateTime.year, appointmentDateTime.month, appointmentDateTime.day);
+    return apptDay.isBefore(today);
+  }
+
+  bool get isUpcoming {
+    if (isPastDay) return false;
+    return [
+      'Pending',
+      'PaymentPending',
+      'PaymentSubmitted',
+      'PaymentVerified',
+      'WaitingForReceptionist',
+      'Confirmed',
+      'ReceptionistApproved',
+      'InConsultation'
+    ].contains(status);
+  }
 
   bool get isCompleted => status == 'Completed';
 
+  bool get isCancelledOrInactive {
+    if (isPastDay && status != 'Completed') return true;
+    final s = status.toLowerCase();
+    return [
+      'cancelled',
+      'patientcancelled',
+      'receptionistrejected',
+      'refundrequested',
+      'refundapproved',
+      'refundprocessing',
+      'refundcompleted',
+      'refundrejected',
+      'paymentfailed',
+      'noshow',
+    ].contains(s) ||
+    s.contains('cancel') ||
+    s.contains('reject') ||
+    s.contains('refund');
+  }
+
   bool get isCancellable =>
+      !isPastDay &&
       !['Completed', 'InConsultation', 'Cancelled', 'PatientCancelled', 'ReceptionistRejected'].contains(status) &&
       appointmentDateTime.isAfter(DateTime.now());
 
   bool get isPaymentPending =>
+      !isPastDay &&
       ['Pending', 'PaymentPending', 'PaymentFailed'].contains(status) &&
       (paymentStatus == null || paymentStatus == 'Pending' || paymentStatus == 'Failed');
 
@@ -297,7 +347,7 @@ class AppointmentModel {
       paymentStatus == 'Paid' || ['PaymentVerified', 'PaymentSubmitted'].contains(status);
 
   bool get isRefundEligible =>
-      isPaid && ['Cancelled', 'PatientCancelled', 'ReceptionistRejected'].contains(status);
+      isPaid && (isCancelledOrInactive || ['Cancelled', 'PatientCancelled', 'ReceptionistRejected'].contains(status));
 
   bool get hasRefund =>
       ['RefundRequested', 'RefundApproved', 'RefundProcessing', 'RefundCompleted', 'RefundRejected'].contains(status) ||

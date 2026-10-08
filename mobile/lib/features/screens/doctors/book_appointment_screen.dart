@@ -31,11 +31,12 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: now.add(const Duration(days: 1)),
-      firstDate: now.add(const Duration(days: 1)),
-      lastDate: now.add(const Duration(days: 90)),
+      initialDate: _selectedDate ?? today,
+      firstDate: today,
+      lastDate: today.add(const Duration(days: 90)),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(primary: AppTheme.primaryTeal),
@@ -43,7 +44,12 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
         child: child!,
       ),
     );
-    if (picked != null) setState(() => _selectedDate = picked);
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _pickTime() async {
@@ -57,7 +63,12 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
         child: child!,
       ),
     );
-    if (picked != null) setState(() => _selectedTime = picked);
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _book() async {
@@ -65,18 +76,44 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
       setState(() => _error = 'Please select both a date and time.');
       return;
     }
-    setState(() {
-      _submitting = true;
-      _error = null;
-    });
 
-    final dt = DateTime(
+    final localDt = DateTime(
       _selectedDate!.year,
       _selectedDate!.month,
       _selectedDate!.day,
       _selectedTime!.hour,
       _selectedTime!.minute,
-    ).toUtc();
+    );
+
+    if (localDt.isBefore(DateTime.now())) {
+      setState(() => _error =
+          'The selected appointment time has already passed. Please select an upcoming slot.');
+      return;
+    }
+
+    // Check existing appointments on this date
+    final myAppts = ref.read(myAppointmentsProvider).valueOrNull ?? [];
+    final hasActiveOnDate = myAppts.any((a) {
+      if (a.doctorId != widget.doctorId) return false;
+      if (a.isCancelledOrInactive) return false; // Cancelled appointments allow same-day rebooking!
+      final ad = a.appointmentDateTime;
+      return ad.year == _selectedDate!.year &&
+          ad.month == _selectedDate!.month &&
+          ad.day == _selectedDate!.day;
+    });
+
+    if (hasActiveOnDate) {
+      setState(() => _error =
+          'You already have an active appointment scheduled with this doctor on this date.');
+      return;
+    }
+
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    final dt = localDt.toUtc();
 
     try {
       await ApiClient.instance.post('/appointments', body: {
@@ -116,10 +153,29 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
         loading: () => const Center(
           child: CircularProgressIndicator(color: AppTheme.primaryTeal),
         ),
-        error: (e, _) => ErrorState(message: e.toString()),
-        data: (doctor) => SafeArea(
-          bottom: false,
-          child: Column(
+        data: (doctor) {
+          final myAppts = ref.watch(myAppointmentsProvider).valueOrNull ?? [];
+          final activeApptOnDate = _selectedDate != null
+              ? myAppts.where((a) =>
+                  a.doctorId == widget.doctorId &&
+                  !a.isCancelledOrInactive &&
+                  a.appointmentDateTime.year == _selectedDate!.year &&
+                  a.appointmentDateTime.month == _selectedDate!.month &&
+                  a.appointmentDateTime.day == _selectedDate!.day).firstOrNull
+              : null;
+
+          final cancelledApptOnDate = _selectedDate != null
+              ? myAppts.where((a) =>
+                  a.doctorId == widget.doctorId &&
+                  a.isCancelledOrInactive &&
+                  a.appointmentDateTime.year == _selectedDate!.year &&
+                  a.appointmentDateTime.month == _selectedDate!.month &&
+                  a.appointmentDateTime.day == _selectedDate!.day).firstOrNull
+              : null;
+
+          return SafeArea(
+            bottom: false,
+            child: Column(
             children: [
               // Top Bar
               Padding(
@@ -246,6 +302,60 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                                   style: GoogleFonts.inter(
                                     fontSize: 13,
                                     color: AppTheme.statusInConsult,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      if (activeApptOnDate != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppTheme.statusInConsBg,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: AppTheme.statusInConsult.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.calendarX, color: AppTheme.statusInConsult, size: 18),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'You already have an active appointment scheduled with Dr. ${doctor.fullName} on this date.',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.statusInConsult,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ] else if (cancelledApptOnDate != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.circleCheck, color: AppTheme.primaryBlue, size: 18),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Your earlier appointment on this date was cancelled. You are eligible to book a new appointment for this day.',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF1E40AF),
                                   ),
                                 ),
                               ),
@@ -432,9 +542,11 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                   width: double.infinity,
                   height: 54,
                   child: ElevatedButton(
-                    onPressed: _submitting ? null : _book,
+                    onPressed: (_submitting || activeApptOnDate != null) ? null : _book,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryTeal,
+                      backgroundColor: activeApptOnDate != null
+                          ? AppTheme.textMuted
+                          : AppTheme.primaryTeal,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
@@ -444,10 +556,13 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
                         ? const SizedBox(
                             width: 22,
                             height: 22,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2.5),
                           )
                         : Text(
-                            'Confirm Appointment',
+                            activeApptOnDate != null
+                                ? 'Already Booked on this Date'
+                                : 'Confirm Appointment',
                             style: GoogleFonts.inter(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
@@ -459,8 +574,10 @@ class _BookAppointmentScreenState extends ConsumerState<BookAppointmentScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
+        );
+      },
+      error: (e, _) => ErrorState(message: e.toString()),
+    ),
+  );
+}
 }

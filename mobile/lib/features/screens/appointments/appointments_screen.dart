@@ -105,13 +105,15 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
               } else if (_selectedTab == 'completed') {
                 return a.isCompleted;
               } else {
-                return a.status == 'Cancelled' ||
-                    a.status == 'PatientCancelled' ||
-                    a.status == 'ReceptionistRejected' ||
-                    a.status == 'NoShow' ||
-                    a.hasRefund;
+                return a.isCancelledOrInactive;
               }
             }).toList();
+
+            if (_selectedTab == 'upcoming') {
+              filtered.sort((a, b) => a.appointmentDateTime.compareTo(b.appointmentDateTime));
+            } else {
+              filtered.sort((a, b) => b.appointmentDateTime.compareTo(a.appointmentDateTime));
+            }
 
             if (filtered.isEmpty) {
               return ListView(
@@ -405,7 +407,35 @@ class _AppointmentCard extends ConsumerWidget {
                   ),
                 ),
 
-                const SizedBox(height: 14),
+                if (appointment.isCancelledOrInactive && appointment.cancelReason != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(LucideIcons.circleAlert, size: 14, color: Color(0xFFDC2626)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            appointment.cancelReason!,
+                            style: GoogleFonts.inter(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF991B1B),
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
 
                 // Actions: Details, Pay, Refund, & Cancel
                 Row(

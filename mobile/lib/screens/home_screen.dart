@@ -139,7 +139,8 @@ class HomeScreen extends ConsumerWidget {
                       final bool isCancelledWithRefund = [
                             'Cancelled', 'PatientCancelled', 'ReceptionistRejected',
                             'RefundRequested'
-                          ].contains(appt.status);
+                          ].contains(appt.status) ||
+                          appt.isCancelledOrInactive;
 
                       Color chipColor = const Color(0xFF0F172A);
                       Color chipBg = const Color(0xFFF1F5F9);

@@ -234,8 +234,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
   Widget _buildContent(AppointmentModel a) {
     final st = AppTheme.appointmentStatus(a.status);
     final date = a.appointmentDateTime;
-    final isCancellable = !['Completed', 'InConsultation', 'Cancelled', 'NoShow'].contains(a.status)
-        && a.appointmentDateTime.isAfter(DateTime.now());
+    final isCancellable = a.isCancellable;
 
     return CustomScrollView(
       slivers: [
@@ -318,8 +317,52 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
           padding: const EdgeInsets.all(16),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
+              // ── Cancellation Notice Banner ────────────────────────────────
+              if (a.isCancelledOrInactive || a.status == 'Cancelled') ...[
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(LucideIcons.circleAlert, color: Color(0xFFDC2626), size: 22),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Appointment Cancelled',
+                              style: GoogleFonts.inter(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13.5,
+                                color: const Color(0xFF991B1B),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              a.cancelReason ??
+                                  'This appointment was cancelled and is no longer active.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: const Color(0xFFB91C1C),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
               // ── Status Stepper ────────────────────────────────────────────
-              if (a.status != 'Cancelled' && a.status != 'NoShow') ...[
+              if (!a.isCancelledOrInactive && a.status != 'Cancelled' && a.status != 'NoShow') ...[
                 MedCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,7 +470,8 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
               ],
 
               // ── Payment Verified Banner ───────────────────────────────────
-              if (a.isPaid || a.status == 'PaymentVerified' || a.status == 'PaymentSubmitted') ...[
+              if ((a.isPaid || a.status == 'PaymentVerified' || a.status == 'PaymentSubmitted') &&
+                  !a.isCancelledOrInactive) ...[
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(

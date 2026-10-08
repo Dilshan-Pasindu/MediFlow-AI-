@@ -192,7 +192,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     apptsAsync.whenData((appts) {
       final seen = <int>{};
       for (final a in appts) {
-        if (a.status != 'Cancelled' && a.status != 'Completed' && !seen.contains(a.doctorId)) {
+        if (a.isUpcoming && !seen.contains(a.doctorId)) {
           seen.add(a.doctorId);
           bookedDoctors.add(a);
         }
