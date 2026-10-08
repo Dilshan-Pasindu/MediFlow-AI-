@@ -92,8 +92,18 @@ export default function DashboardPage() {
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
+  const now = new Date();
+  const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const upcomingAppts = appointments
-    .filter(a => UPCOMING_STATUSES.includes(a.status))
+    .filter(a => {
+      if (!UPCOMING_STATUSES.includes(a.status)) return false;
+      if (a.appointmentDateTime) {
+        const apptDate = new Date(a.appointmentDateTime);
+        const apptDay = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate()).getTime();
+        if (apptDay < todayDay) return false;
+      }
+      return true;
+    })
     .sort((a, b) => {
       // InConsultation always highest priority to stay at top
       if (a.status === 'InConsultation' && b.status !== 'InConsultation') return -1;

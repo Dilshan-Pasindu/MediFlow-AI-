@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
@@ -68,11 +68,35 @@ export default function AppointmentsPage() {
   const [ratingError, setRatingError] = useState<string | null>(null);
   const [ratedApptIds, setRatedApptIds] = useState<Set<number>>(new Set());
 
-  const upcomingAppts = appointments.filter(a => [
+  // Normalize appointments: if the scheduled day is over and appointment is uncompleted, treat as Cancelled
+  const normalizedAppointments = useMemo(() => {
+    const now = new Date();
+    const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    return appointments.map(a => {
+      if (!a.appointmentDateTime) return a;
+      const apptDate = new Date(a.appointmentDateTime);
+      const apptDay = new Date(apptDate.getFullYear(), apptDate.getMonth(), apptDate.getDate()).getTime();
+      const isPastDay = apptDay < todayDay;
+      const isUncompleted = [
+        'Pending', 'PaymentPending', 'PaymentSubmitted', 'PaymentVerified',
+        'WaitingForReceptionist', 'Confirmed', 'ReceptionistApproved', 'InConsultation'
+      ].includes(a.status);
+      if (isPastDay && isUncompleted) {
+        return {
+          ...a,
+          status: 'Cancelled',
+          notes: a.notes ? `${a.notes} [Auto-cancelled: Date passed]` : '[Auto-cancelled: Date passed]'
+        };
+      }
+      return a;
+    });
+  }, [appointments]);
+
+  const upcomingAppts = normalizedAppointments.filter(a => [
     'Pending', 'PaymentPending', 'PaymentSubmitted', 'PaymentVerified',
     'WaitingForReceptionist', 'Confirmed', 'ReceptionistApproved', 'InConsultation'
   ].includes(a.status));
-  const pastAppts = appointments.filter(a => [
+  const pastAppts = normalizedAppointments.filter(a => [
     'Completed', 'Cancelled', 'PatientCancelled', 'RefundRequested',
     'RefundApproved', 'RefundProcessing', 'RefundCompleted', 'RefundRejected',
     'ReceptionistRejected', 'NoShow'

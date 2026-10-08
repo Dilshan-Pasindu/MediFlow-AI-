@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, CreditCard, CheckCircle, AlertCircle, Phone,
   Loader, Hash, XCircle, AlertTriangle, X, Star, MessageSquare, Info, CheckCircle2,
@@ -58,6 +59,7 @@ const CANCEL_REASONS = [
 export default function AppointmentDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [appt, setAppt] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [paying, setPaying] = useState(false);
@@ -223,6 +225,12 @@ export default function AppointmentDetailsPage() {
 
       setCancelled(true);
       setShowCancelModal(false);
+      try {
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+        queryClient.invalidateQueries({ queryKey: ['my-appointments'] });
+      } catch {
+        // Safe for mock/test environments
+      }
     } catch (err: any) {
       setCancelError(err?.message || 'Failed to cancel appointment. Please try again.');
     } finally {
