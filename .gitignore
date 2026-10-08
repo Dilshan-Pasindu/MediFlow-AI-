@@ -57,3 +57,18 @@ Thumbs.db
 *.pfx
 *.p12
 secrets.json
+
+# Video Demo & Presentation Recording Assets
+docs/audio/
+docs/video_frames/
+docs/generator/
+docs/VIDEO_DEMO_SCRIPT_AND_TIMESTAMPS.md
+docs/master_speech_input.txt
+docs/video_narration.txt
+docs/video_demo_player.html
+docs/mediflow_presentation_voiceover.*
+scripts/capture_demo_frames.mjs
+*.m4a
+*.mp4
+*.mov
+*.webm
