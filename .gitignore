@@ -14,6 +14,7 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 pubspec.lock
+**/xcshareddata/swiftpm/
 
 # React / Node
 node_modules/
