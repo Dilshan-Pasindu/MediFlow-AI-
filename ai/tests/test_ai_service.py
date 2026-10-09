@@ -28,12 +28,18 @@ def test_root_endpoint(client):
     assert data["status"] == "running"
     assert data["docs"] == "/docs"
 
+    head_response = client.head("/")
+    assert head_response.status_code == 200
+
 
 def test_health_check(client):
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
+
+    head_response = client.head("/health")
+    assert head_response.status_code == 200
 
 
 
