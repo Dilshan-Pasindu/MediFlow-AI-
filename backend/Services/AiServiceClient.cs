@@ -65,20 +65,46 @@ public class AiServiceClient : IAiServiceClient
 
         try
         {
-            _logger.LogInformation(
-                "Calling AI medication-check for {Count} medication(s).", medications.Count);
-
-            var response = await _http.PostAsJsonAsync("/api/ai/medication-check", payload);
-
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage? response = null;
+            for (int attempt = 1; attempt <= 2; attempt++)
             {
-                var body = await response.Content.ReadAsStringAsync();
-                _logger.LogError(
-                    "AI service returned HTTP {Status}: {Body}",
-                    (int)response.StatusCode, body);
+                try
+                {
+                    _logger.LogInformation(
+                        "Calling AI medication-check for {Count} medication(s) (attempt {Attempt}/2).",
+                        medications.Count, attempt);
+
+                    response = await _http.PostAsJsonAsync("/api/ai/medication-check", payload);
+
+                    // If container is waking up (502/503/504), wait briefly and retry once
+                    if ((response.StatusCode == System.Net.HttpStatusCode.BadGateway ||
+                         response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
+                         response.StatusCode == System.Net.HttpStatusCode.GatewayTimeout) && attempt == 1)
+                    {
+                        _logger.LogWarning(
+                            "AI service returned HTTP {Status} on attempt 1. Waiting 3s to allow container warmup...",
+                            (int)response.StatusCode);
+                        await Task.Delay(3000);
+                        continue;
+                    }
+
+                    break;
+                }
+                catch (HttpRequestException ex) when (attempt == 1)
+                {
+                    _logger.LogWarning(ex, "Transient connection error contacting AI service on attempt 1. Retrying in 3s...");
+                    await Task.Delay(3000);
+                }
+            }
+
+            if (response == null || !response.IsSuccessStatusCode)
+            {
+                var status = response != null ? (int)response.StatusCode : 0;
+                var body = response != null ? await response.Content.ReadAsStringAsync() : "No response";
+                _logger.LogError("AI service returned HTTP {Status}: {Body}", status, body);
 
                 throw new AiServiceUnavailableException(
-                    $"AI medication-check returned HTTP {(int)response.StatusCode}. " +
+                    $"AI medication-check returned HTTP {status}. " +
                     "Manual pharmacist review is required before dispensing.");
             }
 
@@ -138,13 +164,38 @@ public class AiServiceClient : IAiServiceClient
                 severity = string.IsNullOrWhiteSpace(severity) ? "moderate" : severity.ToLowerInvariant()
             };
 
-            var response = await _http.PostAsJsonAsync("/api/ai/recommend-specialist", payload);
-
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage? response = null;
+            for (int attempt = 1; attempt <= 2; attempt++)
             {
-                var errorBody = await response.Content.ReadAsStringAsync();
+                try
+                {
+                    response = await _http.PostAsJsonAsync("/api/ai/recommend-specialist", payload);
+
+                    if ((response.StatusCode == System.Net.HttpStatusCode.BadGateway ||
+                         response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable ||
+                         response.StatusCode == System.Net.HttpStatusCode.GatewayTimeout) && attempt == 1)
+                    {
+                        _logger.LogWarning(
+                            "AI specialist-recommender returned HTTP {Status} on attempt 1. Retrying in 3s...",
+                            (int)response.StatusCode);
+                        await Task.Delay(3000);
+                        continue;
+                    }
+
+                    break;
+                }
+                catch (HttpRequestException ex) when (attempt == 1)
+                {
+                    _logger.LogWarning(ex, "Transient connection error contacting AI specialist-recommender. Retrying in 3s...");
+                    await Task.Delay(3000);
+                }
+            }
+
+            if (response == null || !response.IsSuccessStatusCode)
+            {
+                var errorBody = response != null ? await response.Content.ReadAsStringAsync() : "No response";
                 _logger.LogWarning("AI specialist-recommender returned HTTP {StatusCode}: {ErrorBody}",
-                    response.StatusCode, errorBody);
+                    response?.StatusCode, errorBody);
                 return null;
             }
 
