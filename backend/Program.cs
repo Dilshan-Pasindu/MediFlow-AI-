@@ -92,13 +92,18 @@ builder.Services.AddScoped<InventoryService>();
 builder.Services.AddScoped<ISupabaseUserResolver, SupabaseUserResolver>();
 
 // ─── AI Microservice HTTP Client (Member 3) ──────────────────────────────────────
-var aiBaseUrl = builder.Configuration["AiService:BaseUrl"]
-    ?? "http://localhost:8000";
+var aiBaseUrl = builder.Configuration["AiService:BaseUrl"];
+if (string.IsNullOrWhiteSpace(aiBaseUrl))
+{
+    aiBaseUrl = builder.Environment.IsProduction()
+        ? "https://mediflow-ai-1-q0d9.onrender.com"
+        : "http://localhost:8000";
+}
 
 builder.Services.AddHttpClient("AiService", client =>
 {
     client.BaseAddress = new Uri(aiBaseUrl);
-    client.Timeout = TimeSpan.FromSeconds(60);
+    client.Timeout = TimeSpan.FromSeconds(120);
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
 
