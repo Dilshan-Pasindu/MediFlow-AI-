@@ -68,7 +68,7 @@ app.add_middleware(
 )
 
 
-@app.get("/", tags=["General"])
+@app.api_route("/", methods=["GET", "HEAD"], tags=["General"])
 async def root():
     """Returns root service metadata and documentation URL."""
     return {
@@ -78,7 +78,7 @@ async def root():
     }
 
 
-@app.get("/health", tags=["Health"])
+@app.api_route("/health", methods=["GET", "HEAD"], tags=["Health"])
 async def health_check():
     """Returns service health status."""
     return {"status": "healthy"}
