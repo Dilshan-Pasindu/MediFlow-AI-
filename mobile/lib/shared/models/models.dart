@@ -249,7 +249,8 @@ class AppointmentModel {
   });
 
   factory AppointmentModel.fromJson(Map<String, dynamic> j) {
-    final rawStatus = j['status'] as String? ?? 'Pending';
+    final rawStatus = j['status']?.toString() ?? 'Pending';
+    final isCompletedStatus = rawStatus.trim().toLowerCase() == 'completed';
     final parsedDt = DateTime.tryParse(
             j['appointmentDateTime'] as String? ?? '')?.toLocal() ??
         DateTime.now();
@@ -260,13 +261,21 @@ class AppointmentModel {
     final isPastDay = apptDay.isBefore(today);
 
     // If scheduled day has passed and not completed, appointment is automatically cancelled
-    final isExpired = isPastDay && rawStatus != 'Completed';
+    final isExpired = isPastDay && !isCompletedStatus;
     final effectiveStatus = isExpired ? 'Cancelled' : rawStatus;
     final effectiveCancelReason = j['cancelReason'] as String? ??
         j['cancellationReason'] as String? ??
         (isExpired
             ? 'Automatically cancelled because the scheduled appointment day has passed.'
             : null);
+
+    final hasRatedVal = (j['hasRated'] as bool?) ??
+        (j['HasRated'] as bool?) ??
+        (j['rating'] != null || j['Rating'] != null);
+    final ratingObj = j['rating'] ?? j['Rating'];
+    final ratingModel = ratingObj is Map<String, dynamic>
+        ? RatingModel.fromJson(ratingObj)
+        : null;
 
     return AppointmentModel(
       id: j['id'] as int? ?? 0,
@@ -283,10 +292,46 @@ class AppointmentModel {
       notes: j['notes'] as String?,
       createdAt: j['createdAt'] as String?,
       cancelReason: effectiveCancelReason,
-      hasRated: j['hasRated'] as bool? ?? false,
-      rating: j['rating'] != null
-          ? RatingModel.fromJson(j['rating'] as Map<String, dynamic>)
-          : null,
+      hasRated: hasRatedVal,
+      rating: ratingModel,
+    );
+  }
+
+  AppointmentModel copyWith({
+    int? id,
+    String? appointmentNumber,
+    int? doctorId,
+    String? doctorName,
+    String? doctorQualifications,
+    String? doctorProfilePhoto,
+    String? specialtyName,
+    DateTime? appointmentDateTime,
+    String? status,
+    double? fee,
+    String? paymentStatus,
+    String? notes,
+    String? createdAt,
+    String? cancelReason,
+    bool? hasRated,
+    RatingModel? rating,
+  }) {
+    return AppointmentModel(
+      id: id ?? this.id,
+      appointmentNumber: appointmentNumber ?? this.appointmentNumber,
+      doctorId: doctorId ?? this.doctorId,
+      doctorName: doctorName ?? this.doctorName,
+      doctorQualifications: doctorQualifications ?? this.doctorQualifications,
+      doctorProfilePhoto: doctorProfilePhoto ?? this.doctorProfilePhoto,
+      specialtyName: specialtyName ?? this.specialtyName,
+      appointmentDateTime: appointmentDateTime ?? this.appointmentDateTime,
+      status: status ?? this.status,
+      fee: fee ?? this.fee,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      cancelReason: cancelReason ?? this.cancelReason,
+      hasRated: hasRated ?? this.hasRated,
+      rating: rating ?? this.rating,
     );
   }
 
@@ -311,11 +356,12 @@ class AppointmentModel {
     ].contains(status);
   }
 
-  bool get isCompleted => status == 'Completed';
+  bool get isCompleted => status.trim().toLowerCase() == 'completed';
 
   bool get isCancelledOrInactive {
-    if (isPastDay && status != 'Completed') return true;
-    final s = status.toLowerCase();
+    if (isCompleted) return false;
+    if (isPastDay) return true;
+    final s = status.trim().toLowerCase();
     return [
       'cancelled',
       'patientcancelled',
@@ -359,8 +405,14 @@ class RatingModel {
   final int stars;
   final String? comment;
   const RatingModel({required this.stars, this.comment});
-  factory RatingModel.fromJson(Map<String, dynamic> j) =>
-      RatingModel(stars: j['stars'] as int? ?? 5, comment: j['comment'] as String?);
+  factory RatingModel.fromJson(Map<String, dynamic> j) {
+    final rawStars = j['stars'] ?? j['Stars'] ?? j['rating'] ?? j['Rating'];
+    final stars = (rawStars is num)
+        ? rawStars.toInt()
+        : int.tryParse(rawStars?.toString() ?? '') ?? 5;
+    final comment = (j['comment'] ?? j['Comment'] ?? j['review'] ?? j['Review'])?.toString();
+    return RatingModel(stars: stars, comment: comment);
+  }
 }
 
 class PrescriptionModel {

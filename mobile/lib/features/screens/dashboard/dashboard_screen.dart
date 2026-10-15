@@ -514,7 +514,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
     if (confirmed == true) {
       try {
-        await ApiClient.instance.delete('/appointments/$id');
+        const reason = 'Cancelled by patient';
+        try {
+          await ApiClient.instance.post('/payment/appointments/$id/cancel', body: {'reason': reason});
+        } catch (_) {
+          await ApiClient.instance.delete('/patient/appointments/$id', body: {'reason': reason});
+        }
         ref.invalidate(myAppointmentsProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -529,8 +534,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${e.toString()}',
-                  style: GoogleFonts.plusJakartaSans()),
+              content: Text(
+                'Error: ${e.toString().replaceFirst("ApiException: ", "").replaceFirst("Exception: ", "")}',
+                style: GoogleFonts.plusJakartaSans(),
+              ),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );

@@ -8,6 +8,7 @@ import '../../../core/network/api_client.dart';
 import '../../../features/patient/patient_providers.dart';
 import '../../../shared/models/models.dart';
 import '../../../shared/widgets/widgets.dart';
+import 'book_appointment_screen.dart';
 
 class DoctorProfileScreen extends ConsumerStatefulWidget {
   const DoctorProfileScreen({super.key, required this.id});
@@ -19,8 +20,24 @@ class DoctorProfileScreen extends ConsumerStatefulWidget {
 
 class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
   int _selectedDayIndex = 0;
-  String _selectedTimeSlot = '08:30 PM';
+  String _selectedTimeSlot = '09:00 AM';
   bool _isBooking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectFirstValidSlot();
+  }
+
+  void _selectFirstValidSlot() {
+    final date = _availableDays[_selectedDayIndex];
+    for (final slot in _timeSlots) {
+      if (!_isSlotPast(date, slot)) {
+        _selectedTimeSlot = slot;
+        break;
+      }
+    }
+  }
 
   List<DateTime> get _availableDays {
     final now = DateTime.now();
@@ -44,16 +61,50 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
       hour = 0;
     }
     final slotDt = DateTime(date.year, date.month, date.day, hour, minute);
-    return slotDt.isBefore(now);
+    final minAllowedTime = now.add(const Duration(minutes: 15));
+    return slotDt.isBefore(minAllowedTime);
   }
 
-  final List<String> _timeSlots = const [
+  bool _isSlotBooked(DateTime date, String slotStr, List<AppointmentModel> myAppointments) {
+    final timeParts = slotStr.split(' ');
+    final hm = timeParts[0].split(':');
+    var hour = int.parse(hm[0]);
+    final minute = int.parse(hm[1]);
+    if (timeParts.length > 1 && timeParts[1].toUpperCase() == 'PM' && hour < 12) {
+      hour += 12;
+    } else if (timeParts.length > 1 && timeParts[1].toUpperCase() == 'AM' && hour == 12) {
+      hour = 0;
+    }
+
+    return myAppointments.any((appt) {
+      if (appt.isCancelledOrInactive) return false;
+      final apptDate = appt.appointmentDateTime;
+      final isSameDay = apptDate.year == date.year &&
+          apptDate.month == date.month &&
+          apptDate.day == date.day;
+      if (!isSameDay) return false;
+      return apptDate.hour == hour && (apptDate.minute - minute).abs() < 15;
+    });
+  }
+
+  static const List<String> _timeSlots = [
+    '09:00 AM',
+    '09:30 AM',
+    '10:00 AM',
+    '10:30 AM',
+    '11:00 AM',
+    '11:30 AM',
+    '12:00 PM',
+    '12:30 PM',
+    '01:00 PM',
+    '01:30 PM',
+    '02:00 PM',
+    '02:30 PM',
+    '03:00 PM',
+    '03:30 PM',
+    '04:00 PM',
     '04:30 PM',
     '05:00 PM',
-    '06:30 PM',
-    '07:00 PM',
-    '07:45 PM',
-    '08:30 PM',
   ];
 
   Future<void> _handleBookAppointment(DoctorModel doctor) async {
@@ -71,11 +122,27 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
     }
 
     final localDt = DateTime(targetDate.year, targetDate.month, targetDate.day, hour, minute);
-    if (localDt.isBefore(DateTime.now())) {
+    final minAllowedTime = DateTime.now().add(const Duration(minutes: 15));
+    if (_selectedDayIndex == 0 && localDt.isBefore(minAllowedTime)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'The selected time slot has already passed. Please select an upcoming slot.',
+            'The selected time slot has already passed or requires at least 15 minutes lead time. Please select an upcoming slot.',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: AppTheme.statusInConsult,
+        ),
+      );
+      return;
+    }
+
+    // Check if slot is already booked
+    final myAppts = ref.read(myAppointmentsProvider).valueOrNull ?? [];
+    if (_isSlotBooked(targetDate, _selectedTimeSlot, myAppts)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You already have an appointment scheduled for this time slot. Please choose another slot.',
             style: GoogleFonts.inter(),
           ),
           backgroundColor: AppTheme.statusInConsult,
@@ -85,7 +152,6 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
     }
 
     // Check if patient already has an active appointment with this doctor on this day
-    final myAppts = ref.read(myAppointmentsProvider).valueOrNull ?? [];
     final hasActiveOnDate = myAppts.any((a) {
       if (a.doctorId != doctor.id) return false;
       if (a.isCancelledOrInactive) return false; // Cancelled appointments allow same-day rebooking!
@@ -444,6 +510,15 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                             onTap: () {
                               setState(() {
                                 _selectedDayIndex = i;
+                                final date = _availableDays[i];
+                                if (_isSlotPast(date, _selectedTimeSlot)) {
+                                  for (final slot in _timeSlots) {
+                                    if (!_isSlotPast(date, slot)) {
+                                      _selectedTimeSlot = slot;
+                                      break;
+                                    }
+                                  }
+                                }
                               });
                             },
                             child: AnimatedContainer(
@@ -555,8 +630,10 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                 children: _timeSlots.map((slot) {
                                   final isSelected = slot == _selectedTimeSlot;
                                   final isPast = _isSlotPast(selectedDate, slot);
+                                  final isBooked = _isSlotBooked(selectedDate, slot, myAppts);
+                                  final isUnavailable = isPast || isBooked;
                                   return GestureDetector(
-                                    onTap: isPast
+                                    onTap: isUnavailable
                                         ? null
                                         : () {
                                             setState(() {
@@ -567,35 +644,51 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                                       duration: const Duration(milliseconds: 180),
                                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                       decoration: BoxDecoration(
-                                        color: isPast
+                                        color: isUnavailable
                                             ? const Color(0xFFF1F5F9)
                                             : isSelected
                                                 ? AppTheme.primaryBlue
                                                 : AppTheme.bgCanvas,
                                         borderRadius: BorderRadius.circular(20),
                                         border: Border.all(
-                                          color: isPast
+                                          color: isUnavailable
                                               ? const Color(0xFFE2E8F0)
                                               : isSelected
                                                   ? AppTheme.primaryBlue
                                                   : AppTheme.cardBorder,
                                         ),
-                                        boxShadow: isSelected && !isPast ? AppTheme.blueShadow : null,
+                                        boxShadow: isSelected && !isUnavailable ? AppTheme.blueShadow : null,
                                       ),
-                                      child: Text(
-                                        slot,
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          fontWeight: isSelected && !isPast
-                                              ? FontWeight.w700
-                                              : FontWeight.w500,
-                                          color: isPast
-                                              ? AppTheme.textMuted
-                                              : isSelected
-                                                  ? Colors.white
-                                                  : AppTheme.textPrimary,
-                                          decoration: isPast ? TextDecoration.lineThrough : null,
-                                        ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            slot,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: isSelected && !isUnavailable
+                                                  ? FontWeight.w700
+                                                  : FontWeight.w500,
+                                              color: isUnavailable
+                                                  ? AppTheme.textMuted
+                                                  : isSelected
+                                                      ? Colors.white
+                                                      : AppTheme.textPrimary,
+                                              decoration: isUnavailable ? TextDecoration.lineThrough : null,
+                                            ),
+                                          ),
+                                          if (isBooked) ...[
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              '(Booked)',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                                color: AppTheme.textMuted,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
                                   );
@@ -662,6 +755,35 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                           ),
                         );
                       }),
+                      const SizedBox(height: 12),
+
+                      // Shortcut to full 60-day calendar
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => BookAppointmentScreen(doctorId: doctor.id),
+                            ),
+                          );
+                        },
+                        icon: const Icon(LucideIcons.calendar, size: 16, color: AppTheme.primaryBlue),
+                        label: Text(
+                          'Need another date? Open 60-Day Calendar',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryBlue,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44),
+                          side: const BorderSide(color: Color(0xFFBFDBFE)),
+                          backgroundColor: const Color(0xFFF8FAFC),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 20),
 
                       // Fee display note
@@ -694,6 +816,9 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                     a.appointmentDateTime.year == selectedDate.year &&
                     a.appointmentDateTime.month == selectedDate.month &&
                     a.appointmentDateTime.day == selectedDate.day);
+                final isSelectedSlotUnavailable = _isSlotPast(selectedDate, _selectedTimeSlot) ||
+                    _isSlotBooked(selectedDate, _selectedTimeSlot, myAppts);
+                final isButtonDisabled = _isBooking || hasActiveOnDate || isSelectedSlotUnavailable;
 
                 return Container(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -708,16 +833,16 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                     ],
                   ),
                   child: GestureDetector(
-                    onTap: (_isBooking || hasActiveOnDate)
+                    onTap: isButtonDisabled
                         ? null
                         : () => _handleBookAppointment(doctor),
                     child: Container(
                       height: 56,
                       decoration: BoxDecoration(
-                        color: hasActiveOnDate ? AppTheme.textMuted : null,
-                        gradient: hasActiveOnDate ? null : AppTheme.primaryGradient,
+                        color: isButtonDisabled ? AppTheme.textMuted : null,
+                        gradient: isButtonDisabled ? null : AppTheme.primaryGradient,
                         borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                        boxShadow: hasActiveOnDate ? null : AppTheme.buttonShadow,
+                        boxShadow: isButtonDisabled ? null : AppTheme.buttonShadow,
                       ),
                       alignment: Alignment.center,
                       child: _isBooking
@@ -732,7 +857,9 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                           : Text(
                               hasActiveOnDate
                                   ? 'Already Booked on this Date'
-                                  : 'Book Session',
+                                  : isSelectedSlotUnavailable
+                                      ? 'Selected Slot Unavailable'
+                                      : 'Book Session ($_selectedTimeSlot)',
                               style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -822,9 +949,45 @@ class _DoctorProfileScreenState extends ConsumerState<DoctorProfileScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Text('100% verified patient feedback from clinical visits.',
                 style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary)),
+            if (doctor.reviews.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: doctor.reviews.length,
+                  separatorBuilder: (_, __) => const Divider(height: 16),
+                  itemBuilder: (_, i) {
+                    final rev = doctor.reviews[i];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              rev.patientName?.isNotEmpty == true ? rev.patientName! : 'Patient',
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                            StarRating(rating: rev.stars.toDouble(), size: 14),
+                          ],
+                        ),
+                        if (rev.comment != null && rev.comment!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            rev.comment!,
+                            style: GoogleFonts.inter(fontSize: 12.5, color: AppTheme.textSecondary),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
           ],
         ),
       ),

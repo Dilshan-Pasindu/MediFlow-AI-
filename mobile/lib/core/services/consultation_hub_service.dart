@@ -114,7 +114,7 @@ class ConsultationHubService {
   Future<void> joinDoctorQueue(int doctorId) async {
     if (_connection?.state != HubConnectionState.Connected) return;
     try {
-      await _connection!.invoke('JoinDoctorQueue', args: [doctorId.toString()]);
+      await _connection!.invoke('JoinDoctorQueue', args: [doctorId]);
     } catch (e) {
       debugPrint('[ConsultationHub] joinDoctorQueue error: $e');
     }
@@ -123,7 +123,7 @@ class ConsultationHubService {
   Future<void> leaveDoctorQueue(int doctorId) async {
     if (_connection?.state != HubConnectionState.Connected) return;
     try {
-      await _connection!.invoke('LeaveDoctorQueue', args: [doctorId.toString()]);
+      await _connection!.invoke('LeaveDoctorQueue', args: [doctorId]);
     } catch (e) {
       debugPrint('[ConsultationHub] leaveDoctorQueue error: $e');
     }
