@@ -1,21 +1,48 @@
-MIT License
+PROPRIETARY LICENSE
 
-Copyright (c) 2026 Dilshan Pasindu
+Copyright (c) 2026 Dilshan Pasindu. All Rights Reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+NOTICE: All information contained herein is, and remains the property of
+Dilshan Pasindu. The intellectual and technical concepts contained herein
+are proprietary to Dilshan Pasindu and are protected by copyright law.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+RESTRICTIONS — The following are strictly prohibited without the express
+prior written permission of Dilshan Pasindu:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+  1. Commercial Use — Using this software, in whole or in part, for any
+     commercial purpose, including but not limited to offering it as a
+     service, integrating it into a commercial product, or using it in
+     a business environment for revenue generation.
+
+  2. Distribution — Distributing, sublicensing, selling, renting, leasing,
+     or otherwise transferring this software or any derivative works to
+     any third party.
+
+  3. Modification for Redistribution — Modifying the source code and
+     distributing the modified version publicly or privately to others.
+
+  4. Removal of Notices — Removing or altering any copyright, trademark,
+     or proprietary rights notices contained in the software.
+
+PERMITTED USES — The following are allowed without explicit permission:
+
+  - Viewing and studying the source code for personal learning or
+    educational, non-commercial research purposes.
+  - Forking the repository solely for the purpose of submitting pull
+    requests or contributing changes back to the original repository.
+
+FORKS & CLONES — Any fork or clone of this repository inherits these
+restrictions in full. Forking this repository on GitHub or any other
+platform does NOT grant you a license to use, modify, or distribute
+this software for commercial purposes.
+
+NO WARRANTY — THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+ANY KIND, EXPRESS OR IMPLIED. IN NO EVENT SHALL THE COPYRIGHT HOLDER
+BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE
+USE OR INABILITY TO USE THIS SOFTWARE.
+
+TO OBTAIN A COMMERCIAL LICENSE — Contact the copyright holder:
+  GitHub: https://github.com/dilshanpasindu
+  
+Unauthorized commercial use of this software constitutes copyright
+infringement and may be subject to legal action.

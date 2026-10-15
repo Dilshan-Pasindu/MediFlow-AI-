@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../../core/network/api_client.dart';
 import '../../core/services/consultation_hub_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -17,6 +18,7 @@ class ConsultationStatus {
   final String? appointmentNumber;
   final int? doctorId;
   final String? doctorName;
+  final String? patientName;
   final DateTime? startedAt;
   final bool loading;
 
@@ -26,6 +28,7 @@ class ConsultationStatus {
     this.appointmentNumber,
     this.doctorId,
     this.doctorName,
+    this.patientName,
     this.startedAt,
     this.loading = false,
   });
@@ -36,6 +39,7 @@ class ConsultationStatus {
     String? appointmentNumber,
     int? doctorId,
     String? doctorName,
+    String? patientName,
     DateTime? startedAt,
     bool? loading,
   }) {
@@ -45,6 +49,7 @@ class ConsultationStatus {
       appointmentNumber: appointmentNumber ?? this.appointmentNumber,
       doctorId: doctorId ?? this.doctorId,
       doctorName: doctorName ?? this.doctorName,
+      patientName: patientName ?? this.patientName,
       startedAt: startedAt ?? this.startedAt,
       loading: loading ?? this.loading,
     );
@@ -53,13 +58,23 @@ class ConsultationStatus {
 
 // ── Widget ───────────────────────────────────────────────────────────────────
 
-/// Real-time "Now Consulting" banner for the mobile dashboard.
+/// Real-time "Now Consulting" banner for patient dashboard and appointments.
 /// Mirrors the web's NowConsultingCard component:
 ///  - Shows a doctor selector if the patient has multiple booked doctors
-///  - Connects to SignalR for live updates
-///  - Shows active appointment number when a consultation is live
+///  - Connects to SignalR ConsultationHub for live updates
+///  - Displays serving queue appointment number and patient's queue token
+///  - Includes safe polling fallback and automated subscription cleanup
 class NowConsultingWidget extends ConsumerStatefulWidget {
-  const NowConsultingWidget({super.key});
+  const NowConsultingWidget({
+    super.key,
+    this.doctorId,
+    this.doctorName,
+    this.patientAppointmentNumber,
+  });
+
+  final int? doctorId;
+  final String? doctorName;
+  final String? patientAppointmentNumber;
 
   @override
   ConsumerState<NowConsultingWidget> createState() => _NowConsultingWidgetState();
@@ -69,6 +84,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     with SingleTickerProviderStateMixin {
   ConsultationStatus _status = const ConsultationStatus();
   int? _selectedDoctorId;
+  Timer? _pollTimer;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
 
@@ -79,6 +95,8 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
   @override
   void initState() {
     super.initState();
+    _selectedDoctorId = widget.doctorId;
+
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -89,6 +107,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
 
     _onStarted = (payload) {
       if (!mounted) return;
+      ref.invalidate(myAppointmentsProvider);
       if (_selectedDoctorId == null || payload.doctorId != _selectedDoctorId) return;
       setState(() {
         _status = ConsultationStatus(
@@ -97,6 +116,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
           appointmentNumber: payload.appointmentNumber,
           doctorId: payload.doctorId,
           doctorName: payload.doctorName,
+          patientName: payload.patientName,
           startedAt: payload.startedAt,
           loading: false,
         );
@@ -105,6 +125,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
 
     _onEnded = (payload) {
       if (!mounted) return;
+      ref.invalidate(myAppointmentsProvider);
       if (_selectedDoctorId == null || payload.doctorId != _selectedDoctorId) return;
       setState(() {
         _status = const ConsultationStatus(hasActive: false, loading: false);
@@ -123,14 +144,37 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     ConsultationHubService.instance.onReconnected(_onReconnected);
 
     _connect();
+
+    // 15-second polite background polling fallback to ensure consistency
+    _pollTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      if (mounted && _selectedDoctorId != null) {
+        _fetchConsultation(_selectedDoctorId!, silent: true);
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant NowConsultingWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.doctorId != null && widget.doctorId != _selectedDoctorId) {
+      _selectDoctor(widget.doctorId!);
+    }
   }
 
   Future<void> _connect() async {
     await ConsultationHubService.instance.startConnection();
+    if (_selectedDoctorId != null) {
+      ConsultationHubService.instance.joinDoctorQueue(_selectedDoctorId!);
+      _fetchConsultation(_selectedDoctorId!);
+    }
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
+    if (_selectedDoctorId != null) {
+      ConsultationHubService.instance.leaveDoctorQueue(_selectedDoctorId!);
+    }
     ConsultationHubService.instance.offConsultationStarted(_onStarted);
     ConsultationHubService.instance.offConsultationEnded(_onEnded);
     ConsultationHubService.instance.offReconnected(_onReconnected);
@@ -138,8 +182,10 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     super.dispose();
   }
 
-  Future<void> _fetchConsultation(int doctorId) async {
-    setState(() => _status = _status.copyWith(loading: true));
+  Future<void> _fetchConsultation(int doctorId, {bool silent = false}) async {
+    if (!silent) {
+      setState(() => _status = _status.copyWith(loading: true));
+    }
     try {
       final data = await ApiClient.instance.get(
         '/appointments/current-consultation',
@@ -159,6 +205,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
           appointmentNumber: data['appointmentNumber'] as String?,
           doctorId: data['doctorId'] as int?,
           doctorName: data['doctorName'] as String?,
+          patientName: data['patientName'] as String?,
           startedAt: data['startedAt'] != null
               ? DateTime.tryParse(data['startedAt'] as String)
               : null,
@@ -166,12 +213,14 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
         );
       });
     } catch (_) {
-      if (mounted) setState(() => _status = const ConsultationStatus(hasActive: false, loading: false));
+      if (mounted && !silent) {
+        setState(() => _status = const ConsultationStatus(hasActive: false, loading: false));
+      }
     }
   }
 
   void _selectDoctor(int doctorId) async {
-    if (_selectedDoctorId != null) {
+    if (_selectedDoctorId != null && _selectedDoctorId != doctorId) {
       ConsultationHubService.instance.leaveDoctorQueue(_selectedDoctorId!);
     }
     setState(() {
@@ -187,20 +236,20 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     final apptsAsync = ref.watch(myAppointmentsProvider);
     final isConnected = ConsultationHubService.instance.isConnected;
 
-    // Extract unique doctors from patient's active appointments
-    List<AppointmentModel> bookedDoctors = [];
+    // Extract unique doctors from patient's active/non-cancelled appointments
+    final List<AppointmentModel> bookedDoctors = [];
     apptsAsync.whenData((appts) {
       final seen = <int>{};
       for (final a in appts) {
-        if (a.isUpcoming && !seen.contains(a.doctorId)) {
+        if (!a.isCancelledOrInactive && !seen.contains(a.doctorId)) {
           seen.add(a.doctorId);
           bookedDoctors.add(a);
         }
       }
     });
 
-    // Auto-select if only one booked doctor and none selected
-    if (bookedDoctors.length == 1 && _selectedDoctorId == null) {
+    // Auto-select if only one booked doctor and none currently selected
+    if (widget.doctorId == null && bookedDoctors.isNotEmpty && _selectedDoctorId == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _selectedDoctorId == null) {
           _selectDoctor(bookedDoctors.first.doctorId);
@@ -299,8 +348,8 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
 
                       const SizedBox(height: 10),
 
-                      // Doctor selector (if multiple)
-                      if (bookedDoctors.length > 1) ...[
+                      // Doctor selector (if multiple doctors booked and no fixed doctor requested)
+                      if (widget.doctorId == null && bookedDoctors.length > 1) ...[
                         _buildDoctorSelector(bookedDoctors),
                         const SizedBox(height: 10),
                       ],
@@ -310,8 +359,10 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
                         loading: () => _buildShimmer(),
                         error: (_, __) => _buildNoBookingsMessage(),
                         data: (appts) {
-                          if (bookedDoctors.isEmpty) return _buildNoBookingsMessage();
-                          return _buildConsultationContent(hasActive);
+                          if (bookedDoctors.isEmpty && widget.doctorId == null) {
+                            return _buildNoBookingsMessage();
+                          }
+                          return _buildConsultationContent(hasActive, appts);
                         },
                       ),
                     ],
@@ -440,7 +491,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     );
   }
 
-  Widget _buildConsultationContent(bool hasActive) {
+  Widget _buildConsultationContent(bool hasActive, List<AppointmentModel> myAppts) {
     if (_selectedDoctorId == null) {
       return Text(
         'Select a doctor above to view live consultation status.',
@@ -453,6 +504,16 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
     }
 
     if (_status.loading) return _buildShimmer();
+
+    // Check patient's own appointment with this doctor
+    final patientAppt = myAppts
+        .where((a) => a.doctorId == _selectedDoctorId && !a.isCancelledOrInactive)
+        .firstOrNull;
+    final patientToken = widget.patientAppointmentNumber ?? patientAppt?.appointmentNumber;
+    final isMyTurn = hasActive &&
+        patientToken != null &&
+        _status.appointmentNumber != null &&
+        _status.appointmentNumber == patientToken;
 
     if (hasActive) {
       return Column(
@@ -472,7 +533,7 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
-                'Appointment No: ',
+                'Serving #: ',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -495,38 +556,120 @@ class _NowConsultingWidgetState extends ConsumerState<NowConsultingWidget>
                   ),
                 ),
               ),
+              if (_status.startedAt != null) ...[
+                const Spacer(),
+                Row(
+                  children: [
+                    const Icon(LucideIcons.clock, size: 12, color: AppTheme.textMuted),
+                    const SizedBox(width: 4),
+                    Text(
+                      DateFormat('hh:mm a').format(_status.startedAt!),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'The doctor is currently seeing this appointment.',
-            style: GoogleFonts.inter(
-              fontSize: 11.5,
-              color: AppTheme.textSecondary,
+          const SizedBox(height: 6),
+          if (isMyTurn) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFA7F3D0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.circleCheck, color: Color(0xFF059669), size: 14),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'It is your turn! The doctor is currently seeing you.',
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF065F46),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    patientToken != null
+                        ? 'Your token: $patientToken (Please wait for your turn).'
+                        : 'The doctor is currently consulting this appointment.',
+                    style: GoogleFonts.inter(
+                      fontSize: 11.5,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       );
     } else {
-      return Text(
-        'No appointment is currently being consulted. Updates will appear here in real time.',
-        style: GoogleFonts.inter(
-          fontSize: 12.5,
-          color: AppTheme.textSecondary,
-          height: 1.4,
-        ),
+      final docName = widget.doctorName ?? _status.doctorName ?? 'the doctor';
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No appointment is currently being consulted.',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            patientToken != null
+                ? 'Your token is $patientToken. When $docName calls a number, it will appear here live.'
+                : 'When $docName calls a consultation number, it will appear here in real time.',
+            style: GoogleFonts.inter(
+              fontSize: 11.5,
+              color: AppTheme.textMuted,
+            ),
+          ),
+        ],
       );
     }
   }
 
   Widget _buildNoBookingsMessage() {
-    return Text(
-      'No active booked appointments. Book a doctor to track live consultation status.',
-      style: GoogleFonts.inter(
-        fontSize: 12.5,
-        color: AppTheme.textSecondary,
-        height: 1.4,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'No Booked Doctor Consultations',
+          style: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          'You do not have any active booked appointments with our physicians. Live consultation tracking will become available once you book an appointment with a doctor.',
+          style: GoogleFonts.inter(
+            fontSize: 11.5,
+            color: AppTheme.textMuted,
+            height: 1.35,
+          ),
+        ),
+      ],
     );
   }
 

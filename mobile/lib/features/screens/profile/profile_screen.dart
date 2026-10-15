@@ -56,9 +56,12 @@ class ProfileScreen extends ConsumerWidget {
               child: const Icon(LucideIcons.pencil, size: 18, color: AppTheme.primaryBlue),
             ),
             tooltip: 'Edit Profile',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-            ),
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+              );
+              ref.invalidate(patientProfileProvider);
+            },
           ),
           const SizedBox(width: 10),
         ],

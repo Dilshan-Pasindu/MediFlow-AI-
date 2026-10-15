@@ -203,6 +203,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await prefs.setString(AppConfig.userKey, jsonEncode(user.toJson()));
   }
 
+  Future<void> updateCurrentUser({String? fullName}) async {
+    if (state.user == null) return;
+    final updated = UserModel(
+      userId: state.user!.userId,
+      fullName: fullName ?? state.user!.fullName,
+      email: state.user!.email,
+      role: state.user!.role,
+      token: state.user!.token,
+      expiresAt: state.user!.expiresAt,
+      verificationStatus: state.user!.verificationStatus,
+      registrationNumber: state.user!.registrationNumber,
+    );
+    await _persist(updated);
+    state = state.copyWith(user: updated);
+  }
+
   void clearError() => state = state.copyWith(clearError: true);
 }
 

@@ -118,8 +118,13 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
             if (filtered.isEmpty) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
                 children: [
-                  const SizedBox(height: 80),
+                  if (_selectedTab == 'upcoming') ...[
+                    const NowConsultingWidget(),
+                    const SizedBox(height: 24),
+                  ] else
+                    const SizedBox(height: 60),
                   Center(
                     child: Container(
                       width: 72,
@@ -170,12 +175,25 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
 
             return ListView.separated(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 110),
-              itemCount: filtered.length,
+              itemCount: filtered.length + (_selectedTab == 'upcoming' ? 1 : 0),
               separatorBuilder: (_, __) => const SizedBox(height: 14),
-              itemBuilder: (context, i) => _AppointmentCard(
-                appointment: filtered[i],
-                onCancel: () => _handleCancel(filtered[i].id),
-              ),
+              itemBuilder: (context, i) {
+                if (_selectedTab == 'upcoming') {
+                  if (i == 0) {
+                    return const NowConsultingWidget();
+                  }
+                  final appt = filtered[i - 1];
+                  return _AppointmentCard(
+                    appointment: appt,
+                    onCancel: () => _handleCancel(appt.id),
+                  );
+                }
+                final appt = filtered[i];
+                return _AppointmentCard(
+                  appointment: appt,
+                  onCancel: () => _handleCancel(appt.id),
+                );
+              },
             );
           },
         ),
@@ -217,7 +235,12 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
 
     if (confirmed == true) {
       try {
-        await ApiClient.instance.delete('/appointments/$id');
+        const reason = 'Cancelled by patient';
+        try {
+          await ApiClient.instance.post('/payment/appointments/$id/cancel', body: {'reason': reason});
+        } catch (_) {
+          await ApiClient.instance.delete('/patient/appointments/$id', body: {'reason': reason});
+        }
         ref.invalidate(myAppointmentsProvider);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -231,7 +254,10 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${e.toString()}', style: GoogleFonts.inter()),
+              content: Text(
+                'Error: ${e.toString().replaceFirst("ApiException: ", "").replaceFirst("Exception: ", "")}',
+                style: GoogleFonts.inter(),
+              ),
               backgroundColor: const Color(0xFFDC2626),
             ),
           );
@@ -320,7 +346,7 @@ class _AppointmentCard extends ConsumerWidget {
             MaterialPageRoute(
               builder: (_) => AppointmentDetailScreen(id: appointment.id),
             ),
-          ),
+          ).then((_) => ref.invalidate(myAppointmentsProvider)),
           child: Padding(
             padding: const EdgeInsets.all(18),
             child: Column(
@@ -359,7 +385,63 @@ class _AppointmentCard extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    _buildStatusPill(appointment.status),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildStatusPill(appointment.status),
+                        if (appointment.isCompleted) ...[
+                          const SizedBox(height: 5),
+                          if (appointment.hasRated && appointment.rating != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFFDE68A)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(LucideIcons.star, size: 10, color: Color(0xFFD97706)),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    '${appointment.rating!.stars}.0 Rated',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF92400E),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF0FDF4),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFBBF7D0)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(LucideIcons.sparkles, size: 10, color: Color(0xFF16A34A)),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    'Rate Doctor',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFF15803D),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
 
@@ -446,7 +528,7 @@ class _AppointmentCard extends ConsumerWidget {
                           MaterialPageRoute(
                             builder: (_) => AppointmentDetailScreen(id: appointment.id),
                           ),
-                        ),
+                        ).then((_) => ref.invalidate(myAppointmentsProvider)),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppTheme.primaryBlue,
                           side: const BorderSide(color: AppTheme.cardBorder),
@@ -459,6 +541,34 @@ class _AppointmentCard extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    if (appointment.isCompleted) ...[
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => AppointmentDetailScreen(
+                              id: appointment.id,
+                              openRating: true,
+                            ),
+                          ),
+                        ).then((_) => ref.invalidate(myAppointmentsProvider)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: appointment.hasRated ? const Color(0xFFF59E0B) : const Color(0xFF0D9488),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                        icon: Icon(
+                          appointment.hasRated ? LucideIcons.star : LucideIcons.sparkles,
+                          size: 14,
+                        ),
+                        label: Text(
+                          appointment.hasRated ? 'Edit Review' : 'Rate Doctor',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
                     if (appointment.isPaymentPending) ...[
                       const SizedBox(width: 8),
                       ElevatedButton.icon(

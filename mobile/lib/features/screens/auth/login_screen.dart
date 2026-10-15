@@ -160,44 +160,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                       ),
                       const Spacer(),
-                      // Server indicator & switch button
-                      GestureDetector(
-                        onTap: () => _showServerDialog(context),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                width: 7, height: 7,
-                                decoration: BoxDecoration(
-                                  color: AppConfig.apiBaseUrl.contains('render')
-                                      ? const Color(0xFF00D4FF)
-                                      : const Color(0xFF10B981),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                AppConfig.apiBaseUrl.contains('render') ? 'Cloud' : 'Local',
-                                style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white70,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(LucideIcons.settings2, size: 12, color: Colors.white70),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
+
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
@@ -347,7 +310,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                         onPressed: () => _showServerDialog(context),
                                         icon: const Icon(LucideIcons.settings2, size: 14, color: _kCyan),
                                         label: Text(
-                                          'Change Server (${AppConfig.apiBaseUrl.contains('render') ? "Cloud" : "Local"})',
+                                          'Server Settings',
                                           style: GoogleFonts.inter(fontSize: 12, color: _kCyan, fontWeight: FontWeight.w600),
                                         ),
                                       ),
@@ -570,7 +533,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                   const SizedBox(height: 16),
                   _buildServerTile(
-                    title: 'Render Cloud Backend (Live)',
+                    title: 'Production Backend (Live)',
                     subtitle: AppConfig.cloudApiBaseUrl,
                     isSelected: AppConfig.apiBaseUrl == AppConfig.cloudApiBaseUrl,
                     onTap: () async {

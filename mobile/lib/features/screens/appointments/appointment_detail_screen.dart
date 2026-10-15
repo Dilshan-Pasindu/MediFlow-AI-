@@ -72,6 +72,8 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
   bool _submittingRating = false;
   bool _ratingDone = false;
   bool _showRatingPanel = false;
+  RatingModel? _localRating;
+  AppointmentModel? _freshAppt;
 
   // Cancel
   bool _showCancelSheet = false;
@@ -83,10 +85,55 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
   @override
   void initState() {
     super.initState();
+    _loadFreshAppointment();
     if (widget.openRating) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() => _showRatingPanel = true);
       });
+    }
+  }
+
+  Future<void> _loadFreshAppointment() async {
+    try {
+      final res = await ApiClient.instance.get('/appointments/${widget.id}');
+      if (res is Map<String, dynamic>) {
+        final parsed = AppointmentModel.fromJson(res);
+        if (mounted) {
+          setState(() {
+            _freshAppt = parsed;
+            if (parsed.rating != null) {
+              _localRating = parsed.rating;
+              _ratingScore = parsed.rating!.stars.toDouble();
+              if (_reviewCtrl.text.isEmpty && parsed.rating!.comment != null) {
+                _reviewCtrl.text = parsed.rating!.comment!;
+              }
+            }
+          });
+        }
+      }
+    } catch (_) {
+      // Gracefully fall back to Riverpod provider cache
+    }
+
+    if (_localRating == null) {
+      try {
+        final ratingRes = await ApiClient.instance.get('/appointments/${widget.id}/rating');
+        if (ratingRes is Map<String, dynamic> && (ratingRes['hasRated'] == true || ratingRes['stars'] != null || ratingRes['Stars'] != null)) {
+          final r = RatingModel.fromJson(ratingRes);
+          if (mounted) {
+            setState(() {
+              _localRating = r;
+              _ratingScore = r.stars.toDouble();
+              if (_reviewCtrl.text.isEmpty && r.comment != null) {
+                _reviewCtrl.text = r.comment!;
+              }
+              if (_freshAppt != null) {
+                _freshAppt = _freshAppt!.copyWith(hasRated: true, rating: r);
+              }
+            });
+          }
+        }
+      } catch (_) {}
     }
   }
 
@@ -98,31 +145,79 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
   }
 
   AppointmentModel? _findAppt(List<AppointmentModel> appts) {
+    if (_freshAppt != null) return _freshAppt;
     try { return appts.firstWhere((a) => a.id == widget.id); }
     catch (_) { return null; }
   }
 
   // ── Submit Rating ───────────────────────────────────────────────────────────
   Future<void> _submitRating() async {
+    final stars = _ratingScore.clamp(1, 5).round();
+    final comment = _reviewCtrl.text.trim().isEmpty ? null : _reviewCtrl.text.trim();
+
     setState(() => _submittingRating = true);
     try {
-      await ApiClient.instance.post('/appointments/${widget.id}/rate', body: {
-        'stars': _ratingScore.toInt(),
-        'comment': _reviewCtrl.text.trim().isEmpty ? null : _reviewCtrl.text.trim(),
+      final res = await ApiClient.instance.post('/appointments/${widget.id}/rate', body: {
+        'stars': stars,
+        'Stars': stars,
+        'rating': stars,
+        'Rating': stars,
+        'comment': comment,
+        'Comment': comment,
+        'review': comment,
+        'Review': comment,
       });
-      setState(() { _ratingDone = true; _showRatingPanel = false; });
+
+      RatingModel submittedRating = RatingModel(stars: stars, comment: comment);
+      if (res is Map<String, dynamic>) {
+        try {
+          submittedRating = RatingModel.fromJson(res);
+        } catch (_) {}
+      }
+
+      setState(() {
+        _localRating = submittedRating;
+        _ratingDone = true;
+        _showRatingPanel = false;
+        if (_freshAppt != null) {
+          _freshAppt = _freshAppt!.copyWith(
+            hasRated: true,
+            rating: submittedRating,
+          );
+        }
+      });
+
       ref.invalidate(myAppointmentsProvider);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Thank you for your feedback! ⭐', style: GoogleFonts.inter()),
-              backgroundColor: AppTheme.statusConfirmed),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(LucideIcons.sparkles, color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Thank you for your feedback! ⭐ $stars Stars',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppTheme.statusConfirmed,
+          ),
         );
       }
     } catch (e) {
+      final errorMsg = e is ApiException
+          ? e.message
+          : e.toString().replaceFirst('ApiException: ', '').replaceFirst('Exception: ', '');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit rating: $e', style: GoogleFonts.inter()),
-              backgroundColor: AppTheme.statusInConsult),
+          SnackBar(
+            content: Text('Failed to submit rating: $errorMsg', style: GoogleFonts.inter()),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
         );
       }
     } finally {
@@ -165,7 +260,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
       try {
         await ApiClient.instance.post('/payment/appointments/${widget.id}/cancel', body: {'reason': reason});
       } catch (_) {
-        await ApiClient.instance.post('/appointments/${widget.id}/cancel', body: {'reason': reason});
+        await ApiClient.instance.delete('/patient/appointments/${widget.id}', body: {'reason': reason});
       }
 
       ref.invalidate(myAppointmentsProvider);
@@ -236,8 +331,15 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
     final date = a.appointmentDateTime;
     final isCancellable = a.isCancellable;
 
-    return CustomScrollView(
-      slivers: [
+    return RefreshIndicator(
+      color: AppTheme.primaryBlue,
+      onRefresh: () async {
+        await _loadFreshAppointment();
+        ref.invalidate(myAppointmentsProvider);
+      },
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
         // ── Gradient Header ────────────────────────────────────────────────
         SliverToBoxAdapter(
           child: Container(
@@ -359,6 +461,16 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
                   ),
                 ),
                 const SizedBox(height: 12),
+              ],
+
+              // ── Live Consultation & Queue Tracking ────────────────────────
+              if (!a.isCancelledOrInactive && a.status != 'Cancelled' && a.status != 'NoShow' && a.status != 'Completed' && a.doctorId > 0) ...[
+                NowConsultingWidget(
+                  doctorId: a.doctorId,
+                  doctorName: a.doctorName,
+                  patientAppointmentNumber: a.appointmentNumber,
+                ),
+                const SizedBox(height: 14),
               ],
 
               // ── Status Stepper ────────────────────────────────────────────
@@ -627,85 +739,255 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
 
               // ── Rating Section (for completed appointments) ───────────────
               if (a.isCompleted) ...[
-                if (a.hasRated && a.rating != null) ...[
-                  MedCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Your Rating',
-                            style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 8),
-                        StarRating(rating: a.rating!.stars.toDouble(), size: 20),
-                        if (a.rating!.comment != null && a.rating!.comment!.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text('"${a.rating!.comment!}"',
-                              style: GoogleFonts.inter(fontSize: 13, fontStyle: FontStyle.italic, color: AppTheme.textSecondary)),
-                        ],
-                      ],
-                    ),
-                  ),
-                ] else if (!_ratingDone) ...[
-                  MedCard(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          const Icon(LucideIcons.star, color: Color(0xFFF59E0B), size: 20),
-                          const SizedBox(width: 8),
-                          Text('Rate Your Consultation',
-                              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
-                        ]),
-                        const SizedBox(height: 12),
-                        if (_showRatingPanel) ...[
-                          RatingBar.builder(
-                            initialRating: _ratingScore,
-                            minRating: 1,
-                            direction: Axis.horizontal,
-                            itemCount: 5,
-                            itemSize: 36,
-                            itemBuilder: (_, __) => const Icon(LucideIcons.star, color: Color(0xFFF59E0B)),
-                            onRatingUpdate: (r) => setState(() => _ratingScore = r),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _reviewCtrl,
-                            maxLines: 3,
-                            style: GoogleFonts.inter(fontSize: 13),
-                            decoration: InputDecoration(
-                              hintText: 'Share your experience (optional)...',
-                              hintStyle: GoogleFonts.inter(fontSize: 13, color: AppTheme.textMuted),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                                borderSide: const BorderSide(color: AppTheme.divider),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                                borderSide: const BorderSide(color: AppTheme.primaryDeep, width: 2),
-                              ),
-                              filled: true, fillColor: AppTheme.surfaceDim,
+                Builder(
+                  builder: (context) {
+                    final effectiveRating = _localRating ?? a.rating;
+                    final hasRated = (a.hasRated && effectiveRating != null) ||
+                        _localRating != null ||
+                        _ratingDone;
+
+                    if (hasRated && effectiveRating != null && !_showRatingPanel) {
+                      return MedCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    const Icon(LucideIcons.star,
+                                        color: Color(0xFFF59E0B), size: 18),
+                                    const SizedBox(width: 8),
+                                    Text('Your Consultation Rating',
+                                        style: GoogleFonts.inter(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700)),
+                                  ],
+                                ),
+                                TextButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _ratingScore =
+                                          effectiveRating.stars.toDouble();
+                                      _reviewCtrl.text =
+                                          effectiveRating.comment ?? '';
+                                      _showRatingPanel = true;
+                                    });
+                                  },
+                                  icon: const Icon(LucideIcons.pencil, size: 14),
+                                  label: Text('Edit',
+                                      style: GoogleFonts.inter(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 12)),
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                StarRating(
+                                    rating: effectiveRating.stars.toDouble(),
+                                    size: 22),
+                                const SizedBox(width: 10),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFFBEB),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                        color: const Color(0xFFFDE68A)),
+                                  ),
+                                  child: Text(
+                                    '${effectiveRating.stars} / 5',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFFB45309)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (effectiveRating.comment != null &&
+                                effectiveRating.comment!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 10),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.surfaceDim,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: AppTheme.divider),
+                                ),
+                                child: Text(
+                                  '"${effectiveRating.comment!}"',
+                                  style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontStyle: FontStyle.italic,
+                                      color: AppTheme.textSecondary),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    }
+
+                    return MedCard(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(LucideIcons.star,
+                                      color: Color(0xFFF59E0B), size: 20),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    hasRated
+                                        ? 'Update Your Feedback'
+                                        : 'Rate Your Consultation',
+                                    style: GoogleFonts.inter(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700),
+                                  ),
+                                ],
+                              ),
+                              if (hasRated && _showRatingPanel)
+                                IconButton(
+                                  icon: const Icon(LucideIcons.x, size: 18),
+                                  onPressed: () => setState(
+                                      () => _showRatingPanel = false),
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 12),
-                          MedPrimaryButton(
-                            label: 'Submit Rating',
-                            onPressed: _submitRating,
-                            isLoading: _submittingRating,
-                            icon: LucideIcons.star,
-                          ),
-                        ] else ...[
-                          Text('How was your consultation with Dr. ${a.doctorName}?',
-                              style: GoogleFonts.inter(fontSize: 13, color: AppTheme.textSecondary)),
-                          const SizedBox(height: 10),
-                          OutlinedButton.icon(
-                            onPressed: () => setState(() => _showRatingPanel = true),
-                            icon: const Icon(LucideIcons.star, size: 16),
-                            label: Text('Rate Now', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
-                          ),
+                          if (_showRatingPanel || !hasRated) ...[
+                            Center(
+                              child: Column(
+                                children: [
+                                  RatingBar.builder(
+                                    initialRating: _ratingScore,
+                                    minRating: 1,
+                                    direction: Axis.horizontal,
+                                    allowHalfRating: false,
+                                    itemCount: 5,
+                                    itemSize: 38,
+                                    itemPadding: const EdgeInsets.symmetric(
+                                        horizontal: 4),
+                                    itemBuilder: (_, __) => const Icon(
+                                        LucideIcons.star,
+                                        color: Color(0xFFF59E0B)),
+                                    onRatingUpdate: (r) =>
+                                        setState(() => _ratingScore = r),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    switch (_ratingScore.toInt()) {
+                                      1 => '1 Star — Poor',
+                                      2 => '2 Stars — Fair',
+                                      3 => '3 Stars — Good',
+                                      4 => '4 Stars — Very Good',
+                                      5 => '5 Stars — Excellent',
+                                      _ => '${_ratingScore.toInt()} Stars',
+                                    },
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: const Color(0xFFB45309),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            TextFormField(
+                              controller: _reviewCtrl,
+                              maxLines: 3,
+                              style: GoogleFonts.inter(fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText:
+                                    'Share your consultation experience (optional)...',
+                                hintStyle: GoogleFonts.inter(
+                                    fontSize: 13, color: AppTheme.textMuted),
+                                border: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppTheme.radiusMd),
+                                  borderSide:
+                                      const BorderSide(color: AppTheme.divider),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius:
+                                      BorderRadius.circular(AppTheme.radiusMd),
+                                  borderSide: const BorderSide(
+                                      color: AppTheme.primaryDeep, width: 2),
+                                ),
+                                filled: true,
+                                fillColor: AppTheme.surfaceDim,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              children: [
+                                if (hasRated) ...[
+                                  Expanded(
+                                    child: OutlinedButton(
+                                      onPressed: () => setState(
+                                          () => _showRatingPanel = false),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 14),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                                AppTheme.radiusFull)),
+                                      ),
+                                      child: Text('Cancel',
+                                          style: GoogleFonts.inter(
+                                              fontWeight: FontWeight.w600)),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                ],
+                                Expanded(
+                                  flex: 2,
+                                  child: MedPrimaryButton(
+                                    label: hasRated
+                                        ? 'Update Feedback'
+                                        : 'Submit Rating',
+                                    onPressed: _submittingRating
+                                        ? null
+                                        : _submitRating,
+                                    isLoading: _submittingRating,
+                                    icon: LucideIcons.star,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ] else ...[
+                            Text(
+                              'How was your consultation with Dr. ${a.doctorName}?',
+                              style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  color: AppTheme.textSecondary),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: () =>
+                                  setState(() => _showRatingPanel = true),
+                              icon: const Icon(LucideIcons.star, size: 16),
+                              label: Text('Rate Now',
+                                  style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w700)),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                  ),
-                ],
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 12),
               ],
 
@@ -714,6 +996,7 @@ class _AppointmentDetailScreenState extends ConsumerState<AppointmentDetailScree
           ),
         ),
       ],
+    ),
     );
   }
 

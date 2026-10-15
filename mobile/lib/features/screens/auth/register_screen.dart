@@ -34,6 +34,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   final _confCtrl  = TextEditingController();
   bool _obscurePass = true;
   bool _obscureConf = true;
+  bool _agreeTerms = false;
+  String? _termsError;
+  String? _passwordStrengthError;
+
   late final AnimationController _slideCtrl;
   late final Animation<Offset> _slideAnim;
 
@@ -53,6 +57,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideCtrl, curve: Curves.easeOutCubic));
     _slideCtrl.forward();
+
+    _passCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -66,8 +74,68 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     super.dispose();
   }
 
+  // ── Password Strength Calculation (Matching Web) ──────────────────────────
+  int _calculatePasswordScore(String p) {
+    if (p.isEmpty) return 0;
+    int score = 0;
+    if (p.length >= 8) score++;
+    if (RegExp(r'[A-Z]').hasMatch(p) && RegExp(r'[a-z]').hasMatch(p)) score++;
+    if (RegExp(r'[0-9]').hasMatch(p)) score++;
+    if (RegExp(r'[^A-Za-z0-9]').hasMatch(p)) score++;
+    return score;
+  }
+
+  String _passwordStrengthLabel(int score) {
+    switch (score) {
+      case 4:
+        return 'Strong';
+      case 3:
+        return 'Good';
+      case 2:
+        return 'Fair';
+      default:
+        return 'Weak';
+    }
+  }
+
+  Color _passwordStrengthColor(int score) {
+    switch (score) {
+      case 4:
+        return const Color(0xFF10B981);
+      case 3:
+        return const Color(0xFF3B82F6);
+      case 2:
+        return const Color(0xFFF59E0B);
+      default:
+        return const Color(0xFFEF4444);
+    }
+  }
+
   Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _termsError = null;
+      _passwordStrengthError = null;
+    });
+
+    final valid = _formKey.currentState!.validate();
+
+    final pScore = _calculatePasswordScore(_passCtrl.text);
+    if (_passCtrl.text.isNotEmpty && pScore < 2) {
+      setState(() {
+        _passwordStrengthError =
+            'Please choose a stronger password with a mix of letters, numbers, or symbols.';
+      });
+    }
+
+    if (!_agreeTerms) {
+      setState(() {
+        _termsError =
+            'You must accept the MediFlow AI Terms of Service & Privacy Policy.';
+      });
+    }
+
+    if (!valid || pScore < 2 || !_agreeTerms) return;
+
     final success = await ref.read(authProvider.notifier).register(
           fullName: _nameCtrl.text.trim(),
           email: _emailCtrl.text.trim(),
@@ -87,6 +155,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final size = MediaQuery.of(context).size;
+    final passwordText = _passCtrl.text;
+    final pScore = _calculatePasswordScore(passwordText);
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -314,8 +384,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             if (v == null || v.trim().isEmpty) {
                               return 'Full name is required';
                             }
-                            if (v.trim().length < 2) {
+                            final trimmed = v.trim();
+                            if (trimmed.length < 2) {
                               return 'Name must be at least 2 characters';
+                            }
+                            if (!RegExp(r"^[a-zA-Z\s.'-]+$").hasMatch(trimmed)) {
+                              return 'Name should only contain letters and spaces';
                             }
                             return null;
                           },
@@ -327,9 +401,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                           icon: LucideIcons.mail,
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
-                          validator: (v) => v == null || !v.contains('@')
-                              ? 'Enter a valid email'
-                              : null,
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Email address is required';
+                            }
+                            final trimmed = v.trim();
+                            if (!RegExp(r"^[^\s@]+@[^\s@]+\.[^\s@]+$").hasMatch(trimmed)) {
+                              return 'Please enter a valid email address';
+                            }
+                            return null;
+                          },
                         ),
                         const SizedBox(height: 12),
                         _DarkRegField(
@@ -342,8 +423,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             if (v == null || v.trim().isEmpty) {
                               return 'Phone number is required';
                             }
-                            if (v.trim().length < 7) {
-                              return 'Enter a valid phone number';
+                            final cleanPhone = v.replaceAll(RegExp(r'[\s\-()]'), '');
+                            if (!RegExp(r'^\+?[0-9]{9,15}$').hasMatch(cleanPhone)) {
+                              return 'Please enter a valid phone number (min 9 digits)';
                             }
                             return null;
                           },
@@ -355,7 +437,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                         const SizedBox(height: 12),
                         _DarkRegField(
                           label: 'Password',
-                          hint: 'Min. 6 characters',
+                          hint: 'Min. 8 characters',
                           icon: LucideIcons.lock,
                           controller: _passCtrl,
                           obscure: _obscurePass,
@@ -374,12 +456,55 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             if (v == null || v.isEmpty) {
                               return 'Password is required';
                             }
-                            if (v.length < 6) {
-                              return 'Password must be at least 6 characters';
+                            if (v.length < 8) {
+                              return 'Password must be at least 8 characters';
                             }
                             return null;
                           },
                         ),
+
+                        // Password strength indicator (Matching Web)
+                        if (passwordText.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: (pScore / 4.0).clamp(0.1, 1.0),
+                                    minHeight: 5,
+                                    backgroundColor: Colors.white.withValues(alpha: 0.12),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      _passwordStrengthColor(pScore),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Strength: ${_passwordStrengthLabel(pScore)}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _passwordStrengthColor(pScore),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+
+                        if (_passwordStrengthError != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            _passwordStrengthError!,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.red.shade300,
+                            ),
+                          ),
+                        ],
+
                         const SizedBox(height: 12),
                         _DarkRegField(
                           label: 'Confirm Password',
@@ -398,17 +523,87 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                               color: Colors.white.withValues(alpha: 0.45),
                             ),
                           ),
-                          validator: (v) => v != _passCtrl.text
-                              ? 'Passwords do not match'
-                              : null,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) {
+                              return 'Please confirm your password';
+                            }
+                            if (v != _passCtrl.text) {
+                              return 'Passwords do not match';
+                            }
+                            return null;
+                          },
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 18),
+
+                        // Terms of Service Checkbox (Matching Web)
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              _agreeTerms = !_agreeTerms;
+                              if (_agreeTerms) _termsError = null;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: Checkbox(
+                                    value: _agreeTerms,
+                                    activeColor: _kCyan,
+                                    checkColor: _kBgDeep,
+                                    side: BorderSide(
+                                      color: _termsError != null
+                                          ? Colors.red.shade300
+                                          : Colors.white.withValues(alpha: 0.4),
+                                      width: 1.5,
+                                    ),
+                                    onChanged: (val) {
+                                      setState(() {
+                                        _agreeTerms = val ?? false;
+                                        if (_agreeTerms) _termsError = null;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'I agree to the MediFlow AI Terms of Service & Privacy Policy.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12.5,
+                                      color: Colors.white.withValues(alpha: 0.75),
+                                      height: 1.4,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        if (_termsError != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            _termsError!,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: Colors.red.shade300,
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 24),
 
                         // CTA
                         _CyanGradientButton(
                           label: 'Create Account',
                           isLoading: auth.isLoading,
-                          onPressed: _register,
+                          onPressed: auth.isLoading ? () {} : _register,
                         ),
                         const SizedBox(height: 20),
 
@@ -462,17 +657,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
                             ),
                           ],
                         ),
-
                         const SizedBox(height: 20),
-                        Text(
-                          'By creating an account you agree to our\nTerms of Service and Privacy Policy.',
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: Colors.white.withValues(alpha: 0.28),
-                              height: 1.5),
-                        ),
-                        const SizedBox(height: 12),
 
                         // 24/7 Help Center
                         const AuthHelpCenterCard(),
