@@ -12,11 +12,23 @@
 [![AI Subsystem](https://img.shields.io/badge/AI-LangGraph%20%2F%20FastAPI%20100k%20RAG-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![Tests](https://img.shields.io/badge/Tests-139%20.NET%20%7C%20109%20Python%20PASS-success?style=for-the-badge)](./tests)
 [![Auth](https://img.shields.io/badge/Auth-JWT%20%2B%20Supabase-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](./LICENSE)
+[![License](https://img.shields.io/badge/License-Proprietary%20%7C%20All%20Rights%20Reserved-red?style=for-the-badge)](./LICENSE)
+
+---
+
+> [!CAUTION]
+> **⚠️ PROPRIETARY SOFTWARE — ALL RIGHTS RESERVED**
+> 
+> This project is **NOT open source** and is protected under a proprietary license.  
+> **Commercial use, redistribution, sublicensing, and sale are strictly prohibited** without explicit written permission from the author.  
+> Forking or cloning this repository does **not** grant you a license to use it commercially.  
+> Unauthorized commercial use constitutes copyright infringement. See [LICENSE](./LICENSE) for full terms.  
+> To inquire about a commercial license, contact: **[GitHub: dilshanpasindu](https://github.com/dilshanpasindu)**
 
 ---
 
 ## 📑 Table of Contents
+
 
 - [Overview](#-overview)
 - [Core Design Principle: Human-in-the-Loop](#-core-design-principle-human-in-the-loop)
