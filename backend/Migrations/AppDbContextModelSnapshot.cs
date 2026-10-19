@@ -513,6 +513,33 @@ namespace MediFlow.Api.Migrations
                     b.ToTable("DrugInteractionLogs");
                 });
 
+            modelBuilder.Entity("MediFlow.Api.Models.IdempotencyRecord", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PayloadHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<int>("PrescriptionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Key");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("IdempotencyRecords");
+                });
+
             modelBuilder.Entity("MediFlow.Api.Models.InventoryBatch", b =>
                 {
                     b.Property<int>("Id")
@@ -1002,6 +1029,12 @@ namespace MediFlow.Api.Migrations
 
                     b.Property<int?>("AppointmentId")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ApprovalHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentHash")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");

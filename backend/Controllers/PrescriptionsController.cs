@@ -1,5 +1,8 @@
 using System.Globalization;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using MediFlow.Api.Data;
 using MediFlow.Api.DTOs;
 using MediFlow.Api.Extensions;
@@ -28,12 +31,40 @@ public class PrescriptionsController : ControllerBase
         _ai = ai;
     }
 
-    // ─── Helper ────────────────────────────────────────────────────────────
+    // ─── Helpers ───────────────────────────────────────────────────────────
 
     private int? TryGetUserId()
     {
         var id = User.GetUserId(_db);
         return id > 0 ? id : null;
+    }
+
+    /// <summary>
+    /// Computes a deterministic SHA-256 hex digest of the prescription item list.
+    /// Items are sorted and canonicalized so that order does not affect the hash.
+    /// This hash is stored on the prescription to detect silent payload mutations
+    /// after clinical safety approval.
+    /// Format per item: "MedicineName|Dosage|Frequency|Duration|Quantity"
+    /// </summary>
+    internal static string ComputeContentHash(IEnumerable<CreatePrescriptionItemDto> items)
+    {
+        var canonical = items
+            .Select(i => $"{i.MedicineName.Trim().ToUpperInvariant()}|{i.Dosage.Trim()}|{i.Frequency.Trim()}|{i.Duration.Trim()}|{i.Quantity}")
+            .OrderBy(s => s)
+            .Aggregate((a, b) => $"{a};{b}");
+
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(canonical));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Computes a SHA-256 hex digest of the raw JSON request payload (used for idempotency).
+    /// </summary>
+    internal static string ComputePayloadHash(object payload)
+    {
+        var json = JsonSerializer.Serialize(payload);
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(json));
+        return Convert.ToHexString(hashBytes).ToLowerInvariant();
     }
 
     private static PrescriptionDto ToDto(Prescription p, string doctorName, string? doctorSpecialty)
@@ -88,6 +119,13 @@ public class PrescriptionsController : ControllerBase
     /// <summary>
     /// Issue a new prescription. Only Doctors may call this endpoint.
     /// The doctor profile is resolved from the JWT userId claim.
+    ///
+    /// Idempotency: Clients SHOULD send an "Idempotency-Key" header (UUID v4).
+    /// If a key is provided, the server records it alongside a SHA-256 hash of the
+    /// request payload. On a replay:
+    ///   - Same key + same payload  → returns the previously committed prescription (HTTP 200).
+    ///   - Same key + changed payload → HTTP 409 Conflict (mutated payload on existing key).
+    ///   - No key provided            → processed normally, duplicate protection not guaranteed.
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Doctor")]
@@ -95,6 +133,71 @@ public class PrescriptionsController : ControllerBase
     {
         var userId = TryGetUserId();
         if (userId == null) return Unauthorized();
+
+        // ── Idempotency enforcement ────────────────────────────────────────
+        var idempotencyKey = Request.Headers["Idempotency-Key"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            var payloadHash = ComputePayloadHash(request);
+            var existing = await _db.IdempotencyRecords
+                .FirstOrDefaultAsync(r => r.Key == idempotencyKey && r.ExpiresAt > DateTime.UtcNow);
+
+            if (existing != null)
+            {
+                // Same key — check for payload mutation
+                if (existing.PayloadHash != payloadHash)
+                    return Conflict(new
+                    {
+                        message = "Idempotency key already used with a different request payload. " +
+                                  "Reuse of an Idempotency-Key is only permitted for exact retries of the original request."
+                    });
+
+                // Same key + same payload → replay: return the already-committed prescription
+                var committed = await _db.Prescriptions
+                    .Include(p => p.Doctor).ThenInclude(d => d.DoctorSpecialties).ThenInclude(ds => ds.Specialty)
+                    .Include(p => p.Patient)
+                    .Include(p => p.Appointment)
+                    .Include(p => p.Items)
+                    .FirstOrDefaultAsync(p => p.Id == existing.PrescriptionId);
+
+                if (committed != null)
+                {
+                    var doctorName   = committed.Doctor?.FullName ?? "Unknown Doctor";
+                    var specialty    = committed.Doctor?.DoctorSpecialties.Select(ds => ds.Specialty.Name).FirstOrDefault();
+                    Response.Headers.Append("Idempotency-Replayed", "true");
+                    return Ok(new
+                    {
+                        message = $"Prescription {committed.Id} (replayed — idempotent response).",
+                        prescription = ToDto(committed, doctorName, specialty)
+                    });
+                }
+            }
+            else
+            {
+                // First time seeing this key — store the record BEFORE committing
+                // so concurrent requests with the same key are detected
+                _db.IdempotencyRecords.Add(new IdempotencyRecord
+                {
+                    Key         = idempotencyKey,
+                    PayloadHash = payloadHash,
+                    PrescriptionId = 0, // will be updated after SaveChanges
+                    CreatedAt   = DateTime.UtcNow,
+                    ExpiresAt   = DateTime.UtcNow.AddHours(24)
+                });
+                // We commit the placeholder in a separate SaveChanges call so that
+                // concurrent requests with the same key get a unique-key violation
+                // rather than a race condition producing two prescriptions.
+                try
+                {
+                    await _db.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    // Concurrent request already inserted this key — treat as conflict
+                    return Conflict(new { message = "Concurrent request with the same Idempotency-Key detected. Please retry after the original request completes." });
+                }
+            }
+        }
 
         // Validate prescription items
         if (request.Items == null || request.Items.Count == 0)
@@ -159,7 +262,8 @@ public class PrescriptionsController : ControllerBase
             instructions = string.IsNullOrWhiteSpace(instructions) ? labSummary : $"{instructions}\n\n{labSummary}";
         }
 
-        // Build the Prescription entity
+        var contentHash = ComputeContentHash(request.Items);
+
         var prescription = new Prescription
         {
             AppointmentId = request.AppointmentId,
@@ -178,7 +282,9 @@ public class PrescriptionsController : ControllerBase
             IssuedAt = DateTime.UtcNow,
             ExpiryDate = DateTime.UtcNow.AddDays(30),
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            UpdatedAt = DateTime.UtcNow,
+            ContentHash = contentHash,   // hash of item list for approval traceability
+            ApprovalHash = null          // set when doctor explicitly approves AI safety check
         };
 
         // Build prescription line items
@@ -198,6 +304,17 @@ public class PrescriptionsController : ControllerBase
 
         _db.Prescriptions.Add(prescription);
         await _db.SaveChangesAsync();
+
+        // Update the idempotency record with the committed prescription ID
+        if (!string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            var idempRecord = await _db.IdempotencyRecords.FindAsync(idempotencyKey);
+            if (idempRecord != null)
+            {
+                idempRecord.PrescriptionId = prescription.Id;
+                await _db.SaveChangesAsync();
+            }
+        }
 
         // Send in-app notification to the registered patient if one exists
         if (patient != null && patient.UserId > 0)
@@ -531,8 +648,31 @@ public class PrescriptionsController : ControllerBase
             }
         }
 
-        prescription.SafetyCheckedAt = null;
+        // ── Approval Invalidation on Medication Change ─────────────────────
+        // If the item list changed, recompute ContentHash and compare against ApprovalHash.
+        // Any mutation after a doctor signed off on the AI safety check MUST invalidate
+        // the prior approval — forcing re-evaluation before dispensing proceeds.
+        if (request.Items != null && request.Items.Count > 0)
+        {
+            var newContentHash = ComputeContentHash(request.Items);
+            prescription.ContentHash = newContentHash;
+
+            bool itemsChangedAfterApproval =
+                prescription.ApprovalHash != null &&
+                prescription.ApprovalHash != newContentHash;
+
+            if (itemsChangedAfterApproval)
+            {
+                // Revoke the prior approval — the reviewed medication list is no longer
+                // the current medication list. Dispensing must be blocked until the doctor
+                // re-evaluates the updated prescription.
+                prescription.SafetyCheckedAt = null;
+                prescription.ApprovalHash    = null;
+            }
+        }
+
         prescription.UpdatedAt = DateTime.UtcNow;
+
 
         // Purge old warning logs from previous medication list
         var oldLogs = await _db.DrugInteractionLogs

@@ -39,6 +39,24 @@ public class Prescription
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    // ── Clinical Integrity & Approval Traceability ─────────────────────────
+    /// <summary>
+    /// SHA-256 hex digest of the canonicalized, ordered list of prescription items
+    /// (MedicineName|Dosage|Frequency|Duration|Quantity, sorted and joined).
+    /// Recomputed on every item update. Allows the system to detect silent payload
+    /// mutations after clinical safety review.
+    /// </summary>
+    public string? ContentHash { get; set; }
+
+    /// <summary>
+    /// Snapshot of ContentHash captured at the exact moment the doctor approved
+    /// the AI safety recommendation (SafetyCheckedAt is set).
+    /// If ContentHash != ApprovalHash the prescription is flagged as
+    /// "items modified after safety approval" and dispensing must be blocked
+    /// pending re-evaluation.
+    /// </summary>
+    public string? ApprovalHash { get; set; }
+
     // Navigation
     public Doctor Doctor { get; set; } = null!;
     public Patient? Patient { get; set; }
@@ -46,6 +64,7 @@ public class Prescription
     public ICollection<PrescriptionItem> Items { get; set; } = new List<PrescriptionItem>();
     public ICollection<MedicineOrder> Orders { get; set; } = new List<MedicineOrder>();
 }
+
 
 public enum FulfillmentSource
 {
