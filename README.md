@@ -52,6 +52,7 @@
 - [Safety, Guardrails & Safe Failures](#-safety-guardrails--safe-failures)
 - [Testing & Quality Assurance](#-testing--quality-assurance)
 - [Project Division & Responsibilities](#-project-division--responsibilities)
+- [Known Limitations & Engineering Roadmap](#-known-limitations--engineering-roadmap)
 - [License](#-license)
 
 ---
@@ -624,9 +625,49 @@ cd mobile && flutter test
 
 ---
 
+## 🗺️ Known Limitations & Engineering Roadmap
+
+> [!NOTE]
+> The following items represent architectural gaps and planned improvements identified during peer review and expert clinical feedback. They are documented here in the spirit of transparency and engineering rigor.
+
+### ⚠️ Currently Known Limitations
+
+| Area | Current State | Clinical / Engineering Risk |
+| :--- | :--- | :--- |
+| **Prescription Idempotency** | No client-generated idempotency key on `POST /api/prescriptions`. A dropped connection with a naive client retry can produce duplicate authorized prescriptions. | **High** — Duplicate dispensing is a direct patient safety risk. |
+| **Approval Invalidation on Medication Change** | Modifying a prescription item after AI safety approval does not automatically revoke or re-trigger the prior safety sign-off. | **High** — Stale approval for an altered drug payload is a clinical hazard. |
+| **Knowledge Base Snapshot Versioning** | The compiled hybrid knowledge base (`mediflow_knowledge_base.db`) does not yet carry an automated, dated semantic version tag across the full index. | **Medium** — Clinical audit trails cannot currently reference the exact guideline version that produced a recommendation. |
+| **Rollback Pipeline** | Rolling back to a prior knowledge base version requires manual database artifact substitution and re-deployment rather than an automated, tested rollback workflow. | **Medium** — Regressions from guideline updates cannot be rapidly reverted. |
+| **Guideline Version on Audit Records** | Patient consultation and prescription records do not yet persist an explicit `kb_version_hash` field linking each clinical decision to the exact knowledge base snapshot active at the time. | **Medium** — End-to-end clinical traceability and legal auditability is incomplete. |
+| **Cross-Agent Distributed Tracing** | Individual agent thought steps are logged, but unified distributed tracing spanning multiple agents in a single clinical request is not yet implemented. | **Low–Medium** — Difficult to trace inter-agent latency and failure propagation in production. |
+
+---
+
+### 🚀 Engineering Roadmap (Upcoming Releases)
+
+#### 🔐 Prescription Transaction Safety & Idempotency
+- Implement **client-generated `Idempotency-Key` headers** on all prescription issuance endpoints, storing a `SHA-256` hash of the request payload alongside each key to detect and reject concurrent in-flight duplicates and payload-mutated retries.
+- Test explicitly: retry after server commits but the response is lost, concurrent retries with the same key, and reuse of the same key with a changed medication payload.
+- Bind the clinician's approval authorization to an **immutable content hash of the exact reviewed prescription version**. Any subsequent modification to medication items deterministically revokes the prior approval token at the database layer, forcing a complete re-evaluation and re-sign workflow.
+- All of the above to be verified in an isolated **synthetic failure test harness** with reproducible network drop and retry simulations before being promoted to any staging or production environment.
+
+#### 📚 Knowledge Base Versioning & Clinical Reproducibility
+- Tag each compiled knowledge base release with a **semantic version and build date** (e.g., `kb-v1.4.0-2026-Q4`) stored as an immutable artifact in the CI/CD pipeline.
+- Persist the exact **`kb_version_hash`** on every patient consultation and e-prescription database record, creating a verifiable link between each clinical recommendation and the specific guideline set that produced it.
+- Implement an **automated rollback pipeline** verified against the full 109-test Pytest clinical regression suite, enabling instant rollback to any prior certified knowledge base release if a new guideline update introduces diagnostic regressions.
+
+#### 🔭 Observability & Cross-Agent Traceability
+- Integrate **unified distributed tracing** (OpenTelemetry or equivalent) spanning all agent boundaries — Specialist Recommender, Clinical Decision Support, Medication Intelligence, and Inventory Agent — to provide end-to-end request visibility and latency attribution.
+- Build automated **runtime escalation paths** that detect and surface inter-agent failures through centralized alerting and fallback orchestration.
+
+> [!IMPORTANT]
+> These items are not a reflection of the current system being unsafe for its educational and research scope. They represent the additional engineering investment required before any clinical pilot or production healthcare deployment is considered.
+
+---
+
 ## 📄 License
 
-This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
+This project is protected under a **Proprietary License — All Rights Reserved**. Commercial use, redistribution, sublicensing, and sale are strictly prohibited without explicit written permission. See [LICENSE](./LICENSE) for full terms.
 
 ---
 
