@@ -14,6 +14,15 @@ public class AppDbContext : DbContext
     public DbSet<Notification> Notifications => Set<Notification>();
 
     // ─────────────────────────────────────────────────────────────────────
+    // SHARED — Clinical Safety & Idempotency
+    // ─────────────────────────────────────────────────────────────────────
+    /// <summary>
+    /// Prescription idempotency registry — prevents duplicate authorized prescriptions
+    /// on dropped-connection retries or concurrent requests.
+    /// </summary>
+    public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
+
+    // ─────────────────────────────────────────────────────────────────────
     // MEMBER 1 — Patient & Appointment Management
     // ─────────────────────────────────────────────────────────────────────
     public DbSet<Patient> Patients => Set<Patient>();
@@ -60,7 +69,15 @@ public class AppDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // ── User ──────────────────────────────────────────────────────────
+        // ── IdempotencyRecord ─────────────────────────────────────────────
+        modelBuilder.Entity<IdempotencyRecord>(entity =>
+        {
+            entity.HasKey(r => r.Key);
+            entity.Property(r => r.Key).HasMaxLength(128);
+            entity.Property(r => r.PayloadHash).IsRequired().HasMaxLength(64);
+            entity.HasIndex(r => r.ExpiresAt); // For TTL pruning queries
+        });
+
         modelBuilder.Entity<User>(entity =>
         {
             entity.HasKey(u => u.Id);
